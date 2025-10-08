@@ -112,10 +112,16 @@ export const computeProjectFinance = async (
     .reduce((sum, ci) => sum + (ci.amount || 0), 0) || 0;
 
   // 5. Get total budget from tasks
-  const { data: tasks, error: tasksError } = await supabase
+  let budgetQuery = supabase
     .from("tasks")
     .select("budget_amount")
     .eq("project_id", projectId);
+  
+  if (taskId) {
+    budgetQuery = budgetQuery.eq("id", taskId);
+  }
+  
+  const { data: tasks, error: tasksError } = await budgetQuery;
   
   if (tasksError) {
     console.error("Failed to fetch tasks budget:", tasksError);

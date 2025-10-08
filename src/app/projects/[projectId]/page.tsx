@@ -20,6 +20,7 @@ export default function ProjectDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [refreshSummary, setRefreshSummary] = useState<(() => Promise<void>) | null>(null);
 
   const fetchProject = async () => {
     try {
@@ -63,6 +64,18 @@ export default function ProjectDetailPage() {
     fetchProject();
     fetchTasks();
   }, [projectId]);
+
+  // Listen for time entry added events from task detail pages
+  useEffect(() => {
+    const handleTimeEntryAdded = () => {
+      if (refreshSummary) {
+        refreshSummary();
+      }
+    };
+
+    window.addEventListener('timeEntryAdded', handleTimeEntryAdded);
+    return () => window.removeEventListener('timeEntryAdded', handleTimeEntryAdded);
+  }, [refreshSummary]);
 
   const handleUpdateTask = async (taskId: string, data: Partial<Task>) => {
     try {
@@ -169,7 +182,7 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="space-y-6">
-      <ProjectHeader project={project} onUpdate={fetchProject} />
+      <ProjectHeader project={project} onUpdate={setRefreshSummary} />
 
       {/* Task List */}
       <div className="space-y-4">
@@ -195,6 +208,14 @@ export default function ProjectDetailPage() {
             }}
             onReorder={handleReorderTasks}
             projectId={projectId}
+            onTaskUpdated={() => {
+              // Refresh project data when task is updated
+              fetchProject();
+              // Also refresh summary if available
+              if (refreshSummary) {
+                refreshSummary();
+              }
+            }}
           />
         ) : (
           <div className="rounded-md border p-8 text-center">

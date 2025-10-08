@@ -3,14 +3,14 @@ import { computeProjectFinance } from "@/server/finance/computeProjectFinance";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { projectId } = await params;
     const { searchParams } = new URL(req.url);
     const taskId = searchParams.get("task_id");
     
-    const finance = await computeProjectFinance(id, taskId || undefined);
+    const finance = await computeProjectFinance(projectId, taskId || undefined);
 
     if (!finance) {
       return NextResponse.json(

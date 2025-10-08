@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const supabase = createClient();
-    const projectId = params.id;
+    const projectId = params.projectId;
 
     // Get project details
     const { data: project, error: projectError } = await supabase
@@ -29,7 +29,7 @@ export async function GET(
     // Get tasks count and completion
     const { data: tasks, error: tasksError } = await supabase
       .from("tasks")
-      .select("status, budget_amount")
+      .select("id, status, budget_amount")
       .eq("project_id", projectId);
 
     if (tasksError) {
@@ -98,10 +98,11 @@ export async function GET(
       }
     }
 
-    // Calculate totals
-    const totalCost = laborCost + externalCost;
-    const profit = totalBudget - totalCost;
-    const profitPct = totalBudget > 0 ? (profit / totalBudget) * 100 : 0;
+    // Calculate totals - labor is profit, external costs are losses
+    const totalCost = externalCost; // Only external costs count as costs
+    const totalRevenue = laborCost; // Labor is revenue/profit
+    const profit = totalRevenue - totalCost; // Revenue minus costs
+    const profitPct = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
     const summary = {
       totalTasks,

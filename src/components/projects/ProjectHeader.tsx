@@ -5,10 +5,10 @@ import { ProjectSummary } from "./ProjectSummary";
 
 interface ProjectHeaderProps {
   project: Project;
-  onUpdate: () => void;
+  onUpdate: (refreshFn: () => Promise<void>) => void;
 }
 
-export const ProjectHeader = ({ project }: ProjectHeaderProps) => {
+export const ProjectHeader = ({ project, onUpdate }: ProjectHeaderProps) => {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -30,8 +30,8 @@ export const ProjectHeader = ({ project }: ProjectHeaderProps) => {
         </div>
       </div>
 
-      {/* Project Summary */}
-      <ProjectSummary projectId={project.id} />
+          {/* Project Summary */}
+          <ProjectSummary projectId={project.id} onUpdate={onUpdate} />
     </div>
   );
 };

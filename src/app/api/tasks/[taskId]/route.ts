@@ -7,16 +7,16 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { taskId } = await params;
     const supabase = createClient();
 
     const { data: task, error } = await supabase
       .from("tasks")
       .select("*, project:projects(id, name, code)")
-      .eq("id", id)
+      .eq("id", taskId)
       .single();
 
     if (error) {
@@ -34,9 +34,9 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
-  const { id } = await params;
+  const { taskId } = await params;
   try {
     const body = await request.json();
     const validation = validateSchema(updateTaskSchema, body);
@@ -50,7 +50,7 @@ export async function PATCH(
     const { data: task, error } = await supabase
       .from("tasks")
       .update(validation.data)
-      .eq("id", id)
+      .eq("id", taskId)
       .select("*, project:projects(id, name, code)")
       .single();
 
@@ -69,13 +69,13 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { taskId } = await params;
     const supabase = createClient();
 
-    const { error } = await supabase.from("tasks").delete().eq("id", id);
+    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });

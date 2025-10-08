@@ -5,10 +5,10 @@ import { resolveHourlyRate } from "@/server/rates/resolveHourlyRate";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ timeEntryId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { timeEntryId: id } = await params;
     const supabase = createClient();
 
     const { data, error } = await supabase
@@ -41,10 +41,10 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ timeEntryId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { timeEntryId: id } = await params;
     const supabase = createClient();
     const body = await req.json();
 
@@ -164,10 +164,10 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ timeEntryId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { timeEntryId: id } = await params;
     const supabase = createClient();
 
     // Get time entry before deletion (need task_id and project_id)

@@ -47,6 +47,7 @@ interface TaskRowProps {
   onDragOver: (e: React.DragEvent) => void;
   onDrop: () => void;
   onDragEnd: () => void;
+  onTaskUpdated?: () => void;
 }
 
 const statusColors = {
@@ -90,6 +91,7 @@ export function TaskRow({
   onDragOver,
   onDrop,
   onDragEnd,
+  onTaskUpdated,
 }: TaskRowProps) {
   const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -101,7 +103,7 @@ export function TaskRow({
       target.closest("button") ||
       target.closest("[role='combobox']") ||
       target.closest("[role='menuitem']") ||
-      target.closest("[draggable='true']") ||
+      target.closest(".drag-handle") ||
       isDragging
     ) {
       return;
@@ -113,6 +115,9 @@ export function TaskRow({
     setIsUpdating(true);
     try {
       await onUpdate(task.id, { status: newStatus as Task["status"] });
+      if (onTaskUpdated) {
+        onTaskUpdated();
+      }
     } finally {
       setIsUpdating(false);
     }
@@ -122,6 +127,9 @@ export function TaskRow({
     setIsUpdating(true);
     try {
       await onUpdate(task.id, { priority: newPriority as Task["priority"] });
+      if (onTaskUpdated) {
+        onTaskUpdated();
+      }
     } finally {
       setIsUpdating(false);
     }
@@ -160,7 +168,7 @@ export function TaskRow({
     >
       {/* Drag handle */}
       <TableCell>
-        <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
+        <GripVertical className="drag-handle h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
       </TableCell>
 
       {/* Title */}

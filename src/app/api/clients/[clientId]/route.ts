@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { clientId: string } }
 ) {
   try {
     const supabase = createClient();
@@ -15,7 +15,7 @@ export async function GET(
     const { data: client, error } = await supabase
       .from("clients")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", params.clientId)
       .single();
 
     if (error) {
@@ -33,7 +33,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { clientId: string } }
 ) {
   try {
     const body = await request.json();
@@ -48,7 +48,7 @@ export async function PATCH(
     const { data: client, error } = await supabase
       .from("clients")
       .update(validation.data)
-      .eq("id", params.id)
+      .eq("id", params.clientId)
       .select()
       .single();
 
@@ -67,12 +67,12 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { clientId: string } }
 ) {
   try {
     const supabase = createClient();
 
-    const { error } = await supabase.from("clients").delete().eq("id", params.id);
+    const { error } = await supabase.from("clients").delete().eq("id", params.clientId);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });

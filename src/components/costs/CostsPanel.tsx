@@ -57,6 +57,7 @@ interface CostsPanelProps {
   projectId: string;
   tasks: Task[];
   defaultTaskId?: string;
+  onCostAdded?: () => void;
 }
 
 const COST_CATEGORIES = [
@@ -69,7 +70,7 @@ const COST_CATEGORIES = [
   "Other",
 ];
 
-export function CostsPanel({ projectId, tasks, defaultTaskId }: CostsPanelProps) {
+export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: CostsPanelProps) {
   const [costItems, setCostItems] = useState<CostItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -149,6 +150,11 @@ export function CostsPanel({ projectId, tasks, defaultTaskId }: CostsPanelProps)
         resetForm();
         setIsDialogOpen(false);
         fetchCostItems();
+        
+        // Notify parent component
+        if (onCostAdded) {
+          onCostAdded();
+        }
       } else {
         throw new Error(result.error);
       }

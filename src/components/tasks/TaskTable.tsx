@@ -28,6 +28,7 @@ interface TaskTableProps {
   onEdit?: (task: Task) => void;
   onReorder?: (taskId: string, newIndex: number) => Promise<void>;
   projectId: string;
+  onTaskUpdated?: () => void;
 }
 
 export function TaskTable({
@@ -37,6 +38,7 @@ export function TaskTable({
   onEdit,
   onReorder,
   projectId,
+  onTaskUpdated,
 }: TaskTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -212,6 +214,7 @@ export function TaskTable({
                   onDragOver={handleDragOver}
                   onDrop={() => handleDrop(task.id)}
                   onDragEnd={handleDragEnd}
+                  onTaskUpdated={onTaskUpdated}
                 />
               ))
             )}

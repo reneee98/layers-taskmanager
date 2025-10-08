@@ -44,9 +44,10 @@ interface TimePanelProps {
   projectId: string;
   tasks: Task[];
   defaultTaskId?: string;
+  onTimeEntryAdded?: () => void;
 }
 
-export function TimePanel({ projectId, tasks, defaultTaskId }: TimePanelProps) {
+export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }: TimePanelProps) {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string>(defaultTaskId || "");
   const [hours, setHours] = useState("");
@@ -181,6 +182,11 @@ export function TimePanel({ projectId, tasks, defaultTaskId }: TimePanelProps) {
 
         // Refresh entries
         fetchTimeEntries();
+        
+        // Notify parent component
+        if (onTimeEntryAdded) {
+          onTimeEntryAdded();
+        }
       } else {
         throw new Error(result.error);
       }

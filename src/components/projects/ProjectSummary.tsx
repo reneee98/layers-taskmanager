@@ -10,7 +10,6 @@ interface ProjectSummaryData {
   totalTasks: number;
   completedTasks: number;
   totalHours: number;
-  totalBudget: number;
   totalCost: number;
   profit: number;
   profitPct: number;
@@ -18,30 +17,39 @@ interface ProjectSummaryData {
 
 interface ProjectSummaryProps {
   projectId: string;
+  onUpdate?: (refreshFn: () => Promise<void>) => void;
 }
 
-export const ProjectSummary = ({ projectId }: ProjectSummaryProps) => {
+export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => {
   const [summary, setSummary] = useState<ProjectSummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchSummary = async () => {
-      try {
-        const response = await fetch(`/api/projects/${projectId}/summary`);
-        const result = await response.json();
+  const fetchSummary = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/summary`);
+      const result = await response.json();
 
-        if (result.success) {
-          setSummary(result.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch project summary:", error);
-      } finally {
-        setIsLoading(false);
+      if (result.success) {
+        setSummary(result.data);
       }
-    };
+    } catch (error) {
+      console.error("Failed to fetch project summary:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchSummary();
   }, [projectId]);
+
+  // Listen for updates from parent component
+  useEffect(() => {
+    if (onUpdate) {
+      // Register the refresh function with parent
+      onUpdate(fetchSummary);
+    }
+  }, [onUpdate, projectId]);
 
   if (isLoading) {
     return (
@@ -102,19 +110,20 @@ export const ProjectSummary = ({ projectId }: ProjectSummaryProps) => {
         </CardContent>
       </Card>
 
-      {/* Rozpočet */}
+
+      {/* Náklady */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">
-            Rozpočet
+            Náklady
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {formatCurrency(summary.totalBudget)}
+            {formatCurrency(summary.totalCost)}
           </div>
           <p className="text-xs text-muted-foreground">
-            Celkový rozpočet
+            Externé náklady
           </p>
         </CardContent>
       </Card>

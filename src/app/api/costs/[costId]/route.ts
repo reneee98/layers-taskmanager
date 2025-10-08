@@ -4,10 +4,10 @@ import { costItemUpdateSchema } from "@/lib/validations/cost-item";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ costId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { costId: id } = await params;
     const supabase = createClient();
 
     const { data, error } = await supabase
@@ -40,10 +40,10 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ costId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { costId: id } = await params;
     const supabase = createClient();
     const body = await req.json();
 
@@ -129,10 +129,10 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ costId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { costId: id } = await params;
     const supabase = createClient();
 
     // Get cost item before deletion (need project_id for finance snapshot)

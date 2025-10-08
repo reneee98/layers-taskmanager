@@ -5,10 +5,10 @@ import { resolveHourlyRate } from "@/server/rates/resolveHourlyRate";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
-    const { id: taskId } = await params;
+    const { taskId } = await params;
     const supabase = createClient();
     const body = await req.json();
 
@@ -118,10 +118,10 @@ export async function POST(
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
-    const { id: taskId } = await params;
+    const { taskId } = await params;
     const supabase = createClient();
 
     const { data, error } = await supabase

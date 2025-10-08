@@ -10,7 +10,7 @@ const createCommentSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { taskId: string } }
 ) {
   try {
     const supabase = createClient();
@@ -24,7 +24,7 @@ export async function GET(
     const { data: comments, error } = await supabase
       .from("task_comments")
       .select("*")
-      .eq("task_id", params.id)
+      .eq("task_id", params.taskId)
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -63,7 +63,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { taskId: string } }
 ) {
   try {
     const supabase = createClient();
@@ -80,7 +80,7 @@ export async function POST(
     const { data: comment, error } = await supabase
       .from("task_comments")
       .insert({
-        task_id: params.id,
+        task_id: params.taskId,
         user_id: user.id,
         content: validatedData.content,
         content_html: validatedData.content_html,

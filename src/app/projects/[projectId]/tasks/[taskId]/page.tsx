@@ -205,12 +205,6 @@ export default function TaskDetailPage() {
       <div className="space-y-4">
         <div>
           <h1 className="text-3xl font-bold">{task.title}</h1>
-          {task.description && (
-            <div 
-              className="text-muted-foreground mt-2 prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: task.description }}
-            />
-          )}
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -339,6 +333,13 @@ export default function TaskDetailPage() {
               projectId={params.projectId as string} 
               tasks={[task]} 
               defaultTaskId={task.id}
+              onTimeEntryAdded={() => {
+                // Refresh task data to update actual_hours
+                fetchTask();
+                // Also refresh project summary by navigating back and forth
+                // This is a simple way to trigger a refresh
+                window.dispatchEvent(new CustomEvent('timeEntryAdded'));
+              }}
             />
           </TabsContent>
 
@@ -347,6 +348,10 @@ export default function TaskDetailPage() {
               projectId={params.projectId as string} 
               tasks={[task]}
               defaultTaskId={task.id}
+              onCostAdded={() => {
+                // Refresh task data if needed
+                fetchTask();
+              }}
             />
           </TabsContent>
 

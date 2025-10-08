@@ -124,12 +124,13 @@ export const computeProjectFinance = async (
   
   const budgetAmount = tasks?.reduce((sum, task) => sum + (task.budget_amount || 0), 0) || 0;
 
-  // 6. Calculate totals
-  const totalCost = laborCost + externalCost;
+  // 6. Calculate totals - labor is revenue, external costs are losses
+  const totalCost = externalCost; // Only external costs count as costs
+  const totalRevenue = laborCost; // Labor is revenue/profit
   
   // 7. Calculate profit/loss
-  const profit = budgetAmount - totalCost;
-  const profitPct = budgetAmount > 0 ? (profit / budgetAmount) * 100 : 0;
+  const profit = totalRevenue - totalCost; // Revenue minus costs
+  const profitPct = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
   // 8. Build daily data for charts
   const dailyMap = new Map<string, DailyFinanceData>();

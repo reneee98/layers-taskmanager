@@ -53,13 +53,12 @@ export function DatePicker({ value, onChange, placeholder = "Vyberte dátum", di
           <CalendarIcon className="mr-2 h-4 w-4" />
           {date ? format(date, "dd.MM.yyyy") : placeholder}
           {date && (
-            <button
-              type="button"
+            <span
               onClick={handleClear}
-              className="ml-auto h-4 w-4 rounded-sm opacity-70 hover:opacity-100"
+              className="ml-auto h-4 w-4 rounded-sm opacity-70 hover:opacity-100 cursor-pointer flex items-center justify-center"
             >
               ×
-            </button>
+            </span>
           )}
         </Button>
       </PopoverTrigger>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { projectSchema, type ProjectFormData } from "@/lib/validations/project";
+import { projectSchema, updateProjectSchema, type ProjectFormData, type UpdateProjectData } from "@/lib/validations/project";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,8 +47,8 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
     reset,
     setValue,
     watch,
-  } = useForm<ProjectFormData>({
-    resolver: zodResolver(projectSchema),
+  } = useForm<ProjectFormData | UpdateProjectData>({
+    resolver: zodResolver(isEditing ? updateProjectSchema : projectSchema),
     defaultValues: project
       ? {
           client_id: project.client_id,
@@ -57,10 +57,12 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
           description: project.description || "",
           status: project.status,
           currency: project.currency || "EUR",
-          hourly_rate: project.hourly_rate || undefined,
-          fixed_fee: project.fixed_fee || undefined,
+          hourly_rate: project.hourly_rate || null,
+          fixed_fee: project.fixed_fee || null,
+          external_costs_budget: project.external_costs_budget || null,
           start_date: project.start_date || "",
           end_date: project.end_date || "",
+          notes: project.notes || "",
         }
       : {
           status: "draft",
@@ -136,10 +138,12 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
         description: project.description || "",
         status: project.status,
         currency: project.currency || "EUR",
-        hourly_rate: project.hourly_rate || undefined,
-        fixed_fee: project.fixed_fee || undefined,
+        hourly_rate: project.hourly_rate || null,
+        fixed_fee: project.fixed_fee || null,
+        external_costs_budget: project.external_costs_budget || null,
         start_date: project.start_date || "",
         end_date: project.end_date || "",
+        notes: project.notes || "",
       });
     } else {
       reset({
@@ -152,7 +156,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
     }
   }, [project, reset]);
 
-  const handleFormSubmit = async (data: ProjectFormData) => {
+  const handleFormSubmit = async (data: ProjectFormData | UpdateProjectData) => {
     setIsSubmitting(true);
 
     try {
@@ -162,12 +166,51 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
       // Clean up data - convert empty strings to null for optional fields
       const cleanedData = {
         ...data,
-        start_date: data.start_date || null,
-        end_date: data.end_date || null,
-        hourly_rate: data.hourly_rate || null,
-        fixed_fee: data.fixed_fee || null,
-        external_costs_budget: data.external_costs_budget || null,
+        start_date: data.start_date && data.start_date.trim() !== "" ? data.start_date : null,
+        end_date: data.end_date && data.end_date.trim() !== "" ? data.end_date : null,
+        code: data.code && data.code.trim() !== "" ? data.code : null,
+        description: data.description && data.description.trim() !== "" ? data.description : null,
+        notes: data.notes && data.notes.trim() !== "" ? data.notes : null,
+        currency: data.currency && data.currency.trim() !== "" ? data.currency : null,
       };
+
+      // Handle number fields separately - convert empty strings to null
+      if (data.hourly_rate && data.hourly_rate > 0) {
+        cleanedData.hourly_rate = data.hourly_rate;
+      } else {
+        cleanedData.hourly_rate = null;
+      }
+      
+      if (data.fixed_fee && data.fixed_fee > 0) {
+        cleanedData.fixed_fee = data.fixed_fee;
+      } else {
+        cleanedData.fixed_fee = null;
+      }
+      
+      if (data.external_costs_budget && data.external_costs_budget > 0) {
+        cleanedData.external_costs_budget = data.external_costs_budget;
+      } else {
+        cleanedData.external_costs_budget = null;
+      }
+
+      // Force convert empty strings to null for number fields
+      if (cleanedData.hourly_rate === "" || cleanedData.hourly_rate === 0) {
+        cleanedData.hourly_rate = null;
+      }
+      if (cleanedData.fixed_fee === "" || cleanedData.fixed_fee === 0) {
+        cleanedData.fixed_fee = null;
+      }
+      if (cleanedData.external_costs_budget === "" || cleanedData.external_costs_budget === 0) {
+        cleanedData.external_costs_budget = null;
+      }
+
+      // Remove undefined values
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === undefined) {
+          delete cleanedData[key];
+        }
+      });
+
 
       const response = await fetch(url, {
         method,

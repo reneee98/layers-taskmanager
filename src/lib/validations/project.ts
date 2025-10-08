@@ -23,7 +23,16 @@ export const projectSchema = z.object({
   notes: z.string().optional().or(z.literal("")),
 });
 
-export const updateProjectSchema = projectSchema.partial();
+export const updateProjectSchema = projectSchema.partial().extend({
+  client_id: z.string().uuid("Neplatné ID klienta").optional(),
+  name: z.string().min(1, "Názov je povinný").max(255, "Názov je príliš dlhý").optional(),
+  status: projectStatusEnum.optional(),
+  description: z.string().optional().or(z.literal("")).nullable(),
+  notes: z.string().optional().or(z.literal("")).nullable(),
+  hourly_rate: z.number().optional().nullable(),
+  fixed_fee: z.number().optional().nullable(),
+  external_costs_budget: z.number().optional().nullable(),
+});
 
 export type ProjectFormData = z.infer<typeof projectSchema>;
 export type UpdateProjectData = z.infer<typeof updateProjectSchema>;

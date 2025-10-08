@@ -1,3 +1,14 @@
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
+  role: "owner" | "designer";
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -38,7 +49,7 @@ export interface Task {
   description: string | null;
   status: "todo" | "in_progress" | "review" | "done" | "cancelled";
   priority: "low" | "medium" | "high" | "urgent";
-  assigned_to: string | null;
+  assignee_id: string | null;
   estimated_hours: number | null;
   actual_hours: number | null;
   budget_amount: number | null;
@@ -48,6 +59,27 @@ export interface Task {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  assignee?: User;
+  assignees?: TaskAssignee[];
   project?: Project;
+}
+
+export interface TaskAssignee {
+  id: string;
+  task_id: string;
+  user_id: string;
+  assigned_at: string;
+  assigned_by: string | null;
+  user?: User;
+}
+
+export interface ProjectMember {
+  id: string;
+  project_id: string;
+  user_id: string;
+  role: "owner" | "manager" | "member";
+  hourly_rate: number | null;
+  joined_at: string;
+  user?: User;
 }
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Task } from "@/types/database";
+import { Task, User } from "@/types/database";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
   Select,
@@ -219,20 +219,32 @@ export function TaskRow({
         </Select>
       </TableCell>
 
-      {/* Assignee */}
+      {/* Assignees - show avatars with overflow */}
       <TableCell>
-        {task.assigned_to ? (
-          <div className="flex items-center gap-2">
-            <Avatar className="h-6 w-6">
-              <AvatarFallback className="text-xs">
-                {getInitials(task.assigned_to)}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-sm">{task.assigned_to}</span>
-          </div>
-        ) : (
-          <span className="text-sm text-muted-foreground">Nepriradené</span>
-        )}
+        <div className="flex items-center gap-1">
+          {task.assignees && task.assignees.length > 0 ? (
+            <>
+              {task.assignees.slice(0, 4).map((assignee, index) => (
+                <Avatar key={assignee.id} className="h-6 w-6">
+                  <AvatarFallback className="text-xs">
+                    {getInitials(assignee.user?.name)}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {task.assignees.length > 4 && (
+                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground">
+                    +{task.assignees.length - 4}
+                  </span>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="h-6 w-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+              <span className="text-xs text-muted-foreground/50">?</span>
+            </div>
+          )}
+        </div>
       </TableCell>
 
       {/* Estimated hours */}

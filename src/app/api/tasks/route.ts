@@ -17,7 +17,11 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("tasks")
-      .select("*, project:projects(id, name, code)")
+      .select(`
+        *,
+        project:projects(id, name, code),
+        assignee:users!assignee_id(id, name, email, avatar_url)
+      `)
       .order("order_index", { ascending: true })
       .order("created_at", { ascending: false });
 
@@ -50,7 +54,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, data: tasks });
+    // Fetch assignees for each task
+    const tasksWithAssignees = await Promise.all(
+      (tasks || []).map(async (task) => {
+        const { data: assignees } = await supabase
+          .from("task_assignees")
+          .select(`
+            *,
+            user:users!task_assignees_user_id_fkey(*)
+          `)
+          .eq("task_id", task.id);
+
+        return {
+          ...task,
+          assignees: assignees || []
+        };
+      })
+    );
+
+    return NextResponse.json({ success: true, data: tasksWithAssignees });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Internal server error" },

@@ -12,6 +12,7 @@ export const taskSchema = z.object({
   status: taskStatusEnum.default("todo").optional(),
   priority: taskPriorityEnum.default("medium").optional(),
   assigned_to: z.string().uuid("Neplatné ID používateľa").optional().nullable(),
+  assignee_id: z.string().uuid("Neplatné ID používateľa").optional().nullable(),
   estimated_hours: z.number().min(0, "Odhad musí byť kladný").optional().nullable(),
   budget_amount: z.number().min(0, "Budget musí byť kladný").optional().nullable(),
   due_date: z.string().optional().or(z.literal("")).nullable(),

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ArrowLeft, Clock, Euro, BarChart3, MessageSquare, Paperclip, FileText } from "lucide-react";
 import { TimePanel } from "@/components/time/TimePanel";
 import { CostsPanel } from "@/components/costs/CostsPanel";
@@ -12,15 +13,17 @@ import { ProjectReport } from "@/components/report/ProjectReport";
 import { CommentsList } from "@/components/comments/CommentsList";
 import { FilesList } from "@/components/files/FilesList";
 import { QuillEditor } from "@/components/ui/quill-editor";
+import { MultiAssigneeSelect } from "@/components/tasks/MultiAssigneeSelect";
 import { toast } from "@/hooks/use-toast";
 import { getTextPreview } from "@/lib/utils/html";
 import { formatHours } from "@/lib/format";
-import type { Task } from "@/types/database";
+import type { Task, TaskAssignee } from "@/types/database";
 
 export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
+  const [assignees, setAssignees] = useState<TaskAssignee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [description, setDescription] = useState("");
   const [descriptionHtml, setDescriptionHtml] = useState("");
@@ -52,8 +55,22 @@ export default function TaskDetailPage() {
     }
   };
 
+  const fetchAssignees = async () => {
+    try {
+      const response = await fetch(`/api/tasks/${params.taskId}/assignees`);
+      const result = await response.json();
+
+      if (result.success) {
+        setAssignees(result.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch assignees:", error);
+    }
+  };
+
   useEffect(() => {
     fetchTask();
+    fetchAssignees();
   }, [params.taskId]);
 
   // Cleanup timeout on unmount
@@ -139,6 +156,10 @@ export default function TaskDetailPage() {
     }
   };
 
+  const handleAssigneesChange = (newAssignees: TaskAssignee[]) => {
+    setAssignees(newAssignees);
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
@@ -183,6 +204,14 @@ export default function TaskDetailPage() {
       default:
         return "bg-gray-500/10 text-gray-500 border-gray-500/20";
     }
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase();
   };
 
   return (
@@ -247,6 +276,12 @@ export default function TaskDetailPage() {
               💰 Rozpočet: {task.budget_amount.toFixed(2)} €
             </Badge>
           )}
+
+          <MultiAssigneeSelect
+            taskId={task.id}
+            currentAssignees={assignees}
+            onAssigneesChange={handleAssigneesChange}
+          />
         </div>
       </div>
 
@@ -361,6 +396,7 @@ export default function TaskDetailPage() {
               taskId={task.id}
             />
           </TabsContent>
+
         </Tabs>
       </div>
     </div>

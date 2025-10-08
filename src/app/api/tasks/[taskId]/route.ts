@@ -15,7 +15,11 @@ export async function GET(
 
     const { data: task, error } = await supabase
       .from("tasks")
-      .select("*, project:projects(id, name, code)")
+      .select(`
+        *,
+        project:projects(id, name, code),
+        assignee:users!assignee_id(id, name, email, avatar_url)
+      `)
       .eq("id", taskId)
       .single();
 
@@ -51,7 +55,11 @@ export async function PATCH(
       .from("tasks")
       .update(validation.data)
       .eq("id", taskId)
-      .select("*, project:projects(id, name, code)")
+      .select(`
+        *,
+        project:projects(id, name, code),
+        assignee:users!assignee_id(id, name, email, avatar_url)
+      `)
       .single();
 
     if (error) {

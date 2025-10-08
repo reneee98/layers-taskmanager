@@ -307,7 +307,7 @@ export default function InvoicesPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Dokončené projekty</CardTitle>
@@ -316,17 +316,6 @@ export default function InvoicesPage() {
           <CardContent>
             <div className="text-2xl font-bold">{readyProjects.length}</div>
             <p className="text-xs text-muted-foreground">Celková hodnota: {formatCurrency(totalProjectsValue)}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dokončené úlohy</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{(activeTab === "projects" ? readyTasks : archivedTasks).length}</div>
-            <p className="text-xs text-muted-foreground">Celková hodnota: {formatCurrency(totalTasksValue)}</p>
           </CardContent>
         </Card>
 

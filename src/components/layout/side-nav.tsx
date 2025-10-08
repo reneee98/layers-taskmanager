@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Users, FolderKanban, LogOut } from "lucide-react";
+import { Users, FolderKanban, LogOut, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +16,11 @@ interface SideNavProps {
 }
 
 const navItems = [
+  {
+    title: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+  },
   {
     title: "Klienti",
     href: "/clients",
@@ -121,45 +126,35 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
           </nav>
           
           {/* Theme switcher */}
-          <div className="mt-auto border-t border-border pt-6">
-            <div className="flex items-center justify-between px-4 py-3">
-              <span className="text-sm font-medium text-muted-foreground">Téma</span>
+          <div className="mt-auto border-t border-border pt-4">
+            <div className="flex items-center justify-between px-4 py-2">
+              <span className="text-xs text-muted-foreground">Téma</span>
               <ThemeSwitcher />
             </div>
           </div>
 
-          {/* User info at bottom */}
+          {/* User info at very bottom */}
           {user && profile && (
-            <div className="border-t border-border pt-6">
-              <div className="flex items-center gap-3 px-4 py-3">
+            <div className="border-t border-border pt-3">
+              <div className="flex items-center gap-2 px-4 py-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs">
+                  <AvatarFallback className="text-sm">
                     {getInitials(profile.name || user.email || "U")}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
+                  <p className="text-xs font-medium truncate text-muted-foreground">
                     {profile.name || user.email}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {user.email}
-                  </p>
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getRoleColor(
-                      profile.role
-                    )}`}
-                  >
-                    {getRoleLabel(profile.role)}
-                  </span>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={handleSignOut}
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
                   title="Odhlásiť sa"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-3 w-3" />
                 </Button>
               </div>
             </div>

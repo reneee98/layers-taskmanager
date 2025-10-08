@@ -14,6 +14,8 @@ import { CommentsList } from "@/components/comments/CommentsList";
 import { FilesList } from "@/components/files/FilesList";
 import { QuillEditor } from "@/components/ui/quill-editor";
 import { MultiAssigneeSelect } from "@/components/tasks/MultiAssigneeSelect";
+import { StatusSelect } from "@/components/tasks/StatusSelect";
+import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { toast } from "@/hooks/use-toast";
 import { getTextPreview } from "@/lib/utils/html";
 import { formatHours } from "@/lib/format";
@@ -160,6 +162,84 @@ export default function TaskDetailPage() {
     setAssignees(newAssignees);
   };
 
+  const handleStatusChange = async (newStatus: "todo" | "in_progress" | "review" | "done" | "cancelled") => {
+    if (!task) return;
+    
+    try {
+      const response = await fetch(`/api/tasks/${params.taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: newStatus,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTask({ ...task, status: newStatus });
+        toast({
+          title: "Úspech",
+          description: "Status úlohy bol aktualizovaný",
+        });
+      } else {
+        toast({
+          title: "Chyba",
+          description: result.error || "Nepodarilo sa aktualizovať status",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa aktualizovať status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePriorityChange = async (newPriority: "low" | "medium" | "high" | "urgent") => {
+    if (!task) return;
+    
+    try {
+      const response = await fetch(`/api/tasks/${params.taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          priority: newPriority,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTask({ ...task, priority: newPriority });
+        toast({
+          title: "Úspech",
+          description: "Priorita úlohy bola aktualizovaná",
+        });
+      } else {
+        toast({
+          title: "Chyba",
+          description: result.error || "Nepodarilo sa aktualizovať prioritu",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating priority:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa aktualizovať prioritu",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
@@ -237,19 +317,15 @@ export default function TaskDetailPage() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Badge className={getStatusColor(task.status)}>
-            {task.status === "todo" && "Na urobiť"}
-            {task.status === "in_progress" && "Prebieha"}
-            {task.status === "done" && "Hotovo"}
-            {task.status === "cancelled" && "Zrušené"}
-          </Badge>
+          <StatusSelect 
+            status={task.status} 
+            onStatusChange={handleStatusChange}
+          />
           
-          <Badge className={getPriorityColor(task.priority)}>
-            {task.priority === "urgent" && "🔥 Urgentné"}
-            {task.priority === "high" && "Vysoká"}
-            {task.priority === "medium" && "Stredná"}
-            {task.priority === "low" && "Nízka"}
-          </Badge>
+          <PrioritySelect 
+            priority={task.priority} 
+            onPriorityChange={handlePriorityChange}
+          />
 
           {task.estimated_hours && (
             <Badge variant="outline">
@@ -326,7 +402,7 @@ export default function TaskDetailPage() {
                     placeholder="Napíšte popis úlohy..."
                     className="min-h-[150px]"
                     editable={true}
-                    taskId={params.taskId}
+                    taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
                   />
             </div>
 
@@ -365,7 +441,7 @@ export default function TaskDetailPage() {
 
           <TabsContent value="time" className="space-y-4">
             <TimePanel 
-              projectId={params.projectId as string} 
+              projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
               tasks={[task]} 
               defaultTaskId={task.id}
               onTimeEntryAdded={() => {
@@ -380,7 +456,7 @@ export default function TaskDetailPage() {
 
           <TabsContent value="costs" className="space-y-4">
             <CostsPanel 
-              projectId={params.projectId as string} 
+              projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
               tasks={[task]}
               defaultTaskId={task.id}
               onCostAdded={() => {
@@ -392,7 +468,7 @@ export default function TaskDetailPage() {
 
           <TabsContent value="report" className="space-y-4">
             <ProjectReport 
-              projectId={params.projectId as string}
+              projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId}
               taskId={task.id}
             />
           </TabsContent>

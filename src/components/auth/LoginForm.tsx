@@ -139,12 +139,6 @@ export function LoginForm() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Prístup len pre autorizované osoby</p>
-            <p className="mt-1">
-              Kontakt: <span className="font-medium">design@renemoravec.sk</span>
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

@@ -267,17 +267,36 @@ export function TaskRow({
         </div>
       </TableCell>
 
-      {/* Budget amount */}
+      {/* Price - Fixed or Calculated */}
       <TableCell className="text-right">
-        {task.budget_amount ? (
-          <div className="flex items-center justify-end gap-1 text-sm font-medium">
-            <span className="text-green-600 dark:text-green-400">
-              {formatCurrency(task.budget_amount)}
-            </span>
-          </div>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
+        {(() => {
+          // If there's a fixed budget amount, show it
+          if (task.budget_amount && task.budget_amount > 0) {
+            return (
+              <div className="flex items-center justify-end gap-1 text-sm font-medium">
+                <span className="text-green-600 dark:text-green-400">
+                  {formatCurrency(task.budget_amount)}
+                </span>
+                <span className="text-xs text-muted-foreground">(fixná)</span>
+              </div>
+            );
+          }
+          
+          // If there's calculated price from time entries, show it
+          if (task.calculated_price && task.calculated_price > 0) {
+            return (
+              <div className="flex items-center justify-end gap-1 text-sm">
+                <span className="text-blue-600 dark:text-blue-400">
+                  {formatCurrency(task.calculated_price)}
+                </span>
+                <span className="text-xs text-muted-foreground">(čas)</span>
+              </div>
+            );
+          }
+          
+          // No budget or time
+          return <span className="text-muted-foreground">—</span>;
+        })()}
       </TableCell>
 
       {/* Due date */}

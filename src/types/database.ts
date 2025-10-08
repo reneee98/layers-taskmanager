@@ -62,6 +62,7 @@ export interface Task {
   assignee?: User;
   assignees?: TaskAssignee[];
   project?: Project;
+  calculated_price?: number; // Calculated from time entries
 }
 
 export interface TaskAssignee {

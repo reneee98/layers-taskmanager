@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    // Fetch assignees for each task
+    // Fetch assignees and calculated price for each task
     const tasksWithAssignees = await Promise.all(
       (tasks || []).map(async (task) => {
         const { data: assignees } = await supabase
@@ -65,9 +65,18 @@ export async function GET(request: NextRequest) {
           `)
           .eq("task_id", task.id);
 
+        // Calculate total price from time entries
+        const { data: timeEntries } = await supabase
+          .from("time_entries")
+          .select("amount")
+          .eq("task_id", task.id);
+
+        const calculatedPrice = timeEntries?.reduce((sum, entry) => sum + (entry.amount || 0), 0) || 0;
+
         return {
           ...task,
-          assignees: assignees || []
+          assignees: assignees || [],
+          calculated_price: calculatedPrice
         };
       })
     );

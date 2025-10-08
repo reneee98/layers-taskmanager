@@ -41,7 +41,7 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
       <TopNav onMenuClick={handleToggleSideNav} />
       <SideNav isOpen={isSideNavOpen} onClose={handleCloseSideNav} />
       <main className="md:pl-64">
-        <div className="container mx-auto p-4 md:p-6">{children}</div>
+        <div className="container mx-auto px-6 py-8">{children}</div>
       </main>
     </div>
   );

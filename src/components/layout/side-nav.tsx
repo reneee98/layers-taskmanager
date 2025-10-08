@@ -93,15 +93,12 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-14 z-40 h-[calc(100vh-3.5rem)] w-64 border-r border-border bg-background transition-transform duration-200 md:translate-x-0",
+          "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 border-r border-border bg-background transition-transform duration-200 md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-full flex-col gap-2 p-4">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold">Layers Task Manager</h2>
-          </div>
-          <nav className="flex flex-1 flex-col gap-1">
+        <div className="flex h-full flex-col gap-2 p-6">
+          <nav className="flex flex-1 flex-col gap-2">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -110,13 +107,13 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
                   href={item.href}
                   onClick={() => onClose()}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                    "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-secondary text-secondary-foreground"
-                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   )}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className="h-5 w-5" />
                   {item.title}
                 </Link>
               );
@@ -124,17 +121,17 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
           </nav>
           
           {/* Theme switcher */}
-          <div className="mt-auto border-t border-border pt-4">
-            <div className="flex items-center justify-between px-3 py-2">
-              <span className="text-sm text-muted-foreground">Téma</span>
+          <div className="mt-auto border-t border-border pt-6">
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-sm font-medium text-muted-foreground">Téma</span>
               <ThemeSwitcher />
             </div>
           </div>
 
           {/* User info at bottom */}
           {user && profile && (
-            <div className="border-t border-border pt-4">
-              <div className="flex items-center gap-3 px-3 py-2">
+            <div className="border-t border-border pt-6">
+              <div className="flex items-center gap-3 px-4 py-3">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-xs">
                     {getInitials(profile.name || user.email || "U")}

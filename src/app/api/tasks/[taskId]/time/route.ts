@@ -32,8 +32,31 @@ export async function POST(
       );
     }
 
-    // Use provided user_id or default to authenticated user
-    const userId = validatedData.user_id || "00000000-0000-0000-0000-000000000000"; // TODO: Get from auth
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: "Nie ste prihlásený" },
+        { status: 401 }
+      );
+    }
+
+    // Find user in users table by email (since auth IDs don't match our hardcoded IDs)
+    const { data: dbUser, error: dbUserError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", user.email)
+      .single();
+
+    if (dbUserError || !dbUser) {
+      return NextResponse.json(
+        { success: false, error: "Používateľ nebol nájdený v databáze" },
+        { status: 404 }
+      );
+    }
+
+    // Use provided user_id or current authenticated user's DB ID
+    const userId = validatedData.user_id || dbUser.id;
 
     // Resolve hourly rate if not provided
     let hourlyRate = validatedData.hourly_rate;
@@ -124,7 +147,7 @@ export async function GET(
     const { taskId } = await params;
     const supabase = createClient();
 
-    const { data, error } = await supabase
+    const { data: entries, error } = await supabase
       .from("time_entries")
       .select("*")
       .eq("task_id", taskId)
@@ -136,6 +159,22 @@ export async function GET(
         { status: 500 }
       );
     }
+
+    // Fetch user data separately for each entry
+    const data = await Promise.all(
+      (entries || []).map(async (entry) => {
+        const { data: user } = await supabase
+          .from("users")
+          .select("id, name, email, avatar_url")
+          .eq("id", entry.user_id)
+          .single();
+
+        return {
+          ...entry,
+          user: user || null,
+        };
+      })
+    );
 
     return NextResponse.json({ success: true, data });
   } catch (error) {

@@ -32,6 +32,12 @@ interface TimeEntry {
   amount: number;
   is_billable: boolean;
   created_at: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    avatar_url?: string;
+  };
 }
 
 interface Task {
@@ -403,9 +409,11 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-xs">U</AvatarFallback>
+                            <AvatarFallback className="text-xs">
+                              {entry.user?.name ? entry.user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+                            </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm">User</span>
+                          <span className="text-sm">{entry.user?.name || 'Neznámy'}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-mono">

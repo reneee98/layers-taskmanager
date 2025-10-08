@@ -1,14 +1,16 @@
 "use client";
 
-import type { Project } from "@/types/database";
+import type { Project, Task } from "@/types/database";
 import { ProjectSummary } from "./ProjectSummary";
+import { ProjectReportGenerator } from "../reports/ProjectReportGenerator";
 
 interface ProjectHeaderProps {
   project: Project;
+  tasks: Task[];
   onUpdate: (refreshFn: () => Promise<void>) => void;
 }
 
-export const ProjectHeader = ({ project, onUpdate }: ProjectHeaderProps) => {
+export const ProjectHeader = ({ project, tasks, onUpdate }: ProjectHeaderProps) => {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -20,6 +22,9 @@ export const ProjectHeader = ({ project, onUpdate }: ProjectHeaderProps) => {
           {project.description && (
             <p className="mt-2 text-muted-foreground">{project.description}</p>
           )}
+        </div>
+        <div className="flex items-center gap-3">
+          <ProjectReportGenerator project={project} tasks={tasks} />
         </div>
       </div>
 

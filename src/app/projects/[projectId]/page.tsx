@@ -182,7 +182,7 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="space-y-6">
-      <ProjectHeader project={project} onUpdate={setRefreshSummary} />
+      <ProjectHeader project={project} tasks={tasks} onUpdate={setRefreshSummary} />
 
       {/* Task List */}
       <div className="space-y-4">

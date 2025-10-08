@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Users, FolderKanban, LogOut, LayoutDashboard } from "lucide-react";
+import { Users, FolderKanban, LogOut, LayoutDashboard, FileText } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,6 +30,11 @@ const navItems = [
     title: "Projekty",
     href: "/projects",
     icon: FolderKanban,
+  },
+  {
+    title: "Faktúry",
+    href: "/invoices",
+    icon: FileText,
   },
 ];
 

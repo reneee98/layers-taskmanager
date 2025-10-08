@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const clientId = searchParams.get("client_id");
 
+    // First, get all projects
     let query = supabase
       .from("projects")
       .select("*, client:clients(*)")
@@ -25,13 +26,37 @@ export async function GET(request: NextRequest) {
       query = query.eq("client_id", clientId);
     }
 
-    const { data: projects, error } = await query;
+    const { data: allProjects, error } = await query;
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, data: projects });
+    if (!allProjects || allProjects.length === 0) {
+      return NextResponse.json({ success: true, data: [] });
+    }
+
+    // Get all invoiced tasks
+    const { data: invoicedTasks, error: tasksError } = await supabase
+      .from("tasks")
+      .select("project_id")
+      .eq("status", "invoiced");
+
+    if (tasksError) {
+      return NextResponse.json({ success: false, error: tasksError.message }, { status: 400 });
+    }
+
+    // Get project IDs that have invoiced tasks
+    const invoicedProjectIds = new Set(
+      (invoicedTasks || []).map(task => task.project_id)
+    );
+
+    // Filter out projects that have invoiced tasks
+    const activeProjects = allProjects.filter(project => 
+      !invoicedProjectIds.has(project.id)
+    );
+
+    return NextResponse.json({ success: true, data: activeProjects });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Internal server error" },

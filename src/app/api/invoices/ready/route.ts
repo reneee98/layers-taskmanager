@@ -22,11 +22,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get all done tasks
-    const { data: allDoneTasks, error: tasksError } = await supabase
+    // Get all tasks (not invoiced) to check project completion
+    const { data: allTasks, error: tasksError } = await supabase
       .from("tasks")
       .select("*")
-      .eq("status", "done");
+      .neq("status", "invoiced"); // All tasks except 'invoiced'
 
     if (tasksError) {
       return NextResponse.json(
@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Group done tasks by project
-    const tasksByProject = (allDoneTasks || []).reduce((acc: any, task: any) => {
+    // Group tasks by project
+    const tasksByProject = (allTasks || []).reduce((acc: any, task: any) => {
       if (!acc[task.project_id]) {
         acc[task.project_id] = [];
       }
@@ -44,21 +44,26 @@ export async function GET(request: NextRequest) {
       return acc;
     }, {});
 
-    // Filter projects to only include those with done tasks
-    const projectsWithDoneTasks = (allProjects || []).filter(project => 
-      tasksByProject[project.id] && tasksByProject[project.id].length > 0
-    );
+    // Filter projects to only include those that have at least one done task
+    const projectsWithDoneTasks = (allProjects || []).filter(project => {
+      const projectTasks = tasksByProject[project.id] || [];
+      if (projectTasks.length === 0) return false;
+      
+      // Check if project has at least one done task
+      return projectTasks.some(task => task.status === 'done');
+    });
 
     // Get individual done tasks that don't belong to projects with done tasks
     const projectIdsWithDoneTasks = projectsWithDoneTasks.map(p => p.id);
-    const individualDoneTasks = (allDoneTasks || []).filter(task => 
-      !projectIdsWithDoneTasks.includes(task.project_id)
+    const individualDoneTasks = (allTasks || []).filter(task => 
+      task.status === 'done' && !projectIdsWithDoneTasks.includes(task.project_id)
     );
 
     // Calculate totals for each project with done tasks
     const projectsWithTotals = await Promise.all(
       projectsWithDoneTasks.map(async (project) => {
-        const doneTasks = tasksByProject[project.id] || [];
+        const allProjectTasks = tasksByProject[project.id] || [];
+        const doneTasks = allProjectTasks.filter((task: any) => task.status === 'done');
         
         // Get time entries for done tasks only
         const { data: timeEntries } = await supabase

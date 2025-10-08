@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
         };
       })
       .filter(Boolean)
+      .filter(task => task.status !== 'done' && task.status !== 'invoiced') // Exclude done and invoiced tasks
       .sort((a, b) => {
         // Sort by deadline urgency (nulls last)
         if (!a.due_date && !b.due_date) return 0;

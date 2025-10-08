@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Layers Task Manager
 
-## Getting Started
+Profesionálny systém na správu úloh postavený na Next.js 14 s TypeScript.
 
-First, run the development server:
+## Technológie
+
+- **Next.js 14** (App Router)
+- **TypeScript** (strict mode)
+- **Tailwind CSS** + **shadcn/ui**
+- **Supabase** (autentifikácia & databáza)
+- **Zod** (validácia)
+- **Drizzle ORM** (databázové dotazy)
+- **Framer Motion** (animácie)
+- **Recharts** (grafy)
+- **Vitest** + **Testing Library** (unit testy)
+- **Playwright** (E2E testy)
+
+## Začíname
+
+### Predpoklady
+
+- Node.js 18+
+- pnpm
+
+### Inštalácia
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Nainštalovať závislosti
+pnpm install
+
+# Nastaviť ENV premenné
+cp .env.example .env.local
+# Vyplniť NEXT_PUBLIC_SUPABASE_URL a NEXT_PUBLIC_SUPABASE_ANON_KEY
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Vývoj
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Spustiť dev server
+pnpm dev
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Spustiť linter
+pnpm lint
 
-## Learn More
+# Formátovať kód
+pnpm format
 
-To learn more about Next.js, take a look at the following resources:
+# Spustiť testy
+pnpm test
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Spustiť E2E testy
+pnpm test:e2e
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Build
 
-## Deploy on Vercel
+```bash
+# Vytvoriť produkčný build
+pnpm build
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Spustiť produkčnú verziu
+pnpm start
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Štruktúra projektu
+
+```
+src/
+├── app/                 # Next.js app router
+│   ├── layout.tsx      # Root layout
+│   ├── page.tsx        # Homepage
+│   └── globals.css     # Global styles
+├── components/
+│   ├── layout/         # Layout komponenty (TopNav, SideNav)
+│   ├── providers/      # React providers
+│   └── ui/             # shadcn/ui komponenty
+├── lib/
+│   ├── supabase.ts     # Supabase client
+│   ├── zod-helpers.ts  # Zod utilities
+│   └── utils.ts        # Pomocné funkcie
+└── hooks/              # Custom hooks
+```
+
+## Funkcie
+
+- ✅ Dark theme (default)
+- ✅ Responzívny layout (TopNav + SideNav)
+- ✅ TypeScript strict mode
+- ✅ Error boundaries
+- ✅ Loading states
+- ✅ Toast notifikácie
+- ✅ Zod validácia
+- ✅ Formátovanie meny (sk-SK, EUR)
+- ✅ Supabase autentifikácia (RLS)
+
+## Bezpečnosť
+
+- Používa iba `anon` kľúč (žiadny `service_role`)
+- Row Level Security (RLS) na všetkých tabuľkách
+- Session JWT autentifikácia
+
+## Formátovanie
+
+- Hodiny: zaokrúhlené na 3 desatinné miesta
+- Mena: zobrazené na 2 desatinné miesta (€)
+- Locale: sk-SK
+
+## Licencia
+
+Private
+

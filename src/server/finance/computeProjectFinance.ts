@@ -124,9 +124,9 @@ export const computeProjectFinance = async (
   
   const budgetAmount = tasks?.reduce((sum, task) => sum + (task.budget_amount || 0), 0) || 0;
 
-  // 6. Calculate totals - labor is revenue, external costs are losses
+  // 6. Calculate totals - labor + budget is revenue, external costs are losses
   const totalCost = externalCost; // Only external costs count as costs
-  const totalRevenue = laborCost; // Labor is revenue/profit
+  const totalRevenue = laborCost + budgetAmount; // Labor + budget is revenue/profit
   
   // 7. Calculate profit/loss
   const profit = totalRevenue - totalCost; // Revenue minus costs

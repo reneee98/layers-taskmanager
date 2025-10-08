@@ -98,9 +98,9 @@ export async function GET(
       }
     }
 
-    // Calculate totals - labor is profit, external costs are losses
+    // Calculate totals - labor + budget is profit, external costs are losses
     const totalCost = externalCost; // Only external costs count as costs
-    const totalRevenue = laborCost; // Labor is revenue/profit
+    const totalRevenue = laborCost + totalBudget; // Labor + budget is revenue/profit
     const profit = totalRevenue - totalCost; // Revenue minus costs
     const profitPct = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 

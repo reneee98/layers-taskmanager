@@ -1,6 +1,7 @@
 "use client";
 
 import type { Project } from "@/types/database";
+import { ProjectSummary } from "./ProjectSummary";
 
 interface ProjectHeaderProps {
   project: Project;
@@ -9,7 +10,7 @@ interface ProjectHeaderProps {
 
 export const ProjectHeader = ({ project }: ProjectHeaderProps) => {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
@@ -27,8 +28,10 @@ export const ProjectHeader = ({ project }: ProjectHeaderProps) => {
           <span className="text-sm text-muted-foreground">Klient:</span>
           <span className="font-medium">{project.client?.name}</span>
         </div>
-
       </div>
+
+      {/* Project Summary */}
+      <ProjectSummary projectId={project.id} />
     </div>
   );
 };

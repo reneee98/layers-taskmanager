@@ -366,7 +366,7 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Moje úlohy ({tasks.length})
+                Moje úlohy{tasks.length > 0 && ` (${tasks.length})`}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -376,60 +376,62 @@ export default function DashboardPage() {
                   <p>Nemáte priradené úlohy</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {tasks.map((task) => {
                     const deadlineStatus = getDeadlineStatus(task.days_until_deadline);
                     return (
-                      <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-medium truncate">{task.title}</h3>
-                            <Badge variant="outline" className={getStatusBadgeVariant(task.status)}>
-                              {getStatusText(task.status)}
-                            </Badge>
-                            <Badge variant="outline" className={getPriorityBadgeVariant(task.priority)}>
-                              {getPriorityText(task.priority)}
-                            </Badge>
+                      <Link 
+                        key={task.id} 
+                        href={`/projects/${task.project.id}/tasks/${task.id}`}
+                        className="block p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-medium truncate">{task.title}</h3>
+                              <Badge variant="outline" className={getStatusBadgeVariant(task.status)}>
+                                {getStatusText(task.status)}
+                              </Badge>
+                              <Badge variant="outline" className={getPriorityBadgeVariant(task.priority)}>
+                                {getPriorityText(task.priority)}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {task.project.name} ({task.project.code})
+                            </p>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                              {task.estimated_hours && task.estimated_hours > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatHours(task.estimated_hours)}
+                                </span>
+                              )}
+                              {task.actual_hours > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <CheckCircle className="h-3 w-3" />
+                                  {formatHours(task.actual_hours)}
+                                </span>
+                              )}
+                              {task.due_date && (
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {format(new Date(task.due_date), 'dd.MM', { locale: sk })}
+                                </span>
+                              )}
+                            </div>
+                            {deadlineStatus && (
+                              <Badge 
+                                variant={deadlineStatus.type === 'overdue' ? 'destructive' : 'secondary'} 
+                                className="text-xs mt-1"
+                              >
+                                <deadlineStatus.icon className="h-2 w-2 mr-1" />
+                                {deadlineStatus.text}
+                              </Badge>
+                            )}
                           </div>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {task.project.name} ({task.project.code})
-                          </p>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                            {task.estimated_hours && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {formatHours(task.estimated_hours)}
-                              </span>
-                            )}
-                            {task.actual_hours && (
-                              <span className="flex items-center gap-1">
-                                <CheckCircle className="h-3 w-3" />
-                                {formatHours(task.actual_hours)}
-                              </span>
-                            )}
-                            {task.due_date && (
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {format(new Date(task.due_date), 'dd.MM', { locale: sk })}
-                              </span>
-                            )}
-                          </div>
-                          {deadlineStatus && (
-                            <Badge 
-                              variant={deadlineStatus.type === 'overdue' ? 'destructive' : 'secondary'} 
-                              className="text-xs mt-1"
-                            >
-                              <deadlineStatus.icon className="h-2 w-2 mr-1" />
-                              {deadlineStatus.text}
-                            </Badge>
-                          )}
+                          <ArrowRight className="h-4 w-4 text-muted-foreground ml-3" />
                         </div>
-                        <Button asChild variant="ghost" size="sm" className="ml-3 h-8 w-8 p-0">
-                          <Link href={`/projects/${task.project.id}/tasks/${task.id}`}>
-                            <ArrowRight className="h-3 w-3" />
-                          </Link>
-                        </Button>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

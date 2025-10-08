@@ -271,7 +271,7 @@ export default function TaskDetailPage() {
             </Badge>
           )}
 
-          {task.budget_amount && task.budget_amount > 0 && (
+          {task.budget_amount != null && task.budget_amount > 0 && (
             <Badge variant="outline">
               💰 Rozpočet: {task.budget_amount.toFixed(2)} €
             </Badge>

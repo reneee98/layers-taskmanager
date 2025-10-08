@@ -24,6 +24,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import type { Project, Client } from "@/types/database";
 import { generateProjectCode } from "@/lib/generate-project-code";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface ProjectFormProps {
   project?: Project;
@@ -158,9 +159,11 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
       const url = isEditing ? `/api/projects/${project.id}` : "/api/projects";
       const method = isEditing ? "PATCH" : "POST";
 
-      // Clean up data - convert empty strings to null for optional number fields
+      // Clean up data - convert empty strings to null for optional fields
       const cleanedData = {
         ...data,
+        start_date: data.start_date || null,
+        end_date: data.end_date || null,
         hourly_rate: data.hourly_rate || null,
         fixed_fee: data.fixed_fee || null,
         external_costs_budget: data.external_costs_budget || null,
@@ -245,7 +248,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="code">Kód *</Label>
+              <Label htmlFor="code">Kód</Label>
               <Input 
                 id="code" 
                 {...register("code")} 
@@ -290,12 +293,20 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
 
             <div className="space-y-2">
               <Label htmlFor="start_date">Dátum začiatku</Label>
-              <Input id="start_date" type="date" {...register("start_date")} />
+              <DatePicker
+                value={watch("start_date")}
+                onChange={(value) => setValue("start_date", value || "")}
+                placeholder="Vyberte dátum začiatku"
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="end_date">Dátum konca</Label>
-              <Input id="end_date" type="date" {...register("end_date")} />
+              <DatePicker
+                value={watch("end_date")}
+                onChange={(value) => setValue("end_date", value || "")}
+                placeholder="Vyberte dátum konca"
+              />
             </div>
 
             <div className="space-y-2">

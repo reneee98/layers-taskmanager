@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Download, Loader2, Clock, Euro, Users, FileText } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Clock, Euro, Users, FileText, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatHours } from "@/lib/format";
 import { format } from "date-fns";
@@ -139,7 +139,7 @@ export default function ProjectReportPage() {
   return (
     <div className="min-h-screen bg-background print:bg-white">
       {/* Header - only visible on screen */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b print:hidden">
+      <div className="sticky top-0 z-10 bg-background border-b print:hidden">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -147,15 +147,11 @@ export default function ProjectReportPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => window.history.back()}
-                className="gap-2"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4 mr-2" />
                 Späť na projekt
               </Button>
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-muted-foreground" />
-                <h1 className="text-xl font-semibold">Report - {project.name}</h1>
-              </div>
+              <h1 className="text-xl font-semibold">Report - {project.name}</h1>
             </div>
             <Button onClick={handleDownloadPDF} className="gap-2">
               <Download className="h-4 w-4" />
@@ -181,7 +177,7 @@ export default function ProjectReportPage() {
                   <span><strong>Klient:</strong> {project.client?.name || 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
+                  <Calendar className="h-4 w-4" />
                   <span><strong>Dátum:</strong> {format(new Date(), 'dd.MM.yyyy HH:mm')}</span>
                 </div>
               </div>

@@ -31,7 +31,7 @@ import {
   Calendar,
   ExternalLink,
 } from "lucide-react";
-import { formatHours } from "@/lib/format";
+import { formatHours, formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getTextPreview } from "@/lib/utils/html";
@@ -243,6 +243,19 @@ export function TaskRow({
           <Clock className="h-3 w-3 text-muted-foreground" />
           {formatHours(task.actual_hours || 0)}
         </div>
+      </TableCell>
+
+      {/* Budget amount */}
+      <TableCell className="text-right">
+        {task.budget_amount ? (
+          <div className="flex items-center justify-end gap-1 text-sm font-medium">
+            <span className="text-green-600 dark:text-green-400">
+              {formatCurrency(task.budget_amount)}
+            </span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
       </TableCell>
 
       {/* Due date */}

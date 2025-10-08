@@ -180,6 +180,7 @@ export function TaskTable({
               <TableHead className="w-[180px]">Assignee</TableHead>
               <TableHead className="w-[100px] text-right">Estimate</TableHead>
               <TableHead className="w-[100px] text-right">Spent</TableHead>
+              <TableHead className="w-[120px] text-right">Cena</TableHead>
               <TableHead className="w-[120px]">Due Date</TableHead>
               <TableHead className="w-[120px]">Priorita</TableHead>
               <TableHead className="w-[60px]">{/* Actions */}</TableHead>
@@ -189,7 +190,7 @@ export function TaskTable({
             {filteredTasks.length === 0 ? (
               <TableRow>
                 <td
-                  colSpan={9}
+                  colSpan={10}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {searchQuery || statusFilter !== "all" || priorityFilter !== "all"
@@ -223,13 +224,25 @@ export function TaskTable({
         <span>
           Zobrazené: {filteredTasks.length} z {tasks.length} úloh
         </span>
-        <span>
-          Celkom odhadované hodiny:{" "}
-          {filteredTasks
-            .reduce((sum, task) => sum + (task.estimated_hours || 0), 0)
-            .toFixed(2)}{" "}
-          h
-        </span>
+        <div className="flex gap-4">
+          <span>
+            Celkom odhadované hodiny:{" "}
+            {filteredTasks
+              .reduce((sum, task) => sum + (task.estimated_hours || 0), 0)
+              .toFixed(2)}{" "}
+            h
+          </span>
+          <span>
+            Celková cena:{" "}
+            {filteredTasks
+              .reduce((sum, task) => sum + (task.budget_amount || 0), 0)
+              .toLocaleString("sk-SK", {
+                style: "currency",
+                currency: "EUR",
+                minimumFractionDigits: 2,
+              })}
+          </span>
+        </div>
       </div>
     </div>
   );

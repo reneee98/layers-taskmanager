@@ -95,12 +95,14 @@ export function TaskRow({
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleRowClick = (e: React.MouseEvent) => {
-    // Ignore clicks on interactive elements
+    // Ignore clicks on interactive elements or during drag
     const target = e.target as HTMLElement;
     if (
       target.closest("button") ||
       target.closest("[role='combobox']") ||
-      target.closest("[role='menuitem']")
+      target.closest("[role='menuitem']") ||
+      target.closest("[draggable='true']") ||
+      isDragging
     ) {
       return;
     }

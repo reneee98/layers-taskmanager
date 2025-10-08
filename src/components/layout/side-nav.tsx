@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ThemeSwitcher } from "@/components/ui/theme-switcher";
 import { toast } from "@/hooks/use-toast";
 
 interface SideNavProps {
@@ -122,9 +123,17 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
             })}
           </nav>
           
+          {/* Theme switcher */}
+          <div className="mt-auto border-t border-border pt-4">
+            <div className="flex items-center justify-between px-3 py-2">
+              <span className="text-sm text-muted-foreground">Téma</span>
+              <ThemeSwitcher />
+            </div>
+          </div>
+
           {/* User info at bottom */}
           {user && profile && (
-            <div className="mt-auto border-t border-border pt-4">
+            <div className="border-t border-border pt-4">
               <div className="flex items-center gap-3 px-3 py-2">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-xs">

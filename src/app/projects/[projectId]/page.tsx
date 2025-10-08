@@ -114,10 +114,26 @@ export default function ProjectDetailPage() {
 
   const handleReorderTasks = async (taskId: string, newIndex: number) => {
     try {
+      // Create new order for all tasks
+      const newTasks = [...tasks];
+      const draggedIndex = newTasks.findIndex((t) => t.id === taskId);
+      
+      if (draggedIndex === -1) return;
+      
+      // Move task to new position
+      const [draggedTask] = newTasks.splice(draggedIndex, 1);
+      newTasks.splice(newIndex, 0, draggedTask);
+      
+      // Update order_index for all tasks
+      const tasksWithNewOrder = newTasks.map((task, index) => ({
+        id: task.id,
+        order_index: index,
+      }));
+
       const response = await fetch("/api/tasks/reorder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId, newIndex }),
+        body: JSON.stringify({ tasks: tasksWithNewOrder }),
       });
       const result = await response.json();
 

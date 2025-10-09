@@ -58,7 +58,7 @@ export function StatusSelect({ status, onStatusChange, disabled = false }: Statu
         {statusOptions.map((option) => (
           <DropdownMenuItem
             key={option.value}
-            onClick={() => handleStatusChange(option.value)}
+            onClick={() => handleStatusChange(option.value as "done" | "cancelled" | "todo" | "in_progress" | "review")}
             className="flex items-center justify-between"
           >
             <span>{option.label}</span>

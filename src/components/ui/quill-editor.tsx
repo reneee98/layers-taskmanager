@@ -276,7 +276,6 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
       `}</style>
       <div onKeyDown={handleKeyDown}>
         <ReactQuill
-          ref={quillRef}
           theme="snow"
           value={content}
           onChange={handleChange}

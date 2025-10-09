@@ -137,7 +137,7 @@ export function RichTextEditor({
         <div className={cn("border rounded-lg p-3", className)}>
           <div 
             className="prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: markdownToHtml(text) }}
+            dangerouslySetInnerHTML={{ __html: text }}
           />
         </div>
       );

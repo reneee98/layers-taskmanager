@@ -33,7 +33,7 @@ export async function GET(
     }
 
     // Get user profiles for all comments
-    const userIds = [...new Set(comments?.map(comment => comment.user_id) || [])];
+    const userIds = Array.from(new Set(comments?.map(comment => comment.user_id) || []));
     const { data: userProfiles } = await supabase
       .from("user_profiles")
       .select("id, name, email, role")

@@ -24,7 +24,20 @@ import { sk } from "date-fns/locale";
 import Link from "next/link";
 import type { Task } from "@/types/database";
 
-interface AssignedTask extends Task {
+interface AssignedTask {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  estimated_hours: number | null;
+  actual_hours: number | null;
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+  project_id: string;
+  assignee_id: string | null;
+  budget_amount: number | null;
   days_until_deadline: number | null;
   project: {
     id: string;
@@ -406,7 +419,7 @@ export default function DashboardPage() {
                                   {formatHours(task.estimated_hours)}
                                 </span>
                               )}
-                              {task.actual_hours > 0 && (
+                              {task.actual_hours && task.actual_hours > 0 && (
                                 <span className="flex items-center gap-1">
                                   <CheckCircle className="h-3 w-3" />
                                   {formatHours(task.actual_hours)}

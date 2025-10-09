@@ -63,7 +63,7 @@ export const TaskForm = ({
           description: task.description || "",
           status: task.status,
           priority: task.priority,
-          assigned_to: task.assigned_to || undefined,
+          assigned_to: (task as any).assigned_to || undefined,
           estimated_hours: task.estimated_hours || undefined,
           due_date: task.due_date || "",
         }

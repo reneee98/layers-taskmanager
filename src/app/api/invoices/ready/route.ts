@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       if (projectTasks.length === 0) return false;
       
       // Check if project has at least one done task
-      return projectTasks.some(task => task.status === 'done');
+      return projectTasks.some((task: any) => task.status === 'done');
     });
 
     // Get individual done tasks that don't belong to projects with done tasks
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
         const externalCost = costItems?.reduce((sum, item) => sum + (item.total || 0), 0) || 0;
         
         // Add fixed budget amounts for done tasks
-        const fixedBudgetCost = doneTasks.reduce((sum, task) => sum + (task.budget_amount || 0), 0);
+        const fixedBudgetCost = doneTasks.reduce((sum: number, task: any) => sum + (task.budget_amount || 0), 0);
         
         const totalCost = laborCost + externalCost + fixedBudgetCost;
 

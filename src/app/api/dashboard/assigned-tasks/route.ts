@@ -66,19 +66,19 @@ export async function GET(req: NextRequest) {
         if (!task) return null;
         
         let daysUntilDeadline = null;
-        if (task.due_date) {
-          const dueDate = new Date(task.due_date);
+        if (task[0]?.due_date) {
+          const dueDate = new Date(task[0].due_date);
           const diffTime = dueDate.getTime() - now.getTime();
           daysUntilDeadline = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         }
 
         return {
-          ...task,
+          ...task[0],
           days_until_deadline: daysUntilDeadline,
         };
       })
       .filter(Boolean)
-      .filter(task => task.status !== 'done' && task.status !== 'invoiced') // Exclude done and invoiced tasks
+      .filter((task): task is NonNullable<typeof task> => task !== null && task.status !== 'done' && task.status !== 'invoiced') // Exclude done and invoiced tasks
       .sort((a, b) => {
         // Sort by deadline urgency (nulls last)
         if (!a.due_date && !b.due_date) return 0;

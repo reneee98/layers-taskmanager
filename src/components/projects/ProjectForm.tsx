@@ -194,20 +194,20 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
       }
 
       // Force convert empty strings to null for number fields
-      if (cleanedData.hourly_rate === "" || cleanedData.hourly_rate === 0) {
+      if (cleanedData.hourly_rate === 0) {
         cleanedData.hourly_rate = null;
       }
-      if (cleanedData.fixed_fee === "" || cleanedData.fixed_fee === 0) {
+      if (cleanedData.fixed_fee === 0) {
         cleanedData.fixed_fee = null;
       }
-      if (cleanedData.external_costs_budget === "" || cleanedData.external_costs_budget === 0) {
+      if (cleanedData.external_costs_budget === 0) {
         cleanedData.external_costs_budget = null;
       }
 
       // Remove undefined values
       Object.keys(cleanedData).forEach(key => {
-        if (cleanedData[key] === undefined) {
-          delete cleanedData[key];
+        if ((cleanedData as any)[key] === undefined) {
+          delete (cleanedData as any)[key];
         }
       });
 
@@ -337,8 +337,8 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
             <div className="space-y-2">
               <Label htmlFor="start_date">Dátum začiatku</Label>
               <DatePicker
-                value={watch("start_date")}
-                onChange={(value) => setValue("start_date", value || "")}
+                value={watch("start_date") || undefined}
+                onChange={(value) => setValue("start_date", value || null)}
                 placeholder="Vyberte dátum začiatku"
               />
             </div>
@@ -346,8 +346,8 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
             <div className="space-y-2">
               <Label htmlFor="end_date">Dátum konca</Label>
               <DatePicker
-                value={watch("end_date")}
-                onChange={(value) => setValue("end_date", value || "")}
+                value={watch("end_date") || undefined}
+                onChange={(value) => setValue("end_date", value || null)}
                 placeholder="Vyberte dátum konca"
               />
             </div>

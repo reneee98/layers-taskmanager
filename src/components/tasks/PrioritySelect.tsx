@@ -57,7 +57,7 @@ export function PrioritySelect({ priority, onPriorityChange, disabled = false }:
         {priorityOptions.map((option) => (
           <DropdownMenuItem
             key={option.value}
-            onClick={() => handlePriorityChange(option.value)}
+            onClick={() => handlePriorityChange(option.value as "low" | "medium" | "high" | "urgent")}
             className="flex items-center justify-between"
           >
             <span>{option.label}</span>

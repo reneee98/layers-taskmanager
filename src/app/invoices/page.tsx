@@ -479,10 +479,10 @@ export default function InvoicesPage() {
                           <strong>Klient:</strong> {project.client.name} • <strong>Úlohy:</strong> {project.task_count}
                         </p>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          {project.invoiced_at && (
+                          {(project as any).invoiced_at && (
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              Vyfaktúrované: {format(new Date(project.invoiced_at), 'dd.MM.yyyy', { locale: sk })}
+                              Vyfaktúrované: {format(new Date((project as any).invoiced_at), 'dd.MM.yyyy', { locale: sk })}
                             </span>
                           )}
                         </div>

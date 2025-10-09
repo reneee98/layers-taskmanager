@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get recent activities from various sources
-    const activities = [];
+    const activities: any[] = [];
 
     // 1. Recent time entries
     const { data: timeEntries, error: timeError } = await supabase
@@ -52,10 +52,10 @@ export async function GET(req: NextRequest) {
           id: `time_${entry.id}`,
           type: 'time_entry',
           action: 'Pridal čas',
-          details: `${entry.hours}h na ${entry.task?.title || 'úlohu'}`,
-          project: entry.task?.project?.name,
-          project_code: entry.task?.project?.code,
-          user: entry.user?.name || 'Neznámy',
+          details: `${entry.hours}h na ${entry.task?.[0]?.title || 'úlohu'}`,
+          project: entry.task?.[0]?.project?.[0]?.name,
+          project_code: entry.task?.[0]?.project?.[0]?.code,
+          user: entry.user?.[0]?.name || 'Neznámy',
           created_at: entry.created_at,
           description: entry.description
         });
@@ -83,8 +83,8 @@ export async function GET(req: NextRequest) {
           type: 'task_update',
           action: 'Aktualizoval úlohu',
           details: task.title,
-          project: task.project?.name,
-          project_code: task.project?.code,
+          project: task.project?.[0]?.name,
+          project_code: task.project?.[0]?.code,
           user: 'Systém',
           created_at: task.updated_at,
           status: task.status,
@@ -112,10 +112,10 @@ export async function GET(req: NextRequest) {
           id: `comment_${comment.id}`,
           type: 'comment',
           action: 'Pridal komentár',
-          details: comment.task?.title || 'úlohu',
-          project: comment.task?.project?.name,
-          project_code: comment.task?.project?.code,
-          user: comment.user?.name || 'Neznámy',
+          details: comment.task?.[0]?.title || 'úlohu',
+          project: comment.task?.[0]?.project?.[0]?.name,
+          project_code: comment.task?.[0]?.project?.[0]?.code,
+          user: comment.user?.[0]?.name || 'Neznámy',
           created_at: comment.created_at,
           content: comment.content
         });
@@ -142,9 +142,9 @@ export async function GET(req: NextRequest) {
           type: 'file_upload',
           action: 'Nahral súbor',
           details: file.filename,
-          project: file.task?.project?.name,
-          project_code: file.task?.project?.code,
-          user: file.user?.name || 'Neznámy',
+          project: file.task?.[0]?.project?.[0]?.name,
+          project_code: file.task?.[0]?.project?.[0]?.code,
+          user: file.user?.[0]?.name || 'Neznámy',
           created_at: file.created_at
         });
       });

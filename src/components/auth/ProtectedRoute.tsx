@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { useRouter } from "next/navigation";
 
-export default function LoginPage() {
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+}
+
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && user) {
-      router.push("/dashboard");
+    if (!loading && !user) {
+      router.push("/login");
     }
   }, [user, loading, router]);
 
@@ -26,9 +29,9 @@ export default function LoginPage() {
     );
   }
 
-  if (user) {
-    return null; // Will redirect to dashboard
+  if (!user) {
+    return null; // Will redirect to login
   }
 
-  return <LoginForm />;
+  return <>{children}</>;
 }

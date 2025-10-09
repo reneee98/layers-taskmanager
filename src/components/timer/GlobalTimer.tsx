@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 export function GlobalTimer() {
   console.log("GlobalTimer component loaded");
   
-  const { isRunning, seconds, taskName, projectName, taskId, stopTimer, resetTimer } = useTimer();
+  const { isRunning, seconds, taskName, projectName, taskId, projectId, stopTimer, resetTimer } = useTimer();
   const router = useRouter();
 
   // Debug log
@@ -50,40 +50,48 @@ export function GlobalTimer() {
   };
 
   const handleClick = () => {
+    console.log("GlobalTimer: handleClick called", { taskId, projectId });
     if (taskId && projectId) {
       console.log("GlobalTimer: Navigating to task detail", { taskId, projectId });
-      router.push(`/projects/${projectId}/tasks/${taskId}`);
+      const url = `/projects/${projectId}/tasks/${taskId}`;
+      console.log("GlobalTimer: URL", url);
+      router.push(url);
+    } else {
+      console.log("GlobalTimer: Missing taskId or projectId", { taskId, projectId });
     }
   };
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-primary/10 rounded-lg border border-primary/20">
+    <div className="flex items-center gap-3 px-3 py-2 bg-background border border-border rounded-md shadow-sm">
+      {/* Timer Display */}
       <div className="flex items-center gap-2">
         <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-        <span className="text-sm font-medium text-primary">
+        <span className="text-sm font-mono font-medium text-foreground">
           {formatTime(seconds)}
         </span>
       </div>
       
+      {/* Task Info - Clickable */}
       <div 
-        className="flex items-center gap-1 cursor-pointer hover:bg-primary/5 rounded px-2 py-1 transition-colors"
+        className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-2 py-1 transition-colors"
         onClick={handleClick}
       >
-        <Badge variant="secondary" className="text-xs">
+        <Badge variant="outline" className="text-xs">
           {projectName}
         </Badge>
         <span className="text-sm text-muted-foreground">•</span>
-        <span className="text-sm font-medium truncate max-w-32">
+        <span className="text-sm font-medium text-foreground truncate max-w-32">
           {taskName}
         </span>
       </div>
 
+      {/* Action Buttons */}
       <div className="flex items-center gap-1">
         <Button
           size="sm"
           variant="ghost"
           onClick={handleReset}
-          className="h-6 w-6 p-0"
+          className="h-7 w-7 p-0 hover:bg-muted"
         >
           <Square className="h-3 w-3" />
         </Button>
@@ -91,7 +99,7 @@ export function GlobalTimer() {
           size="sm"
           variant="ghost"
           onClick={handleStop}
-          className="h-6 w-6 p-0"
+          className="h-7 w-7 p-0 hover:bg-muted"
         >
           <Pause className="h-3 w-3" />
         </Button>

@@ -87,6 +87,12 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setProjectId(newProjectId || null);
     setSeconds(0);
     setIsRunning(true);
+    console.log("TimerContext: Timer state updated", { 
+      taskId: newTaskId, 
+      taskName: newTaskName, 
+      projectName: newProjectName, 
+      projectId: newProjectId || null 
+    });
   };
 
   const stopTimer = () => {

@@ -3,8 +3,9 @@
  * 
  * Priority:
  * 1. project_members.hourly_rate (override for specific user in project)
- * 2. rates table (user-specific or role-specific, latest valid)
- * 3. Fallback: 0
+ * 2. projects.hourly_rate (project default rate)
+ * 3. rates table (user-specific or role-specific, latest valid)
+ * 4. Fallback: 0
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -47,7 +48,21 @@ export async function resolveHourlyRate(
     };
   }
 
-  // Priority 2: Check rates table
+  // Priority 2: Check projects.hourly_rate
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("hourly_rate")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (!projectError && project?.hourly_rate != null) {
+    return {
+      hourlyRate: Number(project.hourly_rate),
+      source: "project_member", // Use same source for consistency
+    };
+  }
+
+  // Priority 3: Check rates table
   // Find the latest valid rate for this user or project
   const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
 
@@ -73,7 +88,7 @@ export async function resolveHourlyRate(
     };
   }
 
-  // Priority 3: Fallback to 0
+  // Priority 4: Fallback to 0
   return {
     hourlyRate: 0,
     source: "fallback",
@@ -93,6 +108,7 @@ export function resolveHourlyRateSync(
   userId: string,
   projectId: string,
   projectMember?: { hourly_rate?: number | null } | null,
+  project?: { hourly_rate?: number | null } | null,
   rates?: Array<{
     id: string;
     name: string;
@@ -112,7 +128,15 @@ export function resolveHourlyRateSync(
     };
   }
 
-  // Priority 2: rates table
+  // Priority 2: projects.hourly_rate
+  if (project?.hourly_rate != null) {
+    return {
+      hourlyRate: Number(project.hourly_rate),
+      source: "project_member", // Use same source for consistency
+    };
+  }
+
+  // Priority 3: rates table
   if (rates && rates.length > 0) {
     const today = new Date().toISOString().split("T")[0];
 
@@ -146,7 +170,7 @@ export function resolveHourlyRateSync(
     }
   }
 
-  // Priority 3: Fallback
+  // Priority 4: Fallback
   return {
     hourlyRate: 0,
     source: "fallback",

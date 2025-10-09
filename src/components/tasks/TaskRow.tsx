@@ -115,9 +115,6 @@ export function TaskRow({
     setIsUpdating(true);
     try {
       await onUpdate(task.id, { status: newStatus as Task["status"] });
-      if (onTaskUpdated) {
-        onTaskUpdated();
-      }
     } finally {
       setIsUpdating(false);
     }
@@ -127,9 +124,6 @@ export function TaskRow({
     setIsUpdating(true);
     try {
       await onUpdate(task.id, { priority: newPriority as Task["priority"] });
-      if (onTaskUpdated) {
-        onTaskUpdated();
-      }
     } finally {
       setIsUpdating(false);
     }

@@ -67,7 +67,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
   const [isLoading, setIsLoading] = useState(false);
   
   // Use global timer
-  const { isRunning: isTimerRunning, seconds: timerSeconds, startTimer, stopTimer, resetTimer } = useTimer();
+  const { activeTimer, currentDuration, startTimer, stopTimer } = useTimer();
   
   // Format time function (same as in GlobalTimer)
   const formatTime = (totalSeconds: number) => {
@@ -96,8 +96,8 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         }
       }
 
-      // Sort by date descending
-      allEntries.sort((a, b) => b.date.localeCompare(a.date));
+      // Sort by created_at descending (newest first)
+      allEntries.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       console.log("All time entries:", allEntries);
       setTimeEntries(allEntries);
     } catch (error) {
@@ -112,7 +112,8 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
     }
   }, [tasks]);
 
-  const handleStartTimer = () => {
+
+  const handleStartTimer = async () => {
     console.log("TimePanel: handleStartTimer called", { selectedTaskId, tasks });
     
     if (!selectedTaskId) {
@@ -130,8 +131,69 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
     console.log("TimePanel: project_id", selectedTask?.project_id);
     
     if (selectedTask) {
+      // If there's an active timer for a different task, save it first
+      if (activeTimer && activeTimer.task_id !== selectedTaskId) {
+        // Calculate duration from activeTimer
+        const startedAt = new Date(activeTimer.started_at);
+        const now = new Date();
+        const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+        const trackedHours = Number((duration / 3600).toFixed(3));
+        
+        if (trackedHours > 0) {
+          // Vypočítaj start a end time pre časovač
+          const endTime = now.toTimeString().slice(0, 8); // HH:mm:ss format
+          const startTime = new Date(now.getTime() - (duration * 1000)).toTimeString().slice(0, 8); // HH:mm:ss format
+          
+          try {
+            // Automaticky zapísať čas do úlohy
+            const payload = {
+              hours: trackedHours,
+              date: now.toISOString().split("T")[0],
+              description: `Časovač - ${formatTime(duration)}`,
+              start_time: startTime,
+              end_time: endTime,
+            };
+
+            const response = await fetch(`/api/tasks/${activeTimer.task_id}/time`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+              toast({
+                title: "Predchádzajúci časovač uložený",
+                description: `Zapísaných ${formatTime(duration)} do úlohy "${activeTimer.task_name}".`,
+              });
+              
+              // Refresh entries
+              fetchTimeEntries();
+              
+              // Notify parent component
+              if (onTimeEntryAdded) {
+                onTimeEntryAdded();
+              }
+            } else {
+              console.error("Failed to save previous timer:", result.error);
+            }
+          } catch (error) {
+            console.error("Error saving previous timer:", error);
+            toast({
+              title: "Chyba",
+              description: "Nepodarilo sa uložiť predchádzajúci časovač",
+              variant: "destructive",
+            });
+          }
+        }
+        
+        // Stop the previous timer
+        await stopTimer();
+      }
+      
       console.log("TimePanel: Calling startTimer", { selectedTaskId, title: selectedTask.title, projectId: selectedTask.project_id || projectId });
-      startTimer(selectedTaskId, selectedTask.title, selectedTask.project_name || "Neznámy projekt", selectedTask.project_id || projectId);
+      await startTimer(selectedTaskId, selectedTask.title, selectedTask.project_id || projectId, selectedTask.project_name || "Neznámy projekt");
       toast({
         title: "Časovač spustený",
         description: `Časovač pre úlohu "${selectedTask.title}" bol spustený.`,
@@ -140,27 +202,29 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
   };
 
   const handleStopTimer = async () => {
-    const trackedHours = Number((timerSeconds / 3600).toFixed(3));
+    if (!activeTimer || activeTimer.task_id !== selectedTaskId) return;
 
-    if (trackedHours > 0 && selectedTaskId) {
+    const trackedHours = Number((currentDuration / 3600).toFixed(3));
+
+    if (trackedHours > 0) {
       // Vypočítaj start a end time pre časovač - rovnaká logika ako v GlobalTimer
       const now = new Date();
       const endTime = now.toTimeString().slice(0, 8); // HH:mm:ss format
-      const startTime = new Date(now.getTime() - (timerSeconds * 1000)).toTimeString().slice(0, 8); // HH:mm:ss format
+      const startTime = new Date(now.getTime() - (currentDuration * 1000)).toTimeString().slice(0, 8); // HH:mm:ss format
       
       try {
         // Automaticky zapísať čas do úlohy - rovnaká logika ako v GlobalTimer
         const payload = {
           hours: trackedHours,
           date: now.toISOString().split("T")[0],
-          description: `Časovač - ${formatTime(timerSeconds)}`,
+          description: `Časovač - ${formatTime(currentDuration)}`,
           start_time: startTime,
           end_time: endTime,
         };
 
         console.log("TimePanel: Sending time entry data:", payload);
 
-        const response = await fetch(`/api/tasks/${selectedTaskId}/time`, {
+        const response = await fetch(`/api/tasks/${activeTimer.task_id}/time`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -172,7 +236,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         if (result.success) {
           toast({
             title: "Časovač zastavený",
-            description: `Zapísaných ${formatTime(timerSeconds)} do úlohy.`,
+            description: `Zapísaných ${formatTime(currentDuration)} do úlohy.`,
           });
 
           // Refresh entries
@@ -194,7 +258,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         });
       }
     }
-    stopTimer();
+    await stopTimer();
   };
 
   const handleManualEntry = async () => {
@@ -337,7 +401,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
                 value={selectedTaskId}
                 onChange={(e) => setSelectedTaskId(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isTimerRunning}
+                disabled={!!activeTimer && activeTimer.task_id !== selectedTaskId}
               >
                 {tasks.map((task) => (
                   <option key={task.id} value={task.id}>
@@ -349,9 +413,9 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
 
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="text-3xl font-mono font-bold">
-                {formatTimerDisplay(timerSeconds)}
+                {activeTimer && activeTimer.task_id === selectedTaskId ? formatTimerDisplay(currentDuration) : "00:00:00"}
               </div>
-              {isTimerRunning ? (
+              {activeTimer && activeTimer.task_id === selectedTaskId ? (
                 <Button onClick={handleStopTimer} variant="destructive">
                   <Square className="h-4 w-4 mr-2" />
                   Stop
@@ -364,9 +428,15 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
               )}
             </div>
 
-            {isTimerRunning && (
+            {activeTimer && activeTimer.task_id === selectedTaskId && (
               <p className="text-sm text-muted-foreground">
-                Časovač beží • {formatHours(timerSeconds / 3600)} • Zobrazený v headeri
+                Časovač beží • {formatHours(currentDuration / 3600)} • Zobrazený v headeri
+              </p>
+            )}
+
+            {activeTimer && activeTimer.task_id !== selectedTaskId && (
+              <p className="text-sm text-muted-foreground">
+                Aktívny časovač v inej úlohe: "{activeTimer.task_name}"
               </p>
             )}
           </CardContent>

@@ -8,16 +8,11 @@ import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
 export function GlobalTimer() {
-  console.log("GlobalTimer component loaded");
-  
-  const { isRunning, seconds, taskName, projectName, taskId, projectId, stopTimer, resetTimer } = useTimer();
+  const { activeTimer, currentDuration, stopTimer } = useTimer();
   const router = useRouter();
 
-  // Debug log
-  console.log("GlobalTimer render:", { isRunning, seconds, taskName, projectName });
-
-  if (!isRunning || !taskName) {
-    return <div className="text-xs text-muted-foreground">Timer not running</div>;
+  if (!activeTimer) {
+    return null;
   }
 
   const formatTime = (totalSeconds: number) => {
@@ -32,21 +27,18 @@ export function GlobalTimer() {
   };
 
   const handleStop = async () => {
-    console.log("GlobalTimer: handleStop called");
-
-    if (!taskId || seconds === 0) {
-      stopTimer();
+    if (currentDuration === 0) {
+      await stopTimer();
       return;
     }
 
-    const trackedHours = Number((seconds / 3600).toFixed(3));
+    const trackedHours = Number((currentDuration / 3600).toFixed(3));
     const now = new Date();
     const endTime = now.toTimeString().slice(0, 8); // HH:mm:ss format
-    const startTime = new Date(now.getTime() - (seconds * 1000)).toTimeString().slice(0, 8); // HH:mm:ss format
-    
+    const startTime = new Date(now.getTime() - (currentDuration * 1000)).toTimeString().slice(0, 8); // HH:mm:ss format
     
     try {
-      // Automaticky zapísať čas do úlohy - používame rovnakú logiku ako TimePanel
+      // Automaticky zapísať čas do úlohy
       const payload = {
         hours: trackedHours,
         date: now.toISOString().split("T")[0],
@@ -55,7 +47,7 @@ export function GlobalTimer() {
         end_time: endTime,
       };
 
-      const response = await fetch(`/api/tasks/${taskId}/time`, {
+      const response = await fetch(`/api/tasks/${activeTimer.task_id}/time`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -66,7 +58,7 @@ export function GlobalTimer() {
       if (result.success) {
         toast({
           title: "Časovač zastavený",
-          description: `Zapísaných ${formatTime(seconds)} do úlohy "${taskName}".`,
+          description: `Zapísaných ${formatTime(currentDuration)} do úlohy "${activeTimer.task_name}".`,
         });
       } else {
         throw new Error(result.error);
@@ -79,19 +71,14 @@ export function GlobalTimer() {
         variant: "destructive",
       });
     } finally {
-      stopTimer();
+      await stopTimer();
     }
   };
 
   const handleClick = () => {
-    console.log("GlobalTimer: handleClick called", { taskId, projectId });
-    if (taskId && projectId) {
-      console.log("GlobalTimer: Navigating to task detail", { taskId, projectId });
-      const url = `/projects/${projectId}/tasks/${taskId}`;
-      console.log("GlobalTimer: URL", url);
+    if (activeTimer.task_id && activeTimer.project_id) {
+      const url = `/projects/${activeTimer.project_id}/tasks/${activeTimer.task_id}`;
       router.push(url);
-    } else {
-      console.log("GlobalTimer: Missing taskId or projectId", { taskId, projectId });
     }
   };
 
@@ -101,7 +88,7 @@ export function GlobalTimer() {
       <div className="flex items-center gap-2">
         <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
         <span className="text-sm font-mono font-medium text-foreground">
-          {formatTime(seconds)}
+          {formatTime(currentDuration)}
         </span>
       </div>
       
@@ -111,11 +98,11 @@ export function GlobalTimer() {
         onClick={handleClick}
       >
         <Badge variant="outline" className="text-xs">
-          {projectName}
+          {activeTimer.project_name}
         </Badge>
         <span className="text-sm text-muted-foreground">•</span>
         <span className="text-sm font-medium text-foreground truncate max-w-32">
-          {taskName}
+          {activeTimer.task_name}
         </span>
       </div>
 

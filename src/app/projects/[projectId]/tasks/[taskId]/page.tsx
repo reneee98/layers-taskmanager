@@ -103,25 +103,27 @@ export default function TaskDetailPage() {
     
     saveTimeoutRef.current = setTimeout(() => {
       console.log("Auto-save triggered after 3s");
-      handleSaveDescription();
+      console.log("Current descriptionHtml:", html); // Používame html parameter namiesto state
+      handleSaveDescriptionWithContent(html);
     }, 3000); // Zvýšené z 1000ms na 3000ms
   };
 
-  const handleSaveDescription = async () => {
+  const handleSaveDescriptionWithContent = async (content: string) => {
+    console.log("handleSaveDescriptionWithContent called, task:", !!task, "isSaving:", isSaving);
     if (!task || isSaving) return;
 
     // Kontrola, či sú obrázky načítané (ak sú v HTML)
-    const hasImages = descriptionHtml.includes('<img');
+    const hasImages = content.includes('<img');
     if (hasImages) {
       // Ak sú obrázky, počkáme ešte 2 sekundy
       console.log("Detected images, waiting additional 2s...");
       setTimeout(() => {
-        handleSaveDescription();
+        handleSaveDescriptionWithContent(content);
       }, 2000);
       return;
     }
 
-    console.log("handleSaveDescription called:", { descriptionHtml: descriptionHtml.trim() });
+    console.log("handleSaveDescriptionWithContent called:", { content: content.trim() });
     setIsSaving(true);
     try {
       const response = await fetch(`/api/tasks/${task.id}`, {
@@ -130,17 +132,19 @@ export default function TaskDetailPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          description: descriptionHtml.trim() || null,
+          description: content.trim() || null,
         }),
       });
 
       const result = await response.json();
+      console.log("API response:", result);
 
       if (result.success) {
         setTask(result.data);
         // Tichý úspech pre auto-save
         console.log("Popis úlohy bol automaticky uložený");
       } else {
+        console.error("Failed to save description:", result.error);
         toast({
           title: "Chyba",
           description: "Nepodarilo sa uložiť popis úlohy",
@@ -156,6 +160,10 @@ export default function TaskDetailPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSaveDescription = async () => {
+    handleSaveDescriptionWithContent(descriptionHtml);
   };
 
   const handleAssigneesChange = (newAssignees: TaskAssignee[]) => {
@@ -398,7 +406,8 @@ export default function TaskDetailPage() {
                 </div>
               
                   <QuillEditor
-                    content={description}
+                    key={task?.id}
+                    content={descriptionHtml}
                     onChange={handleDescriptionChange}
                     placeholder="Napíšte popis úlohy..."
                     className="min-h-[150px]"

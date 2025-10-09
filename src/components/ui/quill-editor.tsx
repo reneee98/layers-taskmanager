@@ -34,6 +34,8 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
   taskId
 }, ref) => {
   const quillRef = useRef<any>(null);
+  const lastContentRef = useRef<string>(content);
+  const isUserTyping = useRef(false);
 
   const modules = {
     toolbar: [
@@ -55,6 +57,7 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
   ];
 
   const handleChange = (value: string) => {
+    isUserTyping.current = true;
     if (onChange) {
       // Získame HTML obsah z Quill editora
       const quill = quillRef.current?.getEditor();
@@ -129,6 +132,27 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
       toolbar.addHandler('image', selectLocalImage);
     }
   }, [editable, taskId]);
+
+  // Update editor content when content prop changes (only if user is not typing)
+  useEffect(() => {
+    if (quillRef.current && !isUserTyping.current && content !== lastContentRef.current) {
+      const quill = quillRef.current.getEditor();
+      if (quill && quill.root.innerHTML !== content) {
+        quill.root.innerHTML = content;
+        lastContentRef.current = content;
+      }
+    }
+    // Reset the typing flag after a short delay
+    if (isUserTyping.current) {
+      const timeout = setTimeout(() => {
+        isUserTyping.current = false;
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [content]);
+
+
+
 
   if (!editable) {
     return (

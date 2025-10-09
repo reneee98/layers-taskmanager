@@ -252,11 +252,11 @@ export default function InvoicesPage() {
 
   const getStatusText = (status: string) => {
     const statusMap: { [key: string]: string } = {
-      'todo': 'Na spracovanie',
-      'in_progress': 'V procese',
-      'review': 'Na kontrolu',
-      'done': 'Dokončené',
-      'cancelled': 'Zrušené'
+      'todo': 'To Do',
+      'in_progress': 'In Progress',
+      'review': 'Review',
+      'done': 'Done',
+      'cancelled': 'Cancelled'
     };
     return statusMap[status] || status;
   };
@@ -273,10 +273,10 @@ export default function InvoicesPage() {
 
   const getPriorityText = (priority: string) => {
     const priorityMap: { [key: string]: string } = {
-      'low': 'Nízka',
-      'medium': 'Stredná',
-      'high': 'Vysoká',
-      'urgent': 'Urgentné'
+      'low': 'Low',
+      'medium': 'Medium',
+      'high': 'High',
+      'urgent': 'Urgent'
     };
     return priorityMap[priority] || priority;
   };

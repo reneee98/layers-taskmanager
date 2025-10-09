@@ -19,10 +19,10 @@ interface PrioritySelectProps {
 }
 
 const priorityOptions = [
-  { value: "low", label: "Nízka", color: "bg-green-500/10 text-green-500 border-green-500/20" },
-  { value: "medium", label: "Stredná", color: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" },
-  { value: "high", label: "Vysoká", color: "bg-orange-500/10 text-orange-500 border-orange-500/20" },
-  { value: "urgent", label: "🔥 Urgentné", color: "bg-red-500/10 text-red-500 border-red-500/20" },
+  { value: "low", label: "Low", color: "bg-green-500/10 text-green-500 border-green-500/20" },
+  { value: "medium", label: "Medium", color: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" },
+  { value: "high", label: "High", color: "bg-orange-500/10 text-orange-500 border-orange-500/20" },
+  { value: "urgent", label: "🔥 Urgent", color: "bg-red-500/10 text-red-500 border-red-500/20" },
 ];
 
 export function PrioritySelect({ priority, onPriorityChange, disabled = false }: PrioritySelectProps) {

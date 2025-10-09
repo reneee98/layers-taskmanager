@@ -19,11 +19,11 @@ interface StatusSelectProps {
 }
 
 const statusOptions = [
-  { value: "todo", label: "Na urobiť", color: "bg-gray-500/10 text-gray-500 border-gray-500/20" },
-  { value: "in_progress", label: "Prebieha", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
-  { value: "review", label: "Na kontrolu", color: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" },
-  { value: "done", label: "Hotovo", color: "bg-green-500/10 text-green-500 border-green-500/20" },
-  { value: "cancelled", label: "Zrušené", color: "bg-red-500/10 text-red-500 border-red-500/20" },
+  { value: "todo", label: "To Do", color: "bg-gray-500/10 text-gray-500 border-gray-500/20" },
+  { value: "in_progress", label: "In Progress", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
+  { value: "review", label: "Review", color: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" },
+  { value: "done", label: "Done", color: "bg-green-500/10 text-green-500 border-green-500/20" },
+  { value: "cancelled", label: "Cancelled", color: "bg-red-500/10 text-red-500 border-red-500/20" },
 ];
 
 export function StatusSelect({ status, onStatusChange, disabled = false }: StatusSelectProps) {

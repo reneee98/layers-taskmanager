@@ -74,21 +74,21 @@ export default function ProjectReportPage() {
 
   const getStatusText = (status: string) => {
     const statusMap: { [key: string]: string } = {
-      'todo': 'Na urobiť',
-      'in_progress': 'Prebieha',
-      'review': 'Na kontrole',
-      'done': 'Hotovo',
-      'cancelled': 'Zrušené'
+      'todo': 'To Do',
+      'in_progress': 'In Progress',
+      'review': 'Review',
+      'done': 'Done',
+      'cancelled': 'Cancelled'
     };
     return statusMap[status] || status;
   };
 
   const getPriorityText = (priority: string) => {
     const priorityMap: { [key: string]: string } = {
-      'low': 'Nízka',
-      'medium': 'Stredná',
-      'high': 'Vysoká',
-      'urgent': 'Urgentné'
+      'low': 'Low',
+      'medium': 'Medium',
+      'high': 'High',
+      'urgent': 'Urgent'
     };
     return priorityMap[priority] || priority;
   };

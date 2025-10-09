@@ -165,11 +165,11 @@ export function TaskDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todo">Na urobiť</SelectItem>
-                    <SelectItem value="in_progress">Prebieha</SelectItem>
+                    <SelectItem value="todo">To Do</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
                     <SelectItem value="review">Review</SelectItem>
-                    <SelectItem value="done">Hotovo</SelectItem>
-                    <SelectItem value="cancelled">Zrušené</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -181,10 +181,10 @@ export function TaskDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Nízka</SelectItem>
-                    <SelectItem value="medium">Stredná</SelectItem>
-                    <SelectItem value="high">Vysoká</SelectItem>
-                    <SelectItem value="urgent">Urgentná</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -6,12 +6,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Clock, Euro, BarChart3, MessageSquare, Paperclip, FileText } from "lucide-react";
+import { ArrowLeft, Clock, Euro, BarChart3, FileText } from "lucide-react";
 import { TimePanel } from "@/components/time/TimePanel";
 import { CostsPanel } from "@/components/costs/CostsPanel";
 import { ProjectReport } from "@/components/report/ProjectReport";
-import { CommentsList } from "@/components/comments/CommentsList";
-import { FilesList } from "@/components/files/FilesList";
 import { QuillEditor } from "@/components/ui/quill-editor";
 import { MultiAssigneeSelect } from "@/components/tasks/MultiAssigneeSelect";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
@@ -416,37 +414,6 @@ export default function TaskDetailPage() {
                   />
             </div>
 
-            {/* Comments Section */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                <h3 className="text-lg font-semibold">Komentáre</h3>
-              </div>
-              <div className="border rounded-lg p-4">
-                <CommentsList 
-                  taskId={task.id}
-                  onCommentAdded={() => {
-                    // Optionally refresh task data or show notification
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Files Section */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Paperclip className="h-5 w-5" />
-                <h3 className="text-lg font-semibold">Súbory</h3>
-              </div>
-              <div className="border rounded-lg p-4">
-                <FilesList 
-                  taskId={task.id}
-                  onFileAdded={() => {
-                    // Optionally refresh task data or show notification
-                  }}
-                />
-              </div>
-            </div>
           </TabsContent>
 
           <TabsContent value="time" className="space-y-4">

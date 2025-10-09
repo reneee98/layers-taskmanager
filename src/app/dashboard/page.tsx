@@ -14,7 +14,8 @@ import {
   User,
   ArrowRight,
   Edit,
-  Plus
+  Plus,
+  MessageSquare
 } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/format";
 import { format, isAfter, isBefore, addDays } from "date-fns";
@@ -164,6 +165,8 @@ export default function DashboardPage() {
         return Clock;
       case 'task_update':
         return Edit;
+      case 'comment':
+        return MessageSquare;
       default:
         return Plus;
     }

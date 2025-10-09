@@ -95,6 +95,35 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // 3. Recent comments
+    const { data: comments, error: commentError } = await supabase
+      .from("task_comments")
+      .select(`
+        id,
+        content,
+        created_at,
+        task:tasks(title, project:projects(name, code)),
+        user:users(name)
+      `)
+      .eq("user_id", dbUser.id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (!commentError && comments) {
+      comments.forEach(comment => {
+        activities.push({
+          id: `comment_${comment.id}`,
+          type: 'comment',
+          action: 'Pridal komentár',
+          details: comment.task?.[0]?.title || 'úlohu',
+          project: comment.task?.[0]?.project?.[0]?.name,
+          project_code: comment.task?.[0]?.project?.[0]?.code,
+          user: comment.user?.[0]?.name || 'Neznámy',
+          created_at: comment.created_at,
+          content: comment.content
+        });
+      });
+    }
 
     // Sort activities by timestamp (newest first)
     activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

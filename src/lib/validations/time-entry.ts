@@ -8,6 +8,8 @@ export const timeEntrySchema = z.object({
   description: z.string().optional().or(z.literal("")),
   hourly_rate: z.number().min(0, "Sadzba musí byť kladná").optional().nullable(),
   is_billable: z.boolean().default(true).optional(),
+  start_time: z.string().regex(/^\d{2}:\d{2}:\d{2}$/, "Neplatný čas začiatku (HH:mm:ss)").optional(),
+  end_time: z.string().regex(/^\d{2}:\d{2}:\d{2}$/, "Neplatný čas konca (HH:mm:ss)").optional(),
 });
 
 export const timeEntryUpdateSchema = timeEntrySchema.partial().omit({ task_id: true });

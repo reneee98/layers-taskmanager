@@ -71,6 +71,7 @@ export async function POST(
     // Calculate amount
     const amount = validatedData.hours * (hourlyRate || 0);
 
+
     // Insert time entry
     const { data: timeEntry, error: insertError } = await supabase
       .from("time_entries")
@@ -84,6 +85,8 @@ export async function POST(
         hourly_rate: hourlyRate,
         amount: amount,
         is_billable: validatedData.is_billable ?? true,
+        start_time: validatedData.start_time || null,
+        end_time: validatedData.end_time || null,
       })
       .select()
       .single();

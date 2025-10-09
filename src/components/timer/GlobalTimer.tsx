@@ -3,7 +3,7 @@
 import { useTimer } from "@/contexts/TimerContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Square } from "lucide-react";
+import { Square } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
@@ -31,22 +31,56 @@ export function GlobalTimer() {
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleStop = () => {
+  const handleStop = async () => {
     console.log("GlobalTimer: handleStop called");
-    stopTimer();
-    toast({
-      title: "Časovač zastavený",
-      description: `Časovač pre úlohu "${taskName}" bol zastavený.`,
-    });
-  };
 
-  const handleReset = () => {
-    console.log("GlobalTimer: handleReset called");
-    resetTimer();
-    toast({
-      title: "Časovač resetovaný",
-      description: "Časovač bol resetovaný na 0:00.",
-    });
+    if (!taskId || seconds === 0) {
+      stopTimer();
+      return;
+    }
+
+    const trackedHours = Number((seconds / 3600).toFixed(3));
+    const now = new Date();
+    const endTime = now.toTimeString().slice(0, 8); // HH:mm:ss format
+    const startTime = new Date(now.getTime() - (seconds * 1000)).toTimeString().slice(0, 8); // HH:mm:ss format
+    
+    
+    try {
+      // Automaticky zapísať čas do úlohy - používame rovnakú logiku ako TimePanel
+      const payload = {
+        hours: trackedHours,
+        date: now.toISOString().split("T")[0],
+        description: `Automaticky zapísaný čas z globálneho časovača`,
+        start_time: startTime,
+        end_time: endTime,
+      };
+
+      const response = await fetch(`/api/tasks/${taskId}/time`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Časovač zastavený",
+          description: `Zapísaných ${formatTime(seconds)} do úlohy "${taskName}".`,
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Failed to save time entry:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa uložiť čas do úlohy",
+        variant: "destructive",
+      });
+    } finally {
+      stopTimer();
+    }
   };
 
   const handleClick = () => {
@@ -85,23 +119,16 @@ export function GlobalTimer() {
         </span>
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Button */}
       <div className="flex items-center gap-1">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleReset}
-          className="h-7 w-7 p-0 hover:bg-muted"
-        >
-          <Square className="h-3 w-3" />
-        </Button>
         <Button
           size="sm"
           variant="ghost"
           onClick={handleStop}
           className="h-7 w-7 p-0 hover:bg-muted"
+          title="Zastaviť časovač"
         >
-          <Pause className="h-3 w-3" />
+          <Square className="h-3 w-3" />
         </Button>
       </div>
     </div>

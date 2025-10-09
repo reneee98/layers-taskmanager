@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, forwardRef } from "react";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +23,7 @@ interface QuillEditorProps {
   taskId?: string;
 }
 
-export const QuillEditor = ({
+export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
   content = "",
   onChange,
   onBlur,
@@ -32,7 +32,7 @@ export const QuillEditor = ({
   className,
   editable = true,
   taskId
-}: QuillEditorProps) => {
+}, ref) => {
   const quillRef = useRef<any>(null);
 
   const modules = {
@@ -292,4 +292,6 @@ export const QuillEditor = ({
       </div>
     </div>
   );
-};
+});
+
+QuillEditor.displayName = "QuillEditor";

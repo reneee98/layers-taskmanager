@@ -33,6 +33,8 @@ interface TimeEntry {
   amount: number;
   is_billable: boolean;
   created_at: string;
+  start_time?: string | null;
+  end_time?: string | null;
   user?: {
     id: string;
     name: string;
@@ -66,6 +68,18 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
   
   // Use global timer
   const { isRunning: isTimerRunning, seconds: timerSeconds, startTimer, stopTimer, resetTimer } = useTimer();
+  
+  // Format time function (same as in GlobalTimer)
+  const formatTime = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Fetch time entries for all project tasks
   const fetchTimeEntries = async () => {
@@ -77,12 +91,14 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         const response = await fetch(`/api/tasks/${taskId}/time`);
         const result = await response.json();
         if (result.success && result.data) {
+          console.log("Time entries for task", taskId, ":", result.data);
           allEntries.push(...result.data);
         }
       }
 
       // Sort by date descending
       allEntries.sort((a, b) => b.date.localeCompare(a.date));
+      console.log("All time entries:", allEntries);
       setTimeEntries(allEntries);
     } catch (error) {
       console.error("Failed to fetch time entries:", error);
@@ -127,7 +143,56 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
     const trackedHours = Number((timerSeconds / 3600).toFixed(3));
 
     if (trackedHours > 0 && selectedTaskId) {
-      await handleSubmitTimeEntry(trackedHours);
+      // Vypočítaj start a end time pre časovač - rovnaká logika ako v GlobalTimer
+      const now = new Date();
+      const endTime = now.toTimeString().slice(0, 8); // HH:mm:ss format
+      const startTime = new Date(now.getTime() - (timerSeconds * 1000)).toTimeString().slice(0, 8); // HH:mm:ss format
+      
+      try {
+        // Automaticky zapísať čas do úlohy - rovnaká logika ako v GlobalTimer
+        const payload = {
+          hours: trackedHours,
+          date: now.toISOString().split("T")[0],
+          description: `Časovač - ${formatTime(timerSeconds)}`,
+          start_time: startTime,
+          end_time: endTime,
+        };
+
+        console.log("TimePanel: Sending time entry data:", payload);
+
+        const response = await fetch(`/api/tasks/${selectedTaskId}/time`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+        console.log("TimePanel: API response:", result);
+
+        if (result.success) {
+          toast({
+            title: "Časovač zastavený",
+            description: `Zapísaných ${formatTime(timerSeconds)} do úlohy.`,
+          });
+
+          // Refresh entries
+          fetchTimeEntries();
+          
+          // Notify parent component
+          if (onTimeEntryAdded) {
+            onTimeEntryAdded();
+          }
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (error) {
+        console.error("TimePanel: Error saving time entry:", error);
+        toast({
+          title: "Chyba",
+          description: error instanceof Error ? error.message : "Nepodarilo sa uložiť čas do úlohy",
+          variant: "destructive",
+        });
+      }
     }
     stopTimer();
   };
@@ -211,6 +276,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
       setIsLoading(false);
     }
   };
+
 
   const handleDeleteEntry = async (id: string) => {
     if (!confirm("Naozaj chcete vymazať tento záznam?")) return;
@@ -388,6 +454,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
               <TableHeader>
                 <TableRow>
                   <TableHead>Dátum</TableHead>
+                  <TableHead>Čas</TableHead>
                   <TableHead>Úloha</TableHead>
                   <TableHead>User</TableHead>
                   <TableHead className="text-right">Trvanie</TableHead>
@@ -400,7 +467,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
               <TableBody>
                 {timeEntries.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       Žiadne záznamy
                     </TableCell>
                   </TableRow>
@@ -408,6 +475,37 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
                   timeEntries.map((entry) => (
                     <TableRow key={entry.id}>
                       <TableCell>{format(new Date(entry.date), "dd.MM.yyyy")}</TableCell>
+                      <TableCell className="text-sm font-mono">
+                        {(() => {
+                          // Kontrola či existujú časy
+                          if (entry.start_time && entry.end_time) {
+                            // Zobraz časy priamo ak sú v správnom formáte
+                            if (typeof entry.start_time === 'string' && typeof entry.end_time === 'string') {
+                              // Ak sú časy v formáte HH:mm:ss alebo HH:mm:ss.xxx
+                              if (entry.start_time.includes(':') && entry.end_time.includes(':')) {
+                                const startTime = entry.start_time.split('.')[0]; // Odstráň milisekundy ak existujú
+                                const endTime = entry.end_time.split('.')[0]; // Odstráň milisekundy ak existujú
+                                return `${startTime} - ${endTime}`;
+                              }
+                            }
+                            
+                            // Fallback - skús formátovať ako dátumy
+                            try {
+                              const startDate = new Date(entry.start_time);
+                              const endDate = new Date(entry.end_time);
+                              if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                                return "—";
+                              }
+                              return `${format(startDate, "HH:mm:ss")} - ${format(endDate, "HH:mm:ss")}`;
+                            } catch (error) {
+                              console.error("Error formatting times:", error);
+                              return "—";
+                            }
+                          } else {
+                            return format(new Date(entry.created_at), "HH:mm:ss");
+                          }
+                        })()}
+                      </TableCell>
                       <TableCell className="font-medium">
                         {getTaskTitle(entry.task_id)}
                       </TableCell>

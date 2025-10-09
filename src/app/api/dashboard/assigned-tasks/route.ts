@@ -28,7 +28,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get assigned tasks with project and client info
+    
+    // Použij task_assignees tabuľku na nájdenie priradených úloh
     const { data: tasks, error: tasksError } = await supabase
       .from("task_assignees")
       .select(`
@@ -45,6 +46,7 @@ export async function GET(req: NextRequest) {
           updated_at,
           project_id,
           assignee_id,
+          assigned_to,
           budget_amount,
           project:projects(
             id,
@@ -55,6 +57,7 @@ export async function GET(req: NextRequest) {
         )
       `)
       .eq("user_id", dbUser.id);
+    
 
     if (tasksError) {
       return NextResponse.json(
@@ -70,14 +73,14 @@ export async function GET(req: NextRequest) {
         if (!task) return null;
         
         let daysUntilDeadline = null;
-        if (task[0]?.due_date) {
-          const dueDate = new Date(task[0].due_date);
+        if (task.due_date) {
+          const dueDate = new Date(task.due_date);
           const diffTime = dueDate.getTime() - now.getTime();
           daysUntilDeadline = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         }
 
         return {
-          ...task[0],
+          ...task,
           days_until_deadline: daysUntilDeadline,
         };
       })

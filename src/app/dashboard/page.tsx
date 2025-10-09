@@ -300,7 +300,7 @@ export default function DashboardPage() {
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">
-                        {task.project.name} ({task.project.code}) • {task.project.client.name}
+                        {task.project?.name || 'Neznámy projekt'} ({task.project?.code || 'N/A'}) • {task.project?.client?.name || 'Neznámy klient'}
                       </p>
                       {deadlineStatus && (
                         <Badge variant="destructive" className="text-xs">
@@ -310,7 +310,7 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <Button asChild variant="outline" size="sm">
-                      <Link href={`/projects/${task.project.id}/tasks/${task.id}`}>
+                      <Link href={`/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}>
                         <ArrowRight className="h-4 w-4" />
                       </Link>
                     </Button>
@@ -348,7 +348,7 @@ export default function DashboardPage() {
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">
-                        {task.project.name} ({task.project.code}) • {task.project.client.name}
+                        {task.project?.name || 'Neznámy projekt'} ({task.project?.code || 'N/A'}) • {task.project?.client?.name || 'Neznámy klient'}
                       </p>
                       {deadlineStatus && (
                         <Badge variant="secondary" className="text-xs">
@@ -358,7 +358,7 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <Button asChild variant="outline" size="sm">
-                      <Link href={`/projects/${task.project.id}/tasks/${task.id}`}>
+                      <Link href={`/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}>
                         <ArrowRight className="h-4 w-4" />
                       </Link>
                     </Button>
@@ -395,7 +395,7 @@ export default function DashboardPage() {
                     return (
                       <Link 
                         key={task.id} 
-                        href={`/projects/${task.project.id}/tasks/${task.id}`}
+                        href={`/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}
                         className="block p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                       >
                         <div className="flex items-center justify-between">
@@ -410,7 +410,7 @@ export default function DashboardPage() {
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground truncate">
-                              {task.project.name} ({task.project.code})
+                              {task.project?.name || 'Neznámy projekt'} ({task.project?.code || 'N/A'})
                             </p>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                               {task.estimated_hours && task.estimated_hours > 0 && (

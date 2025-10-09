@@ -77,10 +77,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const user = await getServerUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Nie ste prihlásený" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
+    console.log("Project creation request body:", body);
+    
     const validation = validateSchema(projectSchema, body);
 
     if (!validation.success) {
+      console.log("Validation failed:", validation);
       return NextResponse.json(validation, { status: 400 });
     }
 

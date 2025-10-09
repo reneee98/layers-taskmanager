@@ -2,6 +2,7 @@
 
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { GlobalTimer } from "@/components/timer/GlobalTimer";
 
 interface TopNavProps {
   onMenuClick: () => void;
@@ -25,7 +26,7 @@ export const TopNav = ({ onMenuClick }: TopNavProps) => {
             <h1 className="text-xl font-bold text-foreground">Layers Task Manager</h1>
           </div>
           <div className="flex items-center gap-4">
-            {/* Right side content can go here if needed */}
+            <GlobalTimer />
           </div>
         </div>
       </div>

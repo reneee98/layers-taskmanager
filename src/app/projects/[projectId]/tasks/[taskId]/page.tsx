@@ -442,7 +442,11 @@ export default function TaskDetailPage() {
           <TabsContent value="time" className="space-y-4">
             <TimePanel 
               projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
-              tasks={[task]} 
+              tasks={[{
+                ...task,
+                project_name: task.project?.name || "Neznámy projekt",
+                project_id: task.project_id
+              }]} 
               defaultTaskId={task.id}
               onTimeEntryAdded={() => {
                 // Refresh task data to update actual_hours

@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Play, Square, Clock, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useTimer } from "@/contexts/TimerContext";
 import { formatHours, formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 
@@ -44,6 +45,7 @@ interface Task {
   id: string;
   title: string;
   project_id: string;
+  project_name?: string;
 }
 
 interface TimePanelProps {
@@ -61,8 +63,9 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
   const [description, setDescription] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(0);
+  
+  // Use global timer
+  const { isRunning: isTimerRunning, seconds: timerSeconds, startTimer, stopTimer, resetTimer } = useTimer();
 
   // Fetch time entries for all project tasks
   const fetchTimeEntries = async () => {
@@ -93,18 +96,9 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
     }
   }, [tasks]);
 
-  // Timer logic
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isTimerRunning) {
-      interval = setInterval(() => {
-        setTimerSeconds((prev) => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isTimerRunning]);
-
   const handleStartTimer = () => {
+    console.log("TimePanel: handleStartTimer called", { selectedTaskId, tasks });
+    
     if (!selectedTaskId) {
       toast({
         title: "Chyba",
@@ -113,18 +107,29 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
       });
       return;
     }
-    setIsTimerRunning(true);
-    setTimerSeconds(0);
+    
+    const selectedTask = tasks.find(t => t.id === selectedTaskId);
+    console.log("TimePanel: selectedTask found", selectedTask);
+    console.log("TimePanel: project_name", selectedTask?.project_name);
+    console.log("TimePanel: project_id", selectedTask?.project_id);
+    
+    if (selectedTask) {
+      console.log("TimePanel: Calling startTimer", { selectedTaskId, title: selectedTask.title, projectId: selectedTask.project_id || projectId });
+      startTimer(selectedTaskId, selectedTask.title, selectedTask.project_name || "Neznámy projekt", selectedTask.project_id || projectId);
+      toast({
+        title: "Časovač spustený",
+        description: `Časovač pre úlohu "${selectedTask.title}" bol spustený.`,
+      });
+    }
   };
 
   const handleStopTimer = async () => {
-    setIsTimerRunning(false);
     const trackedHours = Number((timerSeconds / 3600).toFixed(3));
 
     if (trackedHours > 0 && selectedTaskId) {
       await handleSubmitTimeEntry(trackedHours);
-      setTimerSeconds(0);
     }
+    stopTimer();
   };
 
   const handleManualEntry = async () => {
@@ -295,7 +300,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
 
             {isTimerRunning && (
               <p className="text-sm text-muted-foreground">
-                Časovač beží • {formatHours(timerSeconds / 3600)}
+                Časovač beží • {formatHours(timerSeconds / 3600)} • Zobrazený v headeri
               </p>
             )}
           </CardContent>

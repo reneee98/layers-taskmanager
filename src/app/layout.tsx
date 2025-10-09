@@ -4,6 +4,7 @@ import "./globals.css";
 import { LayoutProvider } from "@/components/providers/layout-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { TimerProvider } from "@/contexts/TimerContext";
 import { Toaster } from "@/components/ui/toaster";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -28,7 +29,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <LayoutProvider>{children}</LayoutProvider>
+            <TimerProvider>
+              <LayoutProvider>{children}</LayoutProvider>
+            </TimerProvider>
           </AuthProvider>
         </ThemeProvider>
         <Toaster />

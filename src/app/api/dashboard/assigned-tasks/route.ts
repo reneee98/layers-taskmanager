@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     // Transform data and calculate time until deadline
     const now = new Date();
     const transformedTasks = (tasks || [])
-      .map(({ task }) => {
+      .map(({ task }: any) => {
         if (!task) return null;
         
         let daysUntilDeadline = null;

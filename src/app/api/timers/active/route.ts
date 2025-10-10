@@ -52,9 +52,9 @@ export async function GET(request: NextRequest) {
     const activeTimer = {
       id: timer.id,
       task_id: timer.task_id,
-      task_name: timer.tasks[0]?.title || 'Unknown Task',
-      project_name: timer.tasks[0]?.projects[0]?.name || 'Unknown Project',
-      project_id: timer.tasks[0]?.projects[0]?.id || '',
+      task_name: timer.tasks?.title || 'Unknown Task',
+      project_name: timer.tasks?.projects?.name || 'Unknown Project',
+      project_id: timer.tasks?.projects?.id || '',
       started_at: timer.started_at,
       duration,
     };

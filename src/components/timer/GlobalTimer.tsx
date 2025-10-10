@@ -42,7 +42,7 @@ export function GlobalTimer() {
       const payload = {
         hours: trackedHours,
         date: now.toISOString().split("T")[0],
-        description: `Automaticky zapísaný čas z globálneho časovača`,
+        description: "", // Prázdna poznámka - používateľ si ju dopíše sám
         start_time: startTime,
         end_time: endTime,
       };

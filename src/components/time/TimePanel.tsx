@@ -217,7 +217,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         const payload = {
           hours: trackedHours,
           date: now.toISOString().split("T")[0],
-          description: `Časovač - ${formatTime(currentDuration)}`,
+          description: "", // Prázdna poznámka - používateľ si ju dopíše sám
           start_time: startTime,
           end_time: endTime,
         };

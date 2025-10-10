@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/auth/admin";
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,11 +15,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Find user in users table by email
+    // Find user in profiles table by id
     const { data: dbUser, error: dbUserError } = await supabase
-      .from("users")
+      .from("profiles")
       .select("id")
-      .eq("email", user.email)
+      .eq("id", user.id)
       .single();
 
     if (dbUserError || !dbUser) {
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
         description,
         created_at,
         task:tasks(title, project:projects(name, code)),
-        user:users(name)
+        user:profiles(display_name)
       `)
       .eq("user_id", dbUser.id)
       .order("created_at", { ascending: false })
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
           details: `${entry.hours}h na ${entry.task?.[0]?.title || 'úlohu'}`,
           project: entry.task?.[0]?.project?.[0]?.name,
           project_code: entry.task?.[0]?.project?.[0]?.code,
-          user: entry.user?.[0]?.name || 'Neznámy',
+          user: entry.user?.[0]?.display_name || 'Neznámy',
           created_at: entry.created_at,
           description: entry.description
         });
@@ -103,7 +104,7 @@ export async function GET(req: NextRequest) {
         content,
         created_at,
         task:tasks(title, project:projects(name, code)),
-        user:users(name)
+        user:profiles(display_name)
       `)
       .eq("user_id", dbUser.id)
       .order("created_at", { ascending: false })
@@ -118,7 +119,7 @@ export async function GET(req: NextRequest) {
           details: comment.task?.[0]?.title || 'úlohu',
           project: comment.task?.[0]?.project?.[0]?.name,
           project_code: comment.task?.[0]?.project?.[0]?.code,
-          user: comment.user?.[0]?.name || 'Neznámy',
+          user: comment.user?.[0]?.display_name || 'Neznámy',
           created_at: comment.created_at,
           content: comment.content
         });

@@ -219,11 +219,11 @@ export function TaskRow({
           {task.assignees && task.assignees.length > 0 ? (
             <>
               {task.assignees.slice(0, 4).map((assignee, index) => (
-                <Avatar key={assignee.id} className="h-6 w-6">
-                  <AvatarFallback className="text-xs">
-                    {getInitials(assignee.user?.name)}
-                  </AvatarFallback>
-                </Avatar>
+                  <Avatar key={assignee.id} className="h-6 w-6">
+                    <AvatarFallback className="text-xs">
+                      {getInitials(assignee.user?.display_name || assignee.user?.name)}
+                    </AvatarFallback>
+                  </Avatar>
               ))}
               {task.assignees.length > 4 && (
                 <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">

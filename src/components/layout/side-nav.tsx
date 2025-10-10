@@ -1,10 +1,11 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Users, FolderKanban, LogOut, LayoutDashboard, FileText } from "lucide-react";
+import { Users, FolderKanban, LogOut, LayoutDashboard, FileText, UserCog, Settings } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeSwitcher } from "@/components/ui/theme-switcher";
@@ -15,7 +16,12 @@ interface SideNavProps {
   onClose: () => void;
 }
 
-const navItems = [
+const navItems: Array<{
+  title: string;
+  href: string;
+  icon: any;
+  adminOnly?: boolean;
+}> = [
   {
     title: "Dashboard",
     href: "/dashboard",
@@ -36,11 +42,19 @@ const navItems = [
     href: "/invoices",
     icon: FileText,
   },
+  {
+    title: "Správa používateľov",
+    href: "/workspaces/members",
+    icon: UserCog,
+    adminOnly: true,
+  },
 ];
 
 export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, profile, signOut } = useAuth();
+  const { workspace } = useWorkspace();
 
   const handleSignOut = async () => {
     try {
@@ -70,10 +84,10 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case "owner":
-        return "Majiteľ";
-      case "designer":
-        return "Grafik";
+      case "admin":
+        return "Administrátor";
+      case "user":
+        return "Používateľ";
       default:
         return role;
     }
@@ -81,9 +95,9 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case "owner":
-        return "text-yellow-600 bg-yellow-100";
-      case "designer":
+      case "admin":
+        return "text-red-600 bg-red-100";
+      case "user":
         return "text-blue-600 bg-blue-100";
       default:
         return "text-gray-600 bg-gray-100";
@@ -110,6 +124,11 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
         <div className="flex h-full flex-col gap-2 p-6">
           <nav className="flex flex-1 flex-col gap-2">
             {navItems.map((item) => {
+              // Skip admin-only items if user is not workspace owner
+              if (item.adminOnly && workspace?.role !== 'owner') {
+                return null;
+              }
+              
               const isActive = pathname === item.href;
               return (
                 <Link
@@ -130,40 +149,52 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
             })}
           </nav>
           
-          {/* Theme switcher */}
+          {/* Bottom section - Theme switcher and User info */}
           <div className="mt-auto border-t border-border pt-4">
+            {/* Theme switcher */}
             <div className="flex items-center justify-between px-4 py-2">
               <span className="text-xs text-muted-foreground">Téma</span>
               <ThemeSwitcher />
             </div>
-          </div>
-
-          {/* User info at very bottom */}
-          {user && profile && (
-            <div className="border-t border-border pt-3">
+            
+            {/* User info */}
+            {user && profile && (
               <div className="flex items-center gap-2 px-4 py-2">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-sm">
-                    {getInitials(profile.name || user.email || "U")}
+                    {getInitials(profile.display_name || user.email || "U")}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium truncate text-muted-foreground">
-                    {profile.name || user.email}
+                    {profile.display_name || user.email}
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleSignOut}
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                  title="Odhlásiť sa"
-                >
-                  <LogOut className="h-3 w-3" />
-                </Button>
+                
+                {/* User actions */}
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => router.push("/settings")}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    title="Nastavenia"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleSignOut}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    title="Odhlásiť sa"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </aside>
     </>

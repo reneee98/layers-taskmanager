@@ -1,39 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/auth/admin";
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const user = await getServerUser();
     
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: "Nie ste prihlásený" },
         { status: 401 }
       );
     }
 
-    // Find user in users table by email
-    const { data: dbUser, error: dbUserError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", user.email)
-      .single();
-
-    if (dbUserError || !dbUser) {
+    const supabase = createClient();
+    
+    // Get workspace_id from query params
+    const { searchParams } = new URL(req.url);
+    const workspaceId = searchParams.get('workspace_id');
+    
+    if (!workspaceId) {
       return NextResponse.json(
-        { success: false, error: "Používateľ nebol nájdený v databáze" },
+        { success: false, error: "Workspace ID je povinný" },
+        { status: 400 }
+      );
+    }
+
+    // Check if user has access to workspace
+    const { data: workspace, error: workspaceError } = await supabase
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+    
+    if (workspaceError || !workspace) {
+      return NextResponse.json(
+        { success: false, error: "Workspace nebol nájdený" },
         { status: 404 }
+      );
+    }
+    
+    // Check if user is owner or member
+    const isOwner = workspace.owner_id === user.id;
+    const { data: member } = await supabase
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', user.id)
+      .single();
+    
+    if (!isOwner && !member) {
+      return NextResponse.json(
+        { success: false, error: "Nemáte prístup k tomuto workspace" },
+        { status: 403 }
       );
     }
 
     
-    // Použij task_assignees tabuľku na nájdenie priradených úloh
+    // Použij task_assignees tabuľku na nájdenie priradených úloh v workspace
     const { data: tasks, error: tasksError } = await supabase
       .from("task_assignees")
       .select(`
-        task:tasks(
+        task:tasks!inner(
           id,
           title,
           description,
@@ -48,15 +76,18 @@ export async function GET(req: NextRequest) {
           assignee_id,
           assigned_to,
           budget_amount,
-          project:projects(
+          workspace_id,
+          project:projects!inner(
             id,
             name,
             code,
+            workspace_id,
             client:clients(name)
           )
         )
       `)
-      .eq("user_id", dbUser.id);
+      .eq("user_id", user.id)
+      .eq("task.workspace_id", workspaceId);
     
 
     if (tasksError) {

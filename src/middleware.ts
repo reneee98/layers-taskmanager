@@ -5,6 +5,7 @@ import { createServerClient } from '@supabase/ssr'
 // Stránky, ktoré nevyžadujú autentifikáciu
 const publicRoutes = [
   '/login',
+  '/auth/register',
   '/api/auth',
   '/_next',
   '/favicon.ico',
@@ -78,6 +79,19 @@ export async function middleware(request: NextRequest) {
   // Ak nie je prihlásený, presmeruj na login
   if (!user) {
     return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // Pre admin stránky skontroluj rolu
+  if (pathname.startsWith('/admin')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    
+    if (!profile || profile.role !== 'admin') {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
   }
 
   // Ak je prihlásený, nechaj prejsť

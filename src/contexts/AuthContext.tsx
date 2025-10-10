@@ -7,9 +7,11 @@ import type { User } from "@supabase/supabase-js";
 interface UserProfile {
   id: string;
   email: string;
-  role: "owner" | "designer";
-  name?: string;
+  role: "user" | "admin" | "owner" | "designer";
+  display_name: string;
+  avatar_url?: string;
   created_at: string;
+  updated_at: string;
 }
 
 interface AuthContextType {
@@ -17,6 +19,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -38,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Simple fetch without timeout
       const { data, error } = await supabase
-        .from("user_profiles")
+        .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
@@ -51,12 +54,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error && error.code === 'PGRST116') {
         // Profile doesn't exist, create it
         const { data: newProfile, error: createError } = await supabase
-          .from("user_profiles")
+          .from("profiles")
           .insert({
             id: user.id,
             email: user.email || '',
-            name: user.email?.split('@')[0] || 'User',
-            role: user.email === 'design@renemoravec.sk' ? 'owner' : 'designer'
+            display_name: user.email?.split('@')[0] || 'User',
+            role: user.email === 'design@renemoravec.sk' ? 'admin' : 'user'
           })
           .select()
           .single();
@@ -141,11 +144,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const logout = async () => {
+    await signOut();
+  };
+
   const value = {
     user,
     profile,
     loading,
     signOut,
+    logout,
     refreshProfile,
   };
 

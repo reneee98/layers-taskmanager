@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { TopNav } from "@/components/layout/top-nav";
 import { SideNav } from "@/components/layout/side-nav";
 import { useAuth } from "@/contexts/AuthContext";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 
 interface LayoutProviderProps {
   children: React.ReactNode;
@@ -37,13 +38,15 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
 
   // If user is authenticated, show full layout
   return (
-    <div className="relative min-h-screen">
-      <TopNav onMenuClick={handleToggleSideNav} />
-      <SideNav isOpen={isSideNavOpen} onClose={handleCloseSideNav} />
-      <main className="md:pl-64">
-        <div className="container mx-auto px-6 py-8">{children}</div>
-      </main>
-    </div>
+    <WorkspaceProvider>
+      <div className="relative min-h-screen">
+        <TopNav onMenuClick={handleToggleSideNav} />
+        <SideNav isOpen={isSideNavOpen} onClose={handleCloseSideNav} />
+        <main className="md:pl-64">
+          <div className="container mx-auto px-6 py-8">{children}</div>
+        </main>
+      </div>
+    </WorkspaceProvider>
   );
 };
 

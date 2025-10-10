@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { timeEntrySchema } from "@/lib/validations/time-entry";
 import { resolveHourlyRate } from "@/server/rates/resolveHourlyRate";
+import { getUserWorkspaceIdOrThrow } from "@/lib/auth/workspace";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
+    // Get user's workspace ID
+    const workspaceId = await getUserWorkspaceIdOrThrow();
+    
     const { taskId } = await params;
     const supabase = createClient();
     const body = await req.json();
@@ -18,11 +22,12 @@ export async function POST(
       task_id: taskId,
     });
 
-    // Get task to find project_id
+    // Get task to find project_id (filtered by workspace)
     const { data: task, error: taskError } = await supabase
       .from("tasks")
       .select("project_id")
       .eq("id", taskId)
+      .eq("workspace_id", workspaceId)
       .single();
 
     if (taskError || !task) {
@@ -41,22 +46,8 @@ export async function POST(
       );
     }
 
-    // Find user in users table by email (since auth IDs don't match our hardcoded IDs)
-    const { data: dbUser, error: dbUserError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", user.email)
-      .single();
-
-    if (dbUserError || !dbUser) {
-      return NextResponse.json(
-        { success: false, error: "Používateľ nebol nájdený v databáze" },
-        { status: 404 }
-      );
-    }
-
-    // Use provided user_id or current authenticated user's DB ID
-    const userId = validatedData.user_id || dbUser.id;
+    // Use auth user ID directly (no need for users table lookup)
+    const userId = validatedData.user_id || user.id;
 
     // Resolve hourly rate if not provided
     let hourlyRate = validatedData.hourly_rate;
@@ -87,6 +78,7 @@ export async function POST(
         is_billable: validatedData.is_billable ?? true,
         start_time: validatedData.start_time || null,
         end_time: validatedData.end_time || null,
+        workspace_id: workspaceId,
       })
       .select()
       .single();

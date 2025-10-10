@@ -38,13 +38,13 @@ export function TaskAssignees({ taskId, assignees, onAssigneesChange }: TaskAssi
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await fetch("/api/users");
+        const response = await fetch("/api/workspace-users");
         const result = await response.json();
         if (result.success) {
           setUsers(result.data);
         }
       } catch (error) {
-        console.error("Failed to fetch users:", error);
+        console.error("Failed to fetch workspace users:", error);
       }
     };
 

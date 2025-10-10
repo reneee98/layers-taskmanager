@@ -38,13 +38,13 @@ export function MultiAssigneeSelect({
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch("/api/users");
+      const response = await fetch("/api/workspace-users");
       const result = await response.json();
       if (result.success) {
         setUsers(result.data);
       }
     } catch (error) {
-      console.error("Failed to fetch users:", error);
+      console.error("Failed to fetch workspace users:", error);
     } finally {
       setIsLoading(false);
     }
@@ -55,15 +55,26 @@ export function MultiAssigneeSelect({
   }, []);
 
   const handleAddAssignee = async (userId: string) => {
+    console.log("handleAddAssignee called with userId:", userId);
+    console.log("Available users:", users);
+    
     if (userId === "none") return;
 
     const user = users.find(u => u.id === userId);
-    if (!user) return;
+    if (!user) {
+      console.log("User not found:", userId);
+      return;
+    }
 
     // Check if user is already assigned
     if (currentAssignees.some(assignee => assignee.user_id === userId)) {
+      console.log("User already assigned");
       return;
     }
+
+    console.log("Adding assignee:", user.name, "to task:", taskId);
+    console.log("User ID being sent:", userId);
+    console.log("User object:", user);
 
     try {
       const response = await fetch(`/api/tasks/${taskId}/assignees`, {
@@ -77,14 +88,24 @@ export function MultiAssigneeSelect({
       });
 
       const result = await response.json();
+      console.log("API response:", result);
 
       if (result.success) {
+        console.log("Assignment successful, refreshing assignees...");
         // Refresh assignees
         const assigneesResponse = await fetch(`/api/tasks/${taskId}/assignees`);
         const assigneesResult = await assigneesResponse.json();
+        console.log("Refreshed assignees:", assigneesResult);
         if (assigneesResult.success) {
+          console.log("Calling onAssigneesChange with:", assigneesResult.data);
+          console.log("First assignee details:", assigneesResult.data[0]);
+          console.log("User in assignee:", assigneesResult.data[0]?.user);
           onAssigneesChange(assigneesResult.data);
+        } else {
+          console.error("Failed to refresh assignees:", assigneesResult.error);
         }
+      } else {
+        console.error("Failed to add assignee:", result.error);
       }
     } catch (error) {
       console.error("Failed to add assignee:", error);
@@ -138,10 +159,10 @@ export function MultiAssigneeSelect({
         >
           <Avatar className="h-4 w-4">
             <AvatarFallback className="text-xs">
-              {getInitials(assignee.user?.name || "")}
+              {getInitials(assignee.user?.display_name || assignee.user?.name || "")}
             </AvatarFallback>
           </Avatar>
-          <span>{assignee.user?.name?.split(" ")[0]}</span>
+          <span>{(assignee.user?.display_name || assignee.user?.name || "").split(" ")[0]}</span>
           <Button
             variant="ghost"
             size="sm"

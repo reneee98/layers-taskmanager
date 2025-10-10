@@ -36,13 +36,13 @@ export function SimpleAssigneeSelect({
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch("/api/users");
+      const response = await fetch("/api/workspace-users");
       const result = await response.json();
       if (result.success) {
         setUsers(result.data);
       }
     } catch (error) {
-      console.error("Failed to fetch users:", error);
+      console.error("Failed to fetch workspace users:", error);
     } finally {
       setIsLoading(false);
     }
@@ -54,13 +54,55 @@ export function SimpleAssigneeSelect({
 
   const handleAssigneeChange = async (userId: string) => {
     if (userId === "none") {
-      onAssigneeChange(null);
+      // Remove assignee
+      try {
+        const response = await fetch(`/api/tasks/${taskId}/assignees`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            assigneeIds: [],
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          onAssigneeChange(null);
+        } else {
+          console.error("Failed to remove assignee:", result.error);
+        }
+      } catch (error) {
+        console.error("Failed to remove assignee:", error);
+      }
       return;
     }
 
     const user = users.find(u => u.id === userId);
     if (user) {
-      onAssigneeChange(user);
+      // Add assignee
+      try {
+        const response = await fetch(`/api/tasks/${taskId}/assignees`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            assigneeIds: [userId],
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          onAssigneeChange(user);
+        } else {
+          console.error("Failed to add assignee:", result.error);
+        }
+      } catch (error) {
+        console.error("Failed to add assignee:", error);
+      }
     }
   };
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,8 +40,8 @@ export function LoginForm() {
           description: "Vitajte v Laydo!",
         });
         
-        // Redirect to projects page
-        router.push("/projects");
+        // Redirect to dashboard page
+        router.push("/dashboard");
         router.refresh();
       }
     } catch (error: any) {
@@ -139,6 +140,17 @@ export function LoginForm() {
             </Button>
           </form>
 
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Nemáte účet?{" "}
+              <Link 
+                href="/auth/register" 
+                className="font-medium text-primary hover:text-primary/80"
+              >
+                Zaregistrujte sa
+              </Link>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

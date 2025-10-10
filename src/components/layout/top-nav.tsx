@@ -3,12 +3,14 @@
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlobalTimer } from "@/components/timer/GlobalTimer";
+import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
 
 interface TopNavProps {
   onMenuClick: () => void;
 }
 
 export const TopNav = ({ onMenuClick }: TopNavProps) => {
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center px-6">
@@ -29,6 +31,7 @@ export const TopNav = ({ onMenuClick }: TopNavProps) => {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <WorkspaceSwitcher />
             <GlobalTimer />
           </div>
         </div>

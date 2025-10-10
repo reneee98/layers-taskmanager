@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
+import { getUserWorkspaceIdOrThrow } from "@/lib/auth/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -13,13 +14,32 @@ export async function GET(
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
+    // Get user's workspace ID
+    const workspaceId = await getUserWorkspaceIdOrThrow();
+    
     const { taskId } = await params;
     const supabase = createClient();
+
+    // First verify the task belongs to the user's workspace
+    const { data: task, error: taskError } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("id", taskId)
+      .eq("workspace_id", workspaceId)
+      .single();
+
+    if (taskError || !task) {
+      return NextResponse.json(
+        { success: false, error: "Úloha nebola nájdená" },
+        { status: 404 }
+      );
+    }
 
     const { data: assignees, error } = await supabase
       .from("task_assignees")
       .select("*")
       .eq("task_id", taskId)
+      .eq("workspace_id", workspaceId)
       .order("assigned_at", { ascending: false });
 
     if (error) {
@@ -30,13 +50,13 @@ export async function GET(
       );
     }
 
-    // Fetch users separately
+    // Fetch users separately from profiles table
     const userIds = assignees?.map(a => a.user_id) || [];
     let users: any[] = [];
     
     if (userIds.length > 0) {
       const { data: usersData, error: usersError } = await supabase
-        .from("users")
+        .from("profiles")
         .select("*")
         .in("id", userIds);
       
@@ -52,10 +72,20 @@ export async function GET(
     }
 
     // Combine assignees with user data
-    const assigneesWithUsers = assignees?.map(assignee => ({
-      ...assignee,
-      user: users.find(u => u.id === assignee.user_id)
-    })) || [];
+    const assigneesWithUsers = assignees?.map(assignee => {
+      const user = users.find(u => u.id === assignee.user_id);
+      console.log("Assigning user to assignee:", {
+        assignee_user_id: assignee.user_id,
+        found_user: user,
+        all_users: users
+      });
+      return {
+        ...assignee,
+        user: user
+      };
+    }) || [];
+
+    console.log("Final assignees with users:", assigneesWithUsers);
 
     return NextResponse.json({ success: true, data: assigneesWithUsers });
   } catch (error) {
@@ -72,23 +102,43 @@ export async function POST(
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
+    // Get user's workspace ID
+    const workspaceId = await getUserWorkspaceIdOrThrow();
+    
     const { taskId } = await params;
     const supabase = createClient();
     const body = await request.json();
     
     const { assigneeIds } = assigneesSchema.parse(body);
 
+    // First verify the task belongs to the user's workspace
+    const { data: task, error: taskError } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("id", taskId)
+      .eq("workspace_id", workspaceId)
+      .single();
+
+    if (taskError || !task) {
+      return NextResponse.json(
+        { success: false, error: "Úloha nebola nájdená" },
+        { status: 404 }
+      );
+    }
+
     // First, delete all existing assignees for this task
     await supabase
       .from("task_assignees")
       .delete()
-      .eq("task_id", taskId);
+      .eq("task_id", taskId)
+      .eq("workspace_id", workspaceId);
 
     // Then, insert new assignees
     if (assigneeIds.length > 0) {
       const assigneesToInsert = assigneeIds.map(userId => ({
         task_id: taskId,
         user_id: userId,
+        workspace_id: workspaceId,
       }));
 
       const { error: insertError } = await supabase

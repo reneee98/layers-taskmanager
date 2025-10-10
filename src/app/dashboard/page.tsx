@@ -22,6 +22,7 @@ import { format, isAfter, isBefore, addDays } from "date-fns";
 import { sk } from "date-fns/locale";
 import Link from "next/link";
 import type { Task } from "@/types/database";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface AssignedTask {
   id: string;
@@ -64,17 +65,20 @@ interface Activity {
 }
 
 export default function DashboardPage() {
+  const { workspace, loading: workspaceLoading } = useWorkspace();
   const [tasks, setTasks] = useState<AssignedTask[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!workspace) return;
+
     const fetchData = async () => {
       try {
-        // Fetch tasks and activities in parallel
+        // Fetch tasks and activities in parallel with workspace_id
         const [tasksResponse, activitiesResponse] = await Promise.all([
-          fetch("/api/dashboard/assigned-tasks"),
-          fetch("/api/dashboard/activity")
+          fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}`),
+          fetch(`/api/dashboard/activity?workspace_id=${workspace.id}`)
         ]);
 
         const tasksResult = await tasksResponse.json();
@@ -99,7 +103,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, []);
+  }, [workspace]);
 
   const getStatusBadgeVariant = (status: string) => {
     const variantMap: { [key: string]: string } = {
@@ -207,7 +211,7 @@ export default function DashboardPage() {
   const overdueTasks = tasksWithDeadlines.filter(task => task.days_until_deadline !== null && task.days_until_deadline < 0);
   const upcomingTasks = tasksWithDeadlines.filter(task => task.days_until_deadline !== null && task.days_until_deadline >= 0 && task.days_until_deadline <= 7);
 
-  if (isLoading) {
+  if (workspaceLoading || isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

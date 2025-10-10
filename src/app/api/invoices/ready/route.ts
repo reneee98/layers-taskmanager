@@ -1,19 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getUserWorkspaceIdOrThrow } from "@/lib/auth/workspace";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
+    // Get user's workspace ID
+    const workspaceId = await getUserWorkspaceIdOrThrow();
+    
     const supabase = createClient();
 
-    // Get all projects first
+    // Get all projects first (filtered by workspace)
     const { data: allProjects, error: projectsError } = await supabase
       .from("projects")
       .select(`
         *,
         client:clients(*)
-      `);
+      `)
+      .eq("workspace_id", workspaceId);
 
     if (projectsError) {
       return NextResponse.json(
@@ -22,10 +27,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get all tasks (not invoiced) to check project completion
+    // Get all tasks (not invoiced) to check project completion (filtered by workspace)
     const { data: allTasks, error: tasksError } = await supabase
       .from("tasks")
       .select("*")
+      .eq("workspace_id", workspaceId)
       .neq("status", "invoiced"); // All tasks except 'invoiced'
 
     if (tasksError) {

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { projectSchema } from "@/lib/validations/project";
 import { validateSchema } from "@/lib/zod-helpers";
 import { getServerUser } from "@/lib/auth";
+import { getUserWorkspaceIdOrThrow } from "@/lib/auth/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -17,15 +18,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get user's workspace ID
+    const workspaceId = await getUserWorkspaceIdOrThrow();
+
     const supabase = createClient();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const clientId = searchParams.get("client_id");
 
-    // First, get all projects
+    // First, get all projects filtered by workspace
     let query = supabase
       .from("projects")
       .select("*, client:clients(*)")
+      .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false });
 
     if (status) {
@@ -86,6 +91,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get user's workspace ID
+    const workspaceId = await getUserWorkspaceIdOrThrow();
+
     const body = await request.json();
     console.log("Project creation request body:", body);
     
@@ -98,11 +106,12 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient();
 
-    // Check if code is unique
+    // Check if code is unique within workspace
     const { data: existing } = await supabase
       .from("projects")
       .select("id")
       .eq("code", validation.data.code)
+      .eq("workspace_id", workspaceId)
       .single();
 
     if (existing) {
@@ -114,7 +123,10 @@ export async function POST(request: NextRequest) {
 
     const { data: project, error } = await supabase
       .from("projects")
-      .insert(validation.data)
+      .insert({
+        ...validation.data,
+        workspace_id: workspaceId
+      })
       .select("*, client:clients(*)")
       .single();
 

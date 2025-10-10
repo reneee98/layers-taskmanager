@@ -2,16 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { clientSchema } from "@/lib/validations/client";
 import { validateSchema } from "@/lib/zod-helpers";
+import { getUserWorkspaceIdOrThrow } from "@/lib/auth/workspace";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
+    // Get user's workspace ID
+    const workspaceId = await getUserWorkspaceIdOrThrow();
+    
     const supabase = createClient();
 
     const { data: clients, error } = await supabase
       .from("clients")
       .select("*")
+      .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -29,6 +34,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Get user's workspace ID
+    const workspaceId = await getUserWorkspaceIdOrThrow();
+    
     const body = await request.json();
     const validation = validateSchema(clientSchema, body);
 
@@ -40,7 +48,10 @@ export async function POST(request: NextRequest) {
 
     const { data: client, error } = await supabase
       .from("clients")
-      .insert(validation.data)
+      .insert({
+        ...validation.data,
+        workspace_id: workspaceId
+      })
       .select()
       .single();
 

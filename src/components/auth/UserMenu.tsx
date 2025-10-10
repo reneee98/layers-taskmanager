@@ -75,7 +75,7 @@ export function UserMenu() {
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="text-xs">
-              {getInitials(profile.name || user.email || "U")}
+              {getInitials(profile.display_name || user.email || "U")}
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -84,7 +84,7 @@ export function UserMenu() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
-              {profile.name || user.email}
+              {profile.display_name || user.email}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}

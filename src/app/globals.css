@@ -275,7 +275,7 @@
   /* Page numbers */
   @page :first {
     @top-center {
-      content: "Layers Task Manager - Project Report";
+      content: "Laydo - Project Report (Alpha v1.0)";
       font-size: 10pt;
       color: #6b7280;
     }

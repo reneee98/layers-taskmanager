@@ -23,7 +23,10 @@ export const TopNav = ({ onMenuClick }: TopNavProps) => {
         </Button>
         <div className="flex flex-1 items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold text-foreground">Layers Task Manager</h1>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-bold text-foreground">Laydo</h1>
+              <span className="text-xs text-muted-foreground">Alpha verzia 1.0</span>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <GlobalTimer />

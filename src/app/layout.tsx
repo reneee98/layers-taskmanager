@@ -10,8 +10,8 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Layers Task Manager",
-  description: "Professional task management system",
+  title: "Laydo - Alpha verzia 1.0",
+  description: "Profesionálny systém na správu úloh a projektov",
 };
 
 export default function RootLayout({

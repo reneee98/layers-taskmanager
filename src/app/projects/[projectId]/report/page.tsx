@@ -344,7 +344,7 @@ export default function ProjectReportPage() {
         <div className="print:mt-8mm print:pt-4mm print:border-t print:border-gray-200">
           <div className="text-center text-sm text-muted-foreground print:text-xs print:text-gray-500">
             <p>Report vygenerovaný dňa {format(new Date(), 'dd.MM.yyyy HH:mm')}</p>
-            <p className="mt-1 font-medium print:text-xs">Layers Task Manager</p>
+            <p className="mt-1 font-medium print:text-xs">Laydo - Alpha verzia 1.0</p>
           </div>
         </div>
       </div>

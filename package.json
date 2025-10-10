@@ -1,6 +1,6 @@
 {
-  "name": "layers-tm",
-  "version": "0.1.0",
+  "name": "laydo",
+  "version": "1.0.0-alpha",
   "private": true,
   "scripts": {
     "dev": "next dev",

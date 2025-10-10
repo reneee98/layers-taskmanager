@@ -36,7 +36,7 @@ export function LoginForm() {
       if (data.user) {
         toast({
           title: "Úspešné prihlásenie",
-          description: "Vitajte v Layers Task Manager!",
+          description: "Vitajte v Laydo!",
         });
         
         // Redirect to projects page
@@ -75,9 +75,9 @@ export function LoginForm() {
               <span className="text-2xl font-bold text-primary-foreground">L</span>
             </div>
           </div>
-          <CardTitle className="text-2xl text-center">Layers Task Manager</CardTitle>
+          <CardTitle className="text-2xl text-center">Laydo</CardTitle>
           <CardDescription className="text-center">
-            Prihláste sa do svojho účtu
+            Alpha verzia 1.0 - Prihláste sa do svojho účtu
           </CardDescription>
         </CardHeader>
         <CardContent>

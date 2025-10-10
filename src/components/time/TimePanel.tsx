@@ -65,6 +65,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
   const [description, setDescription] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
   
   // Use global timer
   const { activeTimer, currentDuration, startTimer, stopTimer } = useTimer();
@@ -367,6 +368,49 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
     }
   };
 
+  const handleDescriptionChange = (entryId: string, value: string) => {
+    setEditingDescriptions(prev => ({
+      ...prev,
+      [entryId]: value
+    }));
+  };
+
+  const handleDescriptionBlur = async (entryId: string) => {
+    const newDescription = editingDescriptions[entryId];
+    if (newDescription === undefined) return;
+
+    try {
+      const response = await fetch(`/api/time-entries/${entryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: newDescription,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Refresh entries to get updated data
+        fetchTimeEntries();
+        
+        // Notify parent component
+        if (onTimeEntryAdded) {
+          onTimeEntryAdded();
+        }
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Failed to update time entry:", error);
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa uložiť poznámku",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatTimerDisplay = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -543,7 +587,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
                   </TableRow>
                 ) : (
                   timeEntries.map((entry) => (
-                    <TableRow key={entry.id}>
+                    <TableRow key={entry.id} className="group">
                       <TableCell>{format(new Date(entry.date), "dd.MM.yyyy")}</TableCell>
                       <TableCell className="text-sm font-mono">
                         {(() => {
@@ -598,8 +642,14 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
                       <TableCell className="text-right font-mono font-medium">
                         {formatCurrency(entry.amount)}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                        {entry.description || "—"}
+                      <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                        <Input
+                          value={editingDescriptions[entry.id] !== undefined ? editingDescriptions[entry.id] : (entry.description || "")}
+                          onChange={(e) => handleDescriptionChange(entry.id, e.target.value)}
+                          onBlur={() => handleDescriptionBlur(entry.id)}
+                          placeholder="Poznámka..."
+                          className="text-xs"
+                        />
                       </TableCell>
                       <TableCell>
                         <Button

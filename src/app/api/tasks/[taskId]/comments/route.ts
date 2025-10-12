@@ -41,8 +41,8 @@ export async function GET(
 
     // Get current user info once
     const { data: currentUser } = await supabase
-      .from("user_profiles")
-      .select("name, email")
+      .from("profiles")
+      .select("display_name, email")
       .eq("id", user.id)
       .single();
 
@@ -118,8 +118,8 @@ export async function POST(
 
     // Get current user info
     const { data: currentUser } = await supabase
-      .from("user_profiles")
-      .select("name, email")
+      .from("profiles")
+      .select("display_name, email")
       .eq("id", user.id)
       .single();
 

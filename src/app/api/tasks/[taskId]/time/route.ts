@@ -163,7 +163,7 @@ export async function GET(
       (entries || []).map(async (entry) => {
         const { data: user } = await supabase
           .from("users")
-          .select("id, name, email, avatar_url")
+          .select("id, display_name, email, avatar_url")
           .eq("id", entry.user_id)
           .single();
 

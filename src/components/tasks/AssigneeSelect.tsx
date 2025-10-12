@@ -145,16 +145,16 @@ export function AssigneeSelect({
                   return (
                     <CommandItem
                       key={user.id}
-                      value={user.name}
+                      value={user.display_name}
                       onSelect={() => handleUserSelect(user)}
                       className="flex items-center gap-2"
                     >
                       <Avatar className="h-6 w-6">
                         <AvatarFallback className="text-xs">
-                          {getInitials(user.name)}
+                          {getInitials(user.display_name)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="flex-1">{user.name}</span>
+                      <span className="flex-1">{user.display_name}</span>
                       <Check
                         className={cn(
                           "h-4 w-4",

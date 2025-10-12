@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/admin";
+import { getUserAccessibleWorkspaces } from "@/lib/auth/workspace-security";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,60 +13,10 @@ export async function GET(request: NextRequest) {
     
     const supabase = createClient();
     
-    // Get all workspaces where user is owner or member
-    const { data: ownedWorkspaces, error: ownedError } = await supabase
-      .from('workspaces')
-      .select('id, name, description, owner_id, created_at')
-      .eq('owner_id', user.id);
+    // Use the new security function to get accessible workspaces
+    const allWorkspaces = await getUserAccessibleWorkspaces(user.id);
     
-    console.log(`DEBUG: User ${user.email} (${user.id}) owned workspaces:`, ownedWorkspaces);
-    
-    if (ownedError) {
-      console.error("Error fetching owned workspaces:", ownedError);
-      return NextResponse.json({ success: false, error: "Failed to fetch workspaces" }, { status: 500 });
-    }
-    
-    // Get workspaces where user is a member
-    const { data: memberWorkspaces, error: memberError } = await supabase
-      .from('workspace_members')
-      .select(`
-        workspace_id,
-        role,
-        workspaces(id, name, description, owner_id, created_at)
-      `)
-      .eq('user_id', user.id);
-    
-    console.log(`DEBUG: User ${user.email} (${user.id}) member workspaces:`, memberWorkspaces);
-    
-    if (memberError) {
-      console.error("Error fetching member workspaces:", memberError);
-      return NextResponse.json({ success: false, error: "Failed to fetch member workspaces" }, { status: 500 });
-    }
-    
-    // Combine owned and member workspaces
-    const allWorkspaces = [];
-    
-    // Add owned workspaces
-    if (ownedWorkspaces) {
-      ownedWorkspaces.forEach(workspace => {
-        allWorkspaces.push({
-          ...workspace,
-          role: 'owner'
-        });
-      });
-    }
-    
-    // Add member workspaces
-    if (memberWorkspaces) {
-      memberWorkspaces.forEach(member => {
-        if (member.workspaces) {
-          allWorkspaces.push({
-            ...member.workspaces,
-            role: member.role
-          });
-        }
-      });
-    }
+    console.log(`DEBUG: User ${user.email} (${user.id}) accessible workspaces:`, allWorkspaces);
     
     // If no workspaces exist, create one
     if (allWorkspaces.length === 0) {
@@ -83,6 +34,7 @@ export async function GET(request: NextRequest) {
         .single();
       
       if (createError) {
+        console.error("Error creating workspace:", createError);
         return NextResponse.json({ success: false, error: "Failed to create workspace" }, { status: 500 });
       }
       
@@ -92,24 +44,10 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // SECURITY FIX: Block Layers workspace for users who are not owners or members
+    // SECURITY FIX: Allow users to see workspaces they have access to (as owner or member)
     const filteredWorkspaces = allWorkspaces.filter(workspace => {
-      if (workspace.name === 'Layers s.r.o.') {
-        // Check if user is owner
-        const isOwner = workspace.owner_id === user.id;
-        
-        // Check if user is a member
-        const isMember = memberWorkspaces?.some(member => 
-          member.workspaces?.id === workspace.id
-        );
-        
-        if (!isOwner && !isMember) {
-          console.log(`SECURITY: Blocking Layers workspace for user ${user.email} - not owner or member`);
-          return false;
-        } else {
-          console.log(`SECURITY: Allowing Layers workspace for user ${user.email} - isOwner: ${isOwner}, isMember: ${isMember}`);
-        }
-      }
+      // Allow all workspaces that user has access to (already filtered by getUserAccessibleWorkspaces)
+      console.log(`SECURITY: Allowing workspace ${workspace.name} for user ${user.email} - role: ${workspace.role}`);
       return true;
     });
     
@@ -122,56 +60,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const user = await getServerUser();
-    
-    if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
-    
-    const body = await request.json();
-    const { name, description } = body;
-    
-    if (!name) {
-      return NextResponse.json({ success: false, error: "Workspace name is required" }, { status: 400 });
-    }
-    
-    const supabase = createClient();
-    
-    // Create workspace
-    const { data: workspace, error: workspaceError } = await supabase
-      .from('workspaces')
-      .insert({
-        name,
-        description,
-        owner_id: user.id
-      })
-      .select()
-      .single();
-    
-    if (workspaceError) {
-      console.error("Error creating workspace:", workspaceError);
-      return NextResponse.json({ success: false, error: "Failed to create workspace" }, { status: 500 });
-    }
-    
-    // Add user as owner of the workspace
-    const { error: memberError } = await supabase
-      .from('workspace_members')
-      .insert({
-        workspace_id: workspace.id,
-        user_id: user.id,
-        role: 'owner',
-        joined_at: new Date().toISOString()
-      });
-    
-    if (memberError) {
-      console.error("Error adding user as workspace member:", memberError);
-      return NextResponse.json({ success: false, error: "Failed to add user to workspace" }, { status: 500 });
-    }
-    
-    return NextResponse.json({ success: true, data: { ...workspace, role: 'owner' } });
-  } catch (error) {
-    console.error("Error in workspaces POST:", error);
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
-  }
+  // DISABLED: Vytváranie nových workspace-ov je vypnuté
+  return NextResponse.json({ 
+    success: false, 
+    error: "Vytváranie nových workspace-ov je dočasne vypnuté" 
+  }, { status: 403 });
 }

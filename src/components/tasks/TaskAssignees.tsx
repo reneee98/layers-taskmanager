@@ -165,10 +165,10 @@ export function TaskAssignees({ taskId, assignees, onAssigneesChange }: TaskAssi
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="text-xs">
-                            {getInitials(user.name)}
+                            {getInitials(user.display_name)}
                           </AvatarFallback>
                         </Avatar>
-                        <span>{user.name}</span>
+                        <span>{user.display_name}</span>
                         <Badge variant="secondary" className="text-xs">
                           {user.role}
                         </Badge>

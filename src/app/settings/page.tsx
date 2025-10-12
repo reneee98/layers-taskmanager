@@ -1,4 +1,3 @@
-import { UserSettings } from "@/components/settings/UserSettings";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SettingsPage() {
@@ -11,7 +10,19 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <UserSettings />
+      <Card>
+        <CardHeader>
+          <CardTitle>Nastavenia sú dočasne vypnuté</CardTitle>
+          <CardDescription>
+            Funkcia nastavení je momentálne v údržbe a bude dostupná neskôr.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Môžete pokračovať v používaní ostatných funkcií aplikácie.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

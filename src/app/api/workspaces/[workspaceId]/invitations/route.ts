@@ -26,16 +26,12 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
     }
     
+    // SECURITY: Only workspace owners can view invitations
     const isOwner = workspace.owner_id === user.id;
-    const { data: member } = await supabase
-      .from('workspace_members')
-      .select('id')
-      .eq('workspace_id', params.workspaceId)
-      .eq('user_id', user.id)
-      .single();
     
-    if (!isOwner && !member) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+    if (!isOwner) {
+      console.log(`SECURITY: User ${user.email} is not owner of workspace ${params.workspaceId}, blocking access to invitations`);
+      return NextResponse.json({ success: false, error: "Access denied - only workspace owners can view invitations" }, { status: 403 });
     }
     
     // Get pending invitations for this workspace

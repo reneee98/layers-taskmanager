@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
+import { withOwnerSecurity, WorkspaceAccessResult } from "@/lib/auth/api-security";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +14,24 @@ export async function GET(request: NextRequest) {
     console.log("Workspace-users API called with workspaceId:", workspaceId);
     
     const supabase = createClient();
+    
+    // SECURITY: Check if user is owner of the workspace
+    // Only workspace owners can view users
+    const { data: workspace, error: workspaceError } = await supabase
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+    
+    if (workspaceError || !workspace) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || workspace.owner_id !== user.id) {
+      console.log(`SECURITY: User ${user?.email} is not owner of workspace ${workspaceId}, blocking access to users`);
+      return NextResponse.json({ success: false, error: "Access denied - only workspace owners can view users" }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('q') || '';
     
@@ -34,8 +53,8 @@ export async function GET(request: NextRequest) {
     if (members && members.length > 0) {
       const userIds = members.map(m => m.user_id);
       const { data: profiles, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('id, email, name, role')
+        .from('profiles')
+        .select('id, email, display_name, role')
         .in('id', userIds);
       
       if (profilesError) {
@@ -86,8 +105,8 @@ export async function GET(request: NextRequest) {
     let assigneeProfiles: any[] = [];
     if (userIds.size > 0) {
       const { data: profiles, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('id, email, name, role')
+        .from('profiles')
+        .select('id, email, display_name, role')
         .in('id', Array.from(userIds));
       
       if (profilesError) {
@@ -100,22 +119,10 @@ export async function GET(request: NextRequest) {
     
     console.log("Assignee profiles:", assigneeProfiles);
     
-    // Get workspace owner
-    const { data: workspace, error: workspaceError } = await supabase
-      .from('workspaces')
-      .select('owner_id')
-      .eq('id', workspaceId)
-      .single();
-    
-    if (workspaceError || !workspace) {
-      console.error("Error fetching workspace:", workspaceError);
-      return NextResponse.json({ success: false, error: "Failed to fetch workspace" }, { status: 500 });
-    }
-    
-    // Get owner profile
+    // Get owner profile (using workspace from earlier)
     const { data: ownerProfile, error: ownerError } = await supabase
-      .from('user_profiles')
-      .select('id, email, name, role')
+      .from('profiles')
+      .select('id, email, display_name, role')
       .eq('id', workspace.owner_id)
       .single();
     
@@ -135,7 +142,7 @@ export async function GET(request: NextRequest) {
       allUsers.push({
         id: ownerProfile.id,
         email: ownerProfile.email,
-        display_name: ownerProfile.name || ownerProfile.email.split('@')[0],
+        display_name: ownerProfile.display_name || ownerProfile.email.split('@')[0],
         avatar_url: null,
         role: 'owner'
       });
@@ -150,7 +157,7 @@ export async function GET(request: NextRequest) {
           allUsers.push({
             id: profile.id,
             email: profile.email,
-            display_name: profile.name || profile.email.split('@')[0],
+            display_name: profile.display_name || profile.email.split('@')[0],
             avatar_url: null,
             role: member.role
           });
@@ -166,7 +173,7 @@ export async function GET(request: NextRequest) {
           allUsers.push({
             id: profile.id,
             email: profile.email,
-            display_name: profile.name || profile.email.split('@')[0],
+            display_name: profile.display_name || profile.email.split('@')[0],
             avatar_url: null,
             role: 'assignee'
           });

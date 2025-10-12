@@ -75,19 +75,6 @@ export function WorkspaceSwitcher() {
             )}
           </DropdownMenuItem>
         ))}
-        <div className="border-t my-1" />
-        <DropdownMenuItem 
-          className="flex items-center gap-2"
-          onClick={() => {
-            toast({
-              title: "Funkcia v príprave",
-              description: "Vytváranie nového workspace bude dostupné čoskoro.",
-            });
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          <span>Vytvoriť nový workspace</span>
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

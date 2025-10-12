@@ -26,17 +26,12 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
     }
     
-    // Check if user is owner or member
+    // SECURITY: Only workspace owners can view members
     const isOwner = workspace.owner_id === user.id;
-    const { data: member } = await supabase
-      .from('workspace_members')
-      .select('id')
-      .eq('workspace_id', params.workspaceId)
-      .eq('user_id', user.id)
-      .single();
     
-    if (!isOwner && !member) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+    if (!isOwner) {
+      console.log(`SECURITY: User ${user.email} is not owner of workspace ${params.workspaceId}, blocking access to members`);
+      return NextResponse.json({ success: false, error: "Access denied - only workspace owners can view members" }, { status: 403 });
     }
     
     // Get workspace members
@@ -55,8 +50,8 @@ export async function GET(
     if (members && members.length > 0) {
       const userIds = members.map(m => m.user_id);
       const { data: profiles, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('id, email, name')
+        .from('profiles')
+        .select('id, email, display_name')
         .in('id', userIds);
       
       if (profilesError) {
@@ -69,8 +64,8 @@ export async function GET(
     
     // Get owner profile
     const { data: ownerProfile, error: ownerError } = await supabase
-      .from('user_profiles')
-      .select('id, email, name')
+      .from('profiles')
+      .select('id, email, display_name')
       .eq('id', workspace.owner_id)
       .single();
     

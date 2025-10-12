@@ -76,8 +76,8 @@ export async function GET(request: NextRequest) {
         if (assignees && assignees.length > 0) {
           const userIds = assignees.map(a => a.user_id);
           const { data: profiles } = await supabase
-            .from("user_profiles")
-            .select("id, name, email, role")
+            .from("profiles")
+            .select("id, display_name, email, role")
             .in("id", userIds);
 
           assigneesWithUsers = assignees.map(assignee => ({

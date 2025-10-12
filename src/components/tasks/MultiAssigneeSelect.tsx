@@ -28,7 +28,8 @@ export function MultiAssigneeSelect({
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const getInitials = (name: string) => {
+  const getInitials = (name: string | undefined) => {
+    if (!name) return "?";
     return name
       .split(" ")
       .map((n) => n[0])
@@ -72,7 +73,7 @@ export function MultiAssigneeSelect({
       return;
     }
 
-    console.log("Adding assignee:", user.name, "to task:", taskId);
+    console.log("Adding assignee:", user.display_name, "to task:", taskId);
     console.log("User ID being sent:", userId);
     console.log("User object:", user);
 
@@ -159,10 +160,10 @@ export function MultiAssigneeSelect({
         >
           <Avatar className="h-4 w-4">
             <AvatarFallback className="text-xs">
-              {getInitials(assignee.user?.name || "")}
+              {getInitials(assignee.user?.display_name || "")}
             </AvatarFallback>
           </Avatar>
-          <span>{(assignee.user?.name || "").split(" ")[0]}</span>
+          <span>{(assignee.user?.display_name || "Neznámy").split(" ")[0]}</span>
           <Button
             variant="ghost"
             size="sm"
@@ -192,10 +193,10 @@ export function MultiAssigneeSelect({
                 <div className="flex items-center gap-2">
                   <Avatar className="h-4 w-4">
                     <AvatarFallback className="text-xs">
-                      {getInitials(user.name)}
+                      {getInitials(user.display_name)}
                     </AvatarFallback>
                   </Avatar>
-                  <span>{user.name}</span>
+                  <span>{user.display_name || "Neznámy"}</span>
                 </div>
               </SelectItem>
             ))}

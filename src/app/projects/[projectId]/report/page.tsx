@@ -306,10 +306,10 @@ export default function ProjectReportPage() {
                               <div className="flex items-center gap-2">
                                 <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center print:hidden">
                                   <span className="text-xs font-medium">
-                                    {entry.user?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || '?'}
+                                    {entry.user?.display_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || '?'}
                                   </span>
                                 </div>
-                                <span className="text-sm print:text-xs">{entry.user?.name || 'Neznámy'}</span>
+                                <span className="text-sm print:text-xs">{entry.user?.display_name || 'Neznámy'}</span>
                               </div>
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm print:font-mono print:text-xs print:text-right">

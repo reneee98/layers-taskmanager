@@ -19,7 +19,7 @@ export interface WorkspaceMember {
   user?: {
     id: string;
     email: string;
-    display_name: string;
+    name: string;
   };
 }
 
@@ -39,7 +39,7 @@ export interface WorkspaceInvitation {
   };
   inviter?: {
     id: string;
-    display_name: string;
+    name: string;
   };
 }
 

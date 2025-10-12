@@ -30,7 +30,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         // Set current workspace to the first one (or the one from localStorage)
         const savedWorkspaceId = localStorage.getItem('currentWorkspaceId');
         const currentWorkspace = savedWorkspaceId 
-          ? allWorkspaces.find(w => w.id === savedWorkspaceId) || allWorkspaces[0]
+          ? allWorkspaces.find((w: any) => w.id === savedWorkspaceId) || allWorkspaces[0]
           : allWorkspaces[0];
         
         setWorkspace(currentWorkspace);

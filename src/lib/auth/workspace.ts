@@ -1,34 +1,35 @@
+import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "./admin";
 
 export async function getUserWorkspaceId(): Promise<string | null> {
   try {
     const user = await getServerUser();
-    
+
     if (!user) {
       return null;
     }
-    
+
     const supabase = createClient();
-    
+
     // Get user's workspace directly from workspaces table
     const { data: workspace, error } = await supabase
       .from('workspaces')
       .select('id')
       .eq('owner_id', user.id)
       .single();
-    
+
     if (error) {
       console.error("Error fetching workspace:", error);
       // If no workspace exists, create one
-      const workspaceName = user.email === 'design@renemoravec.sk' 
-        ? 'Layers s.r.o.' 
+      const workspaceName = user.email === 'design@renemoravec.sk'
+        ? 'Layers s.r.o.'
         : `${user.email?.split('@')[0] || 'User'}'s Workspace`;
-      
+
       const workspaceDescription = user.email === 'design@renemoravec.sk'
         ? 'Hlavný workspace pre Layers s.r.o.'
         : 'Môj workspace';
-      
+
       const { data: newWorkspace, error: createError } = await supabase
         .from('workspaces')
         .insert({
@@ -38,18 +39,41 @@ export async function getUserWorkspaceId(): Promise<string | null> {
         })
         .select('id')
         .single();
-      
+
       if (createError) {
         console.error("Error creating workspace:", createError);
         return null;
       }
-      
+
       return newWorkspace?.id || null;
     }
-    
+
     return workspace?.id || null;
   } catch (error) {
     console.error("Error in getUserWorkspaceId:", error);
+    return null;
+  }
+}
+
+export async function getUserWorkspaceIdFromRequest(request: NextRequest): Promise<string | null> {
+  try {
+    const { searchParams } = new URL(request.url);
+    const workspaceId = searchParams.get('workspace_id');
+    
+    if (workspaceId) {
+      return workspaceId;
+    }
+    
+    // Try to get from cookie
+    const cookieWorkspaceId = request.cookies.get('currentWorkspaceId')?.value;
+    if (cookieWorkspaceId) {
+      return cookieWorkspaceId;
+    }
+    
+    // Fallback to user's default workspace
+    return await getUserWorkspaceId();
+  } catch (error) {
+    console.error("Error in getUserWorkspaceIdFromRequest:", error);
     return null;
   }
 }

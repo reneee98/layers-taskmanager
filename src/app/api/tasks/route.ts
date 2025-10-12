@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { taskSchema } from "@/lib/validations/task";
 import { validateSchema } from "@/lib/zod-helpers";
-import { getUserWorkspaceIdOrThrow } from "@/lib/auth/workspace";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
     // Get user's workspace ID
-    const workspaceId = await getUserWorkspaceIdOrThrow();
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
     
     const supabase = createClient();
     const { searchParams } = new URL(request.url);
@@ -73,8 +76,8 @@ export async function GET(request: NextRequest) {
         if (assignees && assignees.length > 0) {
           const userIds = assignees.map(a => a.user_id);
           const { data: profiles } = await supabase
-            .from("profiles")
-            .select("id, display_name, email, avatar_url")
+            .from("user_profiles")
+            .select("id, name, email, role")
             .in("id", userIds);
 
           assigneesWithUsers = assignees.map(assignee => ({
@@ -111,7 +114,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Get user's workspace ID
-    const workspaceId = await getUserWorkspaceIdOrThrow();
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
     
     const body = await request.json();
     const validation = validateSchema(taskSchema, body);

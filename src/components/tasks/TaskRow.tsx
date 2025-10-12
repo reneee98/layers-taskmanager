@@ -221,7 +221,7 @@ export function TaskRow({
               {task.assignees.slice(0, 4).map((assignee, index) => (
                   <Avatar key={assignee.id} className="h-6 w-6">
                     <AvatarFallback className="text-xs">
-                      {getInitials(assignee.user?.display_name || assignee.user?.name)}
+                      {getInitials(assignee.user?.name || "")}
                     </AvatarFallback>
                   </Avatar>
               ))}

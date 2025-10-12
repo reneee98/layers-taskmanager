@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { costItemSchema } from "@/lib/validations/cost-item";
-import { getUserWorkspaceIdOrThrow } from "@/lib/auth/workspace";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export async function GET(req: NextRequest) {
   try {
     // Get user's workspace ID
-    const workspaceId = await getUserWorkspaceIdOrThrow();
+    const workspaceId = await getUserWorkspaceIdFromRequest(req);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
     
     const supabase = createClient();
     const { searchParams } = new URL(req.url);
@@ -49,7 +52,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // Get user's workspace ID
-    const workspaceId = await getUserWorkspaceIdOrThrow();
+    const workspaceId = await getUserWorkspaceIdFromRequest(req);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
     
     const supabase = createClient();
     const body = await req.json();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/admin";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,9 +16,8 @@ export async function GET(req: NextRequest) {
 
     const supabase = createClient();
     
-    // Get workspace_id from query params
-    const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get('workspace_id');
+    // Get workspace_id from request (query params, cookie, or user's default)
+    const workspaceId = await getUserWorkspaceIdFromRequest(req);
     
     if (!workspaceId) {
       return NextResponse.json(

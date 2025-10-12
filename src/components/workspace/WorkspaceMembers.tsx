@@ -31,16 +31,28 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Mail, MoreHorizontal, Trash2, UserCheck, Loader2 } from "lucide-react";
+import { Plus, Mail, MoreHorizontal, Trash2, UserCheck, Loader2, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useApiUrl } from "@/lib/api-utils";
 
 interface WorkspaceMembersProps {
   workspaceId: string;
 }
 
+interface WorkspaceInvitation {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expires_at: string;
+  created_at: string;
+}
+
 export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
+  const { getApiUrl } = useApiUrl();
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -51,12 +63,13 @@ export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
 
   useEffect(() => {
     fetchMembers();
+    fetchInvitations();
   }, [workspaceId]);
 
   const fetchMembers = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/workspaces/${workspaceId}/members`);
+      const response = await fetch(getApiUrl(`/api/workspaces/${workspaceId}/members`));
       const result = await response.json();
       
       if (result.success) {
@@ -80,12 +93,29 @@ export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
     }
   };
 
+  const fetchInvitations = async () => {
+    try {
+      const response = await fetch(getApiUrl(`/api/workspaces/${workspaceId}/invitations`));
+      const result = await response.json();
+      
+      if (result.success) {
+        setInvitations(result.data);
+      } else {
+        console.error("Error fetching invitations:", result.error);
+      }
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+    }
+  };
+
   const handleInviteUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setInviteLoading(true);
     
+    console.log("Sending invitation data:", inviteData);
+    
     try {
-      const response = await fetch(`/api/workspaces/${workspaceId}/members`, {
+      const response = await fetch(getApiUrl(`/api/workspaces/${workspaceId}/members`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(inviteData),
@@ -101,6 +131,7 @@ export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
         setInviteDialogOpen(false);
         setInviteData({ email: "", role: "member" });
         fetchMembers();
+        fetchInvitations();
       } else {
         throw new Error(result.error);
       }
@@ -122,7 +153,7 @@ export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
     }
     
     try {
-      const response = await fetch(`/api/workspaces/${workspaceId}/members/${memberId}`, {
+      const response = await fetch(getApiUrl(`/api/workspaces/${workspaceId}/members/${memberId}`), {
         method: "DELETE",
       });
       
@@ -142,6 +173,37 @@ export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
       toast({
         title: "Chyba",
         description: error instanceof Error ? error.message : "Nepodarilo sa odstrániť člena",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    if (!window.confirm("Naozaj chcete zrušiť túto pozvánku?")) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(getApiUrl(`/api/workspaces/${workspaceId}/invitations/${invitationId}`), {
+        method: "DELETE",
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "Pozvánka zrušená",
+          description: "Pozvánka bola úspešne zrušená",
+        });
+        fetchInvitations();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Error cancelling invitation:", error);
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa zrušiť pozvánku",
         variant: "destructive",
       });
     }
@@ -223,14 +285,13 @@ export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
                       <Label htmlFor="role">Rola</Label>
                       <Select
                         value={inviteData.role}
-                        onValueChange={(value: 'admin' | 'member') => setInviteData(prev => ({ ...prev, role: value }))}
+                        onValueChange={(value: 'member') => setInviteData(prev => ({ ...prev, role: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="member">Člen</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -258,6 +319,47 @@ export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Pending Invitations */}
+          {invitations.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-3">Čakajúce pozvánky</h3>
+              <div className="space-y-2">
+                {invitations.map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="flex items-center justify-between p-3 border rounded-lg bg-yellow-50 dark:bg-yellow-900/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-800 rounded-full flex items-center justify-center">
+                        <Mail className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{invitation.email}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Rola: {invitation.role} • 
+                          Vyprší: {new Date(invitation.expires_at).toLocaleDateString("sk-SK")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                        Čaká na potvrdenie
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCancelInvitation(invitation.id)}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Zrušiť
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-md border">
             <Table>
               <TableHeader>

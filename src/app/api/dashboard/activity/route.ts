@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/admin";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,6 +13,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: "Nie ste prihlásený" },
         { status: 401 }
+      );
+    }
+
+    // Get workspace_id from request
+    const workspaceId = await getUserWorkspaceIdFromRequest(req);
+    if (!workspaceId) {
+      return NextResponse.json(
+        { success: false, error: "Workspace ID je povinný" },
+        { status: 400 }
       );
     }
 
@@ -45,6 +55,7 @@ export async function GET(req: NextRequest) {
         user:profiles(display_name)
       `)
       .eq("user_id", dbUser.id)
+      .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false })
       .limit(10);
 
@@ -76,6 +87,7 @@ export async function GET(req: NextRequest) {
         project:projects(name, code)
       `)
       .eq("assignee_id", dbUser.id)
+      .eq("workspace_id", workspaceId)
       .order("updated_at", { ascending: false })
       .limit(10);
 
@@ -107,6 +119,7 @@ export async function GET(req: NextRequest) {
         user:profiles(display_name)
       `)
       .eq("user_id", dbUser.id)
+      .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false })
       .limit(10);
 

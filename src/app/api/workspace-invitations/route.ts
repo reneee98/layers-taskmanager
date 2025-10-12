@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/admin";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { workspaceId: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     const user = await getServerUser();
     
@@ -15,34 +12,14 @@ export async function GET(
     
     const supabase = createClient();
     
-    // Check if user is owner or member of workspace
-    const { data: workspace, error: workspaceError } = await supabase
-      .from('workspaces')
-      .select('owner_id')
-      .eq('id', params.workspaceId)
-      .single();
-    
-    if (workspaceError || !workspace) {
-      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
-    }
-    
-    const isOwner = workspace.owner_id === user.id;
-    const { data: member } = await supabase
-      .from('workspace_members')
-      .select('id')
-      .eq('workspace_id', params.workspaceId)
-      .eq('user_id', user.id)
-      .single();
-    
-    if (!isOwner && !member) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
-    }
-    
-    // Get pending invitations for this workspace
+    // Get pending invitations for this user's email
     const { data: invitations, error } = await supabase
       .from('workspace_invitations')
-      .select('*')
-      .eq('workspace_id', params.workspaceId)
+      .select(`
+        *,
+        workspace:workspaces(id, name, description, owner_id)
+      `)
+      .eq('email', user.email)
       .eq('status', 'pending')
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false });

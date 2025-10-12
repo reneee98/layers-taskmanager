@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getUserWorkspaceIdOrThrow } from "@/lib/auth/workspace";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
     // Get user's workspace ID
-    const workspaceId = await getUserWorkspaceIdOrThrow();
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
     
     const body = await request.json();
     const { type, id } = body;

@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getUserWorkspaceIdOrThrow } from "@/lib/auth/workspace";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export async function GET(request: NextRequest) {
   try {
     // Get user's workspace ID
-    const workspaceId = await getUserWorkspaceIdOrThrow();
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
+    
+    console.log("Workspace-users API called with workspaceId:", workspaceId);
     
     const supabase = createClient();
     const { searchParams } = new URL(request.url);
@@ -17,6 +22,8 @@ export async function GET(request: NextRequest) {
       .select('id, role, user_id')
       .eq('workspace_id', workspaceId);
     
+    console.log("Workspace members:", members);
+    
     if (membersError) {
       console.error("Error fetching workspace members:", membersError);
       return NextResponse.json({ success: false, error: "Failed to fetch workspace members" }, { status: 500 });
@@ -27,8 +34,8 @@ export async function GET(request: NextRequest) {
     if (members && members.length > 0) {
       const userIds = members.map(m => m.user_id);
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, email, display_name, avatar_url')
+        .from('user_profiles')
+        .select('id, email, name, role')
         .in('id', userIds);
       
       if (profilesError) {
@@ -38,6 +45,60 @@ export async function GET(request: NextRequest) {
       
       memberProfiles = profiles || [];
     }
+    
+    // Get all users who have access to this workspace
+    // This includes users who are assigned to tasks or have time entries
+    const { data: taskAssignees, error: assigneesError } = await supabase
+      .from('task_assignees')
+      .select('user_id')
+      .eq('workspace_id', workspaceId);
+    
+    const { data: timeEntries, error: timeEntriesError } = await supabase
+      .from('time_entries')
+      .select('user_id')
+      .eq('workspace_id', workspaceId);
+    
+    console.log("Task assignees:", taskAssignees);
+    console.log("Time entries:", timeEntries);
+    
+    if (assigneesError) {
+      console.error("Error fetching task assignees:", assigneesError);
+      return NextResponse.json({ success: false, error: "Failed to fetch task assignees" }, { status: 500 });
+    }
+    
+    if (timeEntriesError) {
+      console.error("Error fetching time entries:", timeEntriesError);
+      return NextResponse.json({ success: false, error: "Failed to fetch time entries" }, { status: 500 });
+    }
+    
+    // Get unique user IDs
+    const userIds = new Set();
+    if (taskAssignees) {
+      taskAssignees.forEach(assignee => userIds.add(assignee.user_id));
+    }
+    if (timeEntries) {
+      timeEntries.forEach(entry => userIds.add(entry.user_id));
+    }
+    
+    console.log("Unique user IDs:", Array.from(userIds));
+    
+    // Get profiles for all unique users
+    let assigneeProfiles: any[] = [];
+    if (userIds.size > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from('user_profiles')
+        .select('id, email, name, role')
+        .in('id', Array.from(userIds));
+      
+      if (profilesError) {
+        console.error("Error fetching profiles:", profilesError);
+        return NextResponse.json({ success: false, error: "Failed to fetch profiles" }, { status: 500 });
+      }
+      
+      assigneeProfiles = profiles || [];
+    }
+    
+    console.log("Assignee profiles:", assigneeProfiles);
     
     // Get workspace owner
     const { data: workspace, error: workspaceError } = await supabase
@@ -53,42 +114,63 @@ export async function GET(request: NextRequest) {
     
     // Get owner profile
     const { data: ownerProfile, error: ownerError } = await supabase
-      .from('profiles')
-      .select('id, email, display_name, avatar_url')
+      .from('user_profiles')
+      .select('id, email, name, role')
       .eq('id', workspace.owner_id)
       .single();
+    
+    console.log("Workspace owner:", ownerProfile);
     
     if (ownerError) {
       console.error("Error fetching owner profile:", ownerError);
       return NextResponse.json({ success: false, error: "Failed to fetch owner profile" }, { status: 500 });
     }
     
-    // Combine owner and members
+    // Combine owner, members, and task assignees
     const allUsers = [];
+    const userIdsCombined = new Set(); // To avoid duplicates
     
     // Add owner
     if (ownerProfile) {
       allUsers.push({
         id: ownerProfile.id,
         email: ownerProfile.email,
-        display_name: ownerProfile.display_name,
-        avatar_url: ownerProfile.avatar_url,
+        display_name: ownerProfile.name || ownerProfile.email.split('@')[0],
+        avatar_url: null,
         role: 'owner'
       });
+      userIdsCombined.add(ownerProfile.id);
     }
     
     // Add members
     if (members && memberProfiles) {
       members.forEach(member => {
         const profile = memberProfiles.find(p => p.id === member.user_id);
-        if (profile) {
+        if (profile && !userIdsCombined.has(profile.id)) {
           allUsers.push({
             id: profile.id,
             email: profile.email,
-            display_name: profile.display_name,
-            avatar_url: profile.avatar_url,
+            display_name: profile.name || profile.email.split('@')[0],
+            avatar_url: null,
             role: member.role
           });
+          userIdsCombined.add(profile.id);
+        }
+      });
+    }
+    
+    // Add task assignees
+    if (assigneeProfiles && assigneeProfiles.length > 0) {
+      assigneeProfiles.forEach(profile => {
+        if (!userIdsCombined.has(profile.id)) {
+          allUsers.push({
+            id: profile.id,
+            email: profile.email,
+            display_name: profile.name || profile.email.split('@')[0],
+            avatar_url: null,
+            role: 'assignee'
+          });
+          userIdsCombined.add(profile.id);
         }
       });
     }
@@ -110,7 +192,9 @@ export async function GET(request: NextRequest) {
       avatar_url: user.avatar_url,
       role: user.role
     }));
-    
+
+    console.log("Final users list:", users);
+
     return NextResponse.json({ success: true, data: users });
   } catch (error) {
     console.error("Error in workspace-users GET:", error);

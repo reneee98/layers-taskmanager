@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { projectSchema } from "@/lib/validations/project";
 import { validateSchema } from "@/lib/zod-helpers";
 import { getServerUser } from "@/lib/auth";
-import { getUserWorkspaceIdOrThrow } from "@/lib/auth/workspace";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's workspace ID
-    const workspaceId = await getUserWorkspaceIdOrThrow();
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
 
     const supabase = createClient();
     const { searchParams } = new URL(request.url);
@@ -92,7 +95,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's workspace ID
-    const workspaceId = await getUserWorkspaceIdOrThrow();
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
 
     const body = await request.json();
     console.log("Project creation request body:", body);

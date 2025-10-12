@@ -12,16 +12,59 @@ export async function GET(request: NextRequest) {
     
     const supabase = createClient();
     
-    // Get user's workspace directly from workspaces table
-    const { data: workspace, error } = await supabase
+    // Get all workspaces where user is owner or member
+    const { data: ownedWorkspaces, error: ownedError } = await supabase
       .from('workspaces')
       .select('id, name, description, owner_id, created_at')
-      .eq('owner_id', user.id)
-      .single();
+      .eq('owner_id', user.id);
     
-    if (error) {
-      console.error("Error fetching workspace:", error);
-      // If no workspace exists, create one
+    if (ownedError) {
+      console.error("Error fetching owned workspaces:", ownedError);
+      return NextResponse.json({ success: false, error: "Failed to fetch workspaces" }, { status: 500 });
+    }
+    
+    // Get workspaces where user is a member
+    const { data: memberWorkspaces, error: memberError } = await supabase
+      .from('workspace_members')
+      .select(`
+        workspace_id,
+        role,
+        workspaces(id, name, description, owner_id, created_at)
+      `)
+      .eq('user_id', user.id);
+    
+    if (memberError) {
+      console.error("Error fetching member workspaces:", memberError);
+      return NextResponse.json({ success: false, error: "Failed to fetch member workspaces" }, { status: 500 });
+    }
+    
+    // Combine owned and member workspaces
+    const allWorkspaces = [];
+    
+    // Add owned workspaces
+    if (ownedWorkspaces) {
+      ownedWorkspaces.forEach(workspace => {
+        allWorkspaces.push({
+          ...workspace,
+          role: 'owner'
+        });
+      });
+    }
+    
+    // Add member workspaces
+    if (memberWorkspaces) {
+      memberWorkspaces.forEach(member => {
+        if (member.workspaces) {
+          allWorkspaces.push({
+            ...member.workspaces,
+            role: member.role
+          });
+        }
+      });
+    }
+    
+    // If no workspaces exist, create one
+    if (allWorkspaces.length === 0) {
       const workspaceName = user.email === 'design@renemoravec.sk' 
         ? 'Layers s.r.o.' 
         : `${user.email?.split('@')[0] || 'User'}'s Workspace`;
@@ -44,21 +87,13 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Failed to create workspace" }, { status: 500 });
       }
       
-      const workspaceWithRole = {
+      allWorkspaces.push({
         ...newWorkspace,
         role: 'owner'
-      };
-      
-      return NextResponse.json({ success: true, data: workspaceWithRole });
+      });
     }
     
-    // Add role to workspace data
-    const workspaceWithRole = {
-      ...workspace,
-      role: 'owner'
-    };
-    
-    return NextResponse.json({ success: true, data: workspaceWithRole });
+    return NextResponse.json({ success: true, data: allWorkspaces });
   } catch (error) {
     console.error("Error in workspaces GET:", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });

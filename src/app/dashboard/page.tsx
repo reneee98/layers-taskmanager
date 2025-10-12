@@ -23,6 +23,7 @@ import { sk } from "date-fns/locale";
 import Link from "next/link";
 import type { Task } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { WorkspaceInvitations } from "@/components/workspace/WorkspaceInvitations";
 
 interface AssignedTask {
   id: string;
@@ -73,8 +74,11 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!workspace) return;
 
+    console.log("Dashboard useEffect triggered with workspace:", workspace);
+
     const fetchData = async () => {
       try {
+        console.log("Fetching data for workspace:", workspace.id);
         // Fetch tasks and activities in parallel with workspace_id
         const [tasksResponse, activitiesResponse] = await Promise.all([
           fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}`),
@@ -83,6 +87,9 @@ export default function DashboardPage() {
 
         const tasksResult = await tasksResponse.json();
         const activitiesResult = await activitiesResponse.json();
+        
+        console.log("Tasks result:", tasksResult);
+        console.log("Activities result:", activitiesResult);
         
         if (tasksResult.success) {
           setTasks(tasksResult.data);
@@ -227,6 +234,9 @@ export default function DashboardPage() {
           Prehľad vašich priradených úloh a blížiacich sa deadline-ov
         </p>
       </div>
+
+      {/* Workspace Invitations */}
+      <WorkspaceInvitations />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
-import { getUserWorkspaceIdOrThrow } from "@/lib/auth/workspace";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,10 @@ export async function GET(
 ) {
   try {
     // Get user's workspace ID
-    const workspaceId = await getUserWorkspaceIdOrThrow();
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
     
     const { taskId } = await params;
     const supabase = createClient();
@@ -56,7 +59,7 @@ export async function GET(
     
     if (userIds.length > 0) {
       const { data: usersData, error: usersError } = await supabase
-        .from("profiles")
+        .from("user_profiles")
         .select("*")
         .in("id", userIds);
       
@@ -103,7 +106,10 @@ export async function POST(
 ) {
   try {
     // Get user's workspace ID
-    const workspaceId = await getUserWorkspaceIdOrThrow();
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
     
     const { taskId } = await params;
     const supabase = createClient();

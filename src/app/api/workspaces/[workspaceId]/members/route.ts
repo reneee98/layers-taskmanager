@@ -55,8 +55,8 @@ export async function GET(
     if (members && members.length > 0) {
       const userIds = members.map(m => m.user_id);
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, email, display_name')
+        .from('user_profiles')
+        .select('id, email, name')
         .in('id', userIds);
       
       if (profilesError) {
@@ -69,8 +69,8 @@ export async function GET(
     
     // Get owner profile
     const { data: ownerProfile, error: ownerError } = await supabase
-      .from('profiles')
-      .select('id, email, display_name')
+      .from('user_profiles')
+      .select('id, email, name')
       .eq('id', workspace.owner_id)
       .single();
     

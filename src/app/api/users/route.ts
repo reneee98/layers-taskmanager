@@ -12,13 +12,13 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('q') || '';
     
     let query = supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('*')
       .order('created_at', { ascending: false });
     
     // Add search filter if provided
     if (search) {
-      query = query.or(`email.ilike.%${search}%,display_name.ilike.%${search}%`);
+      query = query.or(`email.ilike.%${search}%,name.ilike.%${search}%`);
     }
     
     const { data: users, error } = await query;

@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
     // Find user in profiles table by id
     const { data: dbUser, error: dbUserError } = await supabase
-      .from("profiles")
+      .from("user_profiles")
       .select("id")
       .eq("id", user.id)
       .single();
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
         description,
         created_at,
         task:tasks(title, project:projects(name, code)),
-        user:profiles(display_name)
+        user:user_profiles(name)
       `)
       .eq("user_id", dbUser.id)
       .eq("workspace_id", workspaceId)
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
           details: `${entry.hours}h na ${entry.task?.[0]?.title || 'úlohu'}`,
           project: entry.task?.[0]?.project?.[0]?.name,
           project_code: entry.task?.[0]?.project?.[0]?.code,
-          user: entry.user?.[0]?.display_name || 'Neznámy',
+          user: entry.user?.[0]?.name || 'Neznámy',
           created_at: entry.created_at,
           description: entry.description
         });
@@ -116,7 +116,7 @@ export async function GET(req: NextRequest) {
         content,
         created_at,
         task:tasks(title, project:projects(name, code)),
-        user:profiles(display_name)
+        user:user_profiles(name)
       `)
       .eq("user_id", dbUser.id)
       .eq("workspace_id", workspaceId)
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
           details: comment.task?.[0]?.title || 'úlohu',
           project: comment.task?.[0]?.project?.[0]?.name,
           project_code: comment.task?.[0]?.project?.[0]?.code,
-          user: comment.user?.[0]?.display_name || 'Neznámy',
+          user: comment.user?.[0]?.name || 'Neznámy',
           created_at: comment.created_at,
           content: comment.content
         });

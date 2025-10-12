@@ -24,7 +24,7 @@ export async function GET(
     }
     
     const { data: profile, error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('*')
       .eq('id', params.id)
       .single();
@@ -95,7 +95,7 @@ export async function PATCH(
     }
     
     const { data, error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .update(updateData)
       .eq('id', params.id)
       .select()
@@ -130,7 +130,7 @@ export async function DELETE(
     }
     
     const { error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .delete()
       .eq('id', params.id);
     

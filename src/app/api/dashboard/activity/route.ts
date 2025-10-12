@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
 
     if (!taskError && taskUpdates) {
       // Get creator profiles for tasks
-      const creatorIds = [...new Set(taskUpdates.map(t => t.created_by).filter(Boolean))];
+      const creatorIds = Array.from(new Set(taskUpdates.map(t => t.created_by).filter(Boolean)));
       let creatorProfiles: any[] = [];
       if (creatorIds.length > 0) {
         const { data: profiles } = await supabase
@@ -230,7 +230,7 @@ export async function GET(req: NextRequest) {
 
     if (!projectError && projects) {
       // Get creator profiles for projects
-      const projectCreatorIds = [...new Set(projects.map(p => p.created_by).filter(Boolean))];
+      const projectCreatorIds = Array.from(new Set(projects.map(p => p.created_by).filter(Boolean)));
       let projectCreators: any[] = [];
       if (projectCreatorIds.length > 0) {
         const { data: profiles } = await supabase
@@ -301,7 +301,7 @@ export async function GET(req: NextRequest) {
 
     if (!clientError && clients) {
       // Get creator profiles for clients
-      const clientCreatorIds = [...new Set(clients.map(c => c.created_by).filter(Boolean))];
+      const clientCreatorIds = Array.from(new Set(clients.map(c => c.created_by).filter(Boolean)));
       let clientCreators: any[] = [];
       if (clientCreatorIds.length > 0) {
         const { data: profiles } = await supabase
@@ -360,8 +360,8 @@ export async function GET(req: NextRequest) {
       .limit(10);
 
     if (!memberError && members) {
-      // Get inviter profiles for members
-      const inviterIds = [...new Set(members.map(m => m.invited_by).filter(Boolean))];
+          // Get inviter profiles for members
+          const inviterIds = Array.from(new Set(members.map(m => m.invited_by).filter(Boolean)));
       let inviterProfiles: any[] = [];
       if (inviterIds.length > 0) {
         const { data: profiles } = await supabase

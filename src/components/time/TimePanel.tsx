@@ -627,10 +627,10 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
                             <AvatarFallback className="text-xs">
-                              {entry.user?.display_name ? entry.user.display_name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+                              {entry.user?.name ? entry.user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm">{entry.user?.display_name || 'Neznámy'}</span>
+                          <span className="text-sm">{entry.user?.name || 'Neznámy'}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-mono">

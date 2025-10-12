@@ -22,13 +22,8 @@ export async function getUserWorkspaceId(): Promise<string | null> {
     if (error) {
       console.error("Error fetching workspace:", error);
       // If no workspace exists, create one
-      const workspaceName = user.email === 'design@renemoravec.sk'
-        ? 'Layers s.r.o.'
-        : `${user.email?.split('@')[0] || 'User'}'s Workspace`;
-
-      const workspaceDescription = user.email === 'design@renemoravec.sk'
-        ? 'Hlavný workspace pre Layers s.r.o.'
-        : 'Môj workspace';
+      const workspaceName = `${user.email?.split('@')[0] || 'User'}'s Workspace`;
+      const workspaceDescription = 'Môj workspace';
 
       const { data: newWorkspace, error: createError } = await supabase
         .from('workspaces')

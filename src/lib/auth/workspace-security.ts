@@ -166,7 +166,7 @@ export async function getUserAccessibleWorkspaces(userId: string) {
       return [];
     }
 
-    const allWorkspaces = [];
+    const allWorkspaces: any[] = [];
 
     // Add owned workspaces
     if (ownedWorkspaces) {

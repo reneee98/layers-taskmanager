@@ -159,10 +159,10 @@ export function MultiAssigneeSelect({
         >
           <Avatar className="h-4 w-4">
             <AvatarFallback className="text-xs">
-              {getInitials(assignee.user?.display_name || assignee.user?.name || "")}
+              {getInitials(assignee.user?.name || "")}
             </AvatarFallback>
           </Avatar>
-          <span>{(assignee.user?.display_name || assignee.user?.name || "").split(" ")[0]}</span>
+          <span>{(assignee.user?.name || "").split(" ")[0]}</span>
           <Button
             variant="ghost"
             size="sm"

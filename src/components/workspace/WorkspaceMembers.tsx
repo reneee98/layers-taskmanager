@@ -386,7 +386,7 @@ export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
                             <UserCheck className="h-4 w-4 text-primary" />
                           </div>
                           <div>
-                            <p className="font-medium">{member.user?.display_name || "Neznámy používateľ"}</p>
+                            <p className="font-medium">{member.user?.name || "Neznámy používateľ"}</p>
                             <p className="text-sm text-muted-foreground">{member.user?.email}</p>
                           </div>
                         </div>

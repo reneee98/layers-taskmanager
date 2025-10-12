@@ -92,13 +92,22 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // URGENT SECURITY FIX: Block Layers workspace for all users except René
+    // SECURITY FIX: Block Layers workspace for users who are not owners or members
     const filteredWorkspaces = allWorkspaces.filter(workspace => {
       if (workspace.name === 'Layers s.r.o.') {
-        // Only allow René (design@renemoravec.sk) to see Layers workspace
-        if (user.email !== 'design@renemoravec.sk') {
-          console.log(`URGENT SECURITY: Blocking Layers workspace for user ${user.email} - only René can access`);
+        // Check if user is owner
+        const isOwner = workspace.owner_id === user.id;
+        
+        // Check if user is a member
+        const isMember = memberWorkspaces?.some(member => 
+          member.workspaces?.id === workspace.id
+        );
+        
+        if (!isOwner && !isMember) {
+          console.log(`SECURITY: Blocking Layers workspace for user ${user.email} - not owner or member`);
           return false;
+        } else {
+          console.log(`SECURITY: Allowing Layers workspace for user ${user.email} - isOwner: ${isOwner}, isMember: ${isMember}`);
         }
       }
       return true;

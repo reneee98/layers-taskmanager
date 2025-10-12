@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
       .eq('owner_id', user.id);
     
     console.log(`DEBUG: User ${user.email} (${user.id}) owned workspaces:`, ownedWorkspaces);
+    console.log(`DEBUG: User ${user.email} (${user.id}) member workspaces:`, memberWorkspaces);
     
     if (ownedError) {
       console.error("Error fetching owned workspaces:", ownedError);
@@ -92,17 +93,12 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // SECURITY FIX: Remove "Layers" workspace from users who are not owners or members
+    // URGENT SECURITY FIX: Block Layers workspace for all users except René
     const filteredWorkspaces = allWorkspaces.filter(workspace => {
       if (workspace.name === 'Layers s.r.o.') {
-        // Only allow if user is owner or explicitly a member
-        const isOwner = workspace.owner_id === user.id;
-        const isMember = memberWorkspaces?.some(member => 
-          member.workspaces?.id === workspace.id
-        );
-        
-        if (!isOwner && !isMember) {
-          console.log(`SECURITY: Blocking Layers workspace access for user ${user.email} - not owner or member`);
+        // Only allow René (design@renemoravec.sk) to see Layers workspace
+        if (user.email !== 'design@renemoravec.sk') {
+          console.log(`URGENT SECURITY: Blocking Layers workspace for user ${user.email} - only René can access`);
           return false;
         }
       }

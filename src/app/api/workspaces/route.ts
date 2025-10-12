@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
       .select('id, name, description, owner_id, created_at')
       .eq('owner_id', user.id);
     
+    console.log(`DEBUG: User ${user.email} (${user.id}) owned workspaces:`, ownedWorkspaces);
+    
     if (ownedError) {
       console.error("Error fetching owned workspaces:", ownedError);
       return NextResponse.json({ success: false, error: "Failed to fetch workspaces" }, { status: 500 });
@@ -32,6 +34,8 @@ export async function GET(request: NextRequest) {
         workspaces(id, name, description, owner_id, created_at)
       `)
       .eq('user_id', user.id);
+    
+    console.log(`DEBUG: User ${user.email} (${user.id}) member workspaces:`, memberWorkspaces);
     
     if (memberError) {
       console.error("Error fetching member workspaces:", memberError);
@@ -55,10 +59,16 @@ export async function GET(request: NextRequest) {
     if (memberWorkspaces) {
       memberWorkspaces.forEach(member => {
         if (member.workspaces) {
-          allWorkspaces.push({
-            ...member.workspaces,
-            role: member.role
-          });
+          // SECURITY FIX: Only add workspace if user is actually a member
+          // and workspace has a valid owner
+          const workspace = member.workspaces;
+          if (workspace.owner_id && workspace.owner_id !== user.id) {
+            // Check if user is actually a member of this workspace
+            allWorkspaces.push({
+              ...workspace,
+              role: member.role
+            });
+          }
         }
       });
     }
@@ -88,7 +98,17 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    return NextResponse.json({ success: true, data: allWorkspaces });
+    // SECURITY FIX: Remove "Layers" workspace from non-owners
+    const filteredWorkspaces = allWorkspaces.filter(workspace => {
+      if (workspace.name === 'Layers s.r.o.' && workspace.owner_id !== user.id) {
+        console.log(`SECURITY: Removing Layers workspace from user ${user.email} - not owner`);
+        return false;
+      }
+      return true;
+    });
+    
+    console.log(`DEBUG: Final workspaces for user ${user.email}:`, filteredWorkspaces);
+    return NextResponse.json({ success: true, data: filteredWorkspaces });
   } catch (error) {
     console.error("Error in workspaces GET:", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });

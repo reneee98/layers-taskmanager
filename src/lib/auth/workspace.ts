@@ -52,21 +52,77 @@ export async function getUserWorkspaceId(): Promise<string | null> {
 
 export async function getUserWorkspaceIdFromRequest(request: NextRequest): Promise<string | null> {
   try {
+    const user = await getServerUser();
+    if (!user) {
+      console.log(`DEBUG: No user found, returning null`);
+      return null;
+    }
+
     const { searchParams } = new URL(request.url);
     const workspaceId = searchParams.get('workspace_id');
     
     if (workspaceId) {
-      return workspaceId;
+      console.log(`DEBUG: Using workspace_id from query params: ${workspaceId}`);
+      // Verify user has access to this workspace
+      const supabase = createClient();
+      const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('owner_id')
+        .eq('id', workspaceId)
+        .single();
+      
+      if (workspace) {
+        const isOwner = workspace.owner_id === user.id;
+        const { data: member } = await supabase
+          .from('workspace_members')
+          .select('id')
+          .eq('workspace_id', workspaceId)
+          .eq('user_id', user.id)
+          .single();
+        
+        if (isOwner || member) {
+          return workspaceId;
+        } else {
+          console.log(`SECURITY: User ${user.email} has no access to workspace ${workspaceId}`);
+          return null;
+        }
+      }
     }
     
     // Try to get from cookie
     const cookieWorkspaceId = request.cookies.get('currentWorkspaceId')?.value;
     if (cookieWorkspaceId) {
-      return cookieWorkspaceId;
+      console.log(`DEBUG: Using workspace_id from cookie: ${cookieWorkspaceId}`);
+      // Verify user has access to this workspace
+      const supabase = createClient();
+      const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('owner_id')
+        .eq('id', cookieWorkspaceId)
+        .single();
+      
+      if (workspace) {
+        const isOwner = workspace.owner_id === user.id;
+        const { data: member } = await supabase
+          .from('workspace_members')
+          .select('id')
+          .eq('workspace_id', cookieWorkspaceId)
+          .eq('user_id', user.id)
+          .single();
+        
+        if (isOwner || member) {
+          return cookieWorkspaceId;
+        } else {
+          console.log(`SECURITY: User ${user.email} has no access to cookie workspace ${cookieWorkspaceId}`);
+          return null;
+        }
+      }
     }
     
     // Fallback to user's default workspace
-    return await getUserWorkspaceId();
+    const userWorkspaceId = await getUserWorkspaceId();
+    console.log(`DEBUG: Using user's default workspace: ${userWorkspaceId}`);
+    return userWorkspaceId;
   } catch (error) {
     console.error("Error in getUserWorkspaceIdFromRequest:", error);
     return null;

@@ -92,8 +92,25 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    console.log(`DEBUG: Final workspaces for user ${user.email}:`, allWorkspaces);
-    return NextResponse.json({ success: true, data: allWorkspaces });
+    // SECURITY FIX: Remove "Layers" workspace from users who are not owners or members
+    const filteredWorkspaces = allWorkspaces.filter(workspace => {
+      if (workspace.name === 'Layers s.r.o.') {
+        // Only allow if user is owner or explicitly a member
+        const isOwner = workspace.owner_id === user.id;
+        const isMember = memberWorkspaces?.some(member => 
+          member.workspaces?.id === workspace.id
+        );
+        
+        if (!isOwner && !isMember) {
+          console.log(`SECURITY: Blocking Layers workspace access for user ${user.email} - not owner or member`);
+          return false;
+        }
+      }
+      return true;
+    });
+    
+    console.log(`DEBUG: Final workspaces for user ${user.email}:`, filteredWorkspaces);
+    return NextResponse.json({ success: true, data: filteredWorkspaces });
   } catch (error) {
     console.error("Error in workspaces GET:", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });

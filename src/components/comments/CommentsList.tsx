@@ -169,13 +169,13 @@ export function CommentsList({ taskId, onCommentAdded }: CommentsListProps) {
             <div key={comment.id} className="flex gap-3 p-3 border rounded-lg">
               <Avatar className="h-8 w-8">
                 <AvatarFallback>
-                  {(comment.user.display_name || comment.user.email || "U").charAt(0).toUpperCase()}
+                  {(comment.user.name || comment.user.email || "U").charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{comment.user.display_name || comment.user.email || "User"}</span>
+                    <span className="font-medium text-sm">{comment.user.name || comment.user.email || "User"}</span>
                     <span className="text-xs text-muted-foreground">
                       {format(new Date(comment.created_at), "d. M. yyyy 'o' HH:mm", { locale: sk })}
                     </span>

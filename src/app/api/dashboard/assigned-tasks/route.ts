@@ -19,7 +19,10 @@ export async function GET(req: NextRequest) {
     // Get workspace_id from request (query params, cookie, or user's default)
     const workspaceId = await getUserWorkspaceIdFromRequest(req);
     
+    console.log(`DEBUG: Dashboard API - User ${user.email}, workspaceId: ${workspaceId}`);
+    
     if (!workspaceId) {
+      console.log(`DEBUG: Dashboard API - No workspace ID for user ${user.email}`);
       return NextResponse.json(
         { success: false, error: "Workspace ID je povinný" },
         { status: 400 }

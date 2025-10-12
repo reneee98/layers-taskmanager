@@ -20,24 +20,32 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const refreshWorkspace = async () => {
     try {
+      console.log("DEBUG: Fetching workspaces...");
       const response = await fetch("/api/workspaces");
       const result = await response.json();
 
+      console.log("DEBUG: Workspaces API response:", result);
+
       if (result.success) {
         const allWorkspaces = Array.isArray(result.data) ? result.data : [result.data];
+        console.log("DEBUG: Available workspaces:", allWorkspaces);
         setWorkspaces(allWorkspaces);
         
         // Set current workspace to the first one (or the one from localStorage)
         const savedWorkspaceId = localStorage.getItem('currentWorkspaceId');
+        console.log("DEBUG: Saved workspace ID from localStorage:", savedWorkspaceId);
+        
         const currentWorkspace = savedWorkspaceId 
           ? allWorkspaces.find((w: any) => w.id === savedWorkspaceId) || allWorkspaces[0]
           : allWorkspaces[0];
         
+        console.log("DEBUG: Selected current workspace:", currentWorkspace);
         setWorkspace(currentWorkspace);
         
         // Set cookie for server-side access
         if (currentWorkspace) {
           document.cookie = `currentWorkspaceId=${currentWorkspace.id}; path=/; max-age=31536000`; // 1 year
+          console.log("DEBUG: Set cookie for workspace:", currentWorkspace.id);
         }
       } else {
         console.error("Failed to fetch workspaces:", result.error);

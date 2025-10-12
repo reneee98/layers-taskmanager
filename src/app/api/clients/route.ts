@@ -52,11 +52,18 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient();
 
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: "User not authenticated" }, { status: 401 });
+    }
+
     const { data: client, error } = await supabase
       .from("clients")
       .insert({
         ...validation.data,
-        workspace_id: workspaceId
+        workspace_id: workspaceId,
+        created_by: user.id
       })
       .select()
       .single();

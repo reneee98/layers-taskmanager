@@ -9,7 +9,8 @@ const publicRoutes = [
   '/api/auth',
   '/_next',
   '/favicon.ico',
-  '/api/health'
+  '/api/health',
+  '/api/dashboard/activity'
 ]
 
 export async function middleware(request: NextRequest) {

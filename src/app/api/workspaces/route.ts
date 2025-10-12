@@ -37,6 +37,21 @@ export async function GET(request: NextRequest) {
         console.error("Error creating workspace:", createError);
         return NextResponse.json({ success: false, error: "Failed to create workspace" }, { status: 500 });
       }
+
+      // Automaticky pridaj ownera do workspace_members tabuľky
+      const { error: memberError } = await supabase
+        .from('workspace_members')
+        .insert({
+          workspace_id: newWorkspace.id,
+          user_id: user.id,
+          role: 'owner',
+          created_at: newWorkspace.created_at
+        });
+
+      if (memberError) {
+        console.error("Error adding owner to workspace_members:", memberError);
+        // Necháme to pokračovať, pretože workspace bol vytvorený
+      }
       
       allWorkspaces.push({
         ...newWorkspace,

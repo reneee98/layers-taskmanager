@@ -15,7 +15,14 @@ import {
   ArrowRight,
   Edit,
   Plus,
-  MessageSquare
+  MessageSquare,
+  FileText,
+  Users,
+  FolderPlus,
+  CheckCircle2, // task_completed
+  Building2,    // client_created/updated
+  FolderOpen,   // project_updated
+  UserPlus      // member_added
 } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/format";
 import { format, isAfter, isBefore, addDays } from "date-fns";
@@ -52,7 +59,7 @@ interface AssignedTask {
 
 interface Activity {
   id: string;
-  type: 'time_entry' | 'task_update' | 'comment' | 'file_upload';
+  type: 'time_entry' | 'task_update' | 'task_created' | 'task_completed' | 'comment' | 'project_created' | 'project_updated' | 'client_created' | 'client_updated' | 'member_added' | 'file_upload';
   action: string;
   details: string;
   project?: string;
@@ -61,8 +68,16 @@ interface Activity {
   created_at: string;
   description?: string;
   content?: string;
+  client?: string;
+  client_email?: string;
+  client_phone?: string;
   status?: string;
   priority?: string;
+  due_date?: string;
+  estimated_hours?: number;
+  actual_hours?: number;
+  budget_hours?: number;
+  budget_amount?: number;
 }
 
 export default function DashboardPage() {
@@ -176,8 +191,23 @@ export default function DashboardPage() {
         return Clock;
       case 'task_update':
         return Edit;
+      case 'task_created':
+        return Plus;
+      case 'task_completed':
+        return CheckCircle2;
       case 'comment':
         return MessageSquare;
+      case 'project_created':
+        return FolderPlus;
+      case 'project_updated':
+        return FolderOpen;
+      case 'client_created':
+      case 'client_updated':
+        return Building2;
+      case 'member_added':
+        return UserPlus;
+      case 'file_upload':
+        return FileText;
       default:
         return Plus;
     }
@@ -189,8 +219,21 @@ export default function DashboardPage() {
         return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
       case 'task_update':
         return 'text-green-600 bg-green-100 dark:bg-green-900/20';
+      case 'task_created':
+        return 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/20';
+      case 'task_completed':
+        return 'text-green-700 bg-green-200 dark:bg-green-800/30';
       case 'comment':
         return 'text-purple-600 bg-purple-100 dark:bg-purple-900/20';
+      case 'project_created':
+        return 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/20';
+      case 'project_updated':
+        return 'text-indigo-500 bg-indigo-50 dark:bg-indigo-900/10';
+      case 'client_created':
+      case 'client_updated':
+        return 'text-amber-600 bg-amber-100 dark:bg-amber-900/20';
+      case 'member_added':
+        return 'text-pink-600 bg-pink-100 dark:bg-pink-900/20';
       case 'file_upload':
         return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20';
       default:
@@ -483,11 +526,12 @@ export default function DashboardPage() {
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {activities.map((activity) => {
                     const ActivityIcon = getActivityIcon(activity.type);
+                    const activityColor = getActivityColor(activity.type);
                     
                     return (
                       <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="p-2 rounded-lg bg-muted">
-                          <ActivityIcon className="h-4 w-4 text-muted-foreground" />
+                        <div className={`p-2 rounded-lg ${activityColor}`}>
+                          <ActivityIcon className="h-4 w-4" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
@@ -500,6 +544,16 @@ export default function DashboardPage() {
                             <span className="text-xs text-muted-foreground">
                               {format(new Date(activity.created_at), 'HH:mm', { locale: sk })}
                             </span>
+                            {activity.status && (
+                              <Badge variant="outline" className="text-xs">
+                                {activity.status}
+                              </Badge>
+                            )}
+                            {activity.priority && (
+                              <Badge variant="secondary" className="text-xs">
+                                {activity.priority}
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-sm text-foreground mb-1">
                             <span className="font-medium">{activity.action}</span> {activity.details}
@@ -507,6 +561,11 @@ export default function DashboardPage() {
                           {activity.project && (
                             <p className="text-xs text-muted-foreground">
                               {activity.project} ({activity.project_code})
+                            </p>
+                          )}
+                          {activity.client && (
+                            <p className="text-xs text-muted-foreground">
+                              Klient: {activity.client}
                             </p>
                           )}
                           {activity.description && (

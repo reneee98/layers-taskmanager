@@ -35,9 +35,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         const savedWorkspaceId = localStorage.getItem('currentWorkspaceId');
         console.log("DEBUG: Saved workspace ID from localStorage:", savedWorkspaceId);
         
+        // Check if saved workspace ID is still valid
         const currentWorkspace = savedWorkspaceId 
           ? allWorkspaces.find((w: any) => w.id === savedWorkspaceId) || allWorkspaces[0]
           : allWorkspaces[0];
+        
+        // If saved workspace is not available, clear localStorage and use first available
+        if (savedWorkspaceId && !allWorkspaces.find((w: any) => w.id === savedWorkspaceId)) {
+          console.log("DEBUG: Saved workspace no longer available, clearing localStorage");
+          localStorage.removeItem('currentWorkspaceId');
+          document.cookie = 'currentWorkspaceId=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
         
         console.log("DEBUG: Selected current workspace:", currentWorkspace);
         setWorkspace(currentWorkspace);

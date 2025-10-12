@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
           .eq("workspace_id", workspaceId);
 
         // Get user profiles for assignees
-        let assigneesWithUsers = [];
+        let assigneesWithUsers: any[] = [];
         if (assignees && assignees.length > 0) {
           const userIds = assignees.map(a => a.user_id);
           const { data: profiles } = await supabase

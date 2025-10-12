@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
       .eq('owner_id', user.id);
     
     console.log(`DEBUG: User ${user.email} (${user.id}) owned workspaces:`, ownedWorkspaces);
-    console.log(`DEBUG: User ${user.email} (${user.id}) member workspaces:`, memberWorkspaces);
     
     if (ownedError) {
       console.error("Error fetching owned workspaces:", ownedError);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
-import { withOwnerSecurity, WorkspaceAccessResult } from "@/lib/auth/api-security";
+import { withOwnerSecurity } from "@/lib/auth/api-security";
 
 export async function GET(request: NextRequest) {
   try {

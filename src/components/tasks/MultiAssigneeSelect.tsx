@@ -73,7 +73,7 @@ export function MultiAssigneeSelect({
       return;
     }
 
-    console.log("Adding assignee:", user.display_name, "to task:", taskId);
+    console.log("Adding assignee:", user.name, "to task:", taskId);
     console.log("User ID being sent:", userId);
     console.log("User object:", user);
 
@@ -160,10 +160,10 @@ export function MultiAssigneeSelect({
         >
           <Avatar className="h-4 w-4">
             <AvatarFallback className="text-xs">
-              {getInitials(assignee.user?.display_name || "")}
+              {getInitials(assignee.user?.name || "")}
             </AvatarFallback>
           </Avatar>
-          <span>{(assignee.user?.display_name || "Neznámy").split(" ")[0]}</span>
+          <span>{(assignee.user?.name || "Neznámy").split(" ")[0]}</span>
           <Button
             variant="ghost"
             size="sm"
@@ -193,10 +193,10 @@ export function MultiAssigneeSelect({
                 <div className="flex items-center gap-2">
                   <Avatar className="h-4 w-4">
                     <AvatarFallback className="text-xs">
-                      {getInitials(user.display_name)}
+                      {getInitials(user.name)}
                     </AvatarFallback>
                   </Avatar>
-                  <span>{user.display_name || "Neznámy"}</span>
+                  <span>{user.name || "Neznámy"}</span>
                 </div>
               </SelectItem>
             ))}

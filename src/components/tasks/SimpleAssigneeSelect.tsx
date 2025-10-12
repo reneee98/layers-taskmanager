@@ -148,10 +148,10 @@ export function SimpleAssigneeSelect({
             <div className="flex items-center gap-2">
               <Avatar className="h-4 w-4">
                 <AvatarFallback className="text-xs">
-                  {getInitials(user.display_name)}
+                  {getInitials(user.name)}
                 </AvatarFallback>
               </Avatar>
-              <span>{user.display_name}</span>
+              <span>{user.name}</span>
             </div>
           </SelectItem>
         ))}

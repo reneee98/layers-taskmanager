@@ -71,7 +71,11 @@ export async function GET(
         );
       }
       
-      users = usersData || [];
+      // Map display_name to name for frontend compatibility
+      users = (usersData || []).map(user => ({
+        ...user,
+        name: user.display_name || user.email?.split('@')[0] || 'Neznámy'
+      }));
     }
 
     // Combine assignees with user data

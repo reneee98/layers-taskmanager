@@ -24,12 +24,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Task ID is required" }, { status: 400 });
     }
 
-    // Use the database function to start timer
-    console.log("Calling start_timer RPC function");
-    const { data: timerId, error } = await supabase.rpc("start_timer", {
-      p_task_id: taskId,
-      p_user_id: user.id,
-    });
+    // First, get workspace_id from task
+    const { data: task, error: taskError } = await supabase
+      .from("tasks")
+      .select("workspace_id")
+      .eq("id", taskId)
+      .single();
+
+    if (taskError || !task) {
+      console.error("Error fetching task:", taskError);
+      return NextResponse.json({ 
+        success: false, 
+        error: "Task not found", 
+        details: taskError?.message 
+      }, { status: 404 });
+    }
+
+    console.log("Task workspace_id:", task.workspace_id);
+
+    // Stop any active timer for this user first
+    const { error: stopError } = await supabase
+      .from("task_timers")
+      .update({ stopped_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .is("stopped_at", null);
+
+    if (stopError) {
+      console.error("Error stopping previous timer:", stopError);
+    }
+
+    // Start new timer
+    console.log("Inserting new timer");
+    const { data: newTimer, error } = await supabase
+      .from("task_timers")
+      .insert({
+        task_id: taskId,
+        user_id: user.id,
+        workspace_id: task.workspace_id,
+        started_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error("Error starting timer:", error);
@@ -41,7 +76,8 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    console.log("Timer started successfully, ID:", timerId);
+    console.log("Timer started successfully, ID:", newTimer.id);
+    const timerId = newTimer.id;
 
     return NextResponse.json({ 
       success: true, 

@@ -59,7 +59,11 @@ export async function GET(
         return NextResponse.json({ success: false, error: "Failed to fetch member profiles" }, { status: 500 });
       }
       
-      memberProfiles = profiles || [];
+      // Map display_name to name for frontend compatibility
+      memberProfiles = (profiles || []).map(profile => ({
+        ...profile,
+        name: profile.display_name || profile.email?.split('@')[0] || 'Neznámy'
+      }));
     }
     
     // Get owner profile
@@ -73,6 +77,12 @@ export async function GET(
       console.error("Error fetching owner profile:", ownerError);
       return NextResponse.json({ success: false, error: "Failed to fetch owner profile" }, { status: 500 });
     }
+
+    // Map display_name to name for owner profile
+    const ownerWithName = {
+      ...ownerProfile,
+      name: ownerProfile.display_name || ownerProfile.email?.split('@')[0] || 'Neznámy'
+    };
     
     // Combine members with profiles
     const membersWithProfiles = members?.map(member => ({
@@ -85,7 +95,7 @@ export async function GET(
       {
         id: `owner-${workspace.owner_id}`,
         role: 'owner',
-        user: ownerProfile,
+        user: ownerWithName,
         joined_at: null,
         created_at: null
       },

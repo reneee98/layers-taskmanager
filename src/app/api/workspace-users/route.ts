@@ -62,7 +62,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Failed to fetch member profiles" }, { status: 500 });
       }
       
-      memberProfiles = profiles || [];
+      // Map display_name to name for frontend compatibility
+      memberProfiles = (profiles || []).map(profile => ({
+        ...profile,
+        name: profile.display_name || profile.email?.split('@')[0] || 'Neznámy'
+      }));
     }
     
     // Get all users who have access to this workspace
@@ -114,7 +118,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Failed to fetch profiles" }, { status: 500 });
       }
       
-      assigneeProfiles = profiles || [];
+      // Map display_name to name for frontend compatibility
+      assigneeProfiles = (profiles || []).map(profile => ({
+        ...profile,
+        name: profile.display_name || profile.email?.split('@')[0] || 'Neznámy'
+      }));
     }
     
     console.log("Assignee profiles:", assigneeProfiles);
@@ -142,6 +150,7 @@ export async function GET(request: NextRequest) {
       allUsers.push({
         id: ownerProfile.id,
         email: ownerProfile.email,
+        name: ownerProfile.display_name || ownerProfile.email.split('@')[0],
         display_name: ownerProfile.display_name || ownerProfile.email.split('@')[0],
         avatar_url: null,
         role: 'owner'
@@ -157,6 +166,7 @@ export async function GET(request: NextRequest) {
           allUsers.push({
             id: profile.id,
             email: profile.email,
+            name: profile.name,
             display_name: profile.display_name || profile.email.split('@')[0],
             avatar_url: null,
             role: member.role
@@ -173,6 +183,7 @@ export async function GET(request: NextRequest) {
           allUsers.push({
             id: profile.id,
             email: profile.email,
+            name: profile.name,
             display_name: profile.display_name || profile.email.split('@')[0],
             avatar_url: null,
             role: 'assignee'
@@ -187,14 +198,15 @@ export async function GET(request: NextRequest) {
     if (search) {
       filteredUsers = allUsers.filter(user => 
         user.email.toLowerCase().includes(search.toLowerCase()) ||
-        user.display_name.toLowerCase().includes(search.toLowerCase())
+        (user.name && user.name.toLowerCase().includes(search.toLowerCase())) ||
+        (user.display_name && user.display_name.toLowerCase().includes(search.toLowerCase()))
       );
     }
     
     // Transform to match the expected format for assignee components
     const users = filteredUsers.map(user => ({
       id: user.id,
-      name: user.display_name,
+      name: user.name || user.display_name,
       email: user.email,
       avatar_url: user.avatar_url,
       role: user.role

@@ -161,15 +161,20 @@ export async function GET(
     // Fetch user data separately for each entry
     const data = await Promise.all(
       (entries || []).map(async (entry) => {
-        const { data: user } = await supabase
-          .from("users")
+        const { data: profile } = await supabase
+          .from("profiles")
           .select("id, display_name, email, avatar_url")
           .eq("id", entry.user_id)
           .single();
 
         return {
           ...entry,
-          user: user || null,
+          user: profile ? {
+            id: profile.id,
+            name: profile.display_name, // Map display_name to name
+            email: profile.email,
+            avatar_url: profile.avatar_url
+          } : null,
         };
       })
     );

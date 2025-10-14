@@ -80,10 +80,22 @@ export async function GET(request: NextRequest) {
             .select("id, display_name, email, role")
             .in("id", userIds);
 
-          assigneesWithUsers = assignees.map(assignee => ({
-            ...assignee,
-            user: profiles?.find(p => p.id === assignee.user_id)
-          }));
+          assigneesWithUsers = assignees.map(assignee => {
+            const profile = profiles?.find(p => p.id === assignee.user_id);
+            return {
+              ...assignee,
+              user: profile ? {
+                id: profile.id,
+                email: profile.email,
+                name: profile.display_name, // Map display_name to name
+                avatar_url: null,
+                role: profile.role,
+                is_active: true,
+                created_at: "",
+                updated_at: ""
+              } : null
+            };
+          });
         }
 
         // Calculate total price from time entries

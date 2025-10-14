@@ -17,8 +17,7 @@ export async function GET(
       .from("tasks")
       .select(`
         *,
-        project:projects(id, name, code),
-        assignee:users!assignee_id(id, name, email, avatar_url)
+        project:projects(id, name, code)
       `)
       .eq("id", taskId)
       .single();
@@ -57,8 +56,7 @@ export async function PATCH(
       .eq("id", taskId)
       .select(`
         *,
-        project:projects(id, name, code),
-        assignee:users!assignee_id(id, name, email, avatar_url)
+        project:projects(id, name, code)
       `)
       .single();
 

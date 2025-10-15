@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get project names for activities
-    const projectIds = [...new Set(activities?.map(a => a.project_id).filter(Boolean) || [])];
+    const projectIds = Array.from(new Set(activities?.map(a => a.project_id).filter(Boolean) || []));
     let projects: any[] = [];
     
     if (projectIds.length > 0) {
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get task titles for activities
-    const taskIds = [...new Set(activities?.map(a => a.task_id).filter(Boolean) || [])];
+    const taskIds = Array.from(new Set(activities?.map(a => a.task_id).filter(Boolean) || []));
     let tasks: any[] = [];
     
     if (taskIds.length > 0) {
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get user profiles for activities
-    const userIds = [...new Set(activities?.map(a => a.user_id).filter(Boolean) || [])];
+    const userIds = Array.from(new Set(activities?.map(a => a.user_id).filter(Boolean) || []));
     let users: any[] = [];
     
     if (userIds.length > 0) {

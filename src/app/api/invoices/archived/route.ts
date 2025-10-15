@@ -27,6 +27,11 @@ export async function GET(request: NextRequest) {
     }
     
     const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     // Check if user is owner (either workspace owner or has owner role)
     const { data: member } = await supabase
       .from('workspace_members')
@@ -37,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     const isOwner = workspace.owner_id === user.id || member?.role === 'owner';
 
-    if (!user || !isOwner) {
+    if (!isOwner) {
       console.log(`SECURITY: User ${user?.email} is not owner of workspace ${workspaceId}, blocking access to invoices`);
       return NextResponse.json({ success: false, error: "Access denied - only workspace owners can view invoices" }, { status: 403 });
     }

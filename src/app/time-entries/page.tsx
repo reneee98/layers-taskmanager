@@ -59,7 +59,8 @@ interface TimeEntry {
 }
 
 export default function TimeEntriesPage() {
-  const { workspaceId, loading: workspaceLoading } = useWorkspace();
+  const { workspace, loading: workspaceLoading } = useWorkspace();
+  const workspaceId = workspace?.id;
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

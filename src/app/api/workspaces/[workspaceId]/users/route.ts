@@ -68,14 +68,17 @@ export async function GET(
     }
 
     // Format members data
-    const formattedMembers = members.map(m => ({
-      user_id: m.user_id,
-      role: m.role,
-      display_name: m.profiles?.display_name || m.profiles?.email || 'Unknown User',
-      email: m.profiles?.email,
-      is_owner: workspace.owner_id === m.user_id,
-      joined_at: m.created_at,
-    }));
+    const formattedMembers = members.map(m => {
+      const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+      return {
+        user_id: m.user_id,
+        role: m.role,
+        display_name: profile?.display_name || profile?.email || 'Unknown User',
+        email: profile?.email,
+        is_owner: workspace.owner_id === m.user_id,
+        joined_at: m.created_at,
+      };
+    });
 
     return NextResponse.json({ success: true, data: formattedMembers });
   } catch (error) {

@@ -20,6 +20,7 @@ import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface Project {
   id: string;
@@ -297,47 +298,51 @@ export default function InvoicesPage() {
   const totalValue = totalProjectsValue + totalTasksValue;
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Faktúry</h1>
-        <p className="text-lg text-muted-foreground">
+        <h1 className="text-2xl font-bold text-gray-900">Faktúry</h1>
+        <p className="text-gray-600 mt-1">
           Projekty a úlohy pripravené na vyfaktúrovanie
         </p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
+        <Card className="bg-white border border-gray-200 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dokončené projekty</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold text-gray-600">Dokončené projekty</CardTitle>
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <FileText className="h-5 w-5 text-blue-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{readyProjects.length}</div>
-            <p className="text-xs text-muted-foreground">Celková hodnota: {formatCurrency(totalProjectsValue)}</p>
+            <div className="text-3xl font-bold text-gray-900">{readyProjects.length}</div>
+            <p className="text-sm text-gray-500 mt-1">Celková hodnota: {formatCurrency(totalProjectsValue)}</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border border-gray-200 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Celková hodnota</CardTitle>
-            <Euro className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold text-gray-600">Celková hodnota</CardTitle>
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Euro className="h-5 w-5 text-green-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalValue)}</div>
-            <p className="text-xs text-muted-foreground">Na vyfaktúrovanie</p>
+            <div className="text-3xl font-bold text-gray-900">{formatCurrency(totalValue)}</div>
+            <p className="text-sm text-gray-500 mt-1">Na vyfaktúrovanie</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="projects">
+        <TabsList className="bg-gray-100">
+          <TabsTrigger value="projects" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
             Projekty ({readyProjects.length})
           </TabsTrigger>
-          <TabsTrigger value="archived">
+          <TabsTrigger value="archived" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
             Archivované ({archivedProjects.length})
           </TabsTrigger>
         </TabsList>
@@ -345,40 +350,43 @@ export default function InvoicesPage() {
         {/* Projects Tab */}
         <TabsContent value="projects" className="space-y-4">
           {readyProjects.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-8">
-                <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-muted-foreground">Žiadne dokončené projekty</p>
+            <Card className="bg-white border border-gray-200 shadow-sm">
+              <CardContent className="text-center py-12">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="h-6 w-6 text-gray-400" />
+                </div>
+                <p className="text-lg font-medium text-gray-900">Žiadne dokončené projekty</p>
+                <p className="text-sm text-gray-500 mt-2">Začnite dokončením existujúcich projektov</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
               {readyProjects.map((project) => (
-                <Card key={project.id}>
-                  <CardHeader>
+                <Card key={project.id} className="bg-white border border-gray-200 shadow-sm">
+                  <CardHeader className="bg-gray-50">
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-semibold">{project.name}</h3>
-                          <Badge variant="outline" className="font-mono">
+                          <h3 className="text-xl font-semibold text-gray-900">{project.name}</h3>
+                          <Badge variant="outline" className="font-mono bg-gray-100 text-gray-700 border-gray-200">
                             {project.code}
                           </Badge>
-                          <Badge variant="outline" className={getStatusBadgeVariant(project.status)}>
+                          <Badge variant="outline" className={cn("text-xs", getStatusBadgeVariant(project.status))}>
                             {getStatusText(project.status)}
                           </Badge>
                         </div>
-                        <p className="text-muted-foreground">
+                        <p className="text-gray-600">
                           <strong>Klient:</strong> {project.client.name}
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-gray-500">
                           <strong>Dokončené úlohy:</strong> {project.task_count}
                         </p>
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                        <div className="text-2xl font-bold text-green-600">
                           {formatCurrency(project.total_cost)}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-gray-500">
                           {project.labor_cost > 0 && `${formatCurrency(project.labor_cost)} (čas) `}
                           {project.fixed_budget_cost > 0 && `${formatCurrency(project.fixed_budget_cost)} (fixná) `}
                           {project.external_cost > 0 && `${formatCurrency(project.external_cost)} (náklady)`}

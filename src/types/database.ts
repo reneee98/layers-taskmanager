@@ -27,7 +27,7 @@ export interface Project {
   name: string;
   code?: string;
   description: string | null;
-  status: "draft" | "active" | "on_hold" | "completed" | "cancelled";
+  status: "draft" | "active" | "on_hold" | "sent_to_client" | "completed" | "cancelled";
   currency?: string;
   start_date: string | null;
   end_date: string | null;
@@ -47,7 +47,7 @@ export interface Task {
   parent_task_id: string | null;
   title: string;
   description: string | null;
-  status: "todo" | "in_progress" | "review" | "done" | "cancelled";
+  status: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled";
   priority: "low" | "medium" | "high" | "urgent";
   assignee_id: string | null;
   estimated_hours: number | null;
@@ -56,6 +56,7 @@ export interface Task {
   due_date: string | null;
   completed_at: string | null;
   order_index?: number;
+  google_drive_link?: string | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth";
+import { logActivity, ActivityTypes, getUserDisplayName, getTaskTitle } from "@/lib/activity-logger";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export async function GET(
   request: NextRequest,
@@ -67,6 +69,12 @@ export async function POST(
   try {
     console.log("POST /api/tasks/[taskId]/comments called with taskId:", params.taskId);
     
+    // Get user's workspace ID
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
+    
     const supabase = createClient();
     console.log("Supabase client created");
     
@@ -86,6 +94,18 @@ export async function POST(
     if (!content || content.trim() === "") {
       console.log("No content provided");
       return NextResponse.json({ success: false, error: "Content is required" }, { status: 400 });
+    }
+
+    // Get task info for activity logging
+    const { data: task, error: taskError } = await supabase
+      .from("tasks")
+      .select("title, project_id")
+      .eq("id", params.taskId)
+      .eq("workspace_id", workspaceId)
+      .single();
+
+    if (taskError || !task) {
+      return NextResponse.json({ success: false, error: "Úloha nebola nájdená" }, { status: 404 });
     }
 
     console.log("Inserting comment with:", {
@@ -115,6 +135,23 @@ export async function POST(
       console.error("Error details:", JSON.stringify(error, null, 2));
       return NextResponse.json({ success: false, error: `Failed to create comment: ${error.message}` }, { status: 500 });
     }
+
+    // Log activity - comment added
+    const userDisplayName = await getUserDisplayName(user.id);
+    await logActivity({
+      workspaceId,
+      userId: user.id,
+      type: ActivityTypes.COMMENT_ADDED,
+      action: `Pridal komentár`,
+      details: task.title,
+      projectId: task.project_id,
+      taskId: params.taskId,
+      metadata: {
+        comment_id: comment.id,
+        comment_content: content.trim(),
+        user_display_name: userDisplayName
+      }
+    });
 
     // Get current user info
     const { data: currentUser } = await supabase

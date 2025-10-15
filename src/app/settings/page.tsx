@@ -2,23 +2,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function SettingsPage() {
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="w-full space-y-8">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Nastavenia</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold text-gray-900">Nastavenia</h1>
+        <p className="text-gray-600 mt-1">
           Spravujte svoje nastavenia a preferencie
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nastavenia sú dočasne vypnuté</CardTitle>
-          <CardDescription>
+      <Card className="bg-white border border-gray-200 shadow-sm">
+        <CardHeader className="bg-gray-50">
+          <CardTitle className="text-gray-900">Nastavenia sú dočasne vypnuté</CardTitle>
+          <CardDescription className="text-gray-600">
             Funkcia nastavení je momentálne v údržbe a bude dostupná neskôr.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-gray-500">
             Môžete pokračovať v používaní ostatných funkcií aplikácie.
           </p>
         </CardContent>

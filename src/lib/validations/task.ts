@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const taskStatusEnum = z.enum(["todo", "in_progress", "review", "done", "cancelled"]);
+export const taskStatusEnum = z.enum(["todo", "in_progress", "review", "sent_to_client", "done", "cancelled"]);
 
 export const taskPriorityEnum = z.enum(["low", "medium", "high", "urgent"]);
 
@@ -17,6 +17,7 @@ export const taskSchema = z.object({
   budget_amount: z.number().min(0, "Budget musí byť kladný").optional().nullable(),
   due_date: z.string().optional().or(z.literal("")).nullable(),
   order_index: z.number().int("Poradie musí byť celé číslo").default(0).optional(),
+  google_drive_link: z.string().url("Neplatný Google Drive link").optional().or(z.literal("")).nullable(),
 });
 
 export const updateTaskSchema = taskSchema.partial().omit({ project_id: true });

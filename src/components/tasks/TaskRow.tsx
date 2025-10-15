@@ -6,21 +6,14 @@ import Link from "next/link";
 import { Task, User } from "@/types/database";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   GripVertical,
@@ -30,6 +23,18 @@ import {
   Clock,
   Calendar,
   ExternalLink,
+  Circle,
+  Play,
+  Eye,
+  CheckCircle,
+  XCircle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpRight,
+  Flame,
+  Send,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { formatHours, formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
@@ -50,34 +55,70 @@ interface TaskRowProps {
   onTaskUpdated?: () => void;
 }
 
-const statusColors = {
-  todo: "bg-slate-500/10 text-slate-500 border-slate-500/20",
-  in_progress: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  review: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-  done: "bg-green-500/10 text-green-500 border-green-500/20",
-  cancelled: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+const statusConfig = {
+  todo: { 
+    label: "Todo", 
+    icon: Circle, 
+    color: "bg-slate-100 text-slate-700 border-slate-200", 
+    iconColor: "text-slate-500" 
+  },
+  in_progress: { 
+    label: "In Progress", 
+    icon: Play, 
+    color: "bg-blue-100 text-blue-700 border-blue-200", 
+    iconColor: "text-blue-500" 
+  },
+  review: { 
+    label: "Review", 
+    icon: Eye, 
+    color: "bg-amber-100 text-amber-700 border-amber-200", 
+    iconColor: "text-amber-500" 
+  },
+  sent_to_client: { 
+    label: "Sent to Client", 
+    icon: Send, 
+    color: "bg-purple-100 text-purple-700 border-purple-200", 
+    iconColor: "text-purple-500" 
+  },
+  done: { 
+    label: "Done", 
+    icon: CheckCircle, 
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
+    iconColor: "text-emerald-500" 
+  },
+  cancelled: { 
+    label: "Cancelled", 
+    icon: XCircle, 
+    color: "bg-red-100 text-red-700 border-red-200", 
+    iconColor: "text-red-500" 
+  },
 };
 
-const priorityColors = {
-  low: "bg-slate-500/10 text-slate-500 border-slate-500/20",
-  medium: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  high: "bg-orange-500/10 text-orange-500 border-orange-500/20",
-  urgent: "bg-red-500/10 text-red-500 border-red-500/20",
-};
-
-const statusLabels = {
-  todo: "Todo",
-  in_progress: "In Progress",
-  review: "Review",
-  done: "Done",
-  cancelled: "Cancelled",
-};
-
-const priorityLabels = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  urgent: "Urgent",
+const priorityConfig = {
+  low: { 
+    label: "Low", 
+    icon: ArrowDown, 
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
+    iconColor: "text-emerald-500" 
+  },
+  medium: { 
+    label: "Medium", 
+    icon: ArrowUp, 
+    color: "bg-amber-100 text-amber-700 border-amber-200", 
+    iconColor: "text-amber-500" 
+  },
+  high: { 
+    label: "High", 
+    icon: ArrowUpRight, 
+    color: "bg-orange-100 text-orange-700 border-orange-200", 
+    iconColor: "text-orange-500" 
+  },
+  urgent: { 
+    label: "Urgent", 
+    icon: Flame, 
+    color: "bg-red-100 text-red-700 border-red-200", 
+    iconColor: "text-red-500" 
+  },
 };
 
 export function TaskRow({
@@ -183,34 +224,54 @@ export function TaskRow({
         </div>
       </TableCell>
 
-      {/* Status - Inline Select */}
-      <TableCell>
-        <Select
-          value={task.status}
-          onValueChange={handleStatusChange}
-          disabled={isUpdating}
-        >
-          <SelectTrigger
-            className={cn(
-              "border-none shadow-none h-auto p-0 hover:bg-transparent",
-              "focus:ring-0 focus:ring-offset-0"
-            )}
-          >
-            <Badge
-              variant="outline"
-              className={cn("capitalize", statusColors[task.status])}
+      {/* Status - Inline Dropdown */}
+      <TableCell className="w-auto min-w-[100px]">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className={cn(
+                "h-auto p-0 hover:bg-transparent",
+                isUpdating && "opacity-50 cursor-not-allowed"
+              )}
+              disabled={isUpdating}
             >
-              {statusLabels[task.status]}
-            </Badge>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todo">Todo</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="review">Review</SelectItem>
-            <SelectItem value="done">Done</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
+              {(() => {
+                const config = statusConfig[task.status] || statusConfig.todo;
+                const IconComponent = config.icon;
+                return (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "capitalize flex items-center gap-2 px-3 py-1.5 w-fit cursor-pointer transition-all duration-200",
+                      config.color
+                    )}
+                  >
+                    <IconComponent className={cn("h-4 w-4", config.iconColor, task.status === 'in_progress' && "animate-pulse")} />
+                    <span className="font-medium">{config.label}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Badge>
+                );
+              })()}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48 p-2">
+            {Object.entries(statusConfig).map(([key, config]) => {
+              const IconComponent = config.icon;
+              return (
+                <DropdownMenuItem
+                  key={key}
+                  onClick={() => handleStatusChange(key as "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled")}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  <IconComponent className={cn("h-4 w-4", config.iconColor, key === 'in_progress' && "animate-pulse")} />
+                  <span className="font-medium">{config.label}</span>
+                  {task.status === key && <Check className="h-4 w-4 ml-auto text-gray-500" />}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
 
       {/* Assignees - show avatars with overflow */}
@@ -305,33 +366,54 @@ export function TaskRow({
         )}
       </TableCell>
 
-      {/* Priority - Inline Select */}
-      <TableCell>
-        <Select
-          value={task.priority}
-          onValueChange={handlePriorityChange}
-          disabled={isUpdating}
-        >
-          <SelectTrigger
-            className={cn(
-              "border-none shadow-none h-auto p-0 hover:bg-transparent",
-              "focus:ring-0 focus:ring-offset-0"
-            )}
-          >
-            <Badge
-              variant="outline"
-              className={cn("capitalize", priorityColors[task.priority])}
+      {/* Priority - Inline Dropdown */}
+      <TableCell className="w-auto min-w-[80px]">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className={cn(
+                "h-auto p-0 hover:bg-transparent",
+                isUpdating && "opacity-50 cursor-not-allowed"
+              )}
+              disabled={isUpdating}
             >
-              {priorityLabels[task.priority]}
-            </Badge>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="low">Low</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-            <SelectItem value="urgent">Urgent</SelectItem>
-          </SelectContent>
-        </Select>
+              {(() => {
+                const config = priorityConfig[task.priority] || priorityConfig.low;
+                const IconComponent = config.icon;
+                return (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "capitalize flex items-center gap-2 px-3 py-1.5 w-fit cursor-pointer transition-all duration-200",
+                      config.color
+                    )}
+                  >
+                    <IconComponent className={cn("h-4 w-4", config.iconColor, task.priority === 'urgent' && "animate-pulse")} />
+                    <span className="font-medium">{config.label}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Badge>
+                );
+              })()}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-44 p-2">
+            {Object.entries(priorityConfig).map(([key, config]) => {
+              const IconComponent = config.icon;
+              return (
+                <DropdownMenuItem
+                  key={key}
+                  onClick={() => handlePriorityChange(key as "low" | "medium" | "high" | "urgent")}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  <IconComponent className={cn("h-4 w-4", config.iconColor, key === 'urgent' && "animate-pulse")} />
+                  <span className="font-medium">{config.label}</span>
+                  {task.priority === key && <Check className="h-4 w-4 ml-auto text-gray-500" />}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
 
       {/* Actions menu */}

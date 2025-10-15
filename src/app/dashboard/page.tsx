@@ -5,6 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { 
   Clock, 
   AlertTriangle, 
@@ -19,10 +27,27 @@ import {
   FileText,
   Users,
   FolderPlus,
-  CheckCircle2, // task_completed
-  Building2,    // client_created/updated
-  FolderOpen,   // project_updated
-  UserPlus      // member_added
+  CheckCircle2,
+  Building2,
+  FolderOpen,
+  UserPlus,
+  TrendingUp,
+  Activity,
+  Zap,
+  Target,
+  BarChart3,
+  PieChart,
+  Timer,
+  Award,
+  Circle,
+  Play,
+  Eye,
+  Send,
+  XCircle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpRight,
+  Flame
 } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/format";
 import { format, isAfter, isBefore, addDays } from "date-fns";
@@ -31,6 +56,7 @@ import Link from "next/link";
 import type { Task } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { WorkspaceInvitations } from "@/components/workspace/WorkspaceInvitations";
+import { cn } from "@/lib/utils";
 
 interface AssignedTask {
   id: string;
@@ -51,7 +77,8 @@ interface AssignedTask {
     id: string;
     name: string;
     code: string;
-    client: {
+    client?: {
+      id: string;
       name: string;
     };
   };
@@ -59,25 +86,19 @@ interface AssignedTask {
 
 interface Activity {
   id: string;
-  type: 'time_entry' | 'task_update' | 'task_created' | 'task_completed' | 'comment' | 'project_created' | 'project_updated' | 'client_created' | 'client_updated' | 'member_added' | 'file_upload';
+  type: string;
   action: string;
   details: string;
+  user: string;
+  user_name?: string;
+  created_at: string;
   project?: string;
   project_code?: string;
-  user: string;
-  created_at: string;
+  client?: string;
   description?: string;
   content?: string;
-  client?: string;
-  client_email?: string;
-  client_phone?: string;
   status?: string;
   priority?: string;
-  due_date?: string;
-  estimated_hours?: number;
-  actual_hours?: number;
-  budget_hours?: number;
-  budget_amount?: number;
 }
 
 export default function DashboardPage() {
@@ -87,14 +108,11 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!workspace) return;
-
-    console.log("Dashboard useEffect triggered with workspace:", workspace);
-
     const fetchData = async () => {
+      if (!workspace) return;
+      
+      setIsLoading(true);
       try {
-        console.log("Fetching data for workspace:", workspace.id);
-        // Fetch tasks and activities in parallel with workspace_id
         const [tasksResponse, activitiesResponse] = await Promise.all([
           fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}`),
           fetch(`/api/dashboard/activity?workspace_id=${workspace.id}`)
@@ -102,9 +120,6 @@ export default function DashboardPage() {
 
         const tasksResult = await tasksResponse.json();
         const activitiesResult = await activitiesResponse.json();
-        
-        console.log("Tasks result:", tasksResult);
-        console.log("Activities result:", activitiesResult);
         
         if (tasksResult.success) {
           setTasks(tasksResult.data);
@@ -129,23 +144,23 @@ export default function DashboardPage() {
 
   const getStatusBadgeVariant = (status: string) => {
     const variantMap: { [key: string]: string } = {
-      'todo': 'bg-gray-500/10 text-gray-500 border-gray-500/20',
-      'in_progress': 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-      'review': 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-      'done': 'bg-green-500/10 text-green-500 border-green-500/20',
-      'cancelled': 'bg-red-500/10 text-red-500 border-red-500/20'
+      'todo': 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+      'in_progress': 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700',
+      'review': 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700',
+      'done': 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700',
+      'cancelled': 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700'
     };
-    return variantMap[status] || 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+    return variantMap[status] || 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
   };
 
   const getPriorityBadgeVariant = (priority: string) => {
     const variantMap: { [key: string]: string } = {
-      'low': 'bg-green-500/10 text-green-500 border-green-500/20',
-      'medium': 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-      'high': 'bg-orange-500/10 text-orange-500 border-orange-500/20',
-      'urgent': 'bg-red-500/10 text-red-500 border-red-500/20'
+      'low': 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700',
+      'medium': 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700',
+      'high': 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700',
+      'urgent': 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700'
     };
-    return variantMap[priority] || 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+    return variantMap[priority] || 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
   };
 
   const getStatusText = (status: string) => {
@@ -173,13 +188,13 @@ export default function DashboardPage() {
     if (daysUntilDeadline === null) return null;
     
     if (daysUntilDeadline < 0) {
-      return { type: 'overdue', text: `Prešiel o ${Math.abs(daysUntilDeadline)} dní`, icon: AlertTriangle, color: 'text-red-500' };
+      return { type: 'overdue', text: `Prešiel o ${Math.abs(daysUntilDeadline)} dní`, icon: AlertTriangle, color: 'text-red-600 bg-red-50 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800' };
     } else if (daysUntilDeadline === 0) {
-      return { type: 'today', text: 'Dnes', icon: AlertTriangle, color: 'text-orange-500' };
+      return { type: 'today', text: 'Dnes', icon: AlertTriangle, color: 'text-orange-600 bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800' };
     } else if (daysUntilDeadline <= 3) {
-      return { type: 'urgent', text: `Zostáva ${daysUntilDeadline} dní`, icon: Clock, color: 'text-yellow-500' };
+      return { type: 'urgent', text: `Zostáva ${daysUntilDeadline} dní`, icon: Clock, color: 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800' };
     } else if (daysUntilDeadline <= 7) {
-      return { type: 'soon', text: `Zostáva ${daysUntilDeadline} dní`, icon: Clock, color: 'text-blue-500' };
+      return { type: 'soon', text: `Zostáva ${daysUntilDeadline} dní`, icon: Clock, color: 'text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' };
     }
     
     return null;
@@ -188,7 +203,7 @@ export default function DashboardPage() {
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'time_entry':
-        return Clock;
+        return Timer;
       case 'task_update':
         return Edit;
       case 'task_created':
@@ -209,35 +224,35 @@ export default function DashboardPage() {
       case 'file_upload':
         return FileText;
       default:
-        return Plus;
+        return Activity;
     }
   };
 
   const getActivityColor = (type: string) => {
     switch (type) {
       case 'time_entry':
-        return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
+        return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30';
       case 'task_update':
-        return 'text-green-600 bg-green-100 dark:bg-green-900/20';
+        return 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30';
       case 'task_created':
-        return 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/20';
+        return 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30';
       case 'task_completed':
-        return 'text-green-700 bg-green-200 dark:bg-green-800/30';
+        return 'text-green-600 bg-green-100 dark:bg-green-900/30';
       case 'comment':
-        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/20';
+        return 'text-purple-600 bg-purple-100 dark:bg-purple-900/30';
       case 'project_created':
-        return 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/20';
+        return 'text-violet-600 bg-violet-100 dark:bg-violet-900/30';
       case 'project_updated':
-        return 'text-indigo-500 bg-indigo-50 dark:bg-indigo-900/10';
+        return 'text-violet-500 bg-violet-50 dark:bg-violet-900/20';
       case 'client_created':
       case 'client_updated':
-        return 'text-amber-600 bg-amber-100 dark:bg-amber-900/20';
+        return 'text-amber-600 bg-amber-100 dark:bg-amber-900/30';
       case 'member_added':
-        return 'text-pink-600 bg-pink-100 dark:bg-pink-900/20';
+        return 'text-pink-600 bg-pink-100 dark:bg-pink-900/30';
       case 'file_upload':
-        return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20';
+        return 'text-orange-600 bg-orange-100 dark:bg-orange-900/30';
       default:
-        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
+        return 'text-slate-600 bg-slate-100 dark:bg-slate-900/30';
     }
   };
 
@@ -248,6 +263,72 @@ export default function DashboardPage() {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const statusConfig = {
+    todo: { 
+      label: "To Do", 
+      icon: Circle, 
+      color: "bg-slate-100 text-slate-700 border-slate-200", 
+      iconColor: "text-slate-500" 
+    },
+    in_progress: { 
+      label: "In Progress", 
+      icon: Play, 
+      color: "bg-blue-100 text-blue-700 border-blue-200", 
+      iconColor: "text-blue-500" 
+    },
+    review: { 
+      label: "Review", 
+      icon: Eye, 
+      color: "bg-amber-100 text-amber-700 border-amber-200", 
+      iconColor: "text-amber-500" 
+    },
+    sent_to_client: { 
+      label: "Sent to Client", 
+      icon: Send, 
+      color: "bg-purple-100 text-purple-700 border-purple-200", 
+      iconColor: "text-purple-500" 
+    },
+    done: { 
+      label: "Done", 
+      icon: CheckCircle, 
+      color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
+      iconColor: "text-emerald-500" 
+    },
+    cancelled: { 
+      label: "Cancelled", 
+      icon: XCircle, 
+      color: "bg-red-100 text-red-700 border-red-200", 
+      iconColor: "text-red-500" 
+    },
+  };
+
+  const priorityConfig = {
+    low: { 
+      label: "Low", 
+      icon: ArrowDown, 
+      color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
+      iconColor: "text-emerald-500" 
+    },
+    medium: { 
+      label: "Medium", 
+      icon: ArrowUp, 
+      color: "bg-amber-100 text-amber-700 border-amber-200", 
+      iconColor: "text-amber-500" 
+    },
+    high: { 
+      label: "High", 
+      icon: ArrowUpRight, 
+      color: "bg-orange-100 text-orange-700 border-orange-200", 
+      iconColor: "text-orange-500" 
+    },
+    urgent: { 
+      label: "Urgent", 
+      icon: Flame, 
+      color: "bg-red-100 text-red-700 border-red-200", 
+      iconColor: "text-red-500" 
+    },
   };
 
   // Filter tasks by status
@@ -261,321 +342,381 @@ export default function DashboardPage() {
   const overdueTasks = tasksWithDeadlines.filter(task => task.days_until_deadline !== null && task.days_until_deadline < 0);
   const upcomingTasks = tasksWithDeadlines.filter(task => task.days_until_deadline !== null && task.days_until_deadline >= 0 && task.days_until_deadline <= 7);
 
+  // Calculate stats
+  const totalEstimatedHours = tasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0);
+  const totalActualHours = tasks.reduce((sum, task) => sum + (task.actual_hours || 0), 0);
+  const completionRate = totalEstimatedHours > 0 ? (totalActualHours / totalEstimatedHours) * 100 : 0;
+
   if (workspaceLoading || isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+          <p className="text-muted-foreground">Načítavam dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-lg text-muted-foreground">
-          Prehľad vašich priradených úloh a blížiacich sa deadline-ov
-        </p>
+    <div className="w-full space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">
+            Dashboard
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Prehľad vašich projektov a úloh
+          </p>
+        </div>
       </div>
 
       {/* Workspace Invitations */}
       <WorkspaceInvitations />
 
-      {/* Summary Cards */}
+      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Na spracovanie</CardTitle>
-            <FolderKanban className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold text-gray-600">Na spracovanie</CardTitle>
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <FolderKanban className="h-5 w-5 text-blue-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{todoTasks.length}</div>
-            <p className="text-xs text-muted-foreground">Úlohy na začiatok</p>
+            <div className="text-3xl font-bold text-gray-900">{todoTasks.length}</div>
+            <p className="text-sm text-gray-500 mt-1">Úlohy na začiatok</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">V procese</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold text-gray-600">V procese</CardTitle>
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Clock className="h-5 w-5 text-green-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{inProgressTasks.length}</div>
-            <p className="text-xs text-muted-foreground">Aktívne úlohy</p>
+            <div className="text-3xl font-bold text-gray-900">{inProgressTasks.length}</div>
+            <p className="text-sm text-gray-500 mt-1">Aktívne úlohy</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Prešli deadline</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold text-gray-600">Prešli deadline</CardTitle>
+            <div className="p-2 bg-red-100 rounded-lg">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overdueTasks.length}</div>
-            <p className="text-xs text-muted-foreground">Potrebujú pozornosť</p>
+            <div className="text-3xl font-bold text-gray-900">{overdueTasks.length}</div>
+            <p className="text-sm text-gray-500 mt-1">Potrebujú pozornosť</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Blížia sa</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold text-gray-600">Blížia sa</CardTitle>
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <Calendar className="h-5 w-5 text-yellow-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{upcomingTasks.length}</div>
-            <p className="text-xs text-muted-foreground">Do 7 dní</p>
+            <div className="text-3xl font-bold text-gray-900">{upcomingTasks.length}</div>
+            <p className="text-sm text-gray-500 mt-1">Do 7 dní</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Overdue Tasks */}
-      {overdueTasks.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Prešli deadline ({overdueTasks.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {overdueTasks.map((task) => {
-                const deadlineStatus = getDeadlineStatus(task.days_until_deadline);
-                return (
-                  <div key={task.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-medium">{task.title}</h3>
-                        <Badge variant="outline" className={getStatusBadgeVariant(task.status)}>
-                          {getStatusText(task.status)}
-                        </Badge>
-                        <Badge variant="outline" className={getPriorityBadgeVariant(task.priority)}>
-                          {getPriorityText(task.priority)}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {task.project?.name || 'Neznámy projekt'} ({task.project?.code || 'N/A'}) • {task.project?.client?.name || 'Neznámy klient'}
-                      </p>
-                      {deadlineStatus && (
-                        <Badge variant="destructive" className="text-xs">
-                          <deadlineStatus.icon className="h-3 w-3 mr-1" />
-                          {deadlineStatus.text}
-                        </Badge>
-                      )}
-                    </div>
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}>
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Upcoming Deadlines */}
-      {upcomingTasks.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Blížia sa deadline ({upcomingTasks.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {upcomingTasks.map((task) => {
-                const deadlineStatus = getDeadlineStatus(task.days_until_deadline);
-                return (
-                  <div key={task.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-medium">{task.title}</h3>
-                        <Badge variant="outline" className={getStatusBadgeVariant(task.status)}>
-                          {getStatusText(task.status)}
-                        </Badge>
-                        <Badge variant="outline" className={getPriorityBadgeVariant(task.priority)}>
-                          {getPriorityText(task.priority)}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {task.project?.name || 'Neznámy projekt'} ({task.project?.code || 'N/A'}) • {task.project?.client?.name || 'Neznámy klient'}
-                      </p>
-                      {deadlineStatus && (
-                        <Badge variant="secondary" className="text-xs">
-                          <deadlineStatus.icon className="h-3 w-3 mr-1" />
-                          {deadlineStatus.text}
-                        </Badge>
-                      )}
-                    </div>
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}>
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column - Tasks */}
         <div className="lg:col-span-2 space-y-6">
-          {/* All Assigned Tasks - Compact */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Moje úlohy{tasks.length > 0 && ` (${tasks.length})`}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {tasks.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FolderKanban className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>Nemáte priradené úlohy</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {tasks.map((task) => {
+          {/* Overdue Tasks */}
+          {overdueTasks.length > 0 && (
+            <Card className="bg-white border border-red-200 shadow-sm border-l-4 border-l-red-500">
+              <CardHeader className="bg-red-50">
+                <CardTitle className="flex items-center gap-2 text-lg font-medium text-red-900">
+                  <AlertTriangle className="h-4 w-4" />
+                  Prešli deadline
+                  <Badge variant="destructive" className="ml-2 text-xs">
+                    {overdueTasks.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  {overdueTasks.map((task) => {
                     const deadlineStatus = getDeadlineStatus(task.days_until_deadline);
                     return (
-                      <Link 
-                        key={task.id} 
-                        href={`/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}
-                        className="block p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-medium truncate">{task.title}</h3>
-                              <Badge variant="outline" className={getStatusBadgeVariant(task.status)}>
-                                {getStatusText(task.status)}
-                              </Badge>
-                              <Badge variant="outline" className={getPriorityBadgeVariant(task.priority)}>
-                                {getPriorityText(task.priority)}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {task.project?.name || 'Neznámy projekt'} ({task.project?.code || 'N/A'})
-                            </p>
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                              {task.estimated_hours && task.estimated_hours > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {formatHours(task.estimated_hours)}
-                                </span>
-                              )}
-                              {task.actual_hours && task.actual_hours > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <CheckCircle className="h-3 w-3" />
-                                  {formatHours(task.actual_hours)}
-                                </span>
-                              )}
-                              {task.due_date && (
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(task.due_date), 'dd.MM', { locale: sk })}
-                                </span>
-                              )}
-                            </div>
-                            {deadlineStatus && (
-                              <Badge 
-                                variant={deadlineStatus.type === 'overdue' ? 'destructive' : 'secondary'} 
-                                className="text-xs mt-1"
-                              >
-                                <deadlineStatus.icon className="h-2 w-2 mr-1" />
-                                {deadlineStatus.text}
-                              </Badge>
-                            )}
+                      <div key={task.id} className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-red-900 dark:text-red-100">{task.title}</h3>
+                            <Badge variant="outline" className={getStatusBadgeVariant(task.status)}>
+                              {getStatusText(task.status)}
+                            </Badge>
+                            <Badge variant="outline" className={getPriorityBadgeVariant(task.priority)}>
+                              {getPriorityText(task.priority)}
+                            </Badge>
                           </div>
-                          <ArrowRight className="h-4 w-4 text-muted-foreground ml-3" />
+                          <p className="text-sm text-red-700 dark:text-red-300 mb-2">
+                            {task.project?.name || 'Neznámy projekt'} ({task.project?.code || 'N/A'}) • {task.project?.client?.name || 'Neznámy klient'}
+                          </p>
+                          {deadlineStatus && (
+                            <Badge variant="destructive" className="text-xs">
+                              <deadlineStatus.icon className="h-3 w-3 mr-1" />
+                              {deadlineStatus.text}
+                            </Badge>
+                          )}
                         </div>
-                      </Link>
+                        <Button asChild variant="outline" size="sm" className="border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/30">
+                          <Link href={`/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}>
+                            <ArrowRight className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </div>
                     );
                   })}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Upcoming Deadlines */}
+          {upcomingTasks.length > 0 && (
+            <Card className="bg-white border border-amber-200 shadow-sm border-l-4 border-l-amber-500">
+              <CardHeader className="bg-amber-50">
+                <CardTitle className="flex items-center gap-2 text-lg font-medium text-amber-900">
+                  <Calendar className="h-4 w-4" />
+                  Blížia sa deadline
+                  <Badge variant="secondary" className="ml-2 text-xs bg-amber-100 text-amber-700">
+                    {upcomingTasks.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  {upcomingTasks.map((task) => {
+                    const deadlineStatus = getDeadlineStatus(task.days_until_deadline);
+                    return (
+                      <div key={task.id} className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-amber-900 dark:text-amber-100">{task.title}</h3>
+                            <Badge variant="outline" className={getStatusBadgeVariant(task.status)}>
+                              {getStatusText(task.status)}
+                            </Badge>
+                            <Badge variant="outline" className={getPriorityBadgeVariant(task.priority)}>
+                              {getPriorityText(task.priority)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-amber-700 dark:text-amber-300 mb-2">
+                            {task.project?.name || 'Neznámy projekt'} ({task.project?.code || 'N/A'}) • {task.project?.client?.name || 'Neznámy klient'}
+                          </p>
+                          {deadlineStatus && (
+                            <Badge variant="secondary" className={`text-xs ${deadlineStatus.color}`}>
+                              <deadlineStatus.icon className="h-3 w-3 mr-1" />
+                              {deadlineStatus.text}
+                            </Badge>
+                          )}
+                        </div>
+                        <Button asChild variant="outline" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30">
+                          <Link href={`/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}>
+                            <ArrowRight className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* All Assigned Tasks - Table Format */}
+          <Card className="bg-white border border-gray-200 shadow-sm">
+            <CardHeader className="bg-gray-50">
+              <CardTitle className="flex items-center gap-2 text-lg font-medium text-gray-900">
+                <User className="h-4 w-4" />
+                Moje úlohy
+                {tasks.length > 0 && (
+                  <Badge variant="outline" className="ml-2 text-xs">
+                    {tasks.length}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {tasks.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <FolderKanban className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">Nemáte priradené úlohy</p>
+                  <p className="text-sm mt-2">Začnite vytvorením nového projektu</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50 hover:bg-gray-50">
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Úloha</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Projekt</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Status</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Priorita</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Čas</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Deadline</TableHead>
+                      <TableHead className="w-[40px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tasks.map((task) => {
+                      const deadlineStatus = getDeadlineStatus(task.days_until_deadline);
+                      const statusInfo = statusConfig[task.status as keyof typeof statusConfig] || statusConfig.todo;
+                      const priorityInfo = priorityConfig[task.priority as keyof typeof priorityConfig] || priorityConfig.medium;
+                      const StatusIcon = statusInfo.icon;
+                      const PriorityIcon = priorityInfo.icon;
+                      
+                      return (
+                        <TableRow 
+                          key={task.id} 
+                          className="hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => window.location.href = `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}
+                        >
+                          <TableCell className="py-3">
+                            <div className="min-w-0">
+                              <h3 className="font-medium text-gray-900 truncate text-sm">
+                                {task.title}
+                              </h3>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-3">
+                            <div className="text-sm text-gray-900">
+                              {task.project?.name || 'Neznámy projekt'}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {task.project?.code || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-3">
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs flex items-center gap-1.5 px-2 py-1 w-fit ${statusInfo.color}`}
+                            >
+                              <StatusIcon className={`h-3 w-3 ${statusInfo.iconColor} ${task.status === 'in_progress' && "animate-pulse"}`} />
+                              {statusInfo.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-3">
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs flex items-center gap-1.5 px-2 py-1 w-fit ${priorityInfo.color}`}
+                            >
+                              <PriorityIcon className={`h-3 w-3 ${priorityInfo.iconColor} ${task.priority === 'urgent' && "animate-pulse"}`} />
+                              {priorityInfo.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-3">
+                            <div className="text-xs text-gray-600">
+                              {task.estimated_hours && task.estimated_hours > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatHours(task.estimated_hours)}
+                                </div>
+                              )}
+                              {task.actual_hours && task.actual_hours > 0 && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <CheckCircle className="h-3 w-3" />
+                                  {formatHours(task.actual_hours)}
+                                </div>
+                              )}
+                              {!task.estimated_hours && !task.actual_hours && (
+                                <span className="text-gray-400">—</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-3">
+                            {task.due_date ? (
+                              <div className="text-xs">
+                                <div className="flex items-center gap-1 text-gray-600">
+                                  <Calendar className="h-3 w-3" />
+                                  {format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk })}
+                                </div>
+                                {deadlineStatus && (
+                                  <Badge variant="secondary" className={`text-xs mt-1 ${deadlineStatus.color}`}>
+                                    <deadlineStatus.icon className="h-3 w-3 mr-1" />
+                                    {deadlineStatus.text}
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-xs">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-3">
+                            <ArrowRight className="h-4 w-4 text-gray-400" />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Right Column - Activity */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Aktivity
+        {/* Right Column - Recent Activity */}
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="bg-white border border-gray-200 shadow-sm">
+            <CardHeader className="bg-gray-50">
+              <CardTitle className="flex items-center gap-2 text-lg font-medium text-gray-900">
+                <Activity className="h-4 w-4" />
+                Posledná aktivita
+                {activities.length > 0 && (
+                  <Badge variant="outline" className="ml-2 text-xs">
+                    {activities.length}
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               {activities.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>Žiadne aktivity</p>
+                <div className="text-center py-12 text-gray-500">
+                  <Zap className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">Žiadna aktivita</p>
+                  <p className="text-sm mt-2">Začnite pracovať na úlohách</p>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+                <div className="space-y-4">
                   {activities.map((activity) => {
-                    const ActivityIcon = getActivityIcon(activity.type);
-                    const activityColor = getActivityColor(activity.type);
-                    
+                    const Icon = getActivityIcon(activity.type);
                     return (
-                      <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className={`p-2 rounded-lg ${activityColor}`}>
-                          <ActivityIcon className="h-4 w-4" />
+                      <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className={cn("p-2 rounded-full", getActivityColor(activity.type))}>
+                          <Icon className="h-4 w-4" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="text-xs">
-                                {getInitials(activity.user)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium">{activity.user}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(activity.created_at), 'HH:mm', { locale: sk })}
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-gray-900">
+                              {activity.user || 'Neznámy používateľ'}
                             </span>
-                            {activity.status && (
-                              <Badge variant="outline" className="text-xs">
-                                {activity.status}
-                              </Badge>
-                            )}
-                            {activity.priority && (
-                              <Badge variant="secondary" className="text-xs">
-                                {activity.priority}
-                              </Badge>
-                            )}
+                            <span className="text-xs text-gray-500">
+                              {format(new Date(activity.created_at), 'dd.MM.yyyy HH:mm', { locale: sk })}
+                            </span>
                           </div>
-                          <p className="text-sm text-foreground mb-1">
+                          <p className="text-sm text-gray-700 mb-1">
                             <span className="font-medium">{activity.action}</span> {activity.details}
                           </p>
                           {activity.project && (
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-gray-500">
                               {activity.project} ({activity.project_code})
                             </p>
                           )}
-                          {activity.client && (
-                            <p className="text-xs text-muted-foreground">
-                              Klient: {activity.client}
-                            </p>
-                          )}
                           {activity.description && (
-                            <p className="text-xs text-muted-foreground mt-1 italic">
+                            <p className="text-xs text-gray-500 mt-1 italic">
                               "{activity.description}"
-                            </p>
-                          )}
-                          {activity.content && (
-                            <p className="text-xs text-muted-foreground mt-1 italic">
-                              "{activity.content.substring(0, 100)}{activity.content.length > 100 ? '...' : ''}"
                             </p>
                           )}
                         </div>

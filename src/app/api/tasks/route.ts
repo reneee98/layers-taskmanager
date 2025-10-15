@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { taskSchema } from "@/lib/validations/task";
 import { validateSchema } from "@/lib/zod-helpers";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
+import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
 
 export const dynamic = "force-dynamic";
 
@@ -140,6 +141,12 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient();
 
+    // Get current user for activity logging
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: "Nie ste prihlásený" }, { status: 401 });
+    }
+
     // Get the max order_index for this project within workspace
     const { data: maxOrderTask } = await supabase
       .from("tasks")
@@ -166,6 +173,26 @@ export async function POST(request: NextRequest) {
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
+
+    // Log activity - task created
+    const userDisplayName = await getUserDisplayName(user.id);
+    await logActivity({
+      workspaceId,
+      userId: user.id,
+      type: ActivityTypes.TASK_CREATED,
+      action: `Vytvoril úlohu`,
+      details: task.title,
+      projectId: task.project_id,
+      taskId: task.id,
+      metadata: {
+        status: task.status,
+        priority: task.priority,
+        estimated_hours: task.estimated_hours,
+        due_date: task.due_date,
+        assigned_to: task.assigned_to,
+        user_display_name: userDisplayName
+      }
+    });
 
     return NextResponse.json({ success: true, data: task }, { status: 201 });
   } catch (error) {

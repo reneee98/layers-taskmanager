@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth";
+import { logActivity, ActivityTypes, getUserDisplayName, getTaskTitle } from "@/lib/activity-logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -78,6 +79,26 @@ export async function POST(request: NextRequest) {
 
     console.log("Timer started successfully, ID:", newTimer.id);
     const timerId = newTimer.id;
+
+    // Log activity - timer started
+    const userDisplayName = await getUserDisplayName(user.id);
+    const taskTitle = await getTaskTitle(taskId);
+    await logActivity({
+      workspaceId: task.workspace_id,
+      userId: user.id,
+      type: ActivityTypes.TIMER_STARTED,
+      action: `Spustil timer`,
+      details: taskTitle,
+      projectId: projectId,
+      taskId: taskId,
+      metadata: {
+        timer_id: timerId,
+        task_name: taskName,
+        project_name: projectName,
+        started_at: new Date().toISOString(),
+        user_display_name: userDisplayName
+      }
+    });
 
     return NextResponse.json({ 
       success: true, 

@@ -39,11 +39,11 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
   // If user is authenticated, show full layout
   return (
     <WorkspaceProvider>
-      <div className="relative min-h-screen">
+      <div className="relative min-h-screen bg-[#F8F8F8] dark:bg-slate-950">
         <TopNav onMenuClick={handleToggleSideNav} />
         <SideNav isOpen={isSideNavOpen} onClose={handleCloseSideNav} />
-        <main className="md:pl-64">
-          <div className="container mx-auto px-6 py-8">{children}</div>
+        <main className="md:pl-72">
+          <div className="w-full px-6 py-8">{children}</div>
         </main>
       </div>
     </WorkspaceProvider>

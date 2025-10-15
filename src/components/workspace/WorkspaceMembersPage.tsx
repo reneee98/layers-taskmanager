@@ -9,7 +9,7 @@ export function WorkspaceMembersPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="w-full py-8">
         <div className="flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin" />
           <span className="ml-2">Načítavam...</span>
@@ -20,7 +20,7 @@ export function WorkspaceMembersPage() {
 
   if (!workspace) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="w-full py-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Žiadny workspace</h1>
           <p className="text-muted-foreground mt-2">
@@ -32,7 +32,7 @@ export function WorkspaceMembersPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="w-full py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Správa používateľov</h1>
         <p className="text-muted-foreground mt-2">

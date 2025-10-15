@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { timeEntrySchema } from "@/lib/validations/time-entry";
 import { resolveHourlyRate } from "@/server/rates/resolveHourlyRate";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
+import { logActivity, ActivityTypes, getUserDisplayName, getTaskTitle } from "@/lib/activity-logger";
 
 export async function POST(
   req: NextRequest,
@@ -114,6 +115,28 @@ export async function POST(
     if (financeError) {
       console.warn("Failed to get finance snapshot:", financeError);
     }
+
+    // Log activity - time added
+    const userDisplayName = await getUserDisplayName(userId);
+    const taskTitle = await getTaskTitle(taskId);
+    await logActivity({
+      workspaceId,
+      userId: userId,
+      type: ActivityTypes.TIME_ADDED,
+      action: `Pridal ${validatedData.hours}h času`,
+      details: taskTitle,
+      projectId: task.project_id,
+      taskId: taskId,
+      metadata: {
+        hours: validatedData.hours,
+        date: validatedData.date,
+        description: validatedData.description,
+        hourly_rate: hourlyRate,
+        amount: amount,
+        is_billable: validatedData.is_billable,
+        user_display_name: userDisplayName
+      }
+    });
 
     return NextResponse.json({
       success: true,

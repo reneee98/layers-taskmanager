@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { updateTaskSchema } from "@/lib/validations/task";
 import { validateSchema } from "@/lib/zod-helpers";
+import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +43,12 @@ export async function PATCH(
 ) {
   const { taskId } = await params;
   try {
+    // Get user's workspace ID
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
+
     const body = await request.json();
     const validation = validateSchema(updateTaskSchema, body);
 
@@ -50,10 +58,29 @@ export async function PATCH(
 
     const supabase = createClient();
 
+    // Get current user for activity logging
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: "Nie ste prihlásený" }, { status: 401 });
+    }
+
+    // Get current task data for comparison
+    const { data: currentTask, error: currentTaskError } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("id", taskId)
+      .eq("workspace_id", workspaceId)
+      .single();
+
+    if (currentTaskError || !currentTask) {
+      return NextResponse.json({ success: false, error: "Úloha nebola nájdená" }, { status: 404 });
+    }
+
     const { data: task, error } = await supabase
       .from("tasks")
       .update(validation.data)
       .eq("id", taskId)
+      .eq("workspace_id", workspaceId)
       .select(`
         *,
         project:projects(id, name, code)
@@ -62,6 +89,191 @@ export async function PATCH(
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    }
+
+    // Log activity based on what changed
+    const userDisplayName = await getUserDisplayName(user.id);
+    
+    // Check for title change
+    if (validation.data.title && validation.data.title !== currentTask.title) {
+      await logActivity({
+        workspaceId,
+        userId: user.id,
+        type: ActivityTypes.TASK_TITLE_CHANGED,
+        action: `Zmenil názov úlohy z "${currentTask.title}" na "${validation.data.title}"`,
+        details: validation.data.title,
+        projectId: task.project_id,
+        taskId: task.id,
+        metadata: {
+          old_title: currentTask.title,
+          new_title: validation.data.title,
+          user_display_name: userDisplayName
+        }
+      });
+    }
+
+    // Check for description change
+    if (validation.data.description !== undefined && validation.data.description !== currentTask.description) {
+      await logActivity({
+        workspaceId,
+        userId: user.id,
+        type: ActivityTypes.TASK_DESCRIPTION_CHANGED,
+        action: `Zmenil popis úlohy`,
+        details: task.title,
+        projectId: task.project_id,
+        taskId: task.id,
+        metadata: {
+          old_description: currentTask.description,
+          new_description: validation.data.description,
+          user_display_name: userDisplayName
+        }
+      });
+    }
+
+    // Check for status change
+    if (validation.data.status && validation.data.status !== currentTask.status) {
+      await logActivity({
+        workspaceId,
+        userId: user.id,
+        type: ActivityTypes.TASK_STATUS_CHANGED,
+        action: `Zmenil status úlohy z "${currentTask.status}" na "${validation.data.status}"`,
+        details: task.title,
+        projectId: task.project_id,
+        taskId: task.id,
+        metadata: {
+          old_status: currentTask.status,
+          new_status: validation.data.status,
+          user_display_name: userDisplayName
+        }
+      });
+    }
+
+    // Check for priority change
+    if (validation.data.priority && validation.data.priority !== currentTask.priority) {
+      await logActivity({
+        workspaceId,
+        userId: user.id,
+        type: ActivityTypes.TASK_PRIORITY_CHANGED,
+        action: `Zmenil prioritu úlohy z "${currentTask.priority}" na "${validation.data.priority}"`,
+        details: task.title,
+        projectId: task.project_id,
+        taskId: task.id,
+        metadata: {
+          old_priority: currentTask.priority,
+          new_priority: validation.data.priority,
+          user_display_name: userDisplayName
+        }
+      });
+    }
+
+    // Check for assignment change
+    if (validation.data.assigned_to !== undefined && validation.data.assigned_to !== currentTask.assigned_to) {
+      const activityType = validation.data.assigned_to ? ActivityTypes.TASK_ASSIGNED : ActivityTypes.TASK_UNASSIGNED;
+      const action = validation.data.assigned_to ? `Priradil úlohu používateľovi` : `Odstránil priradenie úlohy`;
+      
+      await logActivity({
+        workspaceId,
+        userId: user.id,
+        type: activityType,
+        action: action,
+        details: task.title,
+        projectId: task.project_id,
+        taskId: task.id,
+        metadata: {
+          old_assigned_to: currentTask.assigned_to,
+          new_assigned_to: validation.data.assigned_to,
+          user_display_name: userDisplayName
+        }
+      });
+    }
+
+    // Check for due date change
+    if (validation.data.due_date !== undefined && validation.data.due_date !== currentTask.due_date) {
+      await logActivity({
+        workspaceId,
+        userId: user.id,
+        type: ActivityTypes.TASK_DUE_DATE_CHANGED,
+        action: `Zmenil termín úlohy`,
+        details: task.title,
+        projectId: task.project_id,
+        taskId: task.id,
+        metadata: {
+          old_due_date: currentTask.due_date,
+          new_due_date: validation.data.due_date,
+          user_display_name: userDisplayName
+        }
+      });
+    }
+
+    // Check for estimated hours change
+    if (validation.data.estimated_hours !== undefined && validation.data.estimated_hours !== currentTask.estimated_hours) {
+      await logActivity({
+        workspaceId,
+        userId: user.id,
+        type: ActivityTypes.TASK_ESTIMATED_HOURS_CHANGED,
+        action: `Zmenil odhadované hodiny z ${currentTask.estimated_hours || 0}h na ${validation.data.estimated_hours || 0}h`,
+        details: task.title,
+        projectId: task.project_id,
+        taskId: task.id,
+        metadata: {
+          old_estimated_hours: currentTask.estimated_hours,
+          new_estimated_hours: validation.data.estimated_hours,
+          user_display_name: userDisplayName
+        }
+      });
+    }
+
+    // Check for budget change
+    if (validation.data.budget_amount !== undefined && validation.data.budget_amount !== currentTask.budget_amount) {
+      await logActivity({
+        workspaceId,
+        userId: user.id,
+        type: ActivityTypes.TASK_BUDGET_CHANGED,
+        action: `Zmenil budget úlohy z ${currentTask.budget_amount || 0}€ na ${validation.data.budget_amount || 0}€`,
+        details: task.title,
+        projectId: task.project_id,
+        taskId: task.id,
+        metadata: {
+          old_budget: currentTask.budget_amount,
+          new_budget: validation.data.budget_amount,
+          user_display_name: userDisplayName
+        }
+      });
+    }
+
+    // Check for Google Drive link change
+    if (validation.data.google_drive_link !== undefined && validation.data.google_drive_link !== currentTask.google_drive_link) {
+      await logActivity({
+        workspaceId,
+        userId: user.id,
+        type: ActivityTypes.TASK_GOOGLE_DRIVE_LINK_CHANGED,
+        action: validation.data.google_drive_link ? `Pridal Google Drive link` : `Odstránil Google Drive link`,
+        details: task.title,
+        projectId: task.project_id,
+        taskId: task.id,
+        metadata: {
+          old_link: currentTask.google_drive_link,
+          new_link: validation.data.google_drive_link,
+          user_display_name: userDisplayName
+        }
+      });
+    }
+
+    // Check if task was completed
+    if (validation.data.status === 'done' && currentTask.status !== 'done') {
+      await logActivity({
+        workspaceId,
+        userId: user.id,
+        type: ActivityTypes.TASK_COMPLETED,
+        action: `Dokončil úlohu`,
+        details: task.title,
+        projectId: task.project_id,
+        taskId: task.id,
+        metadata: {
+          user_display_name: userDisplayName,
+          completed_at: new Date().toISOString()
+        }
+      });
     }
 
     return NextResponse.json({ success: true, data: task });
@@ -79,13 +291,58 @@ export async function DELETE(
 ) {
   try {
     const { taskId } = await params;
+    
+    // Get user's workspace ID
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
+
     const supabase = createClient();
 
-    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+    // Get current user for activity logging
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: "Nie ste prihlásený" }, { status: 401 });
+    }
+
+    // Get task data before deletion for activity logging
+    const { data: task, error: taskError } = await supabase
+      .from("tasks")
+      .select("title, project_id")
+      .eq("id", taskId)
+      .eq("workspace_id", workspaceId)
+      .single();
+
+    if (taskError || !task) {
+      return NextResponse.json({ success: false, error: "Úloha nebola nájdená" }, { status: 404 });
+    }
+
+    const { error } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("id", taskId)
+      .eq("workspace_id", workspaceId);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
+
+    // Log activity - task deleted
+    const userDisplayName = await getUserDisplayName(user.id);
+    await logActivity({
+      workspaceId,
+      userId: user.id,
+      type: ActivityTypes.TASK_DELETED,
+      action: `Vymazal úlohu`,
+      details: task.title,
+      projectId: task.project_id,
+      taskId: taskId,
+      metadata: {
+        user_display_name: userDisplayName,
+        deleted_at: new Date().toISOString()
+      }
+    });
 
     return NextResponse.json({ success: true, data: null });
   } catch (error) {

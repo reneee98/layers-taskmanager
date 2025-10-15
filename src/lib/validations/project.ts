@@ -4,6 +4,7 @@ export const projectStatusEnum = z.enum([
   "draft",
   "active",
   "on_hold",
+  "sent_to_client",
   "completed",
   "cancelled",
 ]);

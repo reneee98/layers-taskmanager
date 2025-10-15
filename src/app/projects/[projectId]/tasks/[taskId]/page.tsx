@@ -5,8 +5,35 @@ import { useParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Clock, Euro, BarChart3, FileText, MessageSquare } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  ArrowLeft, 
+  Clock, 
+  Euro, 
+  BarChart3, 
+  FileText, 
+  MessageSquare,
+  Calendar,
+  User,
+  AlertCircle,
+  CheckCircle,
+  Edit3,
+  Loader2,
+  MoreHorizontal,
+  Copy,
+  Share2,
+  Archive,
+  Trash2,
+  Flag,
+  Target,
+  Zap,
+  TrendingUp,
+  Activity,
+  Play,
+  Plus,
+  Link,
+  ExternalLink
+} from "lucide-react";
 import { TimePanel } from "@/components/time/TimePanel";
 import { CostsPanel } from "@/components/costs/CostsPanel";
 import { ProjectReport } from "@/components/report/ProjectReport";
@@ -16,9 +43,18 @@ import { MultiAssigneeSelect } from "@/components/tasks/MultiAssigneeSelect";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { toast } from "@/hooks/use-toast";
-import { getTextPreview } from "@/lib/utils/html";
 import { formatHours } from "@/lib/format";
+import { format } from "date-fns";
+import { sk } from "date-fns/locale";
 import type { Task, TaskAssignee } from "@/types/database";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function TaskDetailPage() {
   const params = useParams();
@@ -28,7 +64,10 @@ export default function TaskDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [description, setDescription] = useState("");
   const [descriptionHtml, setDescriptionHtml] = useState("");
-  const [isSaving, setIsSaving] = useState(false); // Loading state for auto-save
+  const [isSaving, setIsSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [googleDriveLink, setGoogleDriveLink] = useState("");
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchTask = async () => {
@@ -38,6 +77,10 @@ export default function TaskDetailPage() {
 
       if (result.success) {
         setTask(result.data);
+        setDescription(result.data.description || "");
+        setDescriptionHtml(result.data.description || "");
+        setAssignees(result.data.assignees || []);
+        setGoogleDriveLink(result.data.google_drive_link || "");
       } else {
         toast({
           title: "Chyba",
@@ -74,7 +117,6 @@ export default function TaskDetailPage() {
     fetchAssignees();
   }, [params.taskId]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
@@ -91,38 +133,29 @@ export default function TaskDetailPage() {
   }, [task]);
 
   const handleDescriptionChange = (content: string, html: string) => {
-    console.log("handleDescriptionChange called:", { content, html });
     setDescription(content);
-    setDescriptionHtml(html); // Ukladáme HTML s obrázkami
+    setDescriptionHtml(html);
     
-    // Automatické ukladanie po 3 sekundách neaktivity (viac času pre obrázky)
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     
     saveTimeoutRef.current = setTimeout(() => {
-      console.log("Auto-save triggered after 3s");
-      console.log("Current descriptionHtml:", html); // Používame html parameter namiesto state
       handleSaveDescriptionWithContent(html);
-    }, 3000); // Zvýšené z 1000ms na 3000ms
+    }, 3000);
   };
 
   const handleSaveDescriptionWithContent = async (content: string) => {
-    console.log("handleSaveDescriptionWithContent called, task:", !!task, "isSaving:", isSaving);
     if (!task || isSaving) return;
 
-    // Kontrola, či sú obrázky načítané (ak sú v HTML)
     const hasImages = content.includes('<img');
     if (hasImages) {
-      // Ak sú obrázky, počkáme ešte 2 sekundy
-      console.log("Detected images, waiting additional 2s...");
       setTimeout(() => {
         handleSaveDescriptionWithContent(content);
       }, 2000);
       return;
     }
 
-    console.log("handleSaveDescriptionWithContent called:", { content: content.trim() });
     setIsSaving(true);
     try {
       const response = await fetch(`/api/tasks/${task.id}`, {
@@ -136,14 +169,10 @@ export default function TaskDetailPage() {
       });
 
       const result = await response.json();
-      console.log("API response:", result);
 
       if (result.success) {
         setTask(result.data);
-        // Tichý úspech pre auto-save
-        console.log("Popis úlohy bol automaticky uložený");
       } else {
-        console.error("Failed to save description:", result.error);
         toast({
           title: "Chyba",
           description: "Nepodarilo sa uložiť popis úlohy",
@@ -161,15 +190,11 @@ export default function TaskDetailPage() {
     }
   };
 
-  const handleSaveDescription = async () => {
-    handleSaveDescriptionWithContent(descriptionHtml);
-  };
-
   const handleAssigneesChange = (newAssignees: TaskAssignee[]) => {
     setAssignees(newAssignees);
   };
 
-  const handleStatusChange = async (newStatus: "todo" | "in_progress" | "review" | "done" | "cancelled") => {
+  const handleStatusChange = async (newStatus: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled") => {
     if (!task) return;
     
     try {
@@ -247,11 +272,158 @@ export default function TaskDetailPage() {
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "todo":
+        return "bg-gray-100 text-gray-700 border-gray-200";
+      case "in_progress":
+        return "bg-blue-100 text-blue-700 border-blue-200";
+      case "review":
+        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      case "done":
+        return "bg-green-100 text-green-700 border-green-200";
+      case "cancelled":
+        return "bg-red-100 text-red-700 border-red-200";
+      default:
+        return "bg-gray-100 text-gray-700 border-gray-200";
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "urgent":
+        return "bg-red-100 text-red-700 border-red-200";
+      case "high":
+        return "bg-orange-100 text-orange-700 border-orange-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      case "low":
+        return "bg-green-100 text-green-700 border-green-200";
+      default:
+        return "bg-gray-100 text-gray-700 border-gray-200";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "todo":
+        return Target;
+      case "in_progress":
+        return Activity;
+      case "review":
+        return CheckCircle;
+      case "done":
+        return CheckCircle;
+      case "cancelled":
+        return AlertCircle;
+      default:
+        return Target;
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case "urgent":
+        return Flag;
+      case "high":
+        return TrendingUp;
+      case "medium":
+        return Zap;
+      case "low":
+        return Target;
+      default:
+        return Target;
+    }
+  };
+
+  const getDeadlineStatus = (dueDate: string | null) => {
+    if (!dueDate) return null;
+    
+    const now = new Date();
+    const deadline = new Date(dueDate);
+    const diffTime = deadline.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return { type: 'overdue', text: `Prešiel o ${Math.abs(diffDays)} dní`, color: 'text-red-600' };
+    } else if (diffDays === 0) {
+      return { type: 'today', text: 'Dnes', color: 'text-orange-600' };
+    } else if (diffDays <= 3) {
+      return { type: 'urgent', text: `Zostáva ${diffDays} dní`, color: 'text-yellow-600' };
+    } else if (diffDays <= 7) {
+      return { type: 'soon', text: `Zostáva ${diffDays} dní`, color: 'text-blue-600' };
+    }
+    
+    return null;
+  };
+
+  const handleCopyLink = async () => {
+    if (googleDriveLink) {
+      try {
+        await navigator.clipboard.writeText(googleDriveLink);
+        toast({
+          title: "Úspech",
+          description: "Google Drive link bol skopírovaný do schránky",
+        });
+      } catch (error) {
+        console.error("Failed to copy link:", error);
+        toast({
+          title: "Chyba",
+          description: "Nepodarilo sa skopírovať link",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleGoogleDriveLinkChange = async (newLink: string) => {
+    setGoogleDriveLink(newLink);
+    
+    if (!task) return;
+
+    try {
+      const response = await fetch(`/api/tasks/${params.taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          google_drive_link: newLink,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTask({ ...task, google_drive_link: newLink });
+        toast({
+          title: "Úspech",
+          description: "Google Drive link bol uložený",
+        });
+      } else {
+        toast({
+          title: "Chyba",
+          description: result.error || "Nepodarilo sa uložiť link",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating Google Drive link:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa uložiť link",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-muted-foreground">Načítavam...</p>
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          <p className="text-gray-500">Načítavam úlohu...</p>
+        </div>
       </div>
     );
   }
@@ -259,221 +431,351 @@ export default function TaskDetailPage() {
   if (!task) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-muted-foreground">Úloha nebola nájdená</p>
+        <div className="flex flex-col items-center gap-4">
+          <AlertCircle className="h-12 w-12 text-gray-400" />
+          <p className="text-lg font-medium text-gray-900">Úloha nebola nájdená</p>
+          <p className="text-gray-500">Skúste obnoviť stránku alebo sa vráťte na projekt</p>
+        </div>
       </div>
     );
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "todo":
-        return "bg-gray-500/10 text-gray-500 border-gray-500/20";
-      case "in_progress":
-        return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-      case "done":
-        return "bg-green-500/10 text-green-500 border-green-500/20";
-      case "cancelled":
-        return "bg-red-500/10 text-red-500 border-red-500/20";
-      default:
-        return "bg-gray-500/10 text-gray-500 border-gray-500/20";
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "bg-red-500/10 text-red-500 border-red-500/20";
-      case "high":
-        return "bg-orange-500/10 text-orange-500 border-orange-500/20";
-      case "medium":
-        return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
-      case "low":
-        return "bg-green-500/10 text-green-500 border-green-500/20";
-      default:
-        return "bg-gray-500/10 text-gray-500 border-gray-500/20";
-    }
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
-  };
+  const deadlineStatus = getDeadlineStatus(task.due_date);
+  const StatusIcon = getStatusIcon(task.status);
+  const PriorityIcon = getPriorityIcon(task.priority);
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push(`/projects/${params.projectId}`)}
+            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Späť na projekt
           </Button>
+          <div className="h-6 w-px bg-gray-200" />
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <span>{task.project?.name}</span>
+            <span>•</span>
+            <span className="font-mono">{task.project?.code}</span>
+          </div>
         </div>
-      </div>
-
-      {/* Task Info */}
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-3xl font-bold">{task.title}</h1>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <StatusSelect 
-            status={task.status} 
-            onStatusChange={handleStatusChange}
-          />
+        
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditing(!isEditing)}
+            className="text-gray-600 hover:text-gray-900"
+          >
+            <Edit3 className="h-4 w-4 mr-2" />
+            {isEditing ? 'Ukončiť úpravy' : 'Upraviť'}
+          </Button>
           
-          <PrioritySelect 
-            priority={task.priority} 
-            onPriorityChange={handlePriorityChange}
-          />
-
-          {task.estimated_hours && (
-            <Badge variant="outline">
-              <Clock className="h-3 w-3 mr-1" />
-              Odhad: {formatHours(task.estimated_hours)}
-            </Badge>
-          )}
-
-            {task.actual_hours && task.actual_hours > 0 && (
-            <Badge variant="outline">
-              <Clock className="h-3 w-3 mr-1" />
-              Odpracované: {formatHours(task.actual_hours)}
-            </Badge>
-          )}
-
-          {task.due_date && (
-            <Badge variant="outline">
-              📅 Deadline: {new Date(task.due_date).toLocaleDateString("sk-SK")}
-            </Badge>
-          )}
-
-          {task.budget_amount != null && task.budget_amount > 0 && (
-            <Badge variant="outline">
-              💰 Rozpočet: {task.budget_amount.toFixed(2)} €
-            </Badge>
-          )}
-
-          <MultiAssigneeSelect
-            taskId={task.id}
-            currentAssignees={assignees}
-            onAssigneesChange={handleAssigneesChange}
-          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="text-gray-600 hover:text-gray-900">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem>
+                <Copy className="h-4 w-4 mr-2" />
+                Duplikovať
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Share2 className="h-4 w-4 mr-2" />
+                Zdieľať
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <Archive className="h-4 w-4 mr-2" />
+                Archivovať
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-red-600">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Vymazať
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
+
+      {/* Task Header Card */}
+      <Card className="bg-white border border-gray-200 shadow-sm">
+        <CardContent className="p-6">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-bold text-gray-900">{task.title}</h1>
+              <div className="flex items-center gap-3">
+                <StatusSelect 
+                  status={task.status} 
+                  onStatusChange={handleStatusChange}
+                />
+                
+                <PrioritySelect 
+                  priority={task.priority} 
+                  onPriorityChange={handlePriorityChange}
+                />
+              </div>
+            </div>
+
+            {/* Quick Stats */}
+            {(task.estimated_hours || (task.actual_hours && task.actual_hours > 0) || task.due_date || (task.budget_amount != null && task.budget_amount > 0)) && (
+              <div className="flex flex-wrap gap-6 text-sm text-gray-600">
+                {task.estimated_hours && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    <span>Odhad: {formatHours(task.estimated_hours)}</span>
+                  </div>
+                )}
+                
+                {task.actual_hours && task.actual_hours > 0 && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span>Odpracované: {formatHours(task.actual_hours)}</span>
+                  </div>
+                )}
+                
+                {task.due_date && (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span>Deadline: {format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk })}</span>
+                    {deadlineStatus && (
+                      <span className={cn("ml-2 font-medium", deadlineStatus.color)}>
+                        ({deadlineStatus.text})
+                      </span>
+                    )}
+                  </div>
+                )}
+                
+                {task.budget_amount != null && task.budget_amount > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Euro className="h-4 w-4" />
+                    <span>Rozpočet: {task.budget_amount.toFixed(2)} €</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Assignees */}
+            <div className="flex items-center gap-4 pt-4 border-t border-gray-100">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Priradení:</span>
+              </div>
+              <MultiAssigneeSelect
+                taskId={task.id}
+                currentAssignees={assignees}
+                onAssigneesChange={handleAssigneesChange}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Main Content */}
-      <div className="w-full">
-        <Tabs defaultValue="description" className="w-full">
-          <TabsList>
-            <TabsTrigger value="description">
-              <FileText className="h-4 w-4 mr-2" />
-              Popis úlohy
-            </TabsTrigger>
-            <TabsTrigger value="time">
-              <Clock className="h-4 w-4 mr-2" />
-              Čas
-            </TabsTrigger>
-            <TabsTrigger value="costs">
-              <Euro className="h-4 w-4 mr-2" />
-              Náklady
-            </TabsTrigger>
-            <TabsTrigger value="report">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Report
-            </TabsTrigger>
-          </TabsList>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Left Column - Main Content */}
+        <div className="lg:col-span-3 space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="bg-gray-100">
+              <TabsTrigger value="overview" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
+                <FileText className="h-4 w-4 mr-2" />
+                Prehľad
+              </TabsTrigger>
+              <TabsTrigger value="time" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
+                <Clock className="h-4 w-4 mr-2" />
+                Čas
+              </TabsTrigger>
+              <TabsTrigger value="costs" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
+                <Euro className="h-4 w-4 mr-2" />
+                Náklady
+              </TabsTrigger>
+              <TabsTrigger value="report" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Report
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="description" className="space-y-6">
-            {/* Task Description */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Popis úlohy</h3>
-                  {isSaving && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-                      Ukladám...
-                    </div>
-                  )}
-                </div>
-              
+            <TabsContent value="overview" className="space-y-6 mt-6">
+              {/* Description */}
+              <Card className="bg-white border border-gray-200 shadow-sm">
+                <CardHeader className="bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg font-semibold text-gray-900">Popis úlohy</CardTitle>
+                    {isSaving && (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Ukladám...
+                      </div>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
                   <QuillEditor
                     key={task?.id}
                     content={descriptionHtml}
                     onChange={handleDescriptionChange}
                     placeholder="Napíšte popis úlohy..."
-                    className="min-h-[150px]"
-                    editable={true}
+                    className="min-h-[200px]"
+                    editable={isEditing}
                     taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
                   />
-            </div>
+                </CardContent>
+              </Card>
 
-            {/* Comments Section */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                <h3 className="text-lg font-semibold">Komentáre</h3>
+              {/* Comments */}
+              <Card className="bg-white border border-gray-200 shadow-sm">
+                <CardHeader className="bg-gray-50">
+                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Komentáre
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <CommentsList 
+                    taskId={task.id}
+                    onCommentAdded={() => {
+                      // Optionally refresh task data
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="time" className="mt-6">
+              <Card className="bg-white border border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <TimePanel 
+                    projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
+                    tasks={[{
+                      ...task,
+                      project_name: task.project?.name || "Neznámy projekt",
+                      project_id: task.project_id
+                    }]} 
+                    defaultTaskId={task.id}
+                    onTimeEntryAdded={() => {
+                      fetchTask();
+                      window.dispatchEvent(new CustomEvent('timeEntryAdded'));
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="costs" className="mt-6">
+              <Card className="bg-white border border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <CostsPanel 
+                    projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
+                    tasks={[task]}
+                    defaultTaskId={task.id}
+                    onCostAdded={() => {
+                      fetchTask();
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="report" className="mt-6">
+              <Card className="bg-white border border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <ProjectReport 
+                    projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId}
+                    taskId={task.id}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Right Column - Sidebar */}
+        <div className="space-y-6">
+          {/* Google Drive Link */}
+          <Card className="bg-white border border-gray-200 shadow-sm">
+            <CardHeader className="bg-gray-50">
+              <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Link className="h-5 w-5" />
+                Google Drive
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="google-drive-link" className="text-sm font-medium text-gray-700">
+                  Link na Google Drive súbory
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="google-drive-link"
+                    type="url"
+                    value={googleDriveLink}
+                    onChange={(e) => handleGoogleDriveLinkChange(e.target.value)}
+                    placeholder="https://drive.google.com/..."
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyLink}
+                    disabled={!googleDriveLink}
+                    className="px-3 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="border rounded-lg p-4">
-                <CommentsList 
-                  taskId={task.id}
-                  onCommentAdded={() => {
-                    // Optionally refresh task data or show notification
-                  }}
-                />
+              
+              {googleDriveLink && (
+                <div className="space-y-2">
+                  <div className="text-xs text-gray-500">Náhľad linku:</div>
+                  <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                    <ExternalLink className="h-3 w-3 text-gray-400" />
+                    <a
+                      href={googleDriveLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:text-blue-800 hover:underline truncate"
+                    >
+                      {googleDriveLink}
+                    </a>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Project Info */}
+          <Card className="bg-white border border-gray-200 shadow-sm">
+            <CardHeader className="bg-gray-50">
+              <CardTitle className="text-lg font-semibold text-gray-900">Projekt</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-3">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{task.project?.name}</div>
+                  <div className="text-xs text-gray-500 font-mono">{task.project?.code}</div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full text-gray-600 hover:text-gray-900"
+                  onClick={() => router.push(`/projects/${params.projectId}`)}
+                >
+                  Zobraziť projekt
+                </Button>
               </div>
-            </div>
-
-          </TabsContent>
-
-          <TabsContent value="time" className="space-y-4">
-            <TimePanel 
-              projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
-              tasks={[{
-                ...task,
-                project_name: task.project?.name || "Neznámy projekt",
-                project_id: task.project_id
-              }]} 
-              defaultTaskId={task.id}
-              onTimeEntryAdded={() => {
-                // Refresh task data to update actual_hours
-                fetchTask();
-                // Also refresh project summary by navigating back and forth
-                // This is a simple way to trigger a refresh
-                window.dispatchEvent(new CustomEvent('timeEntryAdded'));
-              }}
-            />
-          </TabsContent>
-
-          <TabsContent value="costs" className="space-y-4">
-            <CostsPanel 
-              projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
-              tasks={[task]}
-              defaultTaskId={task.id}
-              onCostAdded={() => {
-                // Refresh task data if needed
-                fetchTask();
-              }}
-            />
-          </TabsContent>
-
-          <TabsContent value="report" className="space-y-4">
-            <ProjectReport 
-              projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId}
-              taskId={task.id}
-            />
-          </TabsContent>
-
-        </Tabs>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
 }
-

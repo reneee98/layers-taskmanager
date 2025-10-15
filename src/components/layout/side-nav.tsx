@@ -245,7 +245,7 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
             isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600"
           )} />
           <span className="flex-1">{item.title}</span>
-          {item.badge && href !== "/projects" && href !== "/invoices" && (
+          {'badge' in item && item.badge && href !== "/projects" && href !== "/invoices" && (
             <Badge 
               variant="outline" 
               className={cn(

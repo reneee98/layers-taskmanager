@@ -358,7 +358,7 @@ export default function WorkspaceUsersPage() {
       const supabase = createClient();
       
       // Get current user
-      const { data: { currentUser }, error: authError } = await supabase.auth.getUser();
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
       
       if (authError || !currentUser) {
         setError("Not authenticated");

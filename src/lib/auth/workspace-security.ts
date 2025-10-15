@@ -199,6 +199,44 @@ export async function getUserAccessibleWorkspaces(userId: string) {
 }
 
 /**
+ * Check if user is owner of a specific workspace
+ */
+export async function isWorkspaceOwner(workspaceId: string, userId: string): Promise<boolean> {
+  try {
+    const supabase = createClient();
+    
+    const { data: workspace, error } = await supabase
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+    
+    if (error || !workspace) {
+      console.error("Error checking workspace owner:", error);
+      return false;
+    }
+    
+    // Check if user is workspace owner
+    const isWorkspaceOwner = workspace.owner_id === userId;
+    
+    // Check if user has owner role in workspace_members
+    const { data: member } = await supabase
+      .from('workspace_members')
+      .select('role')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', userId)
+      .single();
+    
+    const hasOwnerRole = member?.role === 'owner';
+    
+    return isWorkspaceOwner || hasOwnerRole;
+  } catch (error) {
+    console.error("Error in isWorkspaceOwner:", error);
+    return false;
+  }
+}
+
+/**
  * Security middleware for API routes
  */
 export function createWorkspaceSecurityMiddleware() {

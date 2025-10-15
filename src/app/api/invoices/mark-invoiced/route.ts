@@ -23,6 +23,34 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createClient();
+    
+    // SECURITY: Check if user is owner of the workspace
+    // Only workspace owners can manage invoices
+    const { data: workspace, error: workspaceError } = await supabase
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+    
+    if (workspaceError || !workspace) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    // Check if user is owner (either workspace owner or has owner role)
+    const { data: member } = await supabase
+      .from('workspace_members')
+      .select('role')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', user.id)
+      .single();
+
+    const isOwner = workspace.owner_id === user.id || member?.role === 'owner';
+
+    if (!user || !isOwner) {
+      console.log(`SECURITY: User ${user?.email} is not owner of workspace ${workspaceId}, blocking access to invoices`);
+      return NextResponse.json({ success: false, error: "Access denied - only workspace owners can manage invoices" }, { status: 403 });
+    }
 
     if (type === 'project') {
       // Mark all done tasks in the project as invoiced (filtered by workspace)

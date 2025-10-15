@@ -60,12 +60,13 @@ const mainNavItems: Array<{
     title: "Faktúry",
     href: "/invoices",
     icon: FileText,
+    adminOnly: true,
   },
 ];
 
 const toolsNavItems: Array<{
   title: string;
-  href: string;
+  href: string | ((workspaceId: string) => string);
   icon: any;
   adminOnly?: boolean;
 }> = [
@@ -76,7 +77,7 @@ const toolsNavItems: Array<{
   },
   {
     title: "Správa používateľov",
-    href: "/workspaces/members",
+    href: (workspaceId: string) => `/workspaces/${workspaceId}/users`,
     icon: UserCog,
     adminOnly: true,
   },
@@ -181,10 +182,13 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
       .slice(0, 2);
   };
 
-  const getRoleLabel = (role: string) => {
+  const getRoleLabel = (role: string, isOwner: boolean = false) => {
+    if (isOwner) return "Majiteľ";
     switch (role) {
       case "admin":
         return "Administrátor";
+      case "member":
+        return "Člen";
       case "user":
         return "Používateľ";
       default:
@@ -192,10 +196,17 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
     }
   };
 
-  const getRoleColor = (role: string) => {
+  // Check if current user is owner of the workspace
+  const isOwner = (workspace?.owner_id && profile?.id === workspace.owner_id) ||
+    (workspace?.role === 'owner');
+
+  const getRoleColor = (role: string, isOwner: boolean = false) => {
+    if (isOwner) return "text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20";
     switch (role) {
       case "admin":
         return "text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20";
+      case "member":
+        return "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20";
       case "user":
         return "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20";
       default:
@@ -203,18 +214,24 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
     }
   };
 
-  const renderNavItems = (items: typeof mainNavItems) => {
+  const renderNavItems = (items: typeof mainNavItems | typeof toolsNavItems) => {
     return items.map((item) => {
       // Skip admin-only items if user is not workspace owner
-      if (item.adminOnly && workspace?.role !== 'owner') {
+      if (item.adminOnly && !isOwner) {
         return null;
       }
       
-      const isActive = pathname === item.href;
+      const href = typeof item.href === 'function' 
+        ? workspace?.id 
+          ? item.href(workspace.id) 
+          : '#'
+        : item.href;
+      
+      const isActive = pathname === href;
       return (
         <Link
-          key={item.href}
-          href={item.href}
+          key={href}
+          href={href}
           onClick={() => onClose()}
                  className={cn(
                    "group flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200",
@@ -228,7 +245,7 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
             isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600"
           )} />
           <span className="flex-1">{item.title}</span>
-          {item.badge && item.href !== "/projects" && item.href !== "/invoices" && (
+          {item.badge && href !== "/projects" && href !== "/invoices" && (
             <Badge 
               variant="outline" 
               className={cn(
@@ -332,9 +349,9 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
                   <div className="flex items-center gap-2">
                     <Badge 
                       variant="outline" 
-                      className={cn("text-xs px-2 py-0.5", getRoleColor(profile.role || 'user'))}
+                      className={cn("text-xs px-2 py-0.5", getRoleColor(profile.role || 'user', isOwner))}
                     >
-                      {getRoleLabel(profile.role || 'user')}
+                      {getRoleLabel(profile.role || 'user', isOwner)}
                     </Badge>
                   </div>
                 </div>

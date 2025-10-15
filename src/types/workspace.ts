@@ -3,7 +3,7 @@ export interface Workspace {
   name: string;
   description?: string;
   owner_id: string;
-  role: 'owner' | 'admin' | 'member';
+  role: 'owner' | 'member';
   created_at: string;
   updated_at: string;
 }
@@ -12,7 +12,7 @@ export interface WorkspaceMember {
   id: string;
   workspace_id: string;
   user_id: string;
-  role: 'owner' | 'admin' | 'member';
+  role: 'owner' | 'member';
   invited_by?: string;
   joined_at: string;
   created_at: string;
@@ -27,7 +27,7 @@ export interface WorkspaceInvitation {
   id: string;
   workspace_id: string;
   email: string;
-  role: 'admin' | 'member';
+  role: 'owner' | 'member';
   invited_by: string;
   token: string;
   expires_at: string;
@@ -50,7 +50,7 @@ export interface CreateWorkspaceData {
 
 export interface InviteUserData {
   email: string;
-  role: 'admin' | 'member';
+  role: 'owner' | 'member';
 }
 
 export interface UpdateWorkspaceData {
@@ -59,5 +59,5 @@ export interface UpdateWorkspaceData {
 }
 
 export interface UpdateMemberRoleData {
-  role: 'admin' | 'member';
+  role: 'owner' | 'member';
 }

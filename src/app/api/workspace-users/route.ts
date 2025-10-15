@@ -15,8 +15,7 @@ export async function GET(request: NextRequest) {
     
     const supabase = createClient();
     
-    // SECURITY: Check if user is owner of the workspace
-    // Only workspace owners can view users
+    // SECURITY: Check if user has access to the workspace (owner or member)
     const { data: workspace, error: workspaceError } = await supabase
       .from('workspaces')
       .select('owner_id')
@@ -28,10 +27,27 @@ export async function GET(request: NextRequest) {
     }
     
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user || workspace.owner_id !== user.id) {
-      console.log(`SECURITY: User ${user?.email} is not owner of workspace ${workspaceId}, blocking access to users`);
-      return NextResponse.json({ success: false, error: "Access denied - only workspace owners can view users" }, { status: 403 });
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
+    
+    // Check if user is owner or member of the workspace
+    // Check if user is owner (either workspace owner or has owner role)
+    const { data: member } = await supabase
+      .from('workspace_members')
+      .select('role')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', user.id)
+      .single();
+
+    const isOwner = workspace.owner_id === user.id || member?.role === 'owner';
+    
+    if (!isOwner && !member) {
+      console.log(`SECURITY: User ${user.email} has no access to workspace ${workspaceId}`);
+      return NextResponse.json({ success: false, error: "Access denied - not a member of this workspace" }, { status: 403 });
+    }
+    
+    console.log(`SECURITY: User ${user.email} accessing workspace users - Owner: ${isOwner}, Member: ${!!member}`);
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('q') || '';
     

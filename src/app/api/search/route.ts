@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     const searchTerm = `%${query.toLowerCase()}%`;
-    const results = [];
+    const results: any[] = [];
 
     // Search projects
     const { data: projects } = await supabase

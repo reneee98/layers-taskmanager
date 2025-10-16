@@ -524,6 +524,7 @@ export default function DashboardPage() {
                       <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Úloha</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Projekt</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Status</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Assignee</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Priorita</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4 w-fit">Čas</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4 w-fit">Deadline</TableHead>
@@ -602,6 +603,32 @@ export default function DashboardPage() {
                               <StatusIcon className={`h-3 w-3 ${statusInfo.iconColor}`} />
                               {statusInfo.label}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="py-3 px-4">
+                            <div className="flex items-center gap-1">
+                              {task.assignees && task.assignees.length > 0 ? (
+                                <>
+                                  {task.assignees.slice(0, 4).map((assignee, index) => (
+                                    <div key={assignee.id} className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center">
+                                      <span className="text-xs text-gray-600 font-medium">
+                                        {assignee.user?.name ? assignee.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {task.assignees.length > 4 && (
+                                    <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center">
+                                      <span className="text-xs text-gray-500">
+                                        +{task.assignees.length - 4}
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="h-6 w-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center">
+                                  <span className="text-xs text-gray-400">?</span>
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="py-3 px-4">
                             <Badge 

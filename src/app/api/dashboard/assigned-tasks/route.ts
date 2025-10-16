@@ -60,37 +60,58 @@ export async function GET(req: NextRequest) {
     }
 
     
-    // Použij task_assignees tabuľku na nájdenie priradených úloh v workspace
-    const { data: tasks, error: tasksError } = await supabase
+    // Najdi všetky úlohy priradené používateľovi cez task_assignees
+    const { data: taskAssignees, error: assigneesError } = await supabase
       .from("task_assignees")
+      .select("task_id")
+      .eq("user_id", user.id)
+      .eq("workspace_id", workspaceId);
+
+    if (assigneesError) {
+      return NextResponse.json(
+        { success: false, error: assigneesError.message },
+        { status: 500 }
+      );
+    }
+
+    if (!taskAssignees || taskAssignees.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const taskIds = taskAssignees.map(ta => ta.task_id);
+
+    // Načítaj úlohy s projektmi
+    const { data: tasks, error: tasksError } = await supabase
+      .from("tasks")
       .select(`
-        task:tasks!inner(
+        id,
+        title,
+        description,
+        status,
+        priority,
+        estimated_hours,
+        actual_hours,
+        due_date,
+        created_at,
+        updated_at,
+        project_id,
+        assignee_id,
+        assigned_to,
+        budget_amount,
+        workspace_id,
+        project:projects!inner(
           id,
-          title,
-          description,
-          status,
-          priority,
-          estimated_hours,
-          actual_hours,
-          due_date,
-          created_at,
-          updated_at,
-          project_id,
-          assignee_id,
-          assigned_to,
-          budget_amount,
+          name,
+          code,
           workspace_id,
-          project:projects!inner(
-            id,
-            name,
-            code,
-            workspace_id,
-            client:clients(name)
-          )
+          client:clients(name)
         )
       `)
-      .eq("user_id", user.id)
-      .eq("task.workspace_id", workspaceId);
+      .in("id", taskIds)
+      .eq("workspace_id", workspaceId);
     
 
     if (tasksError) {
@@ -100,12 +121,54 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Načítaj assignee-ov pre každú úlohu
+    const tasksWithAssignees = await Promise.all(
+      (tasks || []).map(async (task) => {
+        // Get assignees for this task
+        const { data: assignees } = await supabase
+          .from("task_assignees")
+          .select("id, user_id, assigned_at, assigned_by")
+          .eq("task_id", task.id)
+          .eq("workspace_id", workspaceId);
+
+        // Get user profiles for assignees
+        let assigneesWithUsers: any[] = [];
+        if (assignees && assignees.length > 0) {
+          const userIds = assignees.map(a => a.user_id);
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, display_name, email, role")
+            .in("id", userIds);
+
+          assigneesWithUsers = assignees.map(assignee => {
+            const profile = profiles?.find(p => p.id === assignee.user_id);
+            return {
+              ...assignee,
+              user: profile ? {
+                id: profile.id,
+                email: profile.email,
+                name: profile.display_name, // Map display_name to name
+                avatar_url: null,
+                role: profile.role,
+                is_active: true,
+                created_at: "",
+                updated_at: ""
+              } : null
+            };
+          });
+        }
+
+        return {
+          ...task,
+          assignees: assigneesWithUsers
+        };
+      })
+    );
+
     // Transform data and calculate time until deadline
     const now = new Date();
-    const transformedTasks = (tasks || [])
-      .map(({ task }: any) => {
-        if (!task) return null;
-        
+    const transformedTasks = tasksWithAssignees
+      .map((task) => {
         let daysUntilDeadline = null;
         if (task.due_date) {
           const dueDate = new Date(task.due_date);
@@ -118,8 +181,7 @@ export async function GET(req: NextRequest) {
           days_until_deadline: daysUntilDeadline,
         };
       })
-      .filter(Boolean)
-      .filter((task): task is NonNullable<typeof task> => task !== null && task.status !== 'done' && task.status !== 'invoiced') // Exclude done and invoiced tasks
+      .filter((task) => task.status !== 'done' && task.status !== 'invoiced') // Exclude done and invoiced tasks
       .sort((a, b) => {
         // Sort by deadline urgency (nulls last)
         if (!a.due_date && !b.due_date) return 0;

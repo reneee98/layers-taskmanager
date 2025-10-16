@@ -65,6 +65,8 @@ export const TaskForm = ({
           priority: task.priority,
           assigned_to: (task as any).assigned_to || undefined,
           estimated_hours: task.estimated_hours || undefined,
+          start_date: task.start_date || "",
+          end_date: task.end_date || "",
           due_date: task.due_date || "",
         }
       : {
@@ -235,6 +237,16 @@ export const TaskForm = ({
                 step="0.001"
                 {...register("estimated_hours", { valueAsNumber: true })}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="start_date">Dátum začiatku</Label>
+              <Input id="start_date" type="date" {...register("start_date")} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="end_date">Dátum konca</Label>
+              <Input id="end_date" type="date" {...register("end_date")} />
             </div>
 
             <div className="space-y-2">

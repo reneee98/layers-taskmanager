@@ -52,6 +52,7 @@ import {
 import { formatCurrency, formatHours } from "@/lib/format";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { sk } from "date-fns/locale";
+import { getDeadlineStatus, getDeadlineRowClass } from "@/lib/deadline-utils";
 import Link from "next/link";
 import type { Task } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -107,6 +108,7 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAllActivities, setShowAllActivities] = useState(false);
+  const [showLoadMore, setShowLoadMore] = useState(false);
   const activitiesRef = useRef<HTMLDivElement>(null);
 
   const handleShowMoreActivities = () => {
@@ -121,6 +123,23 @@ export default function DashboardPage() {
       }
     }, 100);
   };
+
+  // Scroll listener to show "Zobraziť viac" when scrolled to bottom
+  useEffect(() => {
+    const handleScroll = () => {
+      if (activitiesRef.current && !showAllActivities) {
+        const { scrollTop, scrollHeight, clientHeight } = activitiesRef.current;
+        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px threshold
+        setShowLoadMore(isAtBottom);
+      }
+    };
+
+    const activitiesElement = activitiesRef.current;
+    if (activitiesElement) {
+      activitiesElement.addEventListener('scroll', handleScroll);
+      return () => activitiesElement.removeEventListener('scroll', handleScroll);
+    }
+  }, [showAllActivities]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -199,21 +218,6 @@ export default function DashboardPage() {
     return priorityMap[priority] || priority;
   };
 
-  const getDeadlineStatus = (daysUntilDeadline: number | null) => {
-    if (daysUntilDeadline === null) return null;
-    
-    if (daysUntilDeadline < 0) {
-      return { type: 'overdue', text: `Prešiel o ${Math.abs(daysUntilDeadline)} dní`, icon: AlertTriangle, color: 'text-red-600 bg-red-50 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800' };
-    } else if (daysUntilDeadline === 0) {
-      return { type: 'today', text: 'Dnes', icon: AlertTriangle, color: 'text-orange-600 bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800' };
-    } else if (daysUntilDeadline <= 3) {
-      return { type: 'urgent', text: `Zostáva ${daysUntilDeadline} dní`, icon: Clock, color: 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800' };
-    } else if (daysUntilDeadline <= 7) {
-      return { type: 'soon', text: `Zostáva ${daysUntilDeadline} dní`, icon: Clock, color: 'text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' };
-    }
-    
-    return null;
-  };
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -376,12 +380,12 @@ export default function DashboardPage() {
   return (
     <div className="w-full space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">
+          <h1 className="text-2xl font-semibold text-gray-900">
             Dashboard
           </h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-gray-600 text-sm mt-1">
             Prehľad vašich projektov a úloh
           </p>
         </div>
@@ -391,56 +395,48 @@ export default function DashboardPage() {
       <WorkspaceInvitations />
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-white border border-gray-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-600">Na spracovanie</CardTitle>
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FolderKanban className="h-5 w-5 text-blue-600" />
-            </div>
+            <CardTitle className="text-sm font-medium text-gray-600">Na spracovanie</CardTitle>
+            <FolderKanban className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-gray-900">{todoTasks.length}</div>
-            <p className="text-sm text-gray-500 mt-1">Úlohy na začiatok</p>
+            <div className="text-2xl font-bold text-gray-900">{todoTasks.length}</div>
+            <p className="text-xs text-gray-500 mt-1">Úlohy na začiatok</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <Card className="bg-white border border-gray-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-600">V procese</CardTitle>
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Clock className="h-5 w-5 text-green-600" />
-            </div>
+            <CardTitle className="text-sm font-medium text-gray-600">V procese</CardTitle>
+            <Clock className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-gray-900">{inProgressTasks.length}</div>
-            <p className="text-sm text-gray-500 mt-1">Aktívne úlohy</p>
+            <div className="text-2xl font-bold text-gray-900">{inProgressTasks.length}</div>
+            <p className="text-xs text-gray-500 mt-1">Aktívne úlohy</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <Card className="bg-white border border-gray-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-600">Prešli deadline</CardTitle>
-            <div className="p-2 bg-red-100 rounded-lg">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-            </div>
+            <CardTitle className="text-sm font-medium text-gray-600">Prešli deadline</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-gray-900">{overdueTasks.length}</div>
-            <p className="text-sm text-gray-500 mt-1">Potrebujú pozornosť</p>
+            <div className="text-2xl font-bold text-gray-900">{overdueTasks.length}</div>
+            <p className="text-xs text-gray-500 mt-1">Potrebujú pozornosť</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <Card className="bg-white border border-gray-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-600">Blížia sa</CardTitle>
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Calendar className="h-5 w-5 text-yellow-600" />
-            </div>
+            <CardTitle className="text-sm font-medium text-gray-600">Blížia sa</CardTitle>
+            <Calendar className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-gray-900">{upcomingTasks.length}</div>
-            <p className="text-sm text-gray-500 mt-1">Do 7 dní</p>
+            <div className="text-2xl font-bold text-gray-900">{upcomingTasks.length}</div>
+            <p className="text-xs text-gray-500 mt-1">Do 7 dní</p>
           </CardContent>
         </Card>
       </div>
@@ -465,7 +461,7 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <div className="space-y-4">
                   {overdueTasks.map((task) => {
-                    const deadlineStatus = getDeadlineStatus(task.days_until_deadline);
+                    const deadlineStatus = getDeadlineStatus(task.due_date);
                     return (
                       <div key={task.id} className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
                         <div className="flex-1">
@@ -481,10 +477,9 @@ export default function DashboardPage() {
                           <p className="text-sm text-red-700 dark:text-red-300 mb-2">
                             {task.project?.name || 'Neznámy projekt'} ({task.project?.code || 'N/A'}) • {task.project?.client?.name || 'Neznámy klient'}
                           </p>
-                          {deadlineStatus && (
+                          {deadlineStatus && deadlineStatus.showBadge && (
                             <Badge variant="destructive" className="text-xs">
-                              <deadlineStatus.icon className="h-3 w-3 mr-1" />
-                              {deadlineStatus.text}
+                              {deadlineStatus.type === 'today' ? '🔥' : '⏰'} {deadlineStatus.badgeText}
                             </Badge>
                           )}
                         </div>
@@ -501,60 +496,10 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          {/* Upcoming Deadlines */}
-          {upcomingTasks.length > 0 && (
-            <Card className="bg-white border border-amber-200 shadow-sm border-l-4 border-l-amber-500">
-              <CardHeader className="bg-amber-50">
-                <CardTitle className="flex items-center gap-2 text-lg font-medium text-amber-900">
-                  <Calendar className="h-4 w-4" />
-                  Blížia sa deadline
-                  <Badge variant="secondary" className="ml-2 text-xs bg-amber-100 text-amber-700">
-                    {upcomingTasks.length}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {upcomingTasks.map((task) => {
-                    const deadlineStatus = getDeadlineStatus(task.days_until_deadline);
-                    return (
-                      <div key={task.id} className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="font-semibold text-amber-900 dark:text-amber-100">{task.title}</h3>
-                            <Badge variant="outline" className={getStatusBadgeVariant(task.status)}>
-                              {getStatusText(task.status)}
-                            </Badge>
-                            <Badge variant="outline" className={getPriorityBadgeVariant(task.priority)}>
-                              {getPriorityText(task.priority)}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-amber-700 dark:text-amber-300 mb-2">
-                            {task.project?.name || 'Neznámy projekt'} ({task.project?.code || 'N/A'}) • {task.project?.client?.name || 'Neznámy klient'}
-                          </p>
-                          {deadlineStatus && (
-                            <Badge variant="secondary" className={`text-xs ${deadlineStatus.color}`}>
-                              <deadlineStatus.icon className="h-3 w-3 mr-1" />
-                              {deadlineStatus.text}
-                            </Badge>
-                          )}
-                        </div>
-                        <Button asChild variant="outline" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30">
-                          <Link href={`/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}>
-                            <ArrowRight className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* All Assigned Tasks - Table Format */}
-          <Card className="bg-white border border-gray-200 shadow-sm">
-            <CardHeader className="bg-gray-50">
+          <Card className="bg-white border border-gray-200">
+            <CardHeader className="bg-gray-50 border-b border-gray-200">
               <CardTitle className="flex items-center gap-2 text-lg font-medium text-gray-900">
                 <User className="h-4 w-4" />
                 Moje úlohy
@@ -576,101 +521,141 @@ export default function DashboardPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50 hover:bg-gray-50">
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Úloha</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Projekt</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Status</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Priorita</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Čas</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3">Deadline</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Úloha</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Projekt</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Status</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Priorita</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4 w-fit">Čas</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4 w-fit">Deadline</TableHead>
                       <TableHead className="w-[40px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {tasks.map((task) => {
-                      const deadlineStatus = getDeadlineStatus(task.days_until_deadline);
                       const statusInfo = statusConfig[task.status as keyof typeof statusConfig] || statusConfig.todo;
                       const priorityInfo = priorityConfig[task.priority as keyof typeof priorityConfig] || priorityConfig.medium;
                       const StatusIcon = statusInfo.icon;
                       const PriorityIcon = priorityInfo.icon;
+                      const deadlineStatus = getDeadlineStatus(task.due_date);
                       
                       return (
-                        <TableRow 
-                          key={task.id} 
-                          className="hover:bg-gray-50 transition-colors cursor-pointer"
-                          onClick={() => window.location.href = `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}
-                        >
-                          <TableCell className="py-3">
-                            <div className="min-w-0">
-                              <h3 className="font-medium text-gray-900 truncate text-sm">
+                    <TableRow 
+                      key={task.id} 
+                      className={`hover:bg-gray-50 cursor-pointer group border-b border-gray-100 ${
+                        deadlineStatus?.priority === 'critical' 
+                          ? 'bg-red-50 border-l-4 border-l-red-400' 
+                          : deadlineStatus?.priority === 'high'
+                          ? 'bg-yellow-50 border-l-4 border-l-yellow-400'
+                          : deadlineStatus?.priority === 'medium'
+                          ? 'bg-blue-50 border-l-4 border-l-blue-400'
+                          : ''
+                      }`}
+                      onClick={() => window.location.href = `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}
+                    >
+                          <TableCell className="py-3 px-4">
+                            <div className="min-w-0 space-y-1">
+                              <h3 className={`font-semibold truncate text-sm group-hover:text-gray-900 ${
+                                deadlineStatus?.priority === 'critical' 
+                                  ? 'text-red-700' 
+                                  : deadlineStatus?.priority === 'high'
+                                  ? 'text-yellow-700'
+                                  : deadlineStatus?.priority === 'medium'
+                                  ? 'text-blue-700'
+                                  : 'text-gray-800'
+                              }`}>
                                 {task.title}
                               </h3>
+                              {deadlineStatus?.showBadge && (
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs px-2 py-0.5 w-fit ${
+                                    deadlineStatus?.type === 'today' ? 'bg-red-100 text-red-700 border-red-300' :
+                                    deadlineStatus?.type === 'tomorrow' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' :
+                                    deadlineStatus?.type === 'day2' ? 'bg-orange-100 text-orange-700 border-orange-300' :
+                                    deadlineStatus?.type === 'day3' ? 'bg-blue-100 text-blue-700 border-blue-300' :
+                                    'bg-gray-100 text-gray-700 border-gray-300'
+                                  }`}
+                                >
+                                  {deadlineStatus?.badgeText}
+                                </Badge>
+                              )}
                             </div>
                           </TableCell>
-                          <TableCell className="py-3">
-                            <div className="text-sm text-gray-900">
-                              {task.project?.name || 'Neznámy projekt'}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {task.project?.code || 'N/A'}
+                          <TableCell className="py-3 px-4">
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
+                                {task.project?.name || 'Neznámy projekt'}
+                              </div>
+                              <Badge 
+                                variant="outline" 
+                                className="text-xs px-2 py-0.5 w-fit bg-gray-100 text-gray-600 border-gray-300"
+                              >
+                                {task.project?.code || 'N/A'}
+                              </Badge>
                             </div>
                           </TableCell>
-                          <TableCell className="py-3">
+                          <TableCell className="py-3 px-4">
                             <Badge 
                               variant="outline" 
-                              className={`text-xs flex items-center gap-1.5 px-2 py-1 w-fit ${statusInfo.color}`}
+                              className={`text-xs flex items-center gap-1 px-2 py-1 w-fit ${statusInfo.color}`}
                             >
-                              <StatusIcon className={`h-3 w-3 ${statusInfo.iconColor} ${task.status === 'in_progress' && "animate-pulse"}`} />
+                              <StatusIcon className={`h-3 w-3 ${statusInfo.iconColor}`} />
                               {statusInfo.label}
                             </Badge>
                           </TableCell>
-                          <TableCell className="py-3">
+                          <TableCell className="py-3 px-4">
                             <Badge 
                               variant="outline" 
-                              className={`text-xs flex items-center gap-1.5 px-2 py-1 w-fit ${priorityInfo.color}`}
+                              className={`text-xs flex items-center gap-1 px-2 py-1 w-fit ${priorityInfo.color}`}
                             >
-                              <PriorityIcon className={`h-3 w-3 ${priorityInfo.iconColor} ${task.priority === 'urgent' && "animate-pulse"}`} />
+                              <PriorityIcon className={`h-3 w-3 ${priorityInfo.iconColor}`} />
                               {priorityInfo.label}
                             </Badge>
                           </TableCell>
-                          <TableCell className="py-3">
-                            <div className="text-xs text-gray-600">
-                              {task.estimated_hours && task.estimated_hours > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {formatHours(task.estimated_hours)}
-                                </div>
+                          <TableCell className="py-3 px-4 w-fit">
+                            <div className="space-y-1">
+                              {task.estimated_hours > 0 && (
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs flex items-center gap-1 px-2 py-1 w-fit bg-gray-100 text-gray-600 border-gray-300 whitespace-nowrap"
+                                >
+                                  <Clock className="h-3 w-3 text-gray-500" />
+                                  <span>{formatHours(task.estimated_hours)}</span>
+                                </Badge>
                               )}
-                              {task.actual_hours && task.actual_hours > 0 && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <CheckCircle className="h-3 w-3" />
-                                  {formatHours(task.actual_hours)}
-                                </div>
+                              {task.actual_hours > 0 && (
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs flex items-center gap-1 px-2 py-1 w-fit bg-green-100 text-green-600 border-green-300 whitespace-nowrap"
+                                >
+                                  <CheckCircle className="h-3 w-3 text-green-500" />
+                                  <span>{formatHours(task.actual_hours)}</span>
+                                </Badge>
                               )}
-                              {!task.estimated_hours && !task.actual_hours && (
-                                <span className="text-gray-400">—</span>
+                              {(!task.estimated_hours || task.estimated_hours === 0) && (!task.actual_hours || task.actual_hours === 0) && (
+                                <span className="text-xs text-gray-400 italic">—</span>
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="py-3">
+                          <TableCell className="py-3 px-4 w-fit">
                             {task.due_date ? (
-                              <div className="text-xs">
-                                <div className="flex items-center gap-1 text-gray-600">
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk })}
-                                </div>
-                                {deadlineStatus && (
-                                  <Badge variant="secondary" className={`text-xs mt-1 ${deadlineStatus.color}`}>
-                                    <deadlineStatus.icon className="h-3 w-3 mr-1" />
-                                    {deadlineStatus.text}
-                                  </Badge>
-                                )}
-                              </div>
+                              <Badge 
+                                variant="outline" 
+                                className="text-xs flex items-center gap-1 px-2 py-1 w-fit bg-gray-100 text-gray-600 border-gray-300 whitespace-nowrap"
+                              >
+                                <Calendar className="h-3 w-3 text-gray-500" />
+                                <span>{format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk })}</span>
+                              </Badge>
                             ) : (
-                              <span className="text-gray-400 text-xs">—</span>
+                              <span className="text-xs text-gray-400 italic">—</span>
                             )}
                           </TableCell>
-                          <TableCell className="py-3">
-                            <ArrowRight className="h-4 w-4 text-gray-400" />
+                          <TableCell className="py-3 px-4">
+                            <div className="flex justify-center">
+                              <div className="p-1 rounded group-hover:bg-gray-100">
+                                <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+                              </div>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -684,8 +669,8 @@ export default function DashboardPage() {
 
         {/* Right Column - Recent Activity */}
         <div className="lg:col-span-1 space-y-6">
-          <Card ref={activitiesRef} className="bg-white border border-gray-200 shadow-sm">
-            <CardHeader className="bg-gray-50">
+          <Card ref={activitiesRef} className="bg-white border border-gray-200 w-full">
+            <CardHeader className="bg-gray-50 border-b border-gray-200">
               <CardTitle className="flex items-center gap-2 text-lg font-medium text-gray-900">
                 <Activity className="h-4 w-4" />
                 Posledná aktivita
@@ -696,7 +681,7 @@ export default function DashboardPage() {
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-6 max-h-[600px] overflow-y-auto">
               {activities.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <Zap className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -741,14 +726,27 @@ export default function DashboardPage() {
                   
                   {activities.length > 6 && (
                     <div className="pt-4 border-t border-gray-200">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={showAllActivities ? () => setShowAllActivities(false) : handleShowMoreActivities}
-                        className="w-full"
-                      >
-                        {showAllActivities ? 'Zobraziť menej' : `Zobraziť viac (${activities.length - 6} ďalších)`}
-                      </Button>
+                      {showAllActivities ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAllActivities(false)}
+                          className="w-full"
+                        >
+                          Zobraziť menej
+                        </Button>
+                      ) : (
+                        showLoadMore && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleShowMoreActivities}
+                            className="w-full"
+                          >
+                            Zobraziť viac ({activities.length - 6} ďalších)
+                          </Button>
+                        )
+                      )}
                     </div>
                   )}
                 </div>

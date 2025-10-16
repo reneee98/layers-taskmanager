@@ -42,12 +42,14 @@ import { QuillEditor } from "@/components/ui/quill-editor";
 import { MultiAssigneeSelect } from "@/components/tasks/MultiAssigneeSelect";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { PrioritySelect } from "@/components/tasks/PrioritySelect";
+import { InlineDateEdit } from "@/components/ui/inline-date-edit";
 import { toast } from "@/hooks/use-toast";
 import { formatHours } from "@/lib/format";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import type { Task, TaskAssignee } from "@/types/database";
 import { cn } from "@/lib/utils";
+import { getDeadlineStatus, getDeadlineBadge } from "@/lib/deadline-utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -272,6 +274,123 @@ export default function TaskDetailPage() {
     }
   };
 
+  const handleStartDateChange = async (newStartDate: string | null) => {
+    if (!task) return;
+    
+    try {
+      const response = await fetch(`/api/tasks/${params.taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          start_date: newStartDate,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTask({ ...task, start_date: newStartDate });
+        toast({
+          title: "Úspech",
+          description: "Dátum začiatku bol aktualizovaný",
+        });
+      } else {
+        toast({
+          title: "Chyba",
+          description: result.error || "Nepodarilo sa aktualizovať dátum začiatku",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating start date:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa aktualizovať dátum začiatku",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEndDateChange = async (newEndDate: string | null) => {
+    if (!task) return;
+    
+    try {
+      const response = await fetch(`/api/tasks/${params.taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          end_date: newEndDate,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTask({ ...task, end_date: newEndDate });
+        toast({
+          title: "Úspech",
+          description: "Dátum konca bol aktualizovaný",
+        });
+      } else {
+        toast({
+          title: "Chyba",
+          description: result.error || "Nepodarilo sa aktualizovať dátum konca",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating end date:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa aktualizovať dátum konca",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDueDateChange = async (newDueDate: string | null) => {
+    if (!task) return;
+    
+    try {
+      const response = await fetch(`/api/tasks/${params.taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          due_date: newDueDate,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTask({ ...task, due_date: newDueDate });
+        toast({
+          title: "Úspech",
+          description: "Deadline bol aktualizovaný",
+        });
+      } else {
+        toast({
+          title: "Chyba",
+          description: result.error || "Nepodarilo sa aktualizovať deadline",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating due date:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa aktualizovať deadline",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "todo":
@@ -336,26 +455,6 @@ export default function TaskDetailPage() {
     }
   };
 
-  const getDeadlineStatus = (dueDate: string | null) => {
-    if (!dueDate) return null;
-    
-    const now = new Date();
-    const deadline = new Date(dueDate);
-    const diffTime = deadline.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) {
-      return { type: 'overdue', text: `Prešiel o ${Math.abs(diffDays)} dní`, color: 'text-red-600' };
-    } else if (diffDays === 0) {
-      return { type: 'today', text: 'Dnes', color: 'text-orange-600' };
-    } else if (diffDays <= 3) {
-      return { type: 'urgent', text: `Zostáva ${diffDays} dní`, color: 'text-yellow-600' };
-    } else if (diffDays <= 7) {
-      return { type: 'soon', text: `Zostáva ${diffDays} dní`, color: 'text-blue-600' };
-    }
-    
-    return null;
-  };
 
   const handleCopyLink = async () => {
     if (googleDriveLink) {
@@ -441,6 +540,7 @@ export default function TaskDetailPage() {
   }
 
   const deadlineStatus = getDeadlineStatus(task.due_date);
+  const deadlineBadge = getDeadlineBadge(deadlineStatus);
   const StatusIcon = getStatusIcon(task.status);
   const PriorityIcon = getPriorityIcon(task.priority);
 
@@ -511,7 +611,25 @@ export default function TaskDetailPage() {
         <CardContent className="p-6">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold text-gray-900">{task.title}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-gray-900">{task.title}</h1>
+                {deadlineBadge && (
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 ${deadlineBadge.color} rounded-full flex items-center justify-center ${
+                      deadlineBadge.animate ? 'animate-pulse' : ''
+                    }`}>
+                      <span className="text-white text-xs font-bold">
+                        {deadlineBadge.icon}
+                      </span>
+                    </div>
+                    <span className={`text-sm font-bold ${deadlineStatus?.color} ${
+                      deadlineBadge.animate ? 'animate-pulse' : ''
+                    }`}>
+                      {deadlineBadge.text}
+                    </span>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-3">
                 <StatusSelect 
                   status={task.status} 
@@ -526,40 +644,56 @@ export default function TaskDetailPage() {
             </div>
 
             {/* Quick Stats */}
-            {(task.estimated_hours || (task.actual_hours && task.actual_hours > 0) || task.due_date || (task.budget_amount != null && task.budget_amount > 0)) && (
+            {(task.estimated_hours != null || task.actual_hours != null || task.start_date || task.due_date) && (
               <div className="flex flex-wrap gap-6 text-sm text-gray-600">
-                {task.estimated_hours && (
+                {task.estimated_hours != null && (
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    <span>Odhad: {formatHours(task.estimated_hours)}</span>
+                    <span>Odhad: {formatHours(parseFloat(task.estimated_hours.toString()))}</span>
                   </div>
                 )}
                 
-                {task.actual_hours && task.actual_hours > 0 && (
+                {task.actual_hours != null && (
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span>Odpracované: {formatHours(task.actual_hours)}</span>
+                    <span>Natrackovaný čas: {formatHours(parseFloat(task.actual_hours.toString()))}</span>
                   </div>
                 )}
                 
-                {task.due_date && (
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    <span>Deadline: {format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk })}</span>
-                    {deadlineStatus && (
-                      <span className={cn("ml-2 font-medium", deadlineStatus.color)}>
-                        ({deadlineStatus.text})
-                      </span>
-                    )}
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Play className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-gray-700">Začiatok:</span>
+                  <InlineDateEdit
+                    value={task.start_date ? format(new Date(task.start_date), 'dd.MM.yyyy', { locale: sk }) : null}
+                    placeholder="Kliknite pre nastavenie"
+                    onSave={async (value) => {
+                      const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
+                      await handleStartDateChange(isoDate);
+                    }}
+                    icon={Calendar}
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Flag className="h-4 w-4 text-red-600" />
+                  <span className="text-sm font-medium text-gray-700">Deadline:</span>
+                  <InlineDateEdit
+                    value={task.due_date ? format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk }) : null}
+                    placeholder="Kliknite pre nastavenie"
+                    onSave={async (value) => {
+                      const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
+                      await handleDueDateChange(isoDate);
+                    }}
+                    icon={Calendar}
+                  />
+                </div>
+                
+                {task.due_date && deadlineStatus && !deadlineStatus.showBadge && (
+                  <span className={cn("ml-2 font-medium", deadlineStatus.color)}>
+                    ({deadlineStatus.text})
+                  </span>
                 )}
                 
-                {task.budget_amount != null && task.budget_amount > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Euro className="h-4 w-4" />
-                    <span>Rozpočet: {task.budget_amount.toFixed(2)} €</span>
-                  </div>
-                )}
               </div>
             )}
 

@@ -15,6 +15,8 @@ export const taskSchema = z.object({
   assignee_id: z.string().uuid("Neplatné ID používateľa").optional().nullable(),
   estimated_hours: z.number().min(0, "Odhad musí byť kladný").optional().nullable(),
   budget_amount: z.number().min(0, "Budget musí byť kladný").optional().nullable(),
+  start_date: z.string().optional().or(z.literal("")).nullable(),
+  end_date: z.string().optional().or(z.literal("")).nullable(),
   due_date: z.string().optional().or(z.literal("")).nullable(),
   order_index: z.number().int("Poradie musí byť celé číslo").default(0).optional(),
   google_drive_link: z.string().url("Neplatný Google Drive link").optional().or(z.literal("")).nullable(),

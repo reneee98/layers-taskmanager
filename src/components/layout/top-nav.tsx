@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GlobalTimer } from "@/components/timer/GlobalTimer";
 import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
+import { SearchBar } from "@/components/ui/search-bar";
 
 interface TopNavProps {
   onMenuClick: () => void;
@@ -15,9 +16,9 @@ export const TopNav = ({ onMenuClick }: TopNavProps) => {
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-gray-200/50">
       <div className="w-full">
-        <div className="flex h-16 items-center justify-between px-6">
+        <div className="flex h-16 items-center px-6">
           {/* Left side - Mobile menu + Logo */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-shrink-0">
             {/* Mobile menu button */}
             <Button
               variant="ghost"
@@ -44,18 +45,12 @@ export const TopNav = ({ onMenuClick }: TopNavProps) => {
           </div>
 
           {/* Center - Search bar (hidden on mobile) */}
-          <div className="hidden md:flex flex-1 max-w-2xl mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Hľadať projekty, úlohy, klientov..."
-                className="pl-12 pr-4 bg-gray-50 border-0 focus-visible:ring-2 focus-visible:ring-gray-900 rounded-full h-10"
-              />
-            </div>
+          <div className="hidden md:flex flex-1 mx-36">
+            <SearchBar />
           </div>
 
           {/* Right side - Actions and user menu */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0">
             {/* Workspace Switcher */}
             <WorkspaceSwitcher />
             

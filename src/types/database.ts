@@ -53,6 +53,8 @@ export interface Task {
   estimated_hours: number | null;
   actual_hours: number | null;
   budget_amount: number | null;
+  start_date: string | null;
+  end_date: string | null;
   due_date: string | null;
   completed_at: string | null;
   order_index?: number;

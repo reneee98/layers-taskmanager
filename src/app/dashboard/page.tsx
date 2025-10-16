@@ -609,22 +609,42 @@ export default function DashboardPage() {
                               {task.assignees && task.assignees.length > 0 ? (
                                 <>
                                   {task.assignees.slice(0, 4).map((assignee, index) => (
-                                    <div key={assignee.id} className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <div 
+                                      key={assignee.id} 
+                                      className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center group/avatar relative"
+                                      title={assignee.user?.name || 'Neznámy používateľ'}
+                                    >
                                       <span className="text-xs text-gray-600 font-medium">
                                         {assignee.user?.name ? assignee.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
                                       </span>
+                                      {/* Tooltip */}
+                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                                        {assignee.user?.name || 'Neznámy používateľ'}
+                                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                      </div>
                                     </div>
                                   ))}
                                   {task.assignees.length > 4 && (
-                                    <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <div 
+                                      className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center group/overflow relative"
+                                      title={`Ďalší assignee: ${task.assignees.slice(4).map(a => a.user?.name).filter(Boolean).join(', ')}`}
+                                    >
                                       <span className="text-xs text-gray-500">
                                         +{task.assignees.length - 4}
                                       </span>
+                                      {/* Tooltip */}
+                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/overflow:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                                        {task.assignees.slice(4).map(a => a.user?.name).filter(Boolean).join(', ')}
+                                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                      </div>
                                     </div>
                                   )}
                                 </>
                               ) : (
-                                <div className="h-6 w-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center">
+                                <div 
+                                  className="h-6 w-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center"
+                                  title="Žiadny assignee"
+                                >
                                   <span className="text-xs text-gray-400">?</span>
                                 </div>
                               )}

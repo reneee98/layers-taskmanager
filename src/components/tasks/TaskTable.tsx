@@ -172,20 +172,20 @@ export function TaskTable({
       )}
 
       {/* Table */}
-      <div className="border rounded-lg">
+      <div className="border border-gray-200 rounded-lg">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="w-[40px]">{/* Drag handle */}</TableHead>
-              <TableHead className="min-w-[250px]">Názov</TableHead>
-              <TableHead className="w-[150px]">Status</TableHead>
-              <TableHead className="w-[180px]">Assignee</TableHead>
-              <TableHead className="w-[100px] text-right">Estimate</TableHead>
-              <TableHead className="w-[100px] text-right">Spent</TableHead>
-              <TableHead className="w-[120px] text-right">Cena</TableHead>
-              <TableHead className="w-[120px]">Due Date</TableHead>
-              <TableHead className="w-[120px]">Priorita</TableHead>
-              <TableHead className="w-[60px]">{/* Actions */}</TableHead>
+            <TableRow className="bg-gray-50 hover:bg-gray-50">
+              <TableHead className="w-[40px] text-xs font-semibold text-gray-600 py-3 px-4">{/* Drag handle */}</TableHead>
+              <TableHead className="min-w-[250px] text-xs font-semibold text-gray-600 py-3 px-4">Názov</TableHead>
+              <TableHead className="w-[150px] text-xs font-semibold text-gray-600 py-3 px-4">Status</TableHead>
+              <TableHead className="w-[180px] text-xs font-semibold text-gray-600 py-3 px-4">Assignee</TableHead>
+              <TableHead className="w-[100px] text-right text-xs font-semibold text-gray-600 py-3 px-4">Estimate</TableHead>
+              <TableHead className="w-[100px] text-right text-xs font-semibold text-gray-600 py-3 px-4">Spent</TableHead>
+              <TableHead className="w-[120px] text-right text-xs font-semibold text-gray-600 py-3 px-4">Cena</TableHead>
+              <TableHead className="w-[120px] text-xs font-semibold text-gray-600 py-3 px-4">Due Date</TableHead>
+              <TableHead className="w-[120px] text-xs font-semibold text-gray-600 py-3 px-4">Priorita</TableHead>
+              <TableHead className="w-[60px] text-xs font-semibold text-gray-600 py-3 px-4">{/* Actions */}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

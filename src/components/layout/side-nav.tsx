@@ -274,11 +274,24 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-72 bg-white border-r border-gray-200/50 transition-transform duration-300 md:translate-x-0",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-72 bg-white border-r border-gray-200/50 transition-transform duration-300",
+          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
         <div className="flex h-full flex-col">
+          {/* Logo and Branding */}
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200/50">
+            <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center shadow-sm">
+              <span className="text-white font-bold text-sm">L</span>
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-bold text-gray-900">
+                Layers
+              </h1>
+              <span className="text-xs text-gray-500">Alpha verzia 1.0</span>
+            </div>
+          </div>
+
           {/* Navigation */}
           <div className="flex-1 overflow-y-auto p-6">
             {/* Main Navigation */}

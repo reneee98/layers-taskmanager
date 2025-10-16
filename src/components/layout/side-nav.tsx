@@ -274,21 +274,21 @@ export const SideNav = ({ isOpen, onClose }: SideNavProps) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-72 bg-white border-r border-gray-200/50 transition-transform duration-300",
+          "fixed left-0 top-0 z-40 h-screen w-72 bg-white border-r border-gray-200/50 transition-transform duration-300",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
         <div className="flex h-full flex-col">
           {/* Logo and Branding */}
-          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200/50">
-            <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-sm">L</span>
+          <div className="flex items-center gap-3 px-6 py-6 border-b border-gray-200/50">
+            <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
+              <span className="text-white font-bold text-lg">L</span>
             </div>
             <div className="flex flex-col">
-              <h1 className="text-xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-gray-900">
                 Layers
               </h1>
-              <span className="text-xs text-gray-500">Alpha verzia 1.0</span>
+              <span className="text-sm text-gray-500">Alpha verzia 1.0</span>
             </div>
           </div>
 

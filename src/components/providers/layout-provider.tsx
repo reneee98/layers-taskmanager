@@ -40,11 +40,13 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
   return (
     <WorkspaceProvider>
       <div className="relative min-h-screen bg-[#F8F8F8] dark:bg-slate-950">
-        <TopNav onMenuClick={handleToggleSideNav} />
         <SideNav isOpen={isSideNavOpen} onClose={handleCloseSideNav} />
-        <main className="md:pl-72">
-          <div className="w-full px-6 py-8">{children}</div>
-        </main>
+        <div className="md:ml-72">
+          <TopNav onMenuClick={handleToggleSideNav} />
+          <main className="min-h-screen">
+            <div className="w-full px-6 py-6">{children}</div>
+          </main>
+        </div>
       </div>
     </WorkspaceProvider>
   );

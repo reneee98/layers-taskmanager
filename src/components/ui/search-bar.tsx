@@ -153,7 +153,7 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
     <div className="relative w-full">
       {/* Search Input */}
       <div className="relative w-full">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
         <Input
           ref={inputRef}
           type="text"
@@ -162,7 +162,7 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          className="pl-10 pr-10 w-full h-12 text-base"
+          className="pl-12 pr-12 w-full h-12 text-base bg-white/80 border-gray-200 focus:bg-white focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition-all duration-200 rounded-xl shadow-sm"
         />
         {query && (
           <Button
@@ -173,21 +173,21 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
               setResults([]);
               setSelectedIndex(-1);
             }}
-            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-10 w-10 p-0"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-gray-100 rounded-lg"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </Button>
         )}
       </div>
 
       {/* Search Results */}
       {isOpen && (query || results.length > 0) && (
-        <Card className="absolute top-full left-0 right-0 z-50 mt-2 max-h-96 overflow-y-auto shadow-lg border border-gray-200">
-          <CardContent className="p-0">
+        <Card className="absolute top-full left-0 right-0 z-50 mt-3 max-h-96 overflow-y-auto shadow-2xl border border-gray-200 rounded-2xl bg-white/95 backdrop-blur-sm">
+          <CardContent className="p-2">
             {isLoading ? (
-              <div className="p-4 text-center text-gray-500">
+              <div className="p-6 text-center text-gray-500">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto"></div>
-                <p className="mt-2 text-sm">Hľadám...</p>
+                <p className="mt-3 text-sm font-medium">Hľadám...</p>
               </div>
             ) : results.length > 0 ? (
               <div className="py-2">
@@ -200,8 +200,8 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
                       key={`${result.type}-${result.id}`}
                       onClick={() => handleResultClick(result)}
                       className={cn(
-                        "flex items-center gap-3 p-3 cursor-pointer transition-colors",
-                        isSelected ? "bg-gray-100" : "hover:bg-gray-50"
+                        "flex items-center gap-4 p-4 cursor-pointer transition-all duration-200 rounded-xl",
+                        isSelected ? "bg-gray-100 shadow-sm" : "hover:bg-gray-50 hover:shadow-sm"
                       )}
                     >
                       <div className="flex-shrink-0">
@@ -210,13 +210,13 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
                         </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-gray-900 truncate">
+                        <div className="flex items-center gap-3 mb-1">
+                          <h4 className="font-semibold text-gray-900 truncate text-base">
                             {result.title}
                           </h4>
                           <Badge 
                             variant="outline" 
-                            className={`text-xs ${getBadgeColor(result.type)}`}
+                            className={`text-xs px-2 py-1 rounded-full ${getBadgeColor(result.type)}`}
                           >
                             {result.badge || result.type}
                           </Badge>
@@ -227,7 +227,7 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
                           </p>
                         )}
                         {result.description && (
-                          <p className="text-xs text-gray-500 truncate">
+                          <p className="text-sm text-gray-500 truncate">
                             {result.description}
                           </p>
                         )}
@@ -237,10 +237,10 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
                 })}
               </div>
             ) : query ? (
-              <div className="p-4 text-center text-gray-500">
-                <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Žiadne výsledky pre "{query}"</p>
-                <p className="text-xs mt-1">Skúste iný výraz</p>
+              <div className="p-6 text-center text-gray-500">
+                <Search className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                <p className="text-base font-medium">Žiadne výsledky pre "{query}"</p>
+                <p className="text-sm mt-1">Skúste iný výraz</p>
               </div>
             ) : null}
           </CardContent>

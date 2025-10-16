@@ -26,7 +26,7 @@ export const getDeadlineStatus = (dueDate: string | null): DeadlineStatus | null
     return { 
       type: 'overdue', 
       text: `Prešiel o ${Math.abs(diffDays)} dní`, 
-      color: 'text-red-600', 
+      color: 'text-gray-900 font-semibold', 
       showBadge: false,
       priority: 'critical'
     };
@@ -34,9 +34,9 @@ export const getDeadlineStatus = (dueDate: string | null): DeadlineStatus | null
     return { 
       type: 'today', 
       text: 'Dnes', 
-      color: 'text-red-600', 
+      color: 'text-gray-900 font-bold', 
       showBadge: true, 
-      badgeColor: 'bg-red-500', 
+      badgeColor: 'bg-gray-900 text-white', 
       badgeText: 'DNEŠNÝ DEADLINE!',
       priority: 'critical'
     };
@@ -44,9 +44,9 @@ export const getDeadlineStatus = (dueDate: string | null): DeadlineStatus | null
     return { 
       type: 'tomorrow', 
       text: 'Zajtra', 
-      color: 'text-orange-600', 
+      color: 'text-gray-800 font-semibold', 
       showBadge: true, 
-      badgeColor: 'bg-orange-500', 
+      badgeColor: 'bg-gray-800 text-white', 
       badgeText: '1 DEŇ!',
       priority: 'high'
     };
@@ -54,9 +54,9 @@ export const getDeadlineStatus = (dueDate: string | null): DeadlineStatus | null
     return { 
       type: 'day2', 
       text: 'Pozajtra', 
-      color: 'text-yellow-600', 
+      color: 'text-gray-700 font-medium', 
       showBadge: true, 
-      badgeColor: 'bg-yellow-500', 
+      badgeColor: 'bg-gray-700 text-white', 
       badgeText: '2 DNI!',
       priority: 'high'
     };
@@ -64,9 +64,9 @@ export const getDeadlineStatus = (dueDate: string | null): DeadlineStatus | null
     return { 
       type: 'day3', 
       text: 'Za 3 dni', 
-      color: 'text-blue-600', 
+      color: 'text-gray-600', 
       showBadge: true, 
-      badgeColor: 'bg-blue-500', 
+      badgeColor: 'bg-gray-600 text-white', 
       badgeText: '3 DNI!',
       priority: 'medium'
     };
@@ -93,17 +93,22 @@ export const getDeadlineBadge = (deadlineStatus: DeadlineStatus | null) => {
 };
 
 export const getDeadlineRowClass = (deadlineStatus: DeadlineStatus | null) => {
+  // Remove all background highlighting
+  return '';
+};
+
+export const getDeadlineDotClass = (deadlineStatus: DeadlineStatus | null) => {
   if (!deadlineStatus) return '';
   
   switch (deadlineStatus.priority) {
     case 'critical':
-      return 'bg-red-50 border-l-4 border-l-red-400';
+      return 'w-2 h-2 bg-red-500 rounded-full animate-pulse';
     case 'high':
-      return 'bg-orange-50 border-l-4 border-l-orange-400';
+      return 'w-2 h-2 bg-orange-500 rounded-full animate-pulse';
     case 'medium':
-      return 'bg-yellow-50 border-l-4 border-l-yellow-400';
+      return 'w-2 h-2 bg-yellow-500 rounded-full animate-pulse';
     case 'low':
-      return 'bg-blue-50 border-l-4 border-l-blue-400';
+      return 'w-2 h-2 bg-blue-500 rounded-full animate-pulse';
     default:
       return '';
   }

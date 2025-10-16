@@ -14,9 +14,9 @@ interface TopNavProps {
 export const TopNav = ({ onMenuClick }: TopNavProps) => {
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-gray-200/50">
-      <div className="w-full">
-        <div className="flex h-16 items-center px-6">
+    <header className="sticky top-0 z-50 w-full">
+      <div className="w-full px-6 pt-2.5">
+        <div className="flex h-16 items-center">
           {/* Left side - Mobile menu */}
           <div className="flex items-center gap-4 flex-shrink-0">
             {/* Mobile menu button */}
@@ -31,19 +31,18 @@ export const TopNav = ({ onMenuClick }: TopNavProps) => {
             </Button>
           </div>
 
-          {/* Center - Search bar (hidden on mobile) */}
-          <div className="hidden md:flex flex-1 mx-36">
+          {/* Center - Search bar */}
+          <div className="flex-1 max-w-md">
             <SearchBar />
           </div>
 
           {/* Right side - Actions and user menu */}
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-4 flex-shrink-0 ml-auto">
             {/* Workspace Switcher */}
             <WorkspaceSwitcher />
             
             {/* Global Timer */}
             <GlobalTimer />
-            
           </div>
         </div>
       </div>

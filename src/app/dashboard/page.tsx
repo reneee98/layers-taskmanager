@@ -52,11 +52,12 @@ import {
 import { formatCurrency, formatHours } from "@/lib/format";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { sk } from "date-fns/locale";
-import { getDeadlineStatus, getDeadlineRowClass } from "@/lib/deadline-utils";
+import { getDeadlineStatus, getDeadlineRowClass, getDeadlineDotClass } from "@/lib/deadline-utils";
 import Link from "next/link";
 import type { Task } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { WorkspaceInvitations } from "@/components/workspace/WorkspaceInvitations";
+import { TaskFilters, TaskFilter } from "@/components/tasks/TaskFilters";
 import { cn } from "@/lib/utils";
 
 interface AssignedTask {
@@ -74,6 +75,15 @@ interface AssignedTask {
   assignee_id: string | null;
   budget_amount: number | null;
   days_until_deadline: number | null;
+  assignees?: {
+    id: string;
+    user_id: string;
+    user?: {
+      id: string;
+      name: string;
+      email: string;
+    };
+  }[];
   project: {
     id: string;
     name: string;
@@ -109,7 +119,57 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [showLoadMore, setShowLoadMore] = useState(false);
+  const [filters, setFilters] = useState<TaskFilter>({
+    status: [],
+    priority: [],
+    assignee: [],
+    deadline: "all",
+  });
   const activitiesRef = useRef<HTMLDivElement>(null);
+
+  // Filter tasks based on current filters
+  const filteredTasks = tasks.filter((task) => {
+    // Status filter
+    if (filters.status.length > 0 && !filters.status.includes(task.status)) {
+      return false;
+    }
+
+    // Priority filter
+    if (filters.priority.length > 0 && !filters.priority.includes(task.priority)) {
+      return false;
+    }
+
+    // Deadline filter
+    if (filters.deadline !== "all") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const taskDate = task.due_date ? new Date(task.due_date) : null;
+
+      switch (filters.deadline) {
+        case "today":
+          if (!taskDate || taskDate.getTime() !== today.getTime()) return false;
+          break;
+        case "tomorrow":
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          if (!taskDate || taskDate.getTime() !== tomorrow.getTime()) return false;
+          break;
+        case "this_week":
+          const weekEnd = new Date(today);
+          weekEnd.setDate(weekEnd.getDate() + 7);
+          if (!taskDate || taskDate < today || taskDate > weekEnd) return false;
+          break;
+        case "overdue":
+          if (!taskDate || taskDate >= today) return false;
+          break;
+        case "no_deadline":
+          if (taskDate) return false;
+          break;
+      }
+    }
+
+    return true;
+  });
 
   const handleShowMoreActivities = () => {
     setShowAllActivities(true);
@@ -288,37 +348,37 @@ export default function DashboardPage() {
     todo: { 
       label: "To Do", 
       icon: Circle, 
-      color: "bg-slate-100 text-slate-700 border-slate-200", 
+      color: "bg-transparent text-gray-700 border-gray-300", 
       iconColor: "text-slate-500" 
     },
     in_progress: { 
       label: "In Progress", 
       icon: Play, 
-      color: "bg-blue-100 text-blue-700 border-blue-200", 
+      color: "bg-transparent text-gray-700 border-gray-300", 
       iconColor: "text-blue-500" 
     },
     review: { 
       label: "Review", 
       icon: Eye, 
-      color: "bg-amber-100 text-amber-700 border-amber-200", 
+      color: "bg-transparent text-gray-700 border-gray-300", 
       iconColor: "text-amber-500" 
     },
     sent_to_client: { 
       label: "Sent to Client", 
       icon: Send, 
-      color: "bg-purple-100 text-purple-700 border-purple-200", 
+      color: "bg-transparent text-gray-700 border-gray-300", 
       iconColor: "text-purple-500" 
     },
     done: { 
       label: "Done", 
       icon: CheckCircle, 
-      color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
+      color: "bg-transparent text-gray-700 border-gray-300", 
       iconColor: "text-emerald-500" 
     },
     cancelled: { 
       label: "Cancelled", 
       icon: XCircle, 
-      color: "bg-red-100 text-red-700 border-red-200", 
+      color: "bg-transparent text-gray-700 border-gray-300", 
       iconColor: "text-red-500" 
     },
   };
@@ -327,25 +387,25 @@ export default function DashboardPage() {
     low: { 
       label: "Low", 
       icon: ArrowDown, 
-      color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
+      color: "bg-transparent text-gray-700 border-gray-300", 
       iconColor: "text-emerald-500" 
     },
     medium: { 
       label: "Medium", 
       icon: ArrowUp, 
-      color: "bg-amber-100 text-amber-700 border-amber-200", 
+      color: "bg-transparent text-gray-700 border-gray-300", 
       iconColor: "text-amber-500" 
     },
     high: { 
       label: "High", 
       icon: ArrowUpRight, 
-      color: "bg-orange-100 text-orange-700 border-orange-200", 
+      color: "bg-transparent text-gray-700 border-gray-300", 
       iconColor: "text-orange-500" 
     },
     urgent: { 
       label: "Urgent", 
       icon: Flame, 
-      color: "bg-red-100 text-red-700 border-red-200", 
+      color: "bg-transparent text-gray-700 border-gray-300", 
       iconColor: "text-red-500" 
     },
   };
@@ -380,12 +440,12 @@ export default function DashboardPage() {
   return (
     <div className="w-full space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900">
             Dashboard
           </h1>
-          <p className="text-gray-600 text-sm mt-1">
+          <p className="text-gray-600 text-base mt-2">
             Prehľad vašich projektov a úloh
           </p>
         </div>
@@ -395,7 +455,7 @@ export default function DashboardPage() {
       <WorkspaceInvitations />
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-white border border-gray-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Na spracovanie</CardTitle>
@@ -442,10 +502,10 @@ export default function DashboardPage() {
       </div>
 
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column - Tasks */}
-        <div className="lg:col-span-2 space-y-6">
+      {/* Main Content - Single Column */}
+      <div className="w-full">
+        {/* Tasks and Activity Section */}
+        <div className="w-full">
           {/* Overdue Tasks */}
           {overdueTasks.length > 0 && (
             <Card className="bg-white border border-red-200 shadow-sm border-l-4 border-l-red-500">
@@ -497,42 +557,63 @@ export default function DashboardPage() {
           )}
 
 
-          {/* All Assigned Tasks - Table Format */}
-          <Card className="bg-white border border-gray-200">
-            <CardHeader className="bg-gray-50 border-b border-gray-200">
-              <CardTitle className="flex items-center gap-2 text-lg font-medium text-gray-900">
-                <User className="h-4 w-4" />
-                Moje úlohy
-                {tasks.length > 0 && (
-                  <Badge variant="outline" className="ml-2 text-xs">
-                    {tasks.length}
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {tasks.length === 0 ? (
+          {/* Combined Tasks and Activity Block */}
+          <Card className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
+        <CardContent className="p-0">
+          <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] divide-x divide-gray-200">
+                {/* Tasks Section */}
+                <div className="min-h-[600px]">
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200/50">
+                    <div className="flex items-center gap-3 text-lg font-semibold text-gray-900">
+                      <div className="p-2 bg-gray-900 rounded-lg">
+                        <User className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span>Moje úlohy</span>
+                        {filteredTasks.length > 0 && (
+                          <Badge variant="outline" className="px-3 py-1 text-sm font-medium bg-white border-gray-300 text-gray-700">
+                            {filteredTasks.length}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+              {/* Task Filters */}
+              <div className="px-6 py-4 border-b border-gray-200/50">
+                <TaskFilters
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  totalTasks={tasks.length}
+                  filteredTasks={filteredTasks.length}
+                />
+              </div>
+              {filteredTasks.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <FolderKanban className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium">Nemáte priradené úlohy</p>
-                  <p className="text-sm mt-2">Začnite vytvorením nového projektu</p>
+                  <p className="text-lg font-medium">
+                    {tasks.length === 0 ? "Nemáte priradené úlohy" : "Žiadne úlohy nevyhovujú filtrom"}
+                  </p>
+                  <p className="text-sm mt-2">
+                    {tasks.length === 0 ? "Začnite vytvorením nového projektu" : "Skúste zmeniť filtre"}
+                  </p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50 hover:bg-gray-50">
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Úloha</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Projekt</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Status</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Assignee</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4">Priorita</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4 w-fit">Čas</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600 py-3 px-4 w-fit">Deadline</TableHead>
-                      <TableHead className="w-[40px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
+                <div className="overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50/80 hover:bg-gray-50 border-b border-gray-200">
+                        <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Úloha</TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Projekt</TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Status</TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Assignee</TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Priorita</TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 w-fit uppercase tracking-wider">Čas</TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 w-fit uppercase tracking-wider">Deadline</TableHead>
+                        <TableHead className="w-[40px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
                   <TableBody>
-                    {tasks.map((task) => {
+                    {filteredTasks.map((task) => {
                       const statusInfo = statusConfig[task.status as keyof typeof statusConfig] || statusConfig.todo;
                       const priorityInfo = priorityConfig[task.priority as keyof typeof priorityConfig] || priorityConfig.medium;
                       const StatusIcon = statusInfo.icon;
@@ -542,60 +623,32 @@ export default function DashboardPage() {
                       return (
                     <TableRow 
                       key={task.id} 
-                      className={`hover:bg-gray-50 cursor-pointer group border-b border-gray-100 ${
-                        deadlineStatus?.priority === 'critical' 
-                          ? 'bg-red-50 border-l-4 border-l-red-400' 
-                          : deadlineStatus?.priority === 'high'
-                          ? 'bg-yellow-50 border-l-4 border-l-yellow-400'
-                          : deadlineStatus?.priority === 'medium'
-                          ? 'bg-blue-50 border-l-4 border-l-blue-400'
-                          : ''
-                      }`}
+                      className="hover:bg-gray-50/50 cursor-pointer group border-b border-gray-100/50 transition-all duration-200"
                       onClick={() => window.location.href = `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}
                     >
-                          <TableCell className="py-3 px-4">
+                          <TableCell className="py-4 px-6">
                             <div className="min-w-0 space-y-1">
-                              <h3 className={`font-semibold truncate text-sm group-hover:text-gray-900 ${
-                                deadlineStatus?.priority === 'critical' 
-                                  ? 'text-red-700' 
-                                  : deadlineStatus?.priority === 'high'
-                                  ? 'text-yellow-700'
-                                  : deadlineStatus?.priority === 'medium'
-                                  ? 'text-blue-700'
-                                  : 'text-gray-800'
-                              }`}>
-                                {task.title}
-                              </h3>
-                              {deadlineStatus?.showBadge && (
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs px-2 py-0.5 w-fit ${
-                                    deadlineStatus?.type === 'today' ? 'bg-red-100 text-red-700 border-red-300' :
-                                    deadlineStatus?.type === 'tomorrow' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' :
-                                    deadlineStatus?.type === 'day2' ? 'bg-orange-100 text-orange-700 border-orange-300' :
-                                    deadlineStatus?.type === 'day3' ? 'bg-blue-100 text-blue-700 border-blue-300' :
-                                    'bg-gray-100 text-gray-700 border-gray-300'
-                                  }`}
-                                >
-                                  {deadlineStatus?.badgeText}
-                                </Badge>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {deadlineStatus && (
+                                  <div className={getDeadlineDotClass(deadlineStatus)}></div>
+                                )}
+                                <h3 className="font-semibold truncate text-sm group-hover:text-gray-900 text-gray-900">
+                                  {task.title}
+                                </h3>
+                              </div>
                             </div>
                           </TableCell>
-                          <TableCell className="py-3 px-4">
+                          <TableCell className="py-4 px-6">
                             <div className="space-y-1">
                               <div className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
                                 {task.project?.name || 'Neznámy projekt'}
                               </div>
-                              <Badge 
-                                variant="outline" 
-                                className="text-xs px-2 py-0.5 w-fit bg-gray-100 text-gray-600 border-gray-300"
-                              >
+                              <div className="text-xs text-gray-500">
                                 {task.project?.code || 'N/A'}
-                              </Badge>
+                              </div>
                             </div>
                           </TableCell>
-                          <TableCell className="py-3 px-4">
+                          <TableCell className="py-4 px-6">
                             <Badge 
                               variant="outline" 
                               className={`text-xs flex items-center gap-1 px-2 py-1 w-fit ${statusInfo.color}`}
@@ -604,7 +657,7 @@ export default function DashboardPage() {
                               {statusInfo.label}
                             </Badge>
                           </TableCell>
-                          <TableCell className="py-3 px-4">
+                          <TableCell className="py-4 px-6">
                             <div className="flex items-center gap-1">
                               {task.assignees && task.assignees.length > 0 ? (
                                 <>
@@ -650,7 +703,7 @@ export default function DashboardPage() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="py-3 px-4">
+                          <TableCell className="py-4 px-6">
                             <Badge 
                               variant="outline" 
                               className={`text-xs flex items-center gap-1 px-2 py-1 w-fit ${priorityInfo.color}`}
@@ -661,23 +714,17 @@ export default function DashboardPage() {
                           </TableCell>
                           <TableCell className="py-3 px-4 w-fit">
                             <div className="space-y-1">
-                              {task.estimated_hours > 0 && (
-                                <Badge 
-                                  variant="outline" 
-                                  className="text-xs flex items-center gap-1 px-2 py-1 w-fit bg-gray-100 text-gray-600 border-gray-300 whitespace-nowrap"
-                                >
+                              {task.estimated_hours && task.estimated_hours > 0 && (
+                                <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
                                   <Clock className="h-3 w-3 text-gray-500" />
                                   <span>{formatHours(task.estimated_hours)}</span>
-                                </Badge>
+                                </div>
                               )}
-                              {task.actual_hours > 0 && (
-                                <Badge 
-                                  variant="outline" 
-                                  className="text-xs flex items-center gap-1 px-2 py-1 w-fit bg-green-100 text-green-600 border-green-300 whitespace-nowrap"
-                                >
+                              {task.actual_hours && task.actual_hours > 0 && (
+                                <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
                                   <CheckCircle className="h-3 w-3 text-green-500" />
                                   <span>{formatHours(task.actual_hours)}</span>
-                                </Badge>
+                                </div>
                               )}
                               {(!task.estimated_hours || task.estimated_hours === 0) && (!task.actual_hours || task.actual_hours === 0) && (
                                 <span className="text-xs text-gray-400 italic">—</span>
@@ -686,18 +733,15 @@ export default function DashboardPage() {
                           </TableCell>
                           <TableCell className="py-3 px-4 w-fit">
                             {task.due_date ? (
-                              <Badge 
-                                variant="outline" 
-                                className="text-xs flex items-center gap-1 px-2 py-1 w-fit bg-gray-100 text-gray-600 border-gray-300 whitespace-nowrap"
-                              >
+                              <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
                                 <Calendar className="h-3 w-3 text-gray-500" />
                                 <span>{format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk })}</span>
-                              </Badge>
+                              </div>
                             ) : (
                               <span className="text-xs text-gray-400 italic">—</span>
                             )}
                           </TableCell>
-                          <TableCell className="py-3 px-4">
+                          <TableCell className="py-4 px-6">
                             <div className="flex justify-center">
                               <div className="p-1 rounded group-hover:bg-gray-100">
                                 <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
@@ -709,26 +753,28 @@ export default function DashboardPage() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column - Recent Activity */}
-        <div className="lg:col-span-1 space-y-6">
-          <Card ref={activitiesRef} className="bg-white border border-gray-200 w-full">
-            <CardHeader className="bg-gray-50 border-b border-gray-200">
-              <CardTitle className="flex items-center gap-2 text-lg font-medium text-gray-900">
-                <Activity className="h-4 w-4" />
-                Posledná aktivita
-                {activities.length > 0 && (
-                  <Badge variant="outline" className="ml-2 text-xs">
-                    {activities.length}
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 max-h-[600px] overflow-y-auto">
+                </div>
+                
+                {/* Activity Section */}
+                <div className="min-h-[600px]">
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200/50">
+                    <div className="flex items-center gap-3 text-lg font-semibold text-gray-900">
+                      <div className="p-2 bg-gray-900 rounded-lg">
+                        <Activity className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span>Posledná aktivita</span>
+                        {activities.length > 0 && (
+                          <Badge variant="outline" className="px-3 py-1 text-sm font-medium bg-white border-gray-300 text-gray-700">
+                            {activities.length}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6 max-h-[600px] overflow-y-auto">
               {activities.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <Zap className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -798,6 +844,9 @@ export default function DashboardPage() {
                   )}
                 </div>
               )}
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

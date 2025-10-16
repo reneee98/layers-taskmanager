@@ -89,9 +89,9 @@ export async function GET(request: NextRequest) {
           id: task.id,
           type: 'task',
           title: task.title,
-          subtitle: `${task.project?.name || 'Neznámy projekt'} • ${statusMap[task.status as keyof typeof statusMap] || task.status}`,
+          subtitle: `${task.project?.[0]?.name || 'Neznámy projekt'} • ${statusMap[task.status as keyof typeof statusMap] || task.status}`,
           description: task.description,
-          url: `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`,
+          url: `/projects/${task.project?.[0]?.id || 'unknown'}/tasks/${task.id}`,
           icon: 'Clock',
           badge: task.priority === 'urgent' ? 'Urgentné' : 'Úloha'
         });

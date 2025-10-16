@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,6 +106,21 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<AssignedTask[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showAllActivities, setShowAllActivities] = useState(false);
+  const activitiesRef = useRef<HTMLDivElement>(null);
+
+  const handleShowMoreActivities = () => {
+    setShowAllActivities(true);
+    // Scroll to activities section after state update
+    setTimeout(() => {
+      if (activitiesRef.current) {
+        activitiesRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -669,7 +684,7 @@ export default function DashboardPage() {
 
         {/* Right Column - Recent Activity */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="bg-white border border-gray-200 shadow-sm">
+          <Card ref={activitiesRef} className="bg-white border border-gray-200 shadow-sm">
             <CardHeader className="bg-gray-50">
               <CardTitle className="flex items-center gap-2 text-lg font-medium text-gray-900">
                 <Activity className="h-4 w-4" />
@@ -690,7 +705,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {activities.map((activity) => {
+                  {(showAllActivities ? activities : activities.slice(0, 6)).map((activity) => {
                     const Icon = getActivityIcon(activity.type);
                     return (
                       <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
@@ -723,6 +738,19 @@ export default function DashboardPage() {
                       </div>
                     );
                   })}
+                  
+                  {activities.length > 6 && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={showAllActivities ? () => setShowAllActivities(false) : handleShowMoreActivities}
+                        className="w-full"
+                      >
+                        {showAllActivities ? 'Zobraziť menej' : `Zobraziť viac (${activities.length - 6} ďalších)`}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

@@ -19,6 +19,7 @@ export const projectSchema = z.object({
   start_date: z.string().nullable().optional(),
   end_date: z.string().nullable().optional(),
   hourly_rate: z.number().min(0, "Hodinová sadzba musí byť kladná").optional().nullable(),
+  hourly_rate_cents: z.number().min(0, "Hodinová sadzba musí byť kladná").optional().nullable(),
   fixed_fee: z.number().min(0, "Fixný poplatok musí byť kladný").optional().nullable(),
   external_costs_budget: z.number().min(0, "Rozpočet nákladov musí byť kladný").optional().nullable(),
   notes: z.string().nullable().optional(),
@@ -31,6 +32,7 @@ export const updateProjectSchema = projectSchema.partial().extend({
   description: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   hourly_rate: z.number().optional().nullable(),
+  hourly_rate_cents: z.number().optional().nullable(),
   fixed_fee: z.number().optional().nullable(),
   external_costs_budget: z.number().optional().nullable(),
 });

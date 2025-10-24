@@ -33,6 +33,7 @@ export interface Project {
   start_date: string | null;
   end_date: string | null;
   budget: number | null;
+  hourly_rate_cents: number | null;
   created_at: string;
   updated_at: string;
   workspace_id: string;
@@ -66,6 +67,12 @@ export interface Task {
   created_by: string | null;
   google_drive_link?: string | null; // Old single link field
   google_drive_links?: GoogleDriveLink[]; // New multi-link field
+  // Billing and time tracking fields
+  estimated_hours?: number | null;
+  actual_hours?: number | null;
+  hourly_rate_cents?: number | null;
+  budget_cents?: number | null;
+  start_date?: string | null;
 }
 
 export interface GoogleDriveLink {

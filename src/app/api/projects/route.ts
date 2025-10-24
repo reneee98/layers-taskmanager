@@ -94,7 +94,13 @@ export async function GET(request: NextRequest) {
       !invoicedProjectIds.has(project.id)
     );
 
-    return NextResponse.json({ success: true, data: activeProjects });
+    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    const projectsWithHourlyRate = activeProjects.map(project => ({
+      ...project,
+      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null
+    }));
+
+    return NextResponse.json({ success: true, data: projectsWithHourlyRate });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Internal server error" },
@@ -147,13 +153,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Convert hourly_rate to hourly_rate_cents
+    const projectData = {
+      ...validation.data,
+      workspace_id: workspaceId,
+      client_id: validation.data.client_id || null,
+      hourly_rate_cents: validation.data.hourly_rate ? Math.round(validation.data.hourly_rate * 100) : null
+    };
+    
+    // Remove hourly_rate from data since we're using hourly_rate_cents
+    delete projectData.hourly_rate;
+
     const { data: project, error } = await supabase
       .from("projects")
-      .insert({
-        ...validation.data,
-        workspace_id: workspaceId,
-        client_id: validation.data.client_id || null
-      })
+      .insert(projectData)
       .select("*, client:clients(*)")
       .single();
 
@@ -161,7 +174,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, data: project }, { status: 201 });
+    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    const projectWithHourlyRate = {
+      ...project,
+      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null
+    };
+
+    return NextResponse.json({ success: true, data: projectWithHourlyRate }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Internal server error" },

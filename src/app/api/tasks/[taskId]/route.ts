@@ -19,7 +19,7 @@ export async function GET(
       .from("tasks")
       .select(`
         *,
-        project:projects(id, name, code)
+        project:projects(id, name, code, hourly_rate_cents)
       `)
       .eq("id", taskId)
       .single();
@@ -28,7 +28,16 @@ export async function GET(
       return NextResponse.json({ success: false, error: error.message }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: task });
+    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    const taskWithHourlyRate = {
+      ...task,
+      project: task.project ? {
+        ...task.project,
+        hourly_rate: task.project.hourly_rate_cents ? task.project.hourly_rate_cents / 100 : null
+      } : null
+    };
+
+    return NextResponse.json({ success: true, data: taskWithHourlyRate });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Internal server error" },
@@ -83,13 +92,22 @@ export async function PATCH(
       .eq("workspace_id", workspaceId)
       .select(`
         *,
-        project:projects(id, name, code)
+        project:projects(id, name, code, hourly_rate_cents)
       `)
       .single();
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
+
+    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    const taskWithHourlyRate = {
+      ...task,
+      project: task.project ? {
+        ...task.project,
+        hourly_rate: task.project.hourly_rate_cents ? task.project.hourly_rate_cents / 100 : null
+      } : null
+    };
 
     // Log activity based on what changed
     const userDisplayName = await getUserDisplayName(user.id);
@@ -276,7 +294,7 @@ export async function PATCH(
       });
     }
 
-    return NextResponse.json({ success: true, data: task });
+    return NextResponse.json({ success: true, data: taskWithHourlyRate });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Internal server error" },

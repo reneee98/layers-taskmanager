@@ -7,22 +7,29 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
+    const { projectId } = await params;
     const supabase = createClient();
 
     const { data: project, error } = await supabase
       .from("projects")
       .select("*, client:clients(*)")
-      .eq("id", params.projectId)
+      .eq("id", projectId)
       .single();
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: project });
+    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    const projectWithHourlyRate = {
+      ...project,
+      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null
+    };
+
+    return NextResponse.json({ success: true, data: projectWithHourlyRate });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Internal server error" },
@@ -33,9 +40,10 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
+    const { projectId } = await params;
     const body = await request.json();
     const validation = validateSchema(updateProjectSchema, body);
 
@@ -51,7 +59,7 @@ export async function PATCH(
         .from("projects")
         .select("id")
         .eq("code", validation.data.code)
-        .neq("id", params.projectId)
+        .neq("id", projectId)
         .single();
 
       if (existing) {
@@ -62,10 +70,17 @@ export async function PATCH(
       }
     }
 
+    // Convert hourly_rate to hourly_rate_cents if provided
+    const updateData = { ...validation.data };
+    if (updateData.hourly_rate !== undefined) {
+      updateData.hourly_rate_cents = updateData.hourly_rate ? Math.round(updateData.hourly_rate * 100) : null;
+      delete updateData.hourly_rate;
+    }
+
     const { data: project, error } = await supabase
       .from("projects")
-      .update(validation.data)
-      .eq("id", params.projectId)
+      .update(updateData)
+      .eq("id", projectId)
       .select("*, client:clients(*)")
       .single();
 
@@ -73,7 +88,13 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, data: project });
+    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    const projectWithHourlyRate = {
+      ...project,
+      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null
+    };
+
+    return NextResponse.json({ success: true, data: projectWithHourlyRate });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Internal server error" },
@@ -84,12 +105,13 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
+    const { projectId } = await params;
     const supabase = createClient();
 
-    const { error } = await supabase.from("projects").delete().eq("id", params.projectId);
+    const { error } = await supabase.from("projects").delete().eq("id", projectId);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });

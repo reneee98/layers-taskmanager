@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { 
   ArrowLeft, 
   Clock, 
@@ -45,6 +46,8 @@ import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { InlineDateEdit } from "@/components/ui/inline-date-edit";
 import { GoogleDriveLinks } from "@/components/tasks/GoogleDriveLinks";
 import { TaskChecklist } from "@/components/tasks/TaskChecklist";
+import { TaskFiles } from "@/components/tasks/TaskFiles";
+import { FileUploadHandler } from "@/components/tasks/FileUploadHandler";
 import { toast } from "@/hooks/use-toast";
 import { formatHours } from "@/lib/format";
 import { format } from "date-fns";
@@ -71,6 +74,7 @@ export default function TaskDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [hasChanges, setHasChanges] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchTask = async () => {
@@ -83,6 +87,7 @@ export default function TaskDetailPage() {
         setDescription(result.data.description || "");
         setDescriptionHtml(result.data.description || "");
         setAssignees(result.data.assignees || []);
+        setHasChanges(false);
       } else {
         toast({
           title: "Chyba",
@@ -142,13 +147,74 @@ export default function TaskDetailPage() {
       clearTimeout(saveTimeoutRef.current);
     }
     
-    saveTimeoutRef.current = setTimeout(() => {
-      handleSaveDescriptionWithContent(html);
-    }, 3000);
+    if (html) {
+      saveTimeoutRef.current = setTimeout(() => {
+        handleSaveDescriptionWithContent(html);
+      }, 3000);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!task || isSaving) return;
+
+    setIsSaving(true);
+    try {
+      // Save task settings
+      const taskResponse = await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          estimated_hours: task.estimated_hours,
+        }),
+      });
+
+      const taskResult = await taskResponse.json();
+
+      // Save project budget if changed
+      let projectResult = { success: true };
+      if (task.project?.budget !== undefined) {
+        const projectResponse = await fetch(`/api/projects/${task.project_id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            budget: task.project.budget,
+          }),
+        });
+        projectResult = await projectResponse.json();
+      }
+
+      if (taskResult.success && projectResult.success) {
+        setTask(taskResult.data);
+        setHasChanges(false);
+        toast({
+          title: "Úspech",
+          description: "Nastavenia boli uložené",
+        });
+      } else {
+        toast({
+          title: "Chyba",
+          description: "Nepodarilo sa uložiť nastavenia",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa uložiť nastavenia",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveDescriptionWithContent = async (content: string) => {
-    if (!task || isSaving) return;
+    if (!task || isSaving || !content) return;
 
     const hasImages = content.includes('<img');
     if (hasImages) {
@@ -584,59 +650,43 @@ export default function TaskDetailPage() {
               </div>
             </div>
 
-            {/* Quick Stats */}
-            {(task.estimated_hours != null || task.actual_hours != null || task.start_date || task.due_date) && (
-              <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-                {task.estimated_hours != null && (
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <span>Odhad: {formatHours(parseFloat(task.estimated_hours.toString()))}</span>
-                  </div>
-                )}
-                
-                {task.actual_hours != null && (
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span>Natrackovaný čas: {formatHours(parseFloat(task.actual_hours.toString()))}</span>
-                  </div>
-                )}
-                
-                <div className="flex items-center gap-2">
-                  <Play className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-foreground">Začiatok:</span>
-                  <InlineDateEdit
-                    value={task.start_date ? format(new Date(task.start_date), 'dd.MM.yyyy', { locale: sk }) : null}
-                    placeholder="Kliknite pre nastavenie"
-                    onSave={async (value) => {
-                      const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
-                      await handleStartDateChange(isoDate);
-                    }}
-                    icon={Calendar}
-                  />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Flag className="h-4 w-4 text-red-600" />
-                  <span className="text-sm font-medium text-foreground">Deadline:</span>
-                  <InlineDateEdit
-                    value={task.due_date ? format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk }) : null}
-                    placeholder="Kliknite pre nastavenie"
-                    onSave={async (value) => {
-                      const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
-                      await handleDueDateChange(isoDate);
-                    }}
-                    icon={Calendar}
-                  />
-                </div>
-                
-                {task.due_date && deadlineStatus && !deadlineStatus.showBadge && (
-                  <span className={cn("ml-2 font-medium", deadlineStatus.color)}>
-                    ({deadlineStatus.text})
-                  </span>
-                )}
-                
+
+            {/* Dates */}
+            <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Play className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-foreground">Začiatok:</span>
+                <InlineDateEdit
+                  value={task.start_date ? format(new Date(task.start_date), 'dd.MM.yyyy', { locale: sk }) : null}
+                  placeholder="Kliknite pre nastavenie"
+                  onSave={async (value) => {
+                    const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
+                    await handleStartDateChange(isoDate);
+                  }}
+                  icon={Calendar}
+                />
               </div>
-            )}
+              
+              <div className="flex items-center gap-2">
+                <Flag className="h-4 w-4 text-red-600" />
+                <span className="text-sm font-medium text-foreground">Deadline:</span>
+                <InlineDateEdit
+                  value={task.due_date ? format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk }) : null}
+                  placeholder="Kliknite pre nastavenie"
+                  onSave={async (value) => {
+                    const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
+                    await handleDueDateChange(isoDate);
+                  }}
+                  icon={Calendar}
+                />
+              </div>
+              
+              {task.due_date && deadlineStatus && !deadlineStatus.showBadge && (
+                <span className={cn("ml-2 font-medium", deadlineStatus.color)}>
+                  ({deadlineStatus.text})
+                </span>
+              )}
+            </div>
 
             {/* Assignees */}
             <div className="flex items-center gap-4 pt-4 border-t border-border">
@@ -693,20 +743,35 @@ export default function TaskDetailPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <QuillEditor
-                    key={task?.id}
-                    content={descriptionHtml}
-                    onChange={handleDescriptionChange}
-                    placeholder="Napíšte popis úlohy..."
-                    className="min-h-[200px]"
-                    editable={isEditing}
+                  <FileUploadHandler
                     taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
-                  />
+                    onFileUploaded={(fileUrl, fileName) => {
+                      // Insert file link into editor
+                      const currentContent = descriptionHtml;
+                      const fileLink = `<a href="${fileUrl}" target="_blank" rel="noopener noreferrer">${fileName}</a>`;
+                      const newContent = currentContent + (currentContent ? '<br>' : '') + fileLink;
+                      setDescriptionHtml(newContent);
+                      handleDescriptionChange(newContent, newContent);
+                    }}
+                  >
+                    <QuillEditor
+                      key={task?.id}
+                      content={descriptionHtml}
+                      onChange={handleDescriptionChange}
+                      placeholder="Napíšte popis úlohy..."
+                      className="min-h-[200px]"
+                      editable={isEditing}
+                      taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
+                    />
+                  </FileUploadHandler>
                 </CardContent>
               </Card>
 
               {/* Task Checklist */}
               <TaskChecklist taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
+
+              {/* Task Files */}
+              <TaskFiles taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
 
               {/* Comments */}
               <Card className="bg-card border border-border shadow-sm">
@@ -778,6 +843,112 @@ export default function TaskDetailPage() {
 
         {/* Right Column - Sidebar */}
         <div className="space-y-6">
+          {/* Billing and Time Tracking Settings */}
+          <Card className="bg-card border border-border shadow-sm">
+            <CardHeader className="bg-muted/50">
+              <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Euro className="h-5 w-5" />
+                Nastavenia
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              {/* Estimated Hours */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Odhad hodín
+                </label>
+                <Input
+                  type="number"
+                  step="0.25"
+                  min="0"
+                  value={task?.estimated_hours || ''}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseFloat(e.target.value) : null;
+                    setTask(prev => prev ? { ...prev, estimated_hours: value } : null);
+                    setHasChanges(true);
+                  }}
+                  placeholder="0"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Actual Hours - Read Only */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  Natrackovaný čas
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 px-3 py-2 bg-muted rounded-md text-sm text-foreground">
+                    {task?.actual_hours ? `${task.actual_hours}h` : '0h'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Hourly Rate - Read Only */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <Euro className="h-4 w-4" />
+                  Hodinovka projektu
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 px-3 py-2 bg-muted rounded-md text-sm text-foreground">
+                    {task?.project?.hourly_rate ? `${task.project.hourly_rate.toFixed(2)}€/h` : 'Nenastavené'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Budget */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Rozpočet projektu
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={task?.project?.budget ? task.project.budget.toFixed(2) : ''}
+                    onChange={(e) => {
+                      const value = e.target.value ? parseFloat(e.target.value) : null;
+                      setTask(prev => prev ? { 
+                        ...prev, 
+                        project: prev.project ? { ...prev.project, budget: value } : null 
+                      } : null);
+                      setHasChanges(true);
+                    }}
+                    placeholder="0.00"
+                    className="flex-1"
+                  />
+                  <span className="text-xs text-muted-foreground">€</span>
+                </div>
+              </div>
+
+              {/* Save Button */}
+              {hasChanges && (
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    size="sm"
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Ukladám...
+                      </>
+                    ) : (
+                      "Uložiť nastavenia"
+                    )}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Google Drive Links */}
           <Card className="bg-card border border-border shadow-sm">
             <CardHeader className="bg-muted/50">

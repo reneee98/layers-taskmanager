@@ -101,12 +101,12 @@ function ClientsPageContent() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Klienti</h1>
-          <p className="text-gray-600 mt-1">Spravujte svojich klientov</p>
+          <h1 className="text-2xl font-bold text-foreground">Klienti</h1>
+          <p className="text-muted-foreground mt-1">Spravujte svojich klientov</p>
         </div>
         <Button 
           onClick={() => setIsFormOpen(true)}
-          className="bg-gray-900 text-white hover:bg-gray-800"
+          className="bg-gray-900 text-white hover:bg-gray-700"
         >
           <Plus className="mr-2 h-4 w-4" />
           Pridať klienta
@@ -119,35 +119,35 @@ function ClientsPageContent() {
           placeholder="Hľadať klienta..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm bg-white border-gray-200"
+          className="max-w-sm bg-card border-border"
         />
       </div>
 
       {/* Clients Table */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+      <div className="bg-card border border-border rounded-lg shadow-sm">
         <Table>
           <TableHeader>
-            <TableRow className="bg-gray-50">
-              <TableHead className="text-gray-600 font-semibold">Názov</TableHead>
-              <TableHead className="text-gray-600 font-semibold">Email</TableHead>
-              <TableHead className="text-gray-600 font-semibold">Telefón</TableHead>
-              <TableHead className="text-gray-600 font-semibold">IČO/DIČ</TableHead>
-              <TableHead className="w-[100px] text-gray-600 font-semibold">Akcie</TableHead>
+            <TableRow className="bg-muted">
+              <TableHead className="text-muted-foreground font-semibold">Názov</TableHead>
+              <TableHead className="text-muted-foreground font-semibold">Email</TableHead>
+              <TableHead className="text-muted-foreground font-semibold">Telefón</TableHead>
+              <TableHead className="text-muted-foreground font-semibold">IČO/DIČ</TableHead>
+              <TableHead className="w-[100px] text-muted-foreground font-semibold">Akcie</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-gray-500">
+                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                   Načítavam...
                 </TableCell>
               </TableRow>
             ) : filteredClients.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-gray-500">
+                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                      <Plus className="h-6 w-6 text-gray-400" />
+                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+                      <Plus className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <p className="text-lg font-medium">Žiadni klienti</p>
                     <p className="text-sm">Začnite pridaním nového klienta</p>
@@ -156,20 +156,20 @@ function ClientsPageContent() {
               </TableRow>
             ) : (
               filteredClients.map((client) => (
-                <TableRow key={client.id} className="hover:bg-gray-50 transition-colors">
-                  <TableCell className="font-medium text-gray-900">{client.name}</TableCell>
-                  <TableCell className="text-gray-600">{client.email || "-"}</TableCell>
-                  <TableCell className="text-gray-600">{client.phone || "-"}</TableCell>
-                  <TableCell className="text-gray-600">{client.tax_id || "-"}</TableCell>
+                <TableRow key={client.id} className="hover:bg-muted transition-colors">
+                  <TableCell className="font-medium text-foreground">{client.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{client.email || "-"}</TableCell>
+                  <TableCell className="text-muted-foreground">{client.phone || "-"}</TableCell>
+                  <TableCell className="text-muted-foreground">{client.tax_id || "-"}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleEdit(client)}
-                        className="h-8 w-8 hover:bg-gray-100"
+                        className="h-8 w-8 hover:bg-muted"
                       >
-                        <Pencil className="h-4 w-4 text-gray-600" />
+                        <Pencil className="h-4 w-4 text-muted-foreground" />
                       </Button>
                       <Button
                         variant="ghost"

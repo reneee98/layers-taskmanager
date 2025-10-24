@@ -26,7 +26,7 @@ export const getDeadlineStatus = (dueDate: string | null): DeadlineStatus | null
     return { 
       type: 'overdue', 
       text: `Prešiel o ${Math.abs(diffDays)} dní`, 
-      color: 'text-gray-900 font-semibold', 
+      color: 'text-foreground font-semibold', 
       showBadge: false,
       priority: 'critical'
     };
@@ -34,9 +34,9 @@ export const getDeadlineStatus = (dueDate: string | null): DeadlineStatus | null
     return { 
       type: 'today', 
       text: 'Dnes', 
-      color: 'text-gray-900 font-bold', 
+      color: 'text-foreground font-bold', 
       showBadge: true, 
-      badgeColor: 'bg-gray-900 text-white', 
+      badgeColor: 'bg-red-600 text-white', 
       badgeText: 'DNEŠNÝ DEADLINE!',
       priority: 'critical'
     };
@@ -44,9 +44,9 @@ export const getDeadlineStatus = (dueDate: string | null): DeadlineStatus | null
     return { 
       type: 'tomorrow', 
       text: 'Zajtra', 
-      color: 'text-gray-800 font-semibold', 
+      color: 'text-foreground font-semibold', 
       showBadge: true, 
-      badgeColor: 'bg-gray-800 text-white', 
+      badgeColor: 'bg-orange-600 text-white', 
       badgeText: '1 DEŇ!',
       priority: 'high'
     };
@@ -54,9 +54,9 @@ export const getDeadlineStatus = (dueDate: string | null): DeadlineStatus | null
     return { 
       type: 'day2', 
       text: 'Pozajtra', 
-      color: 'text-gray-700 font-medium', 
+      color: 'text-foreground font-medium', 
       showBadge: true, 
-      badgeColor: 'bg-gray-700 text-white', 
+      badgeColor: 'bg-yellow-600 text-white', 
       badgeText: '2 DNI!',
       priority: 'high'
     };
@@ -64,9 +64,9 @@ export const getDeadlineStatus = (dueDate: string | null): DeadlineStatus | null
     return { 
       type: 'day3', 
       text: 'Za 3 dni', 
-      color: 'text-gray-600', 
+      color: 'text-muted-foreground', 
       showBadge: true, 
-      badgeColor: 'bg-gray-600 text-white', 
+      badgeColor: 'bg-blue-600 text-white', 
       badgeText: '3 DNI!',
       priority: 'medium'
     };
@@ -75,7 +75,7 @@ export const getDeadlineStatus = (dueDate: string | null): DeadlineStatus | null
   return { 
     type: 'normal', 
     text: `Zostáva ${diffDays} dní`, 
-    color: 'text-gray-600', 
+    color: 'text-muted-foreground', 
     showBadge: false,
     priority: 'none'
   };
@@ -85,7 +85,7 @@ export const getDeadlineBadge = (deadlineStatus: DeadlineStatus | null) => {
   if (!deadlineStatus || !deadlineStatus.showBadge) return null;
 
   return {
-    color: deadlineStatus.badgeColor || 'bg-gray-500',
+    color: deadlineStatus.badgeColor || 'bg-muted',
     text: deadlineStatus.badgeText || '',
     icon: deadlineStatus.type === 'today' ? '🔥' : '⏰',
     animate: deadlineStatus.type === 'today'

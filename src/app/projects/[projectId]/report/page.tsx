@@ -106,13 +106,13 @@ export default function ProjectReportPage() {
 
   const getStatusBadgeVariant = (status: string) => {
     const variantMap: { [key: string]: string } = {
-      'todo': 'bg-gray-500/10 text-gray-500 border-gray-500/20',
+      'todo': 'bg-muted text-muted-foreground border-border',
       'in_progress': 'bg-blue-500/10 text-blue-500 border-blue-500/20',
       'review': 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
       'done': 'bg-green-500/10 text-green-500 border-green-500/20',
       'cancelled': 'bg-red-500/10 text-red-500 border-red-500/20'
     };
-    return variantMap[status] || 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+    return variantMap[status] || 'bg-muted text-muted-foreground border-border';
   };
 
   const getPriorityBadgeVariant = (priority: string) => {
@@ -122,7 +122,7 @@ export default function ProjectReportPage() {
       'high': 'bg-orange-500/10 text-orange-500 border-orange-500/20',
       'urgent': 'bg-red-500/10 text-red-500 border-red-500/20'
     };
-    return variantMap[priority] || 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+    return variantMap[priority] || 'bg-muted text-muted-foreground border-border';
   };
 
   if (isLoading) {

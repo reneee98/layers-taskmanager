@@ -242,13 +242,13 @@ export default function InvoicesPage() {
 
   const getStatusBadgeVariant = (status: string) => {
     const variantMap: { [key: string]: string } = {
-      'todo': 'bg-gray-500/10 text-gray-500 border-gray-500/20',
+      'todo': 'bg-muted text-muted-foreground border-border',
       'in_progress': 'bg-blue-500/10 text-blue-500 border-blue-500/20',
       'review': 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
       'done': 'bg-green-500/10 text-green-500 border-green-500/20',
       'cancelled': 'bg-red-500/10 text-red-500 border-red-500/20'
     };
-    return variantMap[status] || 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+    return variantMap[status] || 'bg-muted text-muted-foreground border-border';
   };
 
   const getStatusText = (status: string) => {
@@ -269,7 +269,7 @@ export default function InvoicesPage() {
       'high': 'bg-orange-500/10 text-orange-500 border-orange-500/20',
       'urgent': 'bg-red-500/10 text-red-500 border-red-500/20'
     };
-    return variantMap[priority] || 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+    return variantMap[priority] || 'bg-muted text-muted-foreground border-border';
   };
 
   const getPriorityText = (priority: string) => {
@@ -301,48 +301,48 @@ export default function InvoicesPage() {
     <div className="w-full space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Faktúry</h1>
-        <p className="text-gray-600 mt-1">
+        <h1 className="text-2xl font-bold text-foreground">Faktúry</h1>
+        <p className="text-muted-foreground mt-1">
           Projekty a úlohy pripravené na vyfaktúrovanie
         </p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-white border border-gray-200 shadow-sm">
+        <Card className="bg-card border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-600">Dokončené projekty</CardTitle>
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Dokončené projekty</CardTitle>
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
               <FileText className="h-5 w-5 text-blue-600" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-gray-900">{readyProjects.length}</div>
-            <p className="text-sm text-gray-500 mt-1">Celková hodnota: {formatCurrency(totalProjectsValue)}</p>
+            <div className="text-3xl font-bold text-foreground">{readyProjects.length}</div>
+            <p className="text-sm text-muted-foreground mt-1">Celková hodnota: {formatCurrency(totalProjectsValue)}</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border border-gray-200 shadow-sm">
+        <Card className="bg-card border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-600">Celková hodnota</CardTitle>
-            <div className="p-2 bg-green-100 rounded-lg">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Celková hodnota</CardTitle>
+            <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
               <Euro className="h-5 w-5 text-green-600" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-gray-900">{formatCurrency(totalValue)}</div>
-            <p className="text-sm text-gray-500 mt-1">Na vyfaktúrovanie</p>
+            <div className="text-3xl font-bold text-foreground">{formatCurrency(totalValue)}</div>
+            <p className="text-sm text-muted-foreground mt-1">Na vyfaktúrovanie</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="bg-gray-100">
-          <TabsTrigger value="projects" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
+        <TabsList className="bg-muted">
+          <TabsTrigger value="projects" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
             Projekty ({readyProjects.length})
           </TabsTrigger>
-          <TabsTrigger value="archived" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
+          <TabsTrigger value="archived" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
             Archivované ({archivedProjects.length})
           </TabsTrigger>
         </TabsList>
@@ -350,35 +350,35 @@ export default function InvoicesPage() {
         {/* Projects Tab */}
         <TabsContent value="projects" className="space-y-4">
           {readyProjects.length === 0 ? (
-            <Card className="bg-white border border-gray-200 shadow-sm">
+            <Card className="bg-card border border-border shadow-sm">
               <CardContent className="text-center py-12">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-6 w-6 text-gray-400" />
+                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <p className="text-lg font-medium text-gray-900">Žiadne dokončené projekty</p>
-                <p className="text-sm text-gray-500 mt-2">Začnite dokončením existujúcich projektov</p>
+                <p className="text-lg font-medium text-foreground">Žiadne dokončené projekty</p>
+                <p className="text-sm text-muted-foreground mt-2">Začnite dokončením existujúcich projektov</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
               {readyProjects.map((project) => (
-                <Card key={project.id} className="bg-white border border-gray-200 shadow-sm">
-                  <CardHeader className="bg-gray-50">
+                <Card key={project.id} className="bg-card border border-border shadow-sm">
+                  <CardHeader className="bg-muted/50">
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-semibold text-gray-900">{project.name}</h3>
-                          <Badge variant="outline" className="font-mono bg-gray-100 text-gray-700 border-gray-200">
+                          <h3 className="text-xl font-semibold text-foreground">{project.name}</h3>
+                          <Badge variant="outline" className="font-mono bg-muted text-foreground border-border">
                             {project.code}
                           </Badge>
                           <Badge variant="outline" className={cn("text-xs", getStatusBadgeVariant(project.status))}>
                             {getStatusText(project.status)}
                           </Badge>
                         </div>
-                        <p className="text-gray-600">
+                        <p className="text-muted-foreground">
                           <strong>Klient:</strong> {project.client?.name || 'Bez klienta'}
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-muted-foreground">
                           <strong>Dokončené úlohy:</strong> {project.task_count}
                         </p>
                       </div>
@@ -386,7 +386,7 @@ export default function InvoicesPage() {
                         <div className="text-2xl font-bold text-green-600">
                           {formatCurrency(project.total_cost)}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-muted-foreground">
                           {project.labor_cost > 0 && `${formatCurrency(project.labor_cost)} (čas) `}
                           {project.fixed_budget_cost > 0 && `${formatCurrency(project.fixed_budget_cost)} (fixná) `}
                           {project.external_cost > 0 && `${formatCurrency(project.external_cost)} (náklady)`}
@@ -479,7 +479,7 @@ export default function InvoicesPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-lg font-semibold">{project.name}</h3>
-                          <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500/20">
+                          <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
                             {project.code}
                           </Badge>
                         </div>

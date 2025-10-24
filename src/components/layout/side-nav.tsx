@@ -213,7 +213,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
       case "user":
         return "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20";
       default:
-        return "text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/20";
+        return "text-muted-foreground bg-muted";
     }
   };
 
@@ -240,14 +240,14 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
             "group flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-200",
             isCollapsed ? "px-3 py-3 justify-center" : "px-4 py-3",
             isActive
-              ? "bg-gray-100 text-gray-900"
-              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              ? "bg-accent text-accent-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           )}
           title={isCollapsed ? item.title : undefined}
         >
           <item.icon className={cn(
             "h-5 w-5 transition-colors",
-            isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600"
+            isActive ? "text-accent-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
           )} />
           {!isCollapsed && (
             <>
@@ -256,8 +256,8 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                 <Badge 
                   variant="outline" 
                   className={cn(
-                    "text-xs px-2 py-0.5 bg-gray-100 text-gray-600 border-gray-200",
-                    isActive ? "bg-gray-200 text-gray-700 border-gray-300" : ""
+                    "text-xs px-2 py-0.5 bg-muted text-muted-foreground border-border",
+                    isActive ? "bg-accent text-accent-foreground border-accent" : ""
                   )}
                 >
                   {item.badge}
@@ -283,7 +283,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 h-screen bg-white border-r border-gray-200/50 transition-all duration-300",
+          "fixed left-0 top-0 z-40 h-screen bg-card border-r border-border transition-all duration-300",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           isCollapsed ? "w-16" : "w-72"
         )}
@@ -291,7 +291,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
         <div className="flex h-full flex-col">
           {/* Logo and Branding */}
           <div className={cn(
-            "flex items-center gap-3 border-b border-gray-200/50 transition-all duration-300",
+            "flex items-center gap-3 border-b border-border transition-all duration-300",
             isCollapsed ? "px-3 py-6 justify-center" : "px-6 py-6"
           )}>
             <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
@@ -299,10 +299,10 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
             </div>
             {!isCollapsed && (
               <div className="flex flex-col">
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-foreground">
                   Layers
                 </h1>
-                <span className="text-sm text-gray-500">Alpha verzia 1.0</span>
+                <span className="text-sm text-muted-foreground">Alpha verzia 1.0</span>
               </div>
             )}
           </div>
@@ -316,7 +316,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
             <div className="space-y-1 mb-8">
               {!isCollapsed && (
                 <div className="px-3 py-2">
-                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     OVERVIEW
                   </h2>
                 </div>
@@ -330,7 +330,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
             <div className="space-y-1 mb-8">
               {!isCollapsed && (
                 <div className="px-3 py-2">
-                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     NÁSTROJE
                   </h2>
                 </div>
@@ -344,17 +344,17 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
             {!isCollapsed && (
               <div className="space-y-1">
                 <div className="px-3 py-2">
-                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     ŠTATISTIKY
                   </h2>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 border border-blue-200">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
                     <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-700">Dnes trackované</span>
+                      <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Dnes trackované</span>
                     </div>
-                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-800/30 dark:text-blue-300 dark:border-blue-700">
                       {statsLoading ? "..." : `${stats.todayTrackedHours}h`}
                     </Badge>
                   </div>
@@ -365,13 +365,13 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
           
           {/* Bottom section - User info and theme */}
           <div className={cn(
-            "border-t border-gray-200 space-y-4 transition-all duration-300",
+            "border-t border-border space-y-4 transition-all duration-300",
             isCollapsed ? "p-3" : "p-6"
           )}>
             {/* Theme switcher */}
             {!isCollapsed && (
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-600">Téma</span>
+                <span className="text-sm font-medium text-muted-foreground">Téma</span>
                 <ThemeSwitcher />
               </div>
             )}
@@ -379,7 +379,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
             {/* User info */}
             {user && profile && (
               <div className={cn(
-                "flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors",
+                "flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-accent transition-colors",
                 isCollapsed ? "justify-center" : ""
               )}>
                 <Avatar className="h-10 w-10">
@@ -390,7 +390,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                 {!isCollapsed && (
                   <>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate text-gray-900">
+                      <p className="text-sm font-medium truncate text-foreground">
                         {profile.display_name || user.email}
                       </p>
                       <div className="flex items-center gap-2">
@@ -409,7 +409,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                         variant="ghost"
                         size="icon"
                         onClick={() => router.push("/settings")}
-                        className="h-8 w-8 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full"
                         title="Nastavenia"
                       >
                         <Settings className="h-4 w-4" />
@@ -418,7 +418,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                         variant="ghost"
                         size="icon"
                         onClick={handleSignOut}
-                        className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
                         title="Odhlásiť sa"
                       >
                         <LogOut className="h-4 w-4" />

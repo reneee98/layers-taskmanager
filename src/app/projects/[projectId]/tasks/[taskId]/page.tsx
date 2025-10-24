@@ -394,32 +394,32 @@ export default function TaskDetailPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "todo":
-        return "bg-gray-100 text-gray-700 border-gray-200";
+        return "bg-muted text-foreground border-border";
       case "in_progress":
-        return "bg-blue-100 text-blue-700 border-blue-200";
+        return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800";
       case "review":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+        return "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800";
       case "done":
-        return "bg-green-100 text-green-700 border-green-200";
+        return "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800";
       case "cancelled":
-        return "bg-red-100 text-red-700 border-red-200";
+        return "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800";
       default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
+        return "bg-muted text-foreground border-border";
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "urgent":
-        return "bg-red-100 text-red-700 border-red-200";
+        return "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800";
       case "high":
-        return "bg-orange-100 text-orange-700 border-orange-200";
+        return "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800";
       case "medium":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+        return "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800";
       case "low":
-        return "bg-green-100 text-green-700 border-green-200";
+        return "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800";
       default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
+        return "bg-muted text-foreground border-border";
     }
   };
 
@@ -520,8 +520,8 @@ export default function TaskDetailPage() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-          <p className="text-gray-500">Načítavam úlohu...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-muted-foreground">Načítavam úlohu...</p>
         </div>
       </div>
     );
@@ -531,9 +531,9 @@ export default function TaskDetailPage() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <AlertCircle className="h-12 w-12 text-gray-400" />
-          <p className="text-lg font-medium text-gray-900">Úloha nebola nájdená</p>
-          <p className="text-gray-500">Skúste obnoviť stránku alebo sa vráťte na projekt</p>
+          <AlertCircle className="h-12 w-12 text-muted-foreground" />
+          <p className="text-lg font-medium text-foreground">Úloha nebola nájdená</p>
+          <p className="text-muted-foreground">Skúste obnoviť stránku alebo sa vráťte na projekt</p>
         </div>
       </div>
     );
@@ -553,13 +553,13 @@ export default function TaskDetailPage() {
             variant="ghost"
             size="sm"
             onClick={() => router.push(`/projects/${params.projectId}`)}
-            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+            className="text-muted-foreground hover:text-foreground hover:bg-accent"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Späť na projekt
           </Button>
-          <div className="h-6 w-px bg-gray-200" />
-          <div className="flex items-center gap-2 text-sm text-gray-500">
+          <div className="h-6 w-px bg-border" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>{task.project?.name}</span>
             <span>•</span>
             <span className="font-mono">{task.project?.code}</span>
@@ -571,7 +571,7 @@ export default function TaskDetailPage() {
             variant="outline"
             size="sm"
             onClick={() => setIsEditing(!isEditing)}
-            className="text-gray-600 hover:text-gray-900"
+            className="text-muted-foreground hover:text-foreground"
           >
             <Edit3 className="h-4 w-4 mr-2" />
             {isEditing ? 'Ukončiť úpravy' : 'Upraviť'}
@@ -579,7 +579,7 @@ export default function TaskDetailPage() {
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="text-gray-600 hover:text-gray-900">
+              <Button variant="outline" size="sm" className="text-muted-foreground hover:text-foreground">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -607,12 +607,12 @@ export default function TaskDetailPage() {
       </div>
 
       {/* Task Header Card */}
-      <Card className="bg-white border border-gray-200 shadow-sm">
+      <Card className="bg-card border border-border shadow-sm">
         <CardContent className="p-6">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold text-gray-900">{task.title}</h1>
+                <h1 className="text-3xl font-bold text-foreground">{task.title}</h1>
                 {deadlineBadge && (
                   <div className="flex items-center gap-2">
                     <div className={`w-6 h-6 ${deadlineBadge.color} rounded-full flex items-center justify-center ${
@@ -645,7 +645,7 @@ export default function TaskDetailPage() {
 
             {/* Quick Stats */}
             {(task.estimated_hours != null || task.actual_hours != null || task.start_date || task.due_date) && (
-              <div className="flex flex-wrap gap-6 text-sm text-gray-600">
+              <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
                 {task.estimated_hours != null && (
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
@@ -662,7 +662,7 @@ export default function TaskDetailPage() {
                 
                 <div className="flex items-center gap-2">
                   <Play className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-gray-700">Začiatok:</span>
+                  <span className="text-sm font-medium text-foreground">Začiatok:</span>
                   <InlineDateEdit
                     value={task.start_date ? format(new Date(task.start_date), 'dd.MM.yyyy', { locale: sk }) : null}
                     placeholder="Kliknite pre nastavenie"
@@ -676,7 +676,7 @@ export default function TaskDetailPage() {
                 
                 <div className="flex items-center gap-2">
                   <Flag className="h-4 w-4 text-red-600" />
-                  <span className="text-sm font-medium text-gray-700">Deadline:</span>
+                  <span className="text-sm font-medium text-foreground">Deadline:</span>
                   <InlineDateEdit
                     value={task.due_date ? format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk }) : null}
                     placeholder="Kliknite pre nastavenie"
@@ -698,10 +698,10 @@ export default function TaskDetailPage() {
             )}
 
             {/* Assignees */}
-            <div className="flex items-center gap-4 pt-4 border-t border-gray-100">
+            <div className="flex items-center gap-4 pt-4 border-t border-border">
               <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Priradení:</span>
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Priradení:</span>
               </div>
               <MultiAssigneeSelect
                 taskId={task.id}
@@ -718,20 +718,20 @@ export default function TaskDetailPage() {
         {/* Left Column - Main Content */}
         <div className="lg:col-span-3 space-y-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="bg-gray-100">
-              <TabsTrigger value="overview" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
+            <TabsList className="bg-muted">
+              <TabsTrigger value="overview" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
                 <FileText className="h-4 w-4 mr-2" />
                 Prehľad
               </TabsTrigger>
-              <TabsTrigger value="time" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
+              <TabsTrigger value="time" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
                 <Clock className="h-4 w-4 mr-2" />
                 Čas
               </TabsTrigger>
-              <TabsTrigger value="costs" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
+              <TabsTrigger value="costs" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
                 <Euro className="h-4 w-4 mr-2" />
                 Náklady
               </TabsTrigger>
-              <TabsTrigger value="report" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
+              <TabsTrigger value="report" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Report
               </TabsTrigger>
@@ -739,12 +739,12 @@ export default function TaskDetailPage() {
 
             <TabsContent value="overview" className="space-y-6 mt-6">
               {/* Description */}
-              <Card className="bg-white border border-gray-200 shadow-sm">
-                <CardHeader className="bg-gray-50">
+              <Card className="bg-card border border-border shadow-sm">
+                <CardHeader className="bg-muted/50">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-semibold text-gray-900">Popis úlohy</CardTitle>
+                    <CardTitle className="text-lg font-semibold text-foreground">Popis úlohy</CardTitle>
                     {isSaving && (
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Ukladám...
                       </div>
@@ -765,9 +765,9 @@ export default function TaskDetailPage() {
               </Card>
 
               {/* Comments */}
-              <Card className="bg-white border border-gray-200 shadow-sm">
-                <CardHeader className="bg-gray-50">
-                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Card className="bg-card border border-border shadow-sm">
+                <CardHeader className="bg-muted/50">
+                  <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <MessageSquare className="h-5 w-5" />
                     Komentáre
                   </CardTitle>
@@ -784,7 +784,7 @@ export default function TaskDetailPage() {
             </TabsContent>
 
             <TabsContent value="time" className="mt-6">
-              <Card className="bg-white border border-gray-200 shadow-sm">
+              <Card className="bg-card border border-border shadow-sm">
                 <CardContent className="p-6">
                   <TimePanel 
                     projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
@@ -804,7 +804,7 @@ export default function TaskDetailPage() {
             </TabsContent>
 
             <TabsContent value="costs" className="mt-6">
-              <Card className="bg-white border border-gray-200 shadow-sm">
+              <Card className="bg-card border border-border shadow-sm">
                 <CardContent className="p-6">
                   <CostsPanel 
                     projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
@@ -820,7 +820,7 @@ export default function TaskDetailPage() {
 
 
             <TabsContent value="report" className="mt-6">
-              <Card className="bg-white border border-gray-200 shadow-sm">
+              <Card className="bg-card border border-border shadow-sm">
                 <CardContent className="p-6">
                   <ProjectReport 
                     projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId}
@@ -835,16 +835,16 @@ export default function TaskDetailPage() {
         {/* Right Column - Sidebar */}
         <div className="space-y-6">
           {/* Google Drive Link */}
-          <Card className="bg-white border border-gray-200 shadow-sm">
-            <CardHeader className="bg-gray-50">
-              <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Card className="bg-card border border-border shadow-sm">
+            <CardHeader className="bg-muted/50">
+              <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <Link className="h-5 w-5" />
                 Google Drive
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
               <div className="space-y-2">
-                <label htmlFor="google-drive-link" className="text-sm font-medium text-gray-700">
+                <label htmlFor="google-drive-link" className="text-sm font-medium text-foreground">
                   Link na Google Drive súbory
                 </label>
                 <div className="flex gap-2">
@@ -861,7 +861,7 @@ export default function TaskDetailPage() {
                     size="sm"
                     onClick={handleCopyLink}
                     disabled={!googleDriveLink}
-                    className="px-3 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                    className="px-3 py-2 text-muted-foreground hover:text-foreground disabled:opacity-50"
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -870,9 +870,9 @@ export default function TaskDetailPage() {
               
               {googleDriveLink && (
                 <div className="space-y-2">
-                  <div className="text-xs text-gray-500">Náhľad linku:</div>
-                  <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                    <ExternalLink className="h-3 w-3 text-gray-400" />
+                  <div className="text-xs text-muted-foreground">Náhľad linku:</div>
+                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+                    <ExternalLink className="h-3 w-3 text-muted-foreground" />
                     <a
                       href={googleDriveLink}
                       target="_blank"
@@ -888,20 +888,20 @@ export default function TaskDetailPage() {
           </Card>
 
           {/* Project Info */}
-          <Card className="bg-white border border-gray-200 shadow-sm">
-            <CardHeader className="bg-gray-50">
-              <CardTitle className="text-lg font-semibold text-gray-900">Projekt</CardTitle>
+          <Card className="bg-card border border-border shadow-sm">
+            <CardHeader className="bg-muted/50">
+              <CardTitle className="text-lg font-semibold text-foreground">Projekt</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-3">
                 <div>
-                  <div className="text-sm font-medium text-gray-900">{task.project?.name}</div>
-                  <div className="text-xs text-gray-500 font-mono">{task.project?.code}</div>
+                  <div className="text-sm font-medium text-foreground">{task.project?.name}</div>
+                  <div className="text-xs text-muted-foreground font-mono">{task.project?.code}</div>
                 </div>
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="w-full text-gray-600 hover:text-gray-900"
+                  className="w-full text-muted-foreground hover:text-foreground"
                   onClick={() => router.push(`/projects/${params.projectId}`)}
                 >
                   Zobraziť projekt

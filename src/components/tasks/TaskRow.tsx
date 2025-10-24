@@ -65,31 +65,31 @@ const statusConfig = {
   in_progress: { 
     label: "In Progress", 
     icon: Play, 
-    color: "bg-blue-100 text-blue-700 border-blue-200", 
+    color: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800", 
     iconColor: "text-blue-500" 
   },
   review: { 
     label: "Review", 
     icon: Eye, 
-    color: "bg-amber-100 text-amber-700 border-amber-200", 
+    color: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800", 
     iconColor: "text-amber-500" 
   },
   sent_to_client: { 
     label: "Sent to Client", 
     icon: Send, 
-    color: "bg-purple-100 text-purple-700 border-purple-200", 
+    color: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800", 
     iconColor: "text-purple-500" 
   },
   done: { 
     label: "Done", 
     icon: CheckCircle, 
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800", 
     iconColor: "text-emerald-500" 
   },
   cancelled: { 
     label: "Cancelled", 
     icon: XCircle, 
-    color: "bg-red-100 text-red-700 border-red-200", 
+    color: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800", 
     iconColor: "text-red-500" 
   },
 };
@@ -98,25 +98,25 @@ const priorityConfig = {
   low: { 
     label: "Low", 
     icon: ArrowDown, 
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800", 
     iconColor: "text-emerald-500" 
   },
   medium: { 
     label: "Medium", 
     icon: ArrowUp, 
-    color: "bg-amber-100 text-amber-700 border-amber-200", 
+    color: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800", 
     iconColor: "text-amber-500" 
   },
   high: { 
     label: "High", 
     icon: ArrowUpRight, 
-    color: "bg-orange-100 text-orange-700 border-orange-200", 
+    color: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800", 
     iconColor: "text-orange-500" 
   },
   urgent: { 
     label: "Urgent", 
     icon: Flame, 
-    color: "bg-red-100 text-red-700 border-red-200", 
+    color: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800", 
     iconColor: "text-red-500" 
   },
 };
@@ -196,14 +196,14 @@ export function TaskRow({
       onDragEnd={onDragEnd}
       onClick={handleRowClick}
       className={cn(
-        "group cursor-pointer bg-white hover:bg-gray-50 border-b border-gray-100",
+        "group cursor-pointer bg-card hover:bg-muted/50 border-b border-border",
         isDragging && "opacity-50",
         isUpdating && "opacity-60 pointer-events-none"
       )}
     >
       {/* Drag handle */}
       <TableCell className="py-3 px-4">
-        <GripVertical className="drag-handle h-4 w-4 text-gray-400 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
+        <GripVertical className="drag-handle h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
       </TableCell>
 
       {/* Title */}
@@ -215,14 +215,14 @@ export function TaskRow({
             </div>
             <Link 
               href={`/projects/${task.project_id}?tab=time`}
-              className="font-semibold text-sm text-gray-800 hover:text-gray-900 hover:underline inline-flex items-center gap-1 group/link"
+              className="font-semibold text-sm text-foreground hover:text-foreground/80 hover:underline inline-flex items-center gap-1 group/link"
             >
               {task.title}
               <ExternalLink className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
             </Link>
           </div>
           {task.description && (
-            <div className="text-xs text-gray-500 line-clamp-1 ml-2">
+            <div className="text-xs text-muted-foreground line-clamp-1 ml-2">
               {getTextPreview(task.description, 80)}
             </div>
           )}
@@ -267,11 +267,11 @@ export function TaskRow({
                 <DropdownMenuItem
                   key={key}
                   onClick={() => handleStatusChange(key as "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled")}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-accent transition-colors"
                 >
                   <IconComponent className={cn("h-4 w-4", config.iconColor, key === 'in_progress' && "animate-pulse")} />
                   <span className="font-medium">{config.label}</span>
-                  {task.status === key && <Check className="h-4 w-4 ml-auto text-gray-500" />}
+                  {task.status === key && <Check className="h-4 w-4 ml-auto text-muted-foreground" />}
                 </DropdownMenuItem>
               );
             })}
@@ -286,22 +286,22 @@ export function TaskRow({
             <>
               {task.assignees.slice(0, 4).map((assignee, index) => (
                   <Avatar key={assignee.id} className="h-6 w-6">
-                    <AvatarFallback className="text-xs bg-gray-100 text-gray-600">
+                    <AvatarFallback className="text-xs bg-muted text-muted-foreground">
                       {getInitials(assignee.user?.name || "")}
                     </AvatarFallback>
                   </Avatar>
               ))}
               {task.assignees.length > 4 && (
-                <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center">
-                  <span className="text-xs text-gray-500">
+                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground">
                     +{task.assignees.length - 4}
                   </span>
                 </div>
               )}
             </>
           ) : (
-            <div className="h-6 w-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center">
-              <span className="text-xs text-gray-400">?</span>
+            <div className="h-6 w-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+              <span className="text-xs text-muted-foreground">?</span>
             </div>
           )}
         </div>
@@ -311,19 +311,19 @@ export function TaskRow({
       <TableCell className="py-4 pl-6 pr-2 w-fit">
         <div className="space-y-1">
           {task.estimated_hours && task.estimated_hours > 0 && (
-            <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
-              <Clock className="h-3 w-3 text-gray-500" />
+            <div className="text-xs flex items-center gap-1 text-muted-foreground whitespace-nowrap">
+              <Clock className="h-3 w-3 text-muted-foreground" />
               <span>{formatHours(task.estimated_hours)}</span>
             </div>
           )}
           {task.actual_hours && task.actual_hours > 0 && (
-            <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
+            <div className="text-xs flex items-center gap-1 text-muted-foreground whitespace-nowrap">
               <Clock className="h-3 w-3 text-green-500" />
               <span>{formatHours(task.actual_hours)}</span>
             </div>
           )}
           {(!task.estimated_hours || task.estimated_hours === 0) && (!task.actual_hours || task.actual_hours === 0) && (
-            <span className="text-xs text-gray-400 italic">—</span>
+            <span className="text-xs text-muted-foreground italic">—</span>
           )}
         </div>
       </TableCell>
@@ -338,7 +338,7 @@ export function TaskRow({
                 <span className="text-green-600">
                   {formatCurrency(task.budget_amount)}
                 </span>
-                <span className="text-xs text-gray-500">(fixná)</span>
+                <span className="text-xs text-muted-foreground">(fixná)</span>
               </div>
             );
           }
@@ -350,13 +350,13 @@ export function TaskRow({
                 <span className="text-blue-600">
                   {formatCurrency(task.calculated_price)}
                 </span>
-                <span className="text-xs text-gray-500">(čas)</span>
+                <span className="text-xs text-muted-foreground">(čas)</span>
               </div>
             );
           }
           
           // No budget or time
-          return <span className="text-gray-400">—</span>;
+          return <span className="text-muted-foreground">—</span>;
         })()}
       </TableCell>
 
@@ -364,12 +364,12 @@ export function TaskRow({
       <TableCell className="py-4 pl-6 pr-2 w-fit">
         <div>
           {task.due_date ? (
-            <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
-              <Calendar className="h-3 w-3 text-gray-500" />
+            <div className="text-xs flex items-center gap-1 text-muted-foreground whitespace-nowrap">
+              <Calendar className="h-3 w-3 text-muted-foreground" />
               <span>{format(new Date(task.due_date), "dd.MM.yyyy")}</span>
             </div>
           ) : (
-            <span className="text-xs text-gray-400 italic">—</span>
+            <span className="text-xs text-muted-foreground italic">—</span>
           )}
         </div>
       </TableCell>
@@ -412,11 +412,11 @@ export function TaskRow({
                 <DropdownMenuItem
                   key={key}
                   onClick={() => handlePriorityChange(key as "low" | "medium" | "high" | "urgent")}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-accent transition-colors"
                 >
                   <IconComponent className={cn("h-4 w-4", config.iconColor, key === 'urgent' && "animate-pulse")} />
                   <span className="font-medium">{config.label}</span>
-                  {task.priority === key && <Check className="h-4 w-4 ml-auto text-gray-500" />}
+                  {task.priority === key && <Check className="h-4 w-4 ml-auto text-muted-foreground" />}
                 </DropdownMenuItem>
               );
             })}
@@ -433,7 +433,7 @@ export function TaskRow({
               size="sm"
               className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <MoreHorizontal className="h-4 w-4 text-gray-400" />
+              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

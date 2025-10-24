@@ -30,7 +30,7 @@ const statusOptions = [
     value: "in_progress", 
     label: "In Progress", 
     icon: Play,
-    color: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200",
+    color: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 dark:hover:bg-blue-800/30",
     iconColor: "text-blue-500"
   },
   { 
@@ -44,7 +44,7 @@ const statusOptions = [
     value: "sent_to_client", 
     label: "Sent to Client", 
     icon: Send,
-    color: "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200",
+    color: "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800 dark:hover:bg-purple-800/30",
     iconColor: "text-purple-500"
   },
   { 
@@ -58,7 +58,7 @@ const statusOptions = [
     value: "cancelled", 
     label: "Cancelled", 
     icon: XCircle,
-    color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200",
+    color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-800/30",
     iconColor: "text-red-500"
   },
 ];
@@ -100,11 +100,11 @@ export function StatusSelect({ status, onStatusChange, disabled = false }: Statu
             <DropdownMenuItem
               key={option.value}
               onClick={() => handleStatusChange(option.value as "done" | "cancelled" | "todo" | "in_progress" | "review" | "sent_to_client")}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-accent transition-colors"
             >
               <OptionIcon className={cn("h-4 w-4", option.iconColor, option.value === "in_progress" && "animate-pulse")} />
               <span className="font-medium">{option.label}</span>
-              {status === option.value && <Check className="h-4 w-4 ml-auto text-gray-500" />}
+              {status === option.value && <Check className="h-4 w-4 ml-auto text-muted-foreground" />}
             </DropdownMenuItem>
           );
         })}

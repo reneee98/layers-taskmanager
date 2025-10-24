@@ -145,12 +145,12 @@ export const TaskFilters = ({ filters, onFiltersChange, totalTasks, filteredTask
           <Button
             variant="outline"
             size="sm"
-            className="h-7 px-1.5 text-xs border-gray-300 hover:bg-gray-50 text-gray-700"
+            className="h-7 px-1.5 text-xs border-border hover:bg-accent text-foreground"
           >
             <Filter className="h-4 w-4 mr-1" />
             Status
             {filters.status.length > 0 && (
-              <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-xs bg-gray-100 text-gray-600">
+              <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-xs bg-muted text-muted-foreground">
                 {filters.status.length}
               </Badge>
             )}
@@ -181,11 +181,11 @@ export const TaskFilters = ({ filters, onFiltersChange, totalTasks, filteredTask
           <Button
             variant="outline"
             size="sm"
-            className="h-7 px-1.5 text-xs border-gray-300 hover:bg-gray-50 text-gray-700"
+            className="h-7 px-1.5 text-xs border-border hover:bg-accent text-foreground"
           >
             Priorita
             {filters.priority.length > 0 && (
-              <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-xs bg-gray-100 text-gray-600">
+              <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-xs bg-muted text-muted-foreground">
                 {filters.priority.length}
               </Badge>
             )}
@@ -216,7 +216,7 @@ export const TaskFilters = ({ filters, onFiltersChange, totalTasks, filteredTask
           <Button
             variant="outline"
             size="sm"
-            className="h-7 px-1.5 text-xs border-gray-300 hover:bg-gray-50 text-gray-700"
+            className="h-7 px-1.5 text-xs border-border hover:bg-accent text-foreground"
           >
             Deadline
             <ChevronDown className="h-4 w-4 ml-1" />
@@ -239,18 +239,18 @@ export const TaskFilters = ({ filters, onFiltersChange, totalTasks, filteredTask
       {/* Active Filters Display */}
       {hasActiveFilters && (
         <div className="flex items-center gap-1">
-          <span className="text-xs text-gray-500">Aktívne:</span>
+          <span className="text-xs text-muted-foreground">Aktívne:</span>
           
           {filters.status.map((status) => (
             <Badge
               key={status}
               variant="outline"
-              className="h-5 px-1.5 text-xs bg-gray-100 text-gray-700 border-gray-300"
+              className="h-5 px-1.5 text-xs bg-muted text-foreground border-border"
             >
               {getStatusLabel(status)}
               <button
                 onClick={() => handleStatusChange(status, false)}
-                className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                className="ml-1 hover:bg-accent rounded-full p-0.5"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -261,12 +261,12 @@ export const TaskFilters = ({ filters, onFiltersChange, totalTasks, filteredTask
             <Badge
               key={priority}
               variant="outline"
-              className="h-5 px-1.5 text-xs bg-gray-100 text-gray-700 border-gray-300"
+              className="h-5 px-1.5 text-xs bg-muted text-foreground border-border"
             >
               {getPriorityLabel(priority)}
               <button
                 onClick={() => handlePriorityChange(priority, false)}
-                className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                className="ml-1 hover:bg-accent rounded-full p-0.5"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -276,12 +276,12 @@ export const TaskFilters = ({ filters, onFiltersChange, totalTasks, filteredTask
           {filters.deadline !== "all" && (
             <Badge
               variant="outline"
-              className="h-5 px-1.5 text-xs bg-gray-100 text-gray-700 border-gray-300"
+              className="h-5 px-1.5 text-xs bg-muted text-foreground border-border"
             >
               {getDeadlineLabel(filters.deadline)}
               <button
                 onClick={() => handleDeadlineChange("all")}
-                className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                className="ml-1 hover:bg-accent rounded-full p-0.5"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -292,7 +292,7 @@ export const TaskFilters = ({ filters, onFiltersChange, totalTasks, filteredTask
             variant="ghost"
             size="sm"
             onClick={clearAllFilters}
-            className="h-5 px-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+            className="h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent"
           >
             Vymazať všetko
           </Button>
@@ -300,7 +300,7 @@ export const TaskFilters = ({ filters, onFiltersChange, totalTasks, filteredTask
       )}
 
       {/* Results Count */}
-      <div className="ml-auto text-xs text-gray-500">
+      <div className="ml-auto text-xs text-muted-foreground">
         {filteredTasks} z {totalTasks}
       </div>
     </div>

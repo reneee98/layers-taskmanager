@@ -44,31 +44,31 @@ const statusConfig: Record<string, { label: string; icon: any; color: string; ic
   active: { 
     label: "Aktívny", 
     icon: Play, 
-    color: "bg-blue-100 text-blue-700 border-blue-200", 
+    color: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800", 
     iconColor: "text-blue-500" 
   },
   on_hold: { 
     label: "Pozastavený", 
     icon: Pause, 
-    color: "bg-amber-100 text-amber-700 border-amber-200", 
+    color: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800", 
     iconColor: "text-amber-500" 
   },
   sent_to_client: { 
     label: "Sent to Client", 
     icon: Send, 
-    color: "bg-purple-100 text-purple-700 border-purple-200", 
+    color: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800", 
     iconColor: "text-purple-500" 
   },
   completed: { 
     label: "Dokončený", 
     icon: CheckCircle, 
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800", 
     iconColor: "text-emerald-500" 
   },
   cancelled: { 
     label: "Zrušený", 
     icon: XCircle, 
-    color: "bg-red-100 text-red-700 border-red-200", 
+    color: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800", 
     iconColor: "text-red-500" 
   },
 };
@@ -242,17 +242,17 @@ function ProjectsPageContent() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Projekty</h1>
-          <p className="text-gray-600 mt-1">Spravujte svoje projekty</p>
+          <h1 className="text-2xl font-bold text-foreground">Projekty</h1>
+          <p className="text-muted-foreground mt-1">Spravujte svoje projekty</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Tabs */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+          <div className="flex items-center bg-muted rounded-lg p-1">
             <Button
               variant={!showArchived ? "default" : "ghost"}
               size="sm"
               onClick={() => setShowArchived(false)}
-              className={!showArchived ? "bg-gray-900 text-white hover:bg-gray-800 shadow-sm" : "hover:bg-gray-200 text-gray-600"}
+              className={!showArchived ? "bg-gray-900 text-white hover:bg-gray-800 shadow-sm" : "hover:bg-accent text-muted-foreground"}
             >
               <FolderOpen className="h-4 w-4 mr-2" />
               Aktívne ({projects.length})
@@ -261,7 +261,7 @@ function ProjectsPageContent() {
               variant={showArchived ? "default" : "ghost"}
               size="sm"
               onClick={() => setShowArchived(true)}
-              className={showArchived ? "bg-gray-900 text-white hover:bg-gray-800 shadow-sm" : "hover:bg-gray-200 text-gray-600"}
+              className={showArchived ? "bg-gray-900 text-white hover:bg-gray-800 shadow-sm" : "hover:bg-accent text-muted-foreground"}
             >
               <Archive className="h-4 w-4 mr-2" />
               Archivované ({archivedProjects.length})
@@ -282,7 +282,7 @@ function ProjectsPageContent() {
       <div className="flex items-center gap-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="w-[200px] bg-white border-gray-200 justify-between">
+            <Button variant="outline" className="w-[200px] bg-card border-border justify-between">
               {statusFilter === "all" ? "Všetky statusy" : statusConfig[statusFilter]?.label || "Všetky statusy"}
               <ChevronDown className="h-4 w-4" />
             </Button>
@@ -312,7 +312,7 @@ function ProjectsPageContent() {
         </DropdownMenu>
 
         <Select value={clientFilter} onValueChange={setClientFilter}>
-          <SelectTrigger className="w-[200px] bg-white border-gray-200">
+          <SelectTrigger className="w-[200px] bg-card border-border">
             <SelectValue placeholder="Všetci klienti" />
           </SelectTrigger>
           <SelectContent>
@@ -327,30 +327,30 @@ function ProjectsPageContent() {
       </div>
 
       {/* Projects Table */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+      <div className="bg-card border border-border rounded-lg shadow-sm">
         <Table>
           <TableHeader>
-            <TableRow className="bg-gray-50">
-              <TableHead className="text-gray-600 font-semibold">Kód</TableHead>
-              <TableHead className="text-gray-600 font-semibold">Názov</TableHead>
-              <TableHead className="text-gray-600 font-semibold">Klient</TableHead>
-              <TableHead className="text-gray-600 font-semibold">Status</TableHead>
+            <TableRow className="bg-muted">
+              <TableHead className="text-muted-foreground font-semibold">Kód</TableHead>
+              <TableHead className="text-muted-foreground font-semibold">Názov</TableHead>
+              <TableHead className="text-muted-foreground font-semibold">Klient</TableHead>
+              <TableHead className="text-muted-foreground font-semibold">Status</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-gray-500">
+                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                   Načítavam...
                 </TableCell>
               </TableRow>
             ) : (showArchived ? archivedProjects : projects).length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-gray-500">
+                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                      {showArchived ? <Archive className="h-6 w-6 text-gray-400" /> : <Plus className="h-6 w-6 text-gray-400" />}
+                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+                      {showArchived ? <Archive className="h-6 w-6 text-muted-foreground" /> : <Plus className="h-6 w-6 text-muted-foreground" />}
                     </div>
                     <p className="text-lg font-medium">
                       {showArchived ? "Žiadne archivované projekty" : "Žiadne projekty"}
@@ -365,12 +365,12 @@ function ProjectsPageContent() {
               (showArchived ? archivedProjects : projects).map((project) => (
                 <TableRow
                   key={project.id}
-                  className="cursor-pointer group hover:bg-gray-50 transition-colors"
+                  className="cursor-pointer group hover:bg-muted/50 transition-colors"
                   onClick={() => router.push(`/projects/${project.id}`)}
                 >
-                  <TableCell className="font-mono text-gray-900">{project.code}</TableCell>
-                  <TableCell className="font-medium text-gray-900">{project.name}</TableCell>
-                  <TableCell className="text-gray-600">{project.client?.name || 'Neznámy klient'}</TableCell>
+                  <TableCell className="font-mono text-foreground">{project.code}</TableCell>
+                  <TableCell className="font-medium text-foreground">{project.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{project.client?.name || 'Neznámy klient'}</TableCell>
                   <TableCell className="p-3">
                     {(() => {
                       const config = statusConfig[project.status] || statusConfig.draft;
@@ -388,7 +388,7 @@ function ProjectsPageContent() {
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-100"
+                          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <MoreHorizontal className="h-4 w-4" />
@@ -424,7 +424,7 @@ function ProjectsPageContent() {
                             e.stopPropagation();
                             handleEditProject(project);
                           }}
-                          className="text-gray-700"
+                          className="text-foreground"
                         >
                           <Pencil className="h-4 w-4 mr-2" />
                           Upraviť

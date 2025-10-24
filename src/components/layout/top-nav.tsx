@@ -25,7 +25,7 @@ export const TopNav = ({ onMenuClick, onToggleSidebar, isSidebarCollapsed = fals
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden hover:bg-gray-100 rounded-full"
+              className="md:hidden hover:bg-accent rounded-full"
               onClick={onMenuClick}
               aria-label="Toggle menu"
             >
@@ -37,7 +37,7 @@ export const TopNav = ({ onMenuClick, onToggleSidebar, isSidebarCollapsed = fals
               <Button
                 variant="ghost"
                 size="icon"
-                className="hidden md:flex hover:bg-gray-100 rounded-full"
+                className="hidden md:flex hover:bg-accent rounded-full"
                 onClick={onToggleSidebar}
                 aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >

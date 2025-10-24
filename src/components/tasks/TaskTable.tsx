@@ -172,19 +172,19 @@ export function TaskTable({
       )}
 
       {/* Table */}
-      <div className="border border-gray-200 rounded-lg">
+      <div className="border border-border rounded-lg">
         <Table>
           <TableHeader>
-            <TableRow className="bg-gray-50/80 hover:bg-gray-50 border-b border-gray-200">
-              <TableHead className="w-[40px] text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">{/* Drag handle */}</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Úloha</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Status</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Assignee</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 w-fit uppercase tracking-wider">Čas</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 w-fit uppercase tracking-wider">Cena</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 w-fit uppercase tracking-wider">Deadline</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Priorita</TableHead>
-              <TableHead className="w-[40px] text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">{/* Actions */}</TableHead>
+            <TableRow className="bg-muted/80 hover:bg-muted border-b border-border">
+              <TableHead className="w-[40px] text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">{/* Drag handle */}</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Úloha</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Status</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Assignee</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 w-fit uppercase tracking-wider">Čas</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 w-fit uppercase tracking-wider">Cena</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 w-fit uppercase tracking-wider">Deadline</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Priorita</TableHead>
+              <TableHead className="w-[40px] text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">{/* Actions */}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

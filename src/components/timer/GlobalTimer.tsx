@@ -94,12 +94,12 @@ export function GlobalTimer() {
       
       {/* Task Info - Clickable */}
       <div 
-        className="flex items-center gap-2 cursor-pointer hover:bg-white/50 rounded-lg px-3 py-1.5 transition-all duration-200 group"
+        className="flex items-center gap-2 cursor-pointer hover:bg-accent/50 rounded-lg px-3 py-1.5 transition-all duration-200 group"
         onClick={handleClick}
       >
         <Badge 
           variant="outline" 
-          className="text-xs bg-white border-red-200 text-red-700 font-medium"
+          className="text-xs bg-background border-red-200 text-red-700 font-medium"
         >
           {activeTimer.project_name}
         </Badge>
@@ -115,7 +115,7 @@ export function GlobalTimer() {
           size="sm"
           variant="ghost"
           onClick={handleStop}
-          className="h-8 w-8 p-0 hover:bg-red-100 text-red-600 hover:text-red-700 transition-all duration-200 rounded-full"
+          className="h-8 w-8 p-0 hover:bg-red-100 text-red-600 hover:text-red-700 dark:hover:bg-red-900/20 dark:text-red-400 dark:hover:text-red-300 transition-all duration-200 rounded-full"
           title="Zastaviť časovač"
         >
           <Square className="h-4 w-4" />

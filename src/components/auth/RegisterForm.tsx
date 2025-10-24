@@ -67,10 +67,10 @@ export function RegisterForm() {
     return (
       <div className="text-center space-y-4">
         <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-        <h3 className="text-lg font-medium text-gray-900">
+        <h3 className="text-lg font-medium text-foreground">
           Registrácia úspešná!
         </h3>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           Skontrolujte svoj e-mail na potvrdenie registrácie.
         </p>
         <Button

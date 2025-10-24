@@ -23,28 +23,28 @@ const priorityOptions = [
     value: "low", 
     label: "Low", 
     icon: ArrowDown,
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200",
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800 dark:hover:bg-emerald-800/30",
     iconColor: "text-emerald-500"
   },
   { 
     value: "medium", 
     label: "Medium", 
     icon: ArrowUp,
-    color: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200",
+    color: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800 dark:hover:bg-amber-800/30",
     iconColor: "text-amber-500"
   },
   { 
     value: "high", 
     label: "High", 
     icon: ArrowUpRight,
-    color: "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200",
+    color: "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800 dark:hover:bg-orange-800/30",
     iconColor: "text-orange-500"
   },
   { 
     value: "urgent", 
     label: "Urgent", 
     icon: Flame,
-    color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200",
+    color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-800/30",
     iconColor: "text-red-500"
   },
 ];
@@ -86,11 +86,11 @@ export function PrioritySelect({ priority, onPriorityChange, disabled = false }:
             <DropdownMenuItem
               key={option.value}
               onClick={() => handlePriorityChange(option.value as "low" | "medium" | "high" | "urgent")}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-accent transition-colors"
             >
               <OptionIcon className={cn("h-4 w-4", option.iconColor, option.value === "urgent" && "animate-pulse")} />
               <span className="font-medium">{option.label}</span>
-              {priority === option.value && <Check className="h-4 w-4 ml-auto text-gray-500" />}
+              {priority === option.value && <Check className="h-4 w-4 ml-auto text-muted-foreground" />}
             </DropdownMenuItem>
           );
         })}

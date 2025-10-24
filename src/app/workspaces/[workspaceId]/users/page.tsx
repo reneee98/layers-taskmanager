@@ -433,7 +433,7 @@ export default function WorkspaceUsersPage() {
   const getRoleIcon = (role: string, isOwner: boolean) => {
     if (isOwner) return <Crown className="h-4 w-4 text-yellow-500" />;
     if (role === "owner") return <Shield className="h-4 w-4 text-yellow-500" />;
-    return <User className="h-4 w-4 text-gray-500" />;
+    return <User className="h-4 w-4 text-muted-foreground" />;
   };
 
   const getRoleBadgeVariant = (role: string, isOwner: boolean) => {

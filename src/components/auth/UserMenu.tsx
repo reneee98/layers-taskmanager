@@ -61,11 +61,11 @@ export function UserMenu() {
   const getRoleColor = (role: string) => {
     switch (role) {
       case "owner":
-        return "text-yellow-600 bg-yellow-100";
+        return "text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20";
       case "designer":
-        return "text-blue-600 bg-blue-100";
+        return "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20";
       default:
-        return "text-gray-600 bg-gray-100";
+        return "text-muted-foreground bg-muted";
     }
   };
 

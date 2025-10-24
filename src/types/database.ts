@@ -59,6 +59,11 @@ export interface Task {
   completed_at: string | null;
   order_index?: number;
   google_drive_link?: string | null;
+  // Billing fields
+  billable: boolean;
+  bill_status: "unbilled" | "billed" | "excluded";
+  hourly_rate_cents: number;
+  actual_minutes: number;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -85,5 +90,27 @@ export interface ProjectMember {
   hourly_rate: number | null;
   joined_at: string;
   user?: User;
+}
+
+export interface BillingItem {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  billable: boolean;
+  bill_status: "unbilled" | "billed" | "excluded";
+  hourly_rate_cents: number;
+  actual_minutes: number;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  project_name: string;
+  project_id: string | null;
+  client_name: string | null;
+  client_id: string | null;
+  billing_amount_cents: number;
+  billing_amount_euros: number;
+  time_formatted: string;
+  hourly_rate_euros: number;
 }
 

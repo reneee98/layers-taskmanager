@@ -196,7 +196,7 @@ export function TaskRow({
       onDragEnd={onDragEnd}
       onClick={handleRowClick}
       className={cn(
-        "group cursor-pointer hover:bg-gray-50 border-b border-gray-100",
+        "group cursor-pointer bg-white hover:bg-gray-50 border-b border-gray-100",
         isDragging && "opacity-50",
         isUpdating && "opacity-60 pointer-events-none"
       )}

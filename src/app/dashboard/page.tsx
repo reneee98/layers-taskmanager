@@ -346,39 +346,39 @@ export default function DashboardPage() {
 
   const statusConfig = {
     todo: { 
-      label: "To Do", 
+      label: "Todo", 
       icon: Circle, 
-      color: "bg-transparent text-gray-700 border-gray-300", 
+      color: "bg-slate-100 text-slate-700 border-slate-200", 
       iconColor: "text-slate-500" 
     },
     in_progress: { 
       label: "In Progress", 
       icon: Play, 
-      color: "bg-transparent text-gray-700 border-gray-300", 
+      color: "bg-blue-100 text-blue-700 border-blue-200", 
       iconColor: "text-blue-500" 
     },
     review: { 
       label: "Review", 
       icon: Eye, 
-      color: "bg-transparent text-gray-700 border-gray-300", 
+      color: "bg-amber-100 text-amber-700 border-amber-200", 
       iconColor: "text-amber-500" 
     },
     sent_to_client: { 
       label: "Sent to Client", 
       icon: Send, 
-      color: "bg-transparent text-gray-700 border-gray-300", 
+      color: "bg-purple-100 text-purple-700 border-purple-200", 
       iconColor: "text-purple-500" 
     },
     done: { 
       label: "Done", 
       icon: CheckCircle, 
-      color: "bg-transparent text-gray-700 border-gray-300", 
+      color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
       iconColor: "text-emerald-500" 
     },
     cancelled: { 
       label: "Cancelled", 
       icon: XCircle, 
-      color: "bg-transparent text-gray-700 border-gray-300", 
+      color: "bg-red-100 text-red-700 border-red-200", 
       iconColor: "text-red-500" 
     },
   };
@@ -387,25 +387,25 @@ export default function DashboardPage() {
     low: { 
       label: "Low", 
       icon: ArrowDown, 
-      color: "bg-transparent text-gray-700 border-gray-300", 
+      color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
       iconColor: "text-emerald-500" 
     },
     medium: { 
       label: "Medium", 
       icon: ArrowUp, 
-      color: "bg-transparent text-gray-700 border-gray-300", 
+      color: "bg-amber-100 text-amber-700 border-amber-200", 
       iconColor: "text-amber-500" 
     },
     high: { 
       label: "High", 
       icon: ArrowUpRight, 
-      color: "bg-transparent text-gray-700 border-gray-300", 
+      color: "bg-orange-100 text-orange-700 border-orange-200", 
       iconColor: "text-orange-500" 
     },
     urgent: { 
       label: "Urgent", 
       icon: Flame, 
-      color: "bg-transparent text-gray-700 border-gray-300", 
+      color: "bg-red-100 text-red-700 border-red-200", 
       iconColor: "text-red-500" 
     },
   };
@@ -506,57 +506,6 @@ export default function DashboardPage() {
       <div className="w-full">
         {/* Tasks and Activity Section */}
         <div className="w-full">
-          {/* Overdue Tasks */}
-          {overdueTasks.length > 0 && (
-            <Card className="bg-white border border-red-200 shadow-sm border-l-4 border-l-red-500">
-              <CardHeader className="bg-red-50">
-                <CardTitle className="flex items-center gap-2 text-lg font-medium text-red-900">
-                  <AlertTriangle className="h-4 w-4" />
-                  Prešli deadline
-                  <Badge variant="destructive" className="ml-2 text-xs">
-                    {overdueTasks.length}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {overdueTasks.map((task) => {
-                    const deadlineStatus = getDeadlineStatus(task.due_date);
-                    return (
-                      <div key={task.id} className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="font-semibold text-red-900 dark:text-red-100">{task.title}</h3>
-                            <Badge variant="outline" className={getStatusBadgeVariant(task.status)}>
-                              {getStatusText(task.status)}
-                            </Badge>
-                            <Badge variant="outline" className={getPriorityBadgeVariant(task.priority)}>
-                              {getPriorityText(task.priority)}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-red-700 dark:text-red-300 mb-2">
-                            {task.project?.name || 'Neznámy projekt'} ({task.project?.code || 'N/A'}) • {task.project?.client?.name || 'Neznámy klient'}
-                          </p>
-                          {deadlineStatus && deadlineStatus.showBadge && (
-                            <Badge variant="destructive" className="text-xs">
-                              {deadlineStatus.type === 'today' ? '🔥' : '⏰'} {deadlineStatus.badgeText}
-                            </Badge>
-                          )}
-                        </div>
-                        <Button asChild variant="outline" size="sm" className="border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/30">
-                          <Link href={`/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}>
-                            <ArrowRight className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-
           {/* Combined Tasks and Activity Block */}
           <Card className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
         <CardContent className="p-0">
@@ -607,8 +556,8 @@ export default function DashboardPage() {
                         <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Status</TableHead>
                         <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Assignee</TableHead>
                         <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Priorita</TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 w-fit uppercase tracking-wider">Čas</TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 w-fit uppercase tracking-wider">Deadline</TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Čas</TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Deadline</TableHead>
                         <TableHead className="w-[40px]"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -626,19 +575,21 @@ export default function DashboardPage() {
                       className="hover:bg-gray-50/50 cursor-pointer group border-b border-gray-100/50 transition-all duration-200"
                       onClick={() => window.location.href = `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}
                     >
-                          <TableCell className="py-4 px-6">
+                          <TableCell className="py-4 pl-6 pr-2">
                             <div className="min-w-0 space-y-1">
                               <div className="flex items-center gap-2">
-                                {deadlineStatus && (
-                                  <div className={getDeadlineDotClass(deadlineStatus)}></div>
-                                )}
+                                <div className="w-2 h-2 flex-shrink-0">
+                                  {deadlineStatus && (
+                                    <div className={getDeadlineDotClass(deadlineStatus)}></div>
+                                  )}
+                                </div>
                                 <h3 className="font-semibold truncate text-sm group-hover:text-gray-900 text-gray-900">
                                   {task.title}
                                 </h3>
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell className="py-4 px-6">
+                          <TableCell className="py-4 pl-6 pr-2">
                             <div className="space-y-1">
                               <div className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
                                 {task.project?.name || 'Neznámy projekt'}
@@ -648,16 +599,18 @@ export default function DashboardPage() {
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell className="py-4 px-6">
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs flex items-center gap-1 px-2 py-1 w-fit ${statusInfo.color}`}
-                            >
-                              <StatusIcon className={`h-3 w-3 ${statusInfo.iconColor}`} />
-                              {statusInfo.label}
-                            </Badge>
+                          <TableCell className="py-4 pl-6 pr-2">
+                            <div>
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs flex items-center gap-1.5 px-2 py-1 rounded-full border w-fit whitespace-nowrap ${statusInfo.color}`}
+                              >
+                                <StatusIcon className={`h-3 w-3 flex-shrink-0 ${statusInfo.iconColor}`} />
+                                <span className="flex-shrink-0">{statusInfo.label}</span>
+                              </Badge>
+                            </div>
                           </TableCell>
-                          <TableCell className="py-4 px-6">
+                          <TableCell className="py-4 pl-6 pr-2">
                             <div className="flex items-center gap-1">
                               {task.assignees && task.assignees.length > 0 ? (
                                 <>
@@ -703,16 +656,18 @@ export default function DashboardPage() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="py-4 px-6">
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs flex items-center gap-1 px-2 py-1 w-fit ${priorityInfo.color}`}
-                            >
-                              <PriorityIcon className={`h-3 w-3 ${priorityInfo.iconColor}`} />
-                              {priorityInfo.label}
-                            </Badge>
+                          <TableCell className="py-4 pl-6 pr-2">
+                            <div>
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs flex items-center gap-1.5 px-2 py-1 rounded-full border w-fit whitespace-nowrap ${priorityInfo.color}`}
+                              >
+                                <PriorityIcon className={`h-3 w-3 flex-shrink-0 ${priorityInfo.iconColor}`} />
+                                <span className="flex-shrink-0">{priorityInfo.label}</span>
+                              </Badge>
+                            </div>
                           </TableCell>
-                          <TableCell className="py-3 px-4 w-fit">
+                          <TableCell className="py-4 pl-6 pr-2 w-fit">
                             <div className="space-y-1">
                               {task.estimated_hours && task.estimated_hours > 0 && (
                                 <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
@@ -731,15 +686,17 @@ export default function DashboardPage() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="py-3 px-4 w-fit">
-                            {task.due_date ? (
-                              <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
-                                <Calendar className="h-3 w-3 text-gray-500" />
-                                <span>{format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk })}</span>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-400 italic">—</span>
-                            )}
+                          <TableCell className="py-4 pl-6 pr-2 w-fit">
+                            <div>
+                              {task.due_date ? (
+                                <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
+                                  <Calendar className="h-3 w-3 text-gray-500" />
+                                  <span>{format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk })}</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-gray-400 italic">—</span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="py-4 px-6">
                             <div className="flex justify-center">

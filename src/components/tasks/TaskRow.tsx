@@ -207,17 +207,22 @@ export function TaskRow({
       </TableCell>
 
       {/* Title */}
-      <TableCell className="py-3 px-4">
-        <div className="space-y-1">
-          <Link 
-            href={`/projects/${task.project_id}?tab=time`}
-            className="font-semibold text-sm text-gray-800 hover:text-gray-900 hover:underline inline-flex items-center gap-1 group/link"
-          >
-            {task.title}
-            <ExternalLink className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
-          </Link>
+      <TableCell className="py-4 pl-6 pr-2">
+        <div className="min-w-0 space-y-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 flex-shrink-0">
+              {/* Placeholder for deadline indicator if needed */}
+            </div>
+            <Link 
+              href={`/projects/${task.project_id}?tab=time`}
+              className="font-semibold text-sm text-gray-800 hover:text-gray-900 hover:underline inline-flex items-center gap-1 group/link"
+            >
+              {task.title}
+              <ExternalLink className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+            </Link>
+          </div>
           {task.description && (
-            <div className="text-xs text-gray-500 line-clamp-1">
+            <div className="text-xs text-gray-500 line-clamp-1 ml-2">
               {getTextPreview(task.description, 80)}
             </div>
           )}
@@ -225,7 +230,7 @@ export function TaskRow({
       </TableCell>
 
       {/* Status - Inline Dropdown */}
-      <TableCell className="w-auto min-w-[100px] py-3 px-4">
+      <TableCell className="py-4 pl-6 pr-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -243,12 +248,12 @@ export function TaskRow({
                   <Badge
                     variant="outline"
                     className={cn(
-                      "text-xs flex items-center gap-1 px-2 py-1 w-fit cursor-pointer",
+                      "text-xs flex items-center gap-1.5 px-2 py-1 rounded-full border w-fit whitespace-nowrap cursor-pointer",
                       config.color
                     )}
                   >
-                    <IconComponent className={cn("h-3 w-3", config.iconColor)} />
-                    <span className="font-medium">{config.label}</span>
+                    <IconComponent className={cn("h-3 w-3 flex-shrink-0", config.iconColor)} />
+                    <span className="flex-shrink-0 font-medium">{config.label}</span>
                     <ChevronDown className="h-3 w-3" />
                   </Badge>
                 );
@@ -275,7 +280,7 @@ export function TaskRow({
       </TableCell>
 
       {/* Assignees - show avatars with overflow */}
-      <TableCell className="py-3 px-4">
+      <TableCell className="py-4 pl-6 pr-2">
         <div className="flex items-center gap-1">
           {task.assignees && task.assignees.length > 0 ? (
             <>
@@ -302,28 +307,29 @@ export function TaskRow({
         </div>
       </TableCell>
 
-      {/* Estimated hours */}
-      <TableCell className="text-right py-3 px-4">
-        {task.estimated_hours ? (
-          <div className="flex items-center justify-end gap-1 text-xs">
-            <Clock className="h-3 w-3 text-gray-500" />
-            {formatHours(task.estimated_hours)}
-          </div>
-        ) : (
-          <span className="text-gray-400">—</span>
-        )}
-      </TableCell>
-
-      {/* Spent hours (actual_hours) */}
-      <TableCell className="text-right py-3 px-4">
-        <div className="flex items-center justify-end gap-1 text-xs">
-          <Clock className="h-3 w-3 text-gray-500" />
-          {formatHours(task.actual_hours || 0)}
+      {/* Time - Combined estimated and actual hours */}
+      <TableCell className="py-4 pl-6 pr-2 w-fit">
+        <div className="space-y-1">
+          {task.estimated_hours && task.estimated_hours > 0 && (
+            <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
+              <Clock className="h-3 w-3 text-gray-500" />
+              <span>{formatHours(task.estimated_hours)}</span>
+            </div>
+          )}
+          {task.actual_hours && task.actual_hours > 0 && (
+            <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
+              <Clock className="h-3 w-3 text-green-500" />
+              <span>{formatHours(task.actual_hours)}</span>
+            </div>
+          )}
+          {(!task.estimated_hours || task.estimated_hours === 0) && (!task.actual_hours || task.actual_hours === 0) && (
+            <span className="text-xs text-gray-400 italic">—</span>
+          )}
         </div>
       </TableCell>
 
       {/* Price - Fixed or Calculated */}
-      <TableCell className="text-right py-3 px-4">
+      <TableCell className="py-4 pl-6 pr-2 w-fit">
         {(() => {
           // If there's a fixed budget amount, show it
           if (task.budget_amount && task.budget_amount > 0) {
@@ -355,19 +361,21 @@ export function TaskRow({
       </TableCell>
 
       {/* Due date */}
-      <TableCell className="py-3 px-4">
-        {task.due_date ? (
-          <div className="flex items-center gap-1 text-xs">
-            <Calendar className="h-3 w-3 text-gray-500" />
-            {format(new Date(task.due_date), "dd.MM.yyyy")}
-          </div>
-        ) : (
-          <span className="text-gray-400">—</span>
-        )}
+      <TableCell className="py-4 pl-6 pr-2 w-fit">
+        <div>
+          {task.due_date ? (
+            <div className="text-xs flex items-center gap-1 text-gray-600 whitespace-nowrap">
+              <Calendar className="h-3 w-3 text-gray-500" />
+              <span>{format(new Date(task.due_date), "dd.MM.yyyy")}</span>
+            </div>
+          ) : (
+            <span className="text-xs text-gray-400 italic">—</span>
+          )}
+        </div>
       </TableCell>
 
       {/* Priority - Inline Dropdown */}
-      <TableCell className="w-auto min-w-[80px] py-3 px-4">
+      <TableCell className="py-4 pl-6 pr-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -385,12 +393,12 @@ export function TaskRow({
                   <Badge
                     variant="outline"
                     className={cn(
-                      "text-xs flex items-center gap-1 px-2 py-1 w-fit cursor-pointer",
+                      "text-xs flex items-center gap-1.5 px-2 py-1 rounded-full border w-fit whitespace-nowrap cursor-pointer",
                       config.color
                     )}
                   >
-                    <IconComponent className={cn("h-3 w-3", config.iconColor)} />
-                    <span className="font-medium">{config.label}</span>
+                    <IconComponent className={cn("h-3 w-3 flex-shrink-0", config.iconColor)} />
+                    <span className="flex-shrink-0 font-medium">{config.label}</span>
                     <ChevronDown className="h-3 w-3" />
                   </Badge>
                 );
@@ -417,7 +425,7 @@ export function TaskRow({
       </TableCell>
 
       {/* Actions menu */}
-      <TableCell className="py-3 px-4">
+      <TableCell className="py-4 px-6">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

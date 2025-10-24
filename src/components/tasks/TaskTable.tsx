@@ -175,24 +175,23 @@ export function TaskTable({
       <div className="border border-gray-200 rounded-lg">
         <Table>
           <TableHeader>
-            <TableRow className="bg-gray-50 hover:bg-gray-50">
-              <TableHead className="w-[40px] text-xs font-semibold text-gray-600 py-3 px-4">{/* Drag handle */}</TableHead>
-              <TableHead className="min-w-[250px] text-xs font-semibold text-gray-600 py-3 px-4">Názov</TableHead>
-              <TableHead className="w-[150px] text-xs font-semibold text-gray-600 py-3 px-4">Status</TableHead>
-              <TableHead className="w-[180px] text-xs font-semibold text-gray-600 py-3 px-4">Assignee</TableHead>
-              <TableHead className="w-[100px] text-right text-xs font-semibold text-gray-600 py-3 px-4">Estimate</TableHead>
-              <TableHead className="w-[100px] text-right text-xs font-semibold text-gray-600 py-3 px-4">Spent</TableHead>
-              <TableHead className="w-[120px] text-right text-xs font-semibold text-gray-600 py-3 px-4">Cena</TableHead>
-              <TableHead className="w-[120px] text-xs font-semibold text-gray-600 py-3 px-4">Due Date</TableHead>
-              <TableHead className="w-[120px] text-xs font-semibold text-gray-600 py-3 px-4">Priorita</TableHead>
-              <TableHead className="w-[60px] text-xs font-semibold text-gray-600 py-3 px-4">{/* Actions */}</TableHead>
+            <TableRow className="bg-gray-50/80 hover:bg-gray-50 border-b border-gray-200">
+              <TableHead className="w-[40px] text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">{/* Drag handle */}</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Úloha</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Status</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Assignee</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 w-fit uppercase tracking-wider">Čas</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 w-fit uppercase tracking-wider">Cena</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 w-fit uppercase tracking-wider">Deadline</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">Priorita</TableHead>
+              <TableHead className="w-[40px] text-xs font-semibold text-gray-700 py-4 px-6 uppercase tracking-wider">{/* Actions */}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredTasks.length === 0 ? (
               <TableRow>
                 <td
-                  colSpan={10}
+                  colSpan={9}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {searchQuery || statusFilter !== "all" || priorityFilter !== "all"

@@ -44,6 +44,7 @@ import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { InlineDateEdit } from "@/components/ui/inline-date-edit";
 import { GoogleDriveLinks } from "@/components/tasks/GoogleDriveLinks";
+import { TaskChecklist } from "@/components/tasks/TaskChecklist";
 import { toast } from "@/hooks/use-toast";
 import { formatHours } from "@/lib/format";
 import { format } from "date-fns";
@@ -703,6 +704,9 @@ export default function TaskDetailPage() {
                   />
                 </CardContent>
               </Card>
+
+              {/* Task Checklist */}
+              <TaskChecklist taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
 
               {/* Comments */}
               <Card className="bg-card border border-border shadow-sm">

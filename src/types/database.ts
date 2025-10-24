@@ -1,12 +1,71 @@
-export interface User {
+export interface Profile {
   id: string;
   email: string;
-  name: string;
+  display_name: string | null;
   avatar_url: string | null;
-  role: "owner" | "designer";
-  is_active: boolean;
+  role: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  owner_id: string;
+}
+
+export interface WorkspaceMember {
+  id: string;
+  workspace_id: string;
+  user_id: string;
+  role: 'owner' | 'admin' | 'user';
+  joined_at: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  status: 'active' | 'on_hold' | 'completed' | 'cancelled';
+  start_date: string | null;
+  end_date: string | null;
+  budget: number | null;
+  created_at: string;
+  updated_at: string;
+  workspace_id: string;
+  client_id: string | null;
+  created_by: string | null;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  created_at: string;
+  updated_at: string;
+  workspace_id: string;
+  created_by: string | null;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  status: 'todo' | 'in_progress' | 'review' | 'done';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+  project_id: string;
+  assignee_id: string | null;
+  created_by: string | null;
+  google_drive_link?: string | null; // Old single link field
+  google_drive_links?: GoogleDriveLink[]; // New multi-link field
 }
 
 export interface GoogleDriveLink {
@@ -19,88 +78,36 @@ export interface GoogleDriveLink {
   created_by: string | null;
 }
 
-export interface Client {
+export interface TaskChecklistItem {
   id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  tax_id: string | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Project {
-  id: string;
-  client_id: string;
-  name: string;
-  code?: string;
-  description: string | null;
-  status: "draft" | "active" | "on_hold" | "sent_to_client" | "completed" | "cancelled";
-  currency?: string;
-  start_date: string | null;
-  end_date: string | null;
-  hourly_rate: number | null;
-  fixed_fee: number | null;
-  external_costs_budget: number | null;
-  notes: string | null;
+  task_id: string;
+  text: string;
+  completed: boolean;
+  position: number;
   created_at: string;
   updated_at: string;
   created_by: string | null;
-  client?: Client;
 }
 
-export interface Task {
-  id: string;
-  project_id: string;
-  parent_task_id: string | null;
-  title: string;
-  description: string | null;
-  status: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled";
-  priority: "low" | "medium" | "high" | "urgent";
-  assignee_id: string | null;
-  estimated_hours: number | null;
-  actual_hours: number | null;
-  budget_amount: number | null;
-  start_date: string | null;
-  end_date: string | null;
-  due_date: string | null;
-  completed_at: string | null;
-  order_index?: number;
-  google_drive_link?: string | null;
-  google_drive_links?: GoogleDriveLink[];
-  // Billing fields
-  billable: boolean;
-  bill_status: "unbilled" | "billed" | "excluded";
-  hourly_rate_cents: number;
-  actual_minutes: number;
-  created_at: string;
-  updated_at: string;
-  created_by: string | null;
-  assignee?: User;
-  assignees?: TaskAssignee[];
-  project?: Project;
-  calculated_price?: number; // Calculated from time entries
-}
-
-export interface TaskAssignee {
+export interface TimeEntry {
   id: string;
   task_id: string;
   user_id: string;
-  assigned_at: string;
-  assigned_by: string | null;
-  user?: User;
+  description: string | null;
+  start_time: string;
+  end_time: string | null;
+  duration_minutes: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface ProjectMember {
+export interface Activity {
   id: string;
-  project_id: string;
+  type: string;
+  description: string;
+  metadata: any;
+  created_at: string;
   user_id: string;
-  role: "owner" | "manager" | "member";
-  hourly_rate: number | null;
-  joined_at: string;
-  user?: User;
+  task_id: string | null;
+  project_id: string | null;
 }
-
-

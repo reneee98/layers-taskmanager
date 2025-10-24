@@ -226,6 +226,7 @@ export default function DashboardPage() {
           console.error("Failed to fetch tasks:", tasksResult.error);
         }
 
+
         if (activitiesResult.success) {
           setActivities(activitiesResult.data);
         } else {
@@ -874,30 +875,30 @@ export default function DashboardPage() {
           projectId={personalProjectId}
           open={isQuickTaskOpen}
           onOpenChange={setIsQuickTaskOpen}
-          onSuccess={() => {
-            // Refresh tasks and activities
-            const fetchData = async () => {
-              try {
-                const [tasksResponse, activitiesResponse] = await Promise.all([
-                  fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace?.id}`),
-                  fetch(`/api/dashboard/activity?workspace_id=${workspace?.id}`)
-                ]);
+            onSuccess={() => {
+              // Refresh tasks and activities
+              const fetchData = async () => {
+                try {
+                  const [tasksResponse, activitiesResponse] = await Promise.all([
+                    fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace?.id}`),
+                    fetch(`/api/dashboard/activity?workspace_id=${workspace?.id}`)
+                  ]);
 
-                const tasksResult = await tasksResponse.json();
-                const activitiesResult = await activitiesResponse.json();
-                
-                if (tasksResult.success) {
-                  setTasks(tasksResult.data);
+                  const tasksResult = await tasksResponse.json();
+                  const activitiesResult = await activitiesResponse.json();
+                  
+                  if (tasksResult.success) {
+                    setTasks(tasksResult.data);
+                  }
+                  if (activitiesResult.success) {
+                    setActivities(activitiesResult.data);
+                  }
+                } catch (error) {
+                  console.error("Error refreshing data:", error);
                 }
-                if (activitiesResult.success) {
-                  setActivities(activitiesResult.data);
-                }
-              } catch (error) {
-                console.error("Error refreshing data:", error);
-              }
-            };
-            fetchData();
-          }}
+              };
+              fetchData();
+            }}
         />
       )}
     </div>

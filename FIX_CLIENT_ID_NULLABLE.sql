@@ -11,3 +11,4 @@ COMMENT ON COLUMN projects.client_id IS 'Client ID - can be NULL for personal pr
 SELECT column_name, is_nullable, data_type 
 FROM information_schema.columns 
 WHERE table_name = 'projects' AND column_name = 'client_id';
+

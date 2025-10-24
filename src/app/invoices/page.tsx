@@ -376,7 +376,7 @@ export default function InvoicesPage() {
                           </Badge>
                         </div>
                         <p className="text-gray-600">
-                          <strong>Klient:</strong> {project.client.name}
+                          <strong>Klient:</strong> {project.client?.name || 'Bez klienta'}
                         </p>
                         <p className="text-sm text-gray-500">
                           <strong>Dokončené úlohy:</strong> {project.task_count}
@@ -484,7 +484,7 @@ export default function InvoicesPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground mb-2">
-                          <strong>Klient:</strong> {project.client.name} • <strong>Úlohy:</strong> {project.task_count}
+                          <strong>Klient:</strong> {project.client?.name || 'Bez klienta'} • <strong>Úlohy:</strong> {project.task_count}
                         </p>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           {(project as any).invoiced_at && (

@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const clientId = searchParams.get("client_id");
+    const excludeStatus = searchParams.get("exclude_status");
 
     // First, get all projects filtered by workspace
     let query = supabase
@@ -37,8 +38,16 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (status) {
-      query = query.eq("status", status);
+      // Handle multiple statuses separated by comma
+      if (status.includes(',')) {
+        const statuses = status.split(',');
+        query = query.in("status", statuses);
+      } else {
+        query = query.eq("status", status);
+      }
     }
+
+    // Note: We'll handle excludeStatus filtering after the query
 
     if (clientId) {
       query = query.eq("client_id", clientId);
@@ -52,6 +61,17 @@ export async function GET(request: NextRequest) {
 
     if (!allProjects || allProjects.length === 0) {
       return NextResponse.json({ success: true, data: [] });
+    }
+
+    // Apply excludeStatus filtering if needed
+    let filteredProjects = allProjects;
+    if (excludeStatus) {
+      const statusesToExclude = excludeStatus.includes(',') 
+        ? excludeStatus.split(',') 
+        : [excludeStatus];
+      filteredProjects = allProjects.filter(project => 
+        !statusesToExclude.includes(project.status)
+      );
     }
 
     // Get all invoiced tasks
@@ -70,7 +90,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Filter out projects that have invoiced tasks
-    const activeProjects = allProjects.filter(project => 
+    const activeProjects = filteredProjects.filter(project => 
       !invoicedProjectIds.has(project.id)
     );
 

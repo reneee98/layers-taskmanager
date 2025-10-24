@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { Plus, MoreHorizontal, Pencil, Trash2, Circle, Play, Eye, CheckCircle, XCircle, Pause, Send, ChevronDown, Check } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, Circle, Play, Eye, CheckCircle, XCircle, Pause, Send, ChevronDown, Check, Archive, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -76,12 +76,14 @@ const statusConfig: Record<string, { label: string; icon: any; color: string; ic
 function ProjectsPageContent() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   const fetchProjects = async () => {
     try {
@@ -89,11 +91,23 @@ function ProjectsPageContent() {
       if (statusFilter !== "all") params.append("status", statusFilter);
       if (clientFilter !== "all") params.append("client_id", clientFilter);
 
-      const response = await fetch(`/api/projects?${params}`);
-      const result = await response.json();
+      // Fetch active projects (exclude completed and cancelled)
+      const activeParams = new URLSearchParams(params);
+      activeParams.append("exclude_status", "completed,cancelled");
+      
+      const [activeResponse, archivedResponse] = await Promise.all([
+        fetch(`/api/projects?${activeParams}`),
+        fetch(`/api/projects?status=completed,cancelled`)
+      ]);
 
-      if (result.success) {
-        setProjects(result.data);
+      const activeResult = await activeResponse.json();
+      const archivedResult = await archivedResponse.json();
+
+      if (activeResult.success) {
+        setProjects(activeResult.data);
+      }
+      if (archivedResult.success) {
+        setArchivedProjects(archivedResult.data);
       }
     } catch (error) {
       toast({
@@ -165,6 +179,64 @@ function ProjectsPageContent() {
     handleFormClose();
   };
 
+  const handleCompleteProject = async (projectId: string) => {
+    if (!confirm("Naozaj chcete označiť tento projekt ako dokončený?")) return;
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" })
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Úspech",
+          description: "Projekt bol označený ako dokončený",
+        });
+        fetchProjects();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Chyba",
+        description: error.message || "Nepodarilo sa označiť projekt ako dokončený",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReactivateProject = async (projectId: string) => {
+    if (!confirm("Naozaj chcete reaktivovať tento projekt?")) return;
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "active" })
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Úspech",
+          description: "Projekt bol reaktivovaný",
+        });
+        fetchProjects();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Chyba",
+        description: error.message || "Nepodarilo sa reaktivovať projekt",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="w-full space-y-8">
       {/* Header */}
@@ -173,13 +245,37 @@ function ProjectsPageContent() {
           <h1 className="text-2xl font-bold text-gray-900">Projekty</h1>
           <p className="text-gray-600 mt-1">Spravujte svoje projekty</p>
         </div>
-        <Button 
-          onClick={() => setIsFormOpen(true)}
-          className="bg-gray-900 text-white hover:bg-gray-800"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Pridať projekt
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* Tabs */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <Button
+              variant={!showArchived ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setShowArchived(false)}
+              className={!showArchived ? "bg-gray-900 text-white hover:bg-gray-800 shadow-sm" : "hover:bg-gray-200 text-gray-600"}
+            >
+              <FolderOpen className="h-4 w-4 mr-2" />
+              Aktívne ({projects.length})
+            </Button>
+            <Button
+              variant={showArchived ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setShowArchived(true)}
+              className={showArchived ? "bg-gray-900 text-white hover:bg-gray-800 shadow-sm" : "hover:bg-gray-200 text-gray-600"}
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              Archivované ({archivedProjects.length})
+            </Button>
+          </div>
+          
+          <Button 
+            onClick={() => setIsFormOpen(true)}
+            className="bg-gray-900 text-white hover:bg-gray-800"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Pridať projekt
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -249,20 +345,24 @@ function ProjectsPageContent() {
                   Načítavam...
                 </TableCell>
               </TableRow>
-            ) : projects.length === 0 ? (
+            ) : (showArchived ? archivedProjects : projects).length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-12 text-gray-500">
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                      <Plus className="h-6 w-6 text-gray-400" />
+                      {showArchived ? <Archive className="h-6 w-6 text-gray-400" /> : <Plus className="h-6 w-6 text-gray-400" />}
                     </div>
-                    <p className="text-lg font-medium">Žiadne projekty</p>
-                    <p className="text-sm">Začnite vytvorením nového projektu</p>
+                    <p className="text-lg font-medium">
+                      {showArchived ? "Žiadne archivované projekty" : "Žiadne projekty"}
+                    </p>
+                    <p className="text-sm">
+                      {showArchived ? "Dokončte nejaký projekt a objaví sa tu" : "Začnite vytvorením nového projektu"}
+                    </p>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              projects.map((project) => (
+              (showArchived ? archivedProjects : projects).map((project) => (
                 <TableRow
                   key={project.id}
                   className="cursor-pointer group hover:bg-gray-50 transition-colors"
@@ -295,6 +395,30 @@ function ProjectsPageContent() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
+                        {!showArchived && project.status !== 'completed' && (
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCompleteProject(project.id);
+                            }}
+                            className="text-green-600 focus:text-green-600"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Označiť ako dokončený
+                          </DropdownMenuItem>
+                        )}
+                        {showArchived && project.status === 'completed' && (
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleReactivateProject(project.id);
+                            }}
+                            className="text-blue-600 focus:text-blue-600"
+                          >
+                            <Play className="h-4 w-4 mr-2" />
+                            Reaktivovať
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem 
                           onClick={(e) => {
                             e.stopPropagation();

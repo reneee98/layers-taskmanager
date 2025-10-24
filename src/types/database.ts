@@ -9,6 +9,16 @@ export interface User {
   updated_at: string;
 }
 
+export interface GoogleDriveLink {
+  id: string;
+  task_id: string;
+  url: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -59,6 +69,7 @@ export interface Task {
   completed_at: string | null;
   order_index?: number;
   google_drive_link?: string | null;
+  google_drive_links?: GoogleDriveLink[];
   // Billing fields
   billable: boolean;
   bill_status: "unbilled" | "billed" | "excluded";

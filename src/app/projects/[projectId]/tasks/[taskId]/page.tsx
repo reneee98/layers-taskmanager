@@ -43,6 +43,7 @@ import { MultiAssigneeSelect } from "@/components/tasks/MultiAssigneeSelect";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { InlineDateEdit } from "@/components/ui/inline-date-edit";
+import { GoogleDriveLinks } from "@/components/tasks/GoogleDriveLinks";
 import { toast } from "@/hooks/use-toast";
 import { formatHours } from "@/lib/format";
 import { format } from "date-fns";
@@ -69,7 +70,6 @@ export default function TaskDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-  const [googleDriveLink, setGoogleDriveLink] = useState("");
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchTask = async () => {
@@ -82,7 +82,6 @@ export default function TaskDetailPage() {
         setDescription(result.data.description || "");
         setDescriptionHtml(result.data.description || "");
         setAssignees(result.data.assignees || []);
-        setGoogleDriveLink(result.data.google_drive_link || "");
       } else {
         toast({
           title: "Chyba",
@@ -456,65 +455,6 @@ export default function TaskDetailPage() {
   };
 
 
-  const handleCopyLink = async () => {
-    if (googleDriveLink) {
-      try {
-        await navigator.clipboard.writeText(googleDriveLink);
-        toast({
-          title: "Úspech",
-          description: "Google Drive link bol skopírovaný do schránky",
-        });
-      } catch (error) {
-        console.error("Failed to copy link:", error);
-        toast({
-          title: "Chyba",
-          description: "Nepodarilo sa skopírovať link",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const handleGoogleDriveLinkChange = async (newLink: string) => {
-    setGoogleDriveLink(newLink);
-    
-    if (!task) return;
-
-    try {
-      const response = await fetch(`/api/tasks/${params.taskId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          google_drive_link: newLink,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setTask({ ...task, google_drive_link: newLink });
-        toast({
-          title: "Úspech",
-          description: "Google Drive link bol uložený",
-        });
-      } else {
-        toast({
-          title: "Chyba",
-          description: result.error || "Nepodarilo sa uložiť link",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error updating Google Drive link:", error);
-      toast({
-        title: "Chyba",
-        description: "Nepodarilo sa uložiť link",
-        variant: "destructive",
-      });
-    }
-  };
 
   if (isLoading) {
     return (
@@ -834,56 +774,13 @@ export default function TaskDetailPage() {
 
         {/* Right Column - Sidebar */}
         <div className="space-y-6">
-          {/* Google Drive Link */}
+          {/* Google Drive Links */}
           <Card className="bg-card border border-border shadow-sm">
             <CardHeader className="bg-muted/50">
-              <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <Link className="h-5 w-5" />
-                Google Drive
-              </CardTitle>
+              <CardTitle className="text-lg font-semibold text-foreground">Google Drive</CardTitle>
             </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="google-drive-link" className="text-sm font-medium text-foreground">
-                  Link na Google Drive súbory
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    id="google-drive-link"
-                    type="url"
-                    value={googleDriveLink}
-                    onChange={(e) => handleGoogleDriveLinkChange(e.target.value)}
-                    placeholder="https://drive.google.com/..."
-                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyLink}
-                    disabled={!googleDriveLink}
-                    className="px-3 py-2 text-muted-foreground hover:text-foreground disabled:opacity-50"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              {googleDriveLink && (
-                <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Náhľad linku:</div>
-                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
-                    <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                    <a
-                      href={googleDriveLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-800 hover:underline truncate"
-                    >
-                      {googleDriveLink}
-                    </a>
-                  </div>
-                </div>
-              )}
+            <CardContent className="pt-6">
+              <GoogleDriveLinks taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
             </CardContent>
           </Card>
 

@@ -80,11 +80,6 @@ export const mockTasks: Task[] = [
     completed_at: "2024-03-10T10:00:00Z",
     order_index: 0,
     google_drive_link: null,
-    // Billing fields
-    billable: true,
-    bill_status: "unbilled",
-    hourly_rate_cents: 7500, // €75.00
-    actual_minutes: 2730, // 45.5 hours
     created_at: "2024-01-20T10:00:00Z",
     updated_at: "2024-03-10T10:00:00Z",
     created_by: null,
@@ -108,11 +103,6 @@ export const mockTasks: Task[] = [
     completed_at: "2024-03-05T14:30:00Z",
     order_index: 1,
     google_drive_link: null,
-    // Billing fields
-    billable: true,
-    bill_status: "billed",
-    hourly_rate_cents: 8000, // €80.00
-    actual_minutes: 10800, // 180 hours
     created_at: "2024-01-20T10:00:00Z",
     updated_at: "2024-03-05T14:30:00Z",
     created_by: null,
@@ -136,11 +126,6 @@ export const mockTasks: Task[] = [
     completed_at: "2024-03-01T16:00:00Z",
     order_index: 0,
     google_drive_link: null,
-    // Billing fields
-    billable: true,
-    bill_status: "unbilled",
-    hourly_rate_cents: 10000, // €100.00
-    actual_minutes: 90, // 1.5 hours
     created_at: "2024-03-01T10:00:00Z",
     updated_at: "2024-03-01T16:00:00Z",
     created_by: null,

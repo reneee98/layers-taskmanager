@@ -38,7 +38,6 @@ import { TimePanel } from "@/components/time/TimePanel";
 import { CostsPanel } from "@/components/costs/CostsPanel";
 import { ProjectReport } from "@/components/report/ProjectReport";
 import { CommentsList } from "@/components/comments/CommentsList";
-import { BillingPanel } from "@/components/billing/BillingPanel";
 import { QuillEditor } from "@/components/ui/quill-editor";
 import { MultiAssigneeSelect } from "@/components/tasks/MultiAssigneeSelect";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
@@ -732,10 +731,6 @@ export default function TaskDetailPage() {
                 <Euro className="h-4 w-4 mr-2" />
                 Náklady
               </TabsTrigger>
-              <TabsTrigger value="billing" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
-                <Euro className="h-4 w-4 mr-2" />
-                Fakturácia
-              </TabsTrigger>
               <TabsTrigger value="report" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Report
@@ -823,16 +818,6 @@ export default function TaskDetailPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="billing" className="mt-6">
-              <Card className="bg-white border border-gray-200 shadow-sm">
-                <CardContent className="p-6">
-                  <BillingPanel 
-                    task={task}
-                    onUpdate={fetchTask}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
 
             <TabsContent value="report" className="mt-6">
               <Card className="bg-white border border-gray-200 shadow-sm">

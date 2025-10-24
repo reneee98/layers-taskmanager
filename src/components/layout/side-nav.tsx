@@ -60,12 +60,6 @@ const mainNavItems: Array<{
     icon: Users,
   },
   {
-    title: "Billing",
-    href: "/billing",
-    icon: Euro,
-    adminOnly: true,
-  },
-  {
     title: "Faktúry",
     href: "/invoices",
     icon: FileText,

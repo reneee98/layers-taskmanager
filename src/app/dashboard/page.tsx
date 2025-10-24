@@ -58,6 +58,7 @@ import type { Task } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { WorkspaceInvitations } from "@/components/workspace/WorkspaceInvitations";
 import { TaskFilters, TaskFilter } from "@/components/tasks/TaskFilters";
+import { TaskDialog } from "@/components/tasks/TaskDialog";
 import { cn } from "@/lib/utils";
 
 interface AssignedTask {
@@ -125,6 +126,8 @@ export default function DashboardPage() {
     assignee: [],
     deadline: "all",
   });
+  const [isQuickTaskOpen, setIsQuickTaskOpen] = useState(false);
+  const [personalProjectId, setPersonalProjectId] = useState<string | null>(null);
   const activitiesRef = useRef<HTMLDivElement>(null);
 
   // Filter tasks based on current filters
@@ -207,13 +210,15 @@ export default function DashboardPage() {
       
       setIsLoading(true);
       try {
-        const [tasksResponse, activitiesResponse] = await Promise.all([
+        const [tasksResponse, activitiesResponse, projectsResponse] = await Promise.all([
           fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}`),
-          fetch(`/api/dashboard/activity?workspace_id=${workspace.id}`)
+          fetch(`/api/dashboard/activity?workspace_id=${workspace.id}`),
+          fetch(`/api/projects`)
         ]);
 
         const tasksResult = await tasksResponse.json();
         const activitiesResult = await activitiesResponse.json();
+        const projectsResult = await projectsResponse.json();
         
         if (tasksResult.success) {
           setTasks(tasksResult.data);
@@ -225,6 +230,46 @@ export default function DashboardPage() {
           setActivities(activitiesResult.data);
         } else {
           console.error("Failed to fetch activities:", activitiesResult.error);
+        }
+
+        // Find or create personal project
+        if (projectsResult.success) {
+          console.log("Available projects:", projectsResult.data);
+          const personalProject = projectsResult.data.find((p: any) => 
+            p.name === "Osobné úlohy" || p.code === "PERSONAL"
+          );
+          
+          if (personalProject) {
+            console.log("Found personal project:", personalProject);
+            setPersonalProjectId(personalProject.id);
+          } else {
+            console.log("Personal project not found, creating...");
+            // Create personal project if it doesn't exist
+            try {
+              const createResponse = await fetch('/api/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: "Osobné úlohy",
+                  code: "PERSONAL",
+                  description: "Projekt pre osobné úlohy bez klienta",
+                  status: "active",
+                  client_id: null
+                })
+              });
+              
+              const createResult = await createResponse.json();
+              console.log("Create project result:", createResult);
+              if (createResult.success) {
+                setPersonalProjectId(createResult.data.id);
+                console.log("Personal project created with ID:", createResult.data.id);
+              } else {
+                console.error("Failed to create personal project:", createResult.error);
+              }
+            } catch (error) {
+              console.error("Failed to create personal project:", error);
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -448,6 +493,20 @@ export default function DashboardPage() {
           <p className="text-gray-600 text-base mt-2">
             Prehľad vašich projektov a úloh
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => {
+              console.log("Quick task button clicked, personalProjectId:", personalProjectId);
+              setIsQuickTaskOpen(true);
+            }}
+            disabled={!personalProjectId}
+            className="bg-gray-900 text-white hover:bg-gray-800"
+            title={personalProjectId ? "Vytvoriť rýchlu úlohu" : "Čaká sa na vytvorenie osobného projektu..."}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Rýchla úloha {!personalProjectId && "(načítava...)"}
+          </Button>
         </div>
       </div>
 
@@ -808,6 +867,39 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
+
+      {/* Quick Task Dialog */}
+      {personalProjectId && (
+        <TaskDialog
+          projectId={personalProjectId}
+          open={isQuickTaskOpen}
+          onOpenChange={setIsQuickTaskOpen}
+          onSuccess={() => {
+            // Refresh tasks and activities
+            const fetchData = async () => {
+              try {
+                const [tasksResponse, activitiesResponse] = await Promise.all([
+                  fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace?.id}`),
+                  fetch(`/api/dashboard/activity?workspace_id=${workspace?.id}`)
+                ]);
+
+                const tasksResult = await tasksResponse.json();
+                const activitiesResult = await activitiesResponse.json();
+                
+                if (tasksResult.success) {
+                  setTasks(tasksResult.data);
+                }
+                if (activitiesResult.success) {
+                  setActivities(activitiesResult.data);
+                }
+              } catch (error) {
+                console.error("Error refreshing data:", error);
+              }
+            };
+            fetchData();
+          }}
+        />
+      )}
     </div>
   );
 }

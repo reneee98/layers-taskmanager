@@ -131,7 +131,8 @@ export async function POST(request: NextRequest) {
       .from("projects")
       .insert({
         ...validation.data,
-        workspace_id: workspaceId
+        workspace_id: workspaceId,
+        client_id: validation.data.client_id || null
       })
       .select("*, client:clients(*)")
       .single();

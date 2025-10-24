@@ -27,3 +27,4 @@ CREATE TRIGGER trigger_set_completed_at
 
 -- Add comment to explain the trigger
 COMMENT ON TRIGGER trigger_set_completed_at ON tasks IS 'Automatically sets completed_at when status changes to done';
+

@@ -10,7 +10,7 @@ export const projectStatusEnum = z.enum([
 ]);
 
 export const projectSchema = z.object({
-  client_id: z.string().uuid("Neplatné ID klienta"),
+  client_id: z.string().uuid("Neplatné ID klienta").optional().nullable(),
   name: z.string().min(1, "Názov je povinný").max(255, "Názov je príliš dlhý"),
   status: projectStatusEnum,
   code: z.string().optional().or(z.literal("")),

@@ -58,10 +58,12 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
 
   const handleChange = (value: string) => {
     isUserTyping.current = true;
+    console.log('QuillEditor content changed:', value);
     if (onChange) {
       // Získame HTML obsah z Quill editora
       const quill = quillRef.current?.getEditor();
       const html = quill ? quill.root.innerHTML : value;
+      console.log('QuillEditor HTML:', html);
       onChange(value, html);
     }
   };
@@ -78,49 +80,12 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
     }
   };
 
-  // Custom image handler
+  // Custom image handler - redirect to Files section
   const selectLocalImage = () => {
-    const input = document.createElement('input');
-    input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'image/*');
-    input.click();
-
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (file && taskId) {
-        try {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('task_id', taskId);
-          
-          const response = await fetch('/api/files/upload', {
-            method: 'POST',
-            body: formData,
-          });
-          
-          if (response.ok) {
-            const { data } = await response.json();
-            
-            // Get the public URL for the image
-            const supabase = (await import('@/lib/supabase/client')).createClient();
-            const { data: urlData } = supabase.storage
-              .from('task-files')
-              .getPublicUrl(data.file_path);
-            
-            // Insert image into Quill
-            const quill = quillRef.current?.getEditor();
-            if (quill) {
-              const range = quill.getSelection();
-              quill.insertEmbed(range?.index || 0, 'image', urlData.publicUrl);
-            }
-          } else {
-            console.error('Upload failed:', response.status, await response.text());
-          }
-        } catch (error) {
-          console.error('Error uploading image:', error);
-        }
-      }
-    };
+    // Show message that images should be uploaded to Files section
+    if (typeof window !== 'undefined') {
+      alert('Pre nahrávanie obrázkov použite sekciu "Súbory" nižšie. Obrázky sa automaticky zobrazia v popise úlohy.');
+    }
   };
 
   // Set up custom image handler
@@ -136,6 +101,7 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
   // Update editor content when content prop changes (only if user is not typing)
   useEffect(() => {
     if (quillRef.current && !isUserTyping.current && content !== lastContentRef.current) {
+      console.log('QuillEditor updating content from prop:', content);
       const quill = quillRef.current.getEditor();
       if (quill && quill.root.innerHTML !== content) {
         quill.root.innerHTML = content;
@@ -159,6 +125,10 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
       <div 
         className={cn("border rounded-lg p-3 prose prose-sm max-w-none", className)}
         dangerouslySetInnerHTML={{ __html: content }}
+        style={{
+          lineHeight: '1.6',
+          color: 'hsl(var(--foreground))'
+        }}
       />
     );
   }
@@ -296,6 +266,97 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
         
         .ql-editor s {
           text-decoration: line-through !important;
+        }
+        
+        .ql-editor img {
+          max-width: 100% !important;
+          height: auto !important;
+          margin: 8px 0 !important;
+          border-radius: 8px !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+          transition: transform 0.2s ease !important;
+          display: block !important;
+        }
+        
+        .ql-editor img:hover {
+          transform: scale(1.02) !important;
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        /* Ensure images are visible in Quill */
+        .ql-editor .ql-image {
+          display: block !important;
+        }
+        
+        /* Styles for read-only mode */
+        .prose img {
+          max-width: 100% !important;
+          height: auto !important;
+          margin: 8px 0 !important;
+          border-radius: 8px !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+          transition: transform 0.2s ease !important;
+        }
+        
+        .prose img:hover {
+          transform: scale(1.02) !important;
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        .prose a {
+          color: hsl(var(--primary)) !important;
+          text-decoration: underline !important;
+        }
+        
+        .prose a:hover {
+          color: hsl(var(--primary/80)) !important;
+        }
+        
+        .prose strong {
+          font-weight: 600 !important;
+        }
+        
+        .prose em {
+          font-style: italic !important;
+        }
+        
+        .prose h1, .prose h2, .prose h3 {
+          color: hsl(var(--foreground)) !important;
+          font-weight: 600 !important;
+        }
+        
+        .prose blockquote {
+          border-left: 4px solid hsl(var(--primary)) !important;
+          background: hsl(var(--muted/30)) !important;
+          color: hsl(var(--muted-foreground)) !important;
+        }
+        
+        /* Paste animation */
+        .ql-editor.paste-animation {
+          animation: pasteGlow 1s ease-in-out;
+        }
+        
+        @keyframes pasteGlow {
+          0% {
+            background-color: hsl(var(--muted/30));
+            box-shadow: 0 0 0 0 hsl(var(--primary/20));
+          }
+          50% {
+            background-color: hsl(var(--primary/10));
+            box-shadow: 0 0 20px 5px hsl(var(--primary/30));
+          }
+          100% {
+            background-color: hsl(var(--muted/30));
+            box-shadow: 0 0 0 0 hsl(var(--primary/20));
+          }
+        }
+        
+        /* Drag over animation */
+        .ql-editor.drag-over {
+          background-color: hsl(var(--primary/10)) !important;
+          border: 2px dashed hsl(var(--primary)) !important;
+          border-radius: 8px !important;
+          transition: all 0.3s ease !important;
         }
       `}</style>
       <div onKeyDown={handleKeyDown}>

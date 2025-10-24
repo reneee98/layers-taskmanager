@@ -72,7 +72,7 @@ export default function TaskDetailPage() {
   const [description, setDescription] = useState("");
   const [descriptionHtml, setDescriptionHtml] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [hasChanges, setHasChanges] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -216,13 +216,7 @@ export default function TaskDetailPage() {
   const handleSaveDescriptionWithContent = async (content: string) => {
     if (!task || isSaving || !content) return;
 
-    const hasImages = content.includes('<img');
-    if (hasImages) {
-      setTimeout(() => {
-        handleSaveDescriptionWithContent(content);
-      }, 2000);
-      return;
-    }
+    // Remove the image delay logic - save immediately
 
     setIsSaving(true);
     try {
@@ -745,13 +739,11 @@ export default function TaskDetailPage() {
                 <CardContent className="p-6">
                   <FileUploadHandler
                     taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
-                    onFileUploaded={(fileUrl, fileName) => {
-                      // Insert file link into editor
-                      const currentContent = descriptionHtml;
-                      const fileLink = `<a href="${fileUrl}" target="_blank" rel="noopener noreferrer">${fileName}</a>`;
-                      const newContent = currentContent + (currentContent ? '<br>' : '') + fileLink;
-                      setDescriptionHtml(newContent);
-                      handleDescriptionChange(newContent, newContent);
+                    onFileUploaded={(fileUrl, htmlContent) => {
+                      // Files are automatically added to Files section below
+                      // No need to modify description content
+                      console.log('File uploaded to Files section, URL:', fileUrl);
+                      // Files will be automatically refreshed by TaskFiles component
                     }}
                   >
                     <QuillEditor

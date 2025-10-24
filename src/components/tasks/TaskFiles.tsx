@@ -19,6 +19,8 @@ import {
   ZoomIn
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { compressImageWithTinyJPG, isTinyJPGAvailable } from "@/lib/tinyjpg";
+import { compressFile, shouldCompressFile, getCompressionInfo } from "@/lib/universal-compression";
 
 interface TaskFile {
   name: string;
@@ -39,6 +41,7 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [newFileAnimation, setNewFileAnimation] = useState<string | null>(null);
 
   const fetchFiles = async () => {
     try {
@@ -63,61 +66,46 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
     fetchFiles();
   }, [taskId]);
 
-  const compressImage = (file: File, maxSizeMB: number = 2, quality: number = 0.8): Promise<File> => {
-    return new Promise((resolve) => {
-      if (!file.type.startsWith('image/')) {
-        resolve(file);
-        return;
-      }
-
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-
-      img.onload = () => {
-        // Calculate new dimensions to maintain aspect ratio
-        let { width, height } = img;
-        const maxDimension = 1920; // Max width or height
-        
-        if (width > height && width > maxDimension) {
-          height = (height * maxDimension) / width;
-          width = maxDimension;
-        } else if (height > maxDimension) {
-          width = (width * maxDimension) / height;
-          height = maxDimension;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        // Draw and compress
-        ctx?.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const compressedFile = new window.File([blob], file.name, {
-                type: file.type,
-                lastModified: Date.now(),
-              });
-              
-              // If still too large, reduce quality further
-              if (compressedFile.size > maxSizeMB * 1024 * 1024 && quality > 0.1) {
-                compressImage(file, maxSizeMB, quality - 0.1).then(resolve);
-              } else {
-                resolve(compressedFile);
-              }
-            } else {
-              resolve(file);
-            }
-          },
-          file.type,
-          quality
-        );
+  const compressFileUniversal = async (file: File): Promise<{ compressedFile: File; compressionInfo: string }> => {
+    // Check if file should be compressed
+    if (!shouldCompressFile(file)) {
+      return {
+        compressedFile: file,
+        compressionInfo: 'Súbor je príliš malý alebo už komprimovaný'
       };
+    }
 
-      img.src = URL.createObjectURL(file);
-    });
+    // For images, try TinyJPG first, then fallback to universal compression
+    if (file.type.startsWith('image/') && isTinyJPGAvailable()) {
+      try {
+        const tinyJPGFile = await compressImageWithTinyJPG(file);
+        const originalSize = file.size;
+        const compressedSize = tinyJPGFile.size;
+        const compressionRatio = Math.round((1 - compressedSize / originalSize) * 100);
+        
+        return {
+          compressedFile: tinyJPGFile,
+          compressionInfo: `${(originalSize / 1024 / 1024).toFixed(1)}MB → ${(compressedSize / 1024 / 1024).toFixed(1)}MB (${compressionRatio}% úspora) via TinyJPG`
+        };
+      } catch (error) {
+        console.warn('TinyJPG compression failed, using universal compression:', error);
+      }
+    }
+
+    // Use universal compression for all file types
+    try {
+      const result = await compressFile(file);
+      return {
+        compressedFile: result.compressedFile,
+        compressionInfo: getCompressionInfo(result)
+      };
+    } catch (error) {
+      console.warn('Universal compression failed:', error);
+      return {
+        compressedFile: file,
+        compressionInfo: 'Kompresia zlyhala'
+      };
+    }
   };
 
   const handleFileUpload = async (file: File) => {
@@ -125,13 +113,11 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
     setUploadingFiles(prev => [...prev, file.name]);
     
     try {
-      // Compress image if it's an image file
-      const fileToUpload = file.type.startsWith('image/') 
-        ? await compressImage(file, 2, 0.8) // Max 2MB, 80% quality
-        : file;
+      // Compress file using universal compression
+      const { compressedFile, compressionInfo } = await compressFileUniversal(file);
 
       const formData = new FormData();
-      formData.append("file", fileToUpload);
+      formData.append("file", compressedFile);
 
       const response = await fetch(`/api/tasks/${taskId}/files`, {
         method: "POST",
@@ -147,14 +133,13 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
       // Refresh files list
       await fetchFiles();
       
-      const originalSize = (file.size / 1024 / 1024).toFixed(1);
-      const compressedSize = (fileToUpload.size / 1024 / 1024).toFixed(1);
+      // Show animation for new file
+      setNewFileAnimation(file.name);
+      setTimeout(() => setNewFileAnimation(null), 2000);
       
       toast({
         title: "Súbor nahraný",
-        description: file.type.startsWith('image/') && fileToUpload.size < file.size
-          ? `${file.name} nahraný (${originalSize}MB → ${compressedSize}MB)`
-          : `${file.name} bol úspešne nahraný`,
+        description: `📁 ${file.name} nahraný (${compressionInfo})`,
       });
     } catch (error) {
       console.error("Upload file error:", error);
@@ -310,14 +295,14 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
         className="p-6"
         onDragOver={(e) => {
           e.preventDefault();
-          e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/20', 'border-blue-300', 'dark:border-blue-700');
+          e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/20', 'border-blue-300', 'dark:border-blue-700', 'scale-105', 'shadow-lg');
         }}
         onDragLeave={(e) => {
-          e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/20', 'border-blue-300', 'dark:border-blue-700');
+          e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/20', 'border-blue-300', 'dark:border-blue-700', 'scale-105', 'shadow-lg');
         }}
         onDrop={async (e) => {
           e.preventDefault();
-          e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/20', 'border-blue-300', 'dark:border-blue-700');
+          e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/20', 'border-blue-300', 'dark:border-blue-700', 'scale-105', 'shadow-lg');
           
           const droppedFiles = Array.from(e.dataTransfer.files);
           if (droppedFiles.length === 0) return;
@@ -327,8 +312,8 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
         }}
       >
         {files.length === 0 && !isUploading ? (
-          <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-border rounded-lg">
-            <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-border rounded-lg hover:border-blue-300 dark:hover:border-blue-700 transition-colors duration-300">
+            <Upload className="h-12 w-12 mx-auto mb-4 opacity-50 animate-bounce" />
             <p>Žiadne súbory nie sú nahrané</p>
             <p className="text-sm mt-1">Drag & drop súbory sem alebo paste do popisu úlohy</p>
           </div>
@@ -338,7 +323,7 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
             {uploadingFiles.map((fileName, index) => (
               <div
                 key={`uploading-${index}`}
-                className="aspect-square bg-muted/30 rounded-lg border border-border border-dashed relative flex flex-col items-center justify-center"
+                className="aspect-square bg-muted/30 rounded-lg border border-border border-dashed relative flex flex-col items-center justify-center animate-pulse"
               >
                 <div className="flex flex-col items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-2" />
@@ -356,7 +341,11 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
             {files.map((file, index) => (
               <div
                 key={index}
-                className="aspect-square bg-muted/30 rounded-lg border border-border hover:bg-muted/50 transition-colors overflow-hidden relative group"
+                className={`aspect-square bg-muted/30 rounded-lg border border-border hover:bg-muted/50 transition-all duration-500 overflow-hidden relative group ${
+                  newFileAnimation === file.name 
+                    ? 'animate-pulse ring-2 ring-green-500 ring-opacity-50 scale-105 shadow-lg' 
+                    : ''
+                }`}
               >
                 {file.type.startsWith("image/") ? (
                   <>

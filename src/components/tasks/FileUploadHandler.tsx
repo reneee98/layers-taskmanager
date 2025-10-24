@@ -1,20 +1,61 @@
 "use client";
 
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
-import { Upload, X, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Upload } from "lucide-react";
+import { compressImageWithTinyJPG, isTinyJPGAvailable } from "@/lib/tinyjpg";
+import { compressFile, shouldCompressFile, getCompressionInfo } from "@/lib/universal-compression";
 
 interface FileUploadHandlerProps {
   taskId: string;
-  onFileUploaded: (fileUrl: string, fileName: string) => void;
+  onFileUploaded: (fileUrl: string, htmlContent: string) => void;
   children: React.ReactNode;
 }
 
 export const FileUploadHandler = ({ taskId, onFileUploaded, children }: FileUploadHandlerProps) => {
-  const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const compressFileUniversal = async (file: File): Promise<{ compressedFile: File; compressionInfo: string }> => {
+    // Check if file should be compressed
+    if (!shouldCompressFile(file)) {
+      return {
+        compressedFile: file,
+        compressionInfo: 'Súbor je príliš malý alebo už komprimovaný'
+      };
+    }
+
+    // For images, try TinyJPG first, then fallback to universal compression
+    if (file.type.startsWith('image/') && isTinyJPGAvailable()) {
+      try {
+        const tinyJPGFile = await compressImageWithTinyJPG(file);
+        const originalSize = file.size;
+        const compressedSize = tinyJPGFile.size;
+        const compressionRatio = Math.round((1 - compressedSize / originalSize) * 100);
+        
+        return {
+          compressedFile: tinyJPGFile,
+          compressionInfo: `${(originalSize / 1024 / 1024).toFixed(1)}MB → ${(compressedSize / 1024 / 1024).toFixed(1)}MB (${compressionRatio}% úspora) via TinyJPG`
+        };
+      } catch (error) {
+        console.warn('TinyJPG compression failed, using universal compression:', error);
+      }
+    }
+
+    // Use universal compression for all file types
+    try {
+      const result = await compressFile(file);
+      return {
+        compressedFile: result.compressedFile,
+        compressionInfo: getCompressionInfo(result)
+      };
+    } catch (error) {
+      console.warn('Universal compression failed:', error);
+      return {
+        compressedFile: file,
+        compressionInfo: 'Kompresia zlyhala'
+      };
+    }
+  };
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;
@@ -46,33 +87,40 @@ export const FileUploadHandler = ({ taskId, onFileUploaded, children }: FileUplo
       return;
     }
 
-    setIsUploading(true);
+        try {
+          // Compress file using universal compression
+          const { compressedFile, compressionInfo } = await compressFileUniversal(file);
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+          const formData = new FormData();
+          formData.append("file", compressedFile);
 
-      const response = await fetch(`/api/tasks/${taskId}/files`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
+          const response = await fetch(`/api/tasks/${taskId}/files`, {
+            method: "POST",
+            body: formData,
+            credentials: "include",
+          });
 
-      const result = await response.json();
+          const result = await response.json();
 
-      if (result.success) {
-        onFileUploaded(result.data.url, result.data.fileName);
-        toast({
-          title: "Úspech",
-          description: `Súbor "${result.data.fileName}" bol nahraný`,
-        });
-      } else {
-        toast({
-          title: "Chyba",
-          description: result.error || "Nepodarilo sa nahrať súbor",
-          variant: "destructive",
-        });
-      }
+            if (result.success) {
+              // All files go to Files section, not to description
+              console.log('File uploaded, URL:', result.data.url);
+              
+              // Call the callback with empty content since we don't want to modify description
+              onFileUploaded(result.data.url, '');
+              
+              // Show success animation
+              toast({
+                title: "Úspech",
+                description: `📁 "${result.data.fileName}" nahraný (${compressionInfo})`,
+              });
+            } else {
+            toast({
+              title: "Chyba",
+              description: result.error || "Nepodarilo sa nahrať súbor",
+              variant: "destructive",
+            });
+          }
     } catch (error) {
       console.error("Upload error:", error);
       toast({
@@ -80,8 +128,6 @@ export const FileUploadHandler = ({ taskId, onFileUploaded, children }: FileUplo
         description: "Nepodarilo sa nahrať súbor",
         variant: "destructive",
       });
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -90,8 +136,18 @@ export const FileUploadHandler = ({ taskId, onFileUploaded, children }: FileUplo
     e.stopPropagation();
     if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true);
+      // Add drag animation to editor
+      const editor = document.querySelector('.ql-editor');
+      if (editor) {
+        editor.classList.add('drag-over');
+      }
     } else if (e.type === "dragleave") {
       setDragActive(false);
+      // Remove drag animation from editor
+      const editor = document.querySelector('.ql-editor');
+      if (editor) {
+        editor.classList.remove('drag-over');
+      }
     }
   }, []);
 
@@ -99,6 +155,12 @@ export const FileUploadHandler = ({ taskId, onFileUploaded, children }: FileUplo
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
+
+    // Remove drag animation from editor
+    const editor = document.querySelector('.ql-editor');
+    if (editor) {
+      editor.classList.remove('drag-over');
+    }
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFileUpload(e.dataTransfer.files[0]);
@@ -115,21 +177,22 @@ export const FileUploadHandler = ({ taskId, onFileUploaded, children }: FileUplo
         const file = item.getAsFile();
         if (file) {
           e.preventDefault();
+          
+          // Show paste animation
+          const editor = document.querySelector('.ql-editor');
+          if (editor) {
+            editor.classList.add('paste-animation');
+            setTimeout(() => {
+              editor.classList.remove('paste-animation');
+            }, 1000);
+          }
+          
           handleFileUpload(file);
         }
       }
     }
   }, [taskId]);
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFileUpload(e.target.files[0]);
-    }
-  };
-
-  const openFileDialog = () => {
-    fileInputRef.current?.click();
-  };
 
   // Add paste event listener
   useEffect(() => {
@@ -155,40 +218,15 @@ export const FileUploadHandler = ({ taskId, onFileUploaded, children }: FileUplo
       
       {/* Drag overlay */}
       {dragActive && (
-        <div className="absolute inset-0 bg-blue-500/20 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center z-10">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg">
-            <Upload className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+        <div className="absolute inset-0 bg-blue-500/20 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center z-10 animate-pulse">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg animate-bounce">
+            <Upload className="h-8 w-8 text-blue-500 mx-auto mb-2 animate-spin" />
             <p className="text-sm font-medium">Pustite súbor sem</p>
           </div>
         </div>
       )}
 
-      {/* Upload button */}
-      <div className="absolute top-2 right-2 z-20">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={openFileDialog}
-          disabled={isUploading}
-          className="bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800"
-        >
-          {isUploading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Upload className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        onChange={handleFileInput}
-        accept="image/*,application/pdf,text/plain,.doc,.docx,.xls,.xlsx"
-      />
     </div>
   );
 };

@@ -94,10 +94,10 @@ const SortableItem = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 p-4 rounded-lg border transition-all duration-200 hover:shadow-sm ${
+      className={`flex items-center gap-2 p-2 rounded-md border transition-all duration-200 hover:shadow-sm ${
         item.completed 
           ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
-          : 'bg-muted/50 dark:bg-muted/30 border-border dark:border-border hover:bg-muted/70 dark:hover:bg-muted/50'
+          : 'bg-muted/30 dark:bg-muted/20 border-border hover:bg-muted/50 dark:hover:bg-muted/30'
       } ${isDragging ? 'opacity-50 shadow-lg' : ''}`}
     >
       <div
@@ -105,22 +105,22 @@ const SortableItem = ({
         {...listeners}
         className="cursor-grab active:cursor-grabbing"
       >
-        <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
       </div>
       <Checkbox
         checked={item.completed}
         onCheckedChange={(checked) => 
           onToggle(item.id, checked as boolean)
         }
-        className="flex-shrink-0"
+        className="flex-shrink-0 h-4 w-4"
       />
       
       {editingItem === item.id ? (
-        <div className="flex-1 flex gap-2">
+        <div className="flex-1 flex gap-1">
           <Input
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
-            className="flex-1"
+            className="flex-1 h-7 text-sm"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 onEditSubmit(item.id);
@@ -134,13 +134,15 @@ const SortableItem = ({
             size="sm" 
             onClick={() => onEditSubmit(item.id)}
             disabled={!editText.trim()}
+            className="h-7 px-2"
           >
-            <Check className="h-4 w-4" />
+            <Check className="h-3 w-3" />
           </Button>
           <Button 
             size="sm" 
             variant="outline"
             onClick={onEditCancel}
+            className="h-7 px-2 text-xs"
           >
             Zrušiť
           </Button>
@@ -148,7 +150,7 @@ const SortableItem = ({
       ) : (
         <>
           <span 
-            className={`flex-1 transition-all duration-200 ${
+            className={`flex-1 text-sm transition-all duration-200 ${
               item.completed 
                 ? 'line-through text-muted-foreground opacity-70' 
                 : 'text-foreground'
@@ -159,20 +161,20 @@ const SortableItem = ({
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-accent">
+              <Button variant="ghost" className="h-6 w-6 p-0 hover:bg-accent">
                 <span className="sr-only">Otvoriť menu</span>
-                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onEdit(item)}>
-                <Edit3 className="mr-2 h-4 w-4" /> Upraviť
+                <Edit3 className="mr-2 h-3 w-3" /> Upraviť
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => onDelete(item.id)}
                 className="text-red-600 focus:text-red-600"
               >
-                <Trash2 className="mr-2 h-4 w-4" /> Vymazať
+                <Trash2 className="mr-2 h-3 w-3" /> Vymazať
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -414,12 +416,15 @@ export const TaskChecklist = ({ taskId }: TaskChecklistProps) => {
   if (isLoading) {
     return (
       <Card className="bg-card border border-border shadow-sm">
-        <CardHeader className="bg-muted/50">
-          <CardTitle className="text-lg font-semibold text-foreground">Checklist</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+            <Check className="h-4 w-4" />
+            Checklist
+          </CardTitle>
         </CardHeader>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+        <CardContent className="pt-0">
+          <div className="flex items-center justify-center py-6">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
           </div>
         </CardContent>
       </Card>
@@ -428,40 +433,40 @@ export const TaskChecklist = ({ taskId }: TaskChecklistProps) => {
 
   return (
     <Card className="bg-card border border-border shadow-sm">
-      <CardHeader className="bg-muted/50">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Check className="h-5 w-5 text-primary" />
+          <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+            <Check className="h-4 w-4 text-primary" />
             Checklist úlohy
           </CardTitle>
           {totalCount > 0 && (
             <div className="flex items-center gap-2">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 {completedCount}/{totalCount}
               </div>
-              <div className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+              <div className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                 {progressPercentage}%
               </div>
             </div>
           )}
         </div>
         {totalCount > 0 && (
-          <div className="w-full bg-muted rounded-full h-2 mt-2">
+          <div className="w-full bg-muted rounded-full h-1.5 mt-2">
             <div 
-              className="bg-primary h-2 rounded-full transition-all duration-300"
+              className="bg-primary h-1.5 rounded-full transition-all duration-300"
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
         )}
       </CardHeader>
-      <CardContent className="pt-6">
+      <CardContent className="pt-0">
         {/* Add new item */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-3">
           <Input
             value={newItemText}
             onChange={(e) => setNewItemText(e.target.value)}
             placeholder="Pridať novú položku..."
-            className="flex-1"
+            className="flex-1 h-8 text-sm"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 handleAddItem();
@@ -472,20 +477,21 @@ export const TaskChecklist = ({ taskId }: TaskChecklistProps) => {
             onClick={handleAddItem}
             disabled={!newItemText.trim() || isAdding}
             size="sm"
+            className="h-8 px-3 text-xs"
           >
-            <Plus className="h-4 w-4 mr-1" />
+            <Plus className="h-3 w-3 mr-1" />
             Pridať
           </Button>
         </div>
 
         {/* Checklist items */}
         {items.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
-              <Check className="h-8 w-8 opacity-50" />
+          <div className="text-center py-8 text-muted-foreground">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-muted/50 flex items-center justify-center">
+              <Check className="h-6 w-6 opacity-50" />
             </div>
-            <h3 className="font-medium text-foreground mb-1">Žiadne položky v checkliste</h3>
-            <p className="text-sm">Pridajte prvú položku vyššie a začnite organizovať svoju úlohu</p>
+            <h3 className="font-medium text-foreground mb-1 text-sm">Žiadne položky v checkliste</h3>
+            <p className="text-xs">Pridajte prvú položku vyššie a začnite organizovať svoju úlohu</p>
           </div>
         ) : (
           <DndContext
@@ -494,7 +500,7 @@ export const TaskChecklist = ({ taskId }: TaskChecklistProps) => {
             onDragEnd={handleDragEnd}
           >
             <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {items.map((item) => (
                   <SortableItem
                     key={item.id}

@@ -137,63 +137,67 @@ export function CommentsList({ taskId, onCommentAdded }: CommentsListProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Add new comment */}
-      <div className="space-y-2">
-        <Textarea
-          placeholder="Napíšte komentár..."
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          className="min-h-[80px]"
-        />
-        <div className="flex justify-end">
-          <Button
-            onClick={handleSubmitComment}
-            disabled={!newComment.trim() || isSubmitting}
-            size="sm"
-          >
-            <Send className="h-4 w-4 mr-2" />
-            {isSubmitting ? "Pridávam..." : "Pridať komentár"}
-          </Button>
-        </div>
-      </div>
-
+    <div className="space-y-3">
       {/* Comments list */}
-      <div className="space-y-4">
+      <div className="space-y-3 max-h-[350px] overflow-y-auto">
         {comments.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-6 text-muted-foreground text-sm">
             Zatiaľ nie sú žiadne komentáre
           </div>
         ) : (
           comments.map((comment) => (
-            <div key={comment.id} className="flex gap-3 p-3 border rounded-lg">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback>
+            <div key={comment.id} className="flex gap-2 p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+              <Avatar className="h-7 w-7 flex-shrink-0">
+                <AvatarFallback className="text-xs">
                   {(comment.user.name || comment.user.email || "U").charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{comment.user.name || comment.user.email || "User"}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(comment.created_at), "d. M. yyyy 'o' HH:mm", { locale: sk })}
+              <div className="flex-1 space-y-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="font-medium text-xs truncate">{comment.user.name || comment.user.email || "User"}</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {format(new Date(comment.created_at), "d.M. HH:mm", { locale: sk })}
                     </span>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDeleteComment(comment.id)}
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                    className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive flex-shrink-0"
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
-                <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
+                <div 
+                  className="text-xs prose prose-xs max-w-none dark:prose-invert break-words"
+                  dangerouslySetInnerHTML={{ __html: comment.content }}
+                />
               </div>
             </div>
           ))
         )}
+      </div>
+
+      {/* Add new comment */}
+      <div className="space-y-2 pt-3 border-t">
+        <Textarea
+          placeholder="Napíšte komentár..."
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          className="min-h-[60px] resize-none text-sm"
+        />
+        <div className="flex justify-end">
+          <Button
+            onClick={handleSubmitComment}
+            disabled={!newComment.trim() || isSubmitting}
+            size="sm"
+            className="h-8 text-xs"
+          >
+            <Send className="h-3 w-3 mr-1" />
+            {isSubmitting ? "Pridávam..." : "Pridať"}
+          </Button>
+        </div>
       </div>
     </div>
   );

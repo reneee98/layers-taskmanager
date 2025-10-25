@@ -123,11 +123,13 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
   if (!editable) {
     return (
       <div 
-        className={cn("border rounded-lg p-3 prose prose-sm max-w-none", className)}
+        className={cn("border rounded-lg p-3 max-w-none", className)}
         dangerouslySetInnerHTML={{ __html: content }}
         style={{
           lineHeight: '1.6',
-          color: 'hsl(var(--foreground))'
+          color: 'hsl(var(--foreground))',
+          fontFamily: 'inherit',
+          fontSize: '14px'
         }}
       />
     );
@@ -185,6 +187,13 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
           color: hsl(var(--accent-foreground)) !important;
         }
         
+        
+        /* Ensure images are visible in Quill */
+        .ql-editor .ql-image {
+          display: block !important;
+        }
+        
+        /* Styles for read-only mode - match editor styles exactly */
         .ql-editor h1 {
           font-size: 1.5rem !important;
           font-weight: 600 !important;
@@ -237,10 +246,43 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
         .ql-editor ul, .ql-editor ol {
           padding-left: 1.5rem !important;
           margin: 0.5rem 0 !important;
+          list-style-type: disc !important;
+        }
+        
+        .ql-editor ol {
+          list-style-type: decimal !important;
+        }
+        
+        .ql-editor ul ul {
+          list-style-type: circle !important;
+        }
+        
+        .ql-editor ul ul ul {
+          list-style-type: square !important;
         }
         
         .ql-editor li {
           margin: 0.25rem 0 !important;
+          display: list-item !important;
+        }
+        
+        /* Specific Quill list styles */
+        .ql-editor .ql-list {
+          list-style-type: disc !important;
+        }
+        
+        .ql-editor .ql-list.ql-ordered {
+          list-style-type: decimal !important;
+        }
+        
+        .ql-editor .ql-list.ql-bullet {
+          list-style-type: disc !important;
+        }
+        
+        /* Ensure list items are properly displayed */
+        .ql-editor .ql-list li {
+          display: list-item !important;
+          list-style-position: outside !important;
         }
         
         .ql-editor a {
@@ -281,54 +323,6 @@ export const QuillEditor = forwardRef<HTMLDivElement, QuillEditorProps>(({
         .ql-editor img:hover {
           transform: scale(1.02) !important;
           box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2) !important;
-        }
-        
-        /* Ensure images are visible in Quill */
-        .ql-editor .ql-image {
-          display: block !important;
-        }
-        
-        /* Styles for read-only mode */
-        .prose img {
-          max-width: 100% !important;
-          height: auto !important;
-          margin: 8px 0 !important;
-          border-radius: 8px !important;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-          transition: transform 0.2s ease !important;
-        }
-        
-        .prose img:hover {
-          transform: scale(1.02) !important;
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2) !important;
-        }
-        
-        .prose a {
-          color: hsl(var(--primary)) !important;
-          text-decoration: underline !important;
-        }
-        
-        .prose a:hover {
-          color: hsl(var(--primary/80)) !important;
-        }
-        
-        .prose strong {
-          font-weight: 600 !important;
-        }
-        
-        .prose em {
-          font-style: italic !important;
-        }
-        
-        .prose h1, .prose h2, .prose h3 {
-          color: hsl(var(--foreground)) !important;
-          font-weight: 600 !important;
-        }
-        
-        .prose blockquote {
-          border-left: 4px solid hsl(var(--primary)) !important;
-          background: hsl(var(--muted/30)) !important;
-          color: hsl(var(--muted-foreground)) !important;
         }
         
         /* Paste animation */

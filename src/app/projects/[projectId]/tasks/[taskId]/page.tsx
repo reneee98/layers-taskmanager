@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   ArrowLeft, 
   Clock, 
@@ -18,7 +19,6 @@ import {
   User,
   AlertCircle,
   CheckCircle,
-  Edit3,
   Loader2,
   MoreHorizontal,
   Copy,
@@ -33,7 +33,10 @@ import {
   Play,
   Plus,
   Link,
-  ExternalLink
+  ExternalLink,
+  Settings,
+  Save,
+  X
 } from "lucide-react";
 import { TimePanel } from "@/components/time/TimePanel";
 import { CostsPanel } from "@/components/costs/CostsPanel";
@@ -72,8 +75,9 @@ export default function TaskDetailPage() {
   const [description, setDescription] = useState("");
   const [descriptionHtml, setDescriptionHtml] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isEditing, setIsEditing] = useState(true);
+  const [isEditing] = useState(true); // Always in editing mode
   const [activeTab, setActiveTab] = useState("overview");
+  const [rightSidebarTab, setRightSidebarTab] = useState("comments");
   const [hasChanges, setHasChanges] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -148,9 +152,10 @@ export default function TaskDetailPage() {
     }
     
     if (html) {
+      // Save immediately with a small delay to avoid too many requests
       saveTimeoutRef.current = setTimeout(() => {
         handleSaveDescriptionWithContent(html);
-      }, 3000);
+      }, 500);
     }
   };
 
@@ -515,8 +520,6 @@ export default function TaskDetailPage() {
     }
   };
 
-
-
   if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
@@ -546,10 +549,10 @@ export default function TaskDetailPage() {
   const PriorityIcon = getPriorityIcon(task.priority);
 
   return (
-    <div className="w-full space-y-6">
-      {/* Header */}
+    <div className="space-y-4">
+      {/* Compact Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
@@ -557,193 +560,235 @@ export default function TaskDetailPage() {
             className="text-muted-foreground hover:text-foreground hover:bg-accent"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Späť na projekt
+            Späť
           </Button>
-          <div className="h-6 w-px bg-border" />
+          <div className="h-4 w-px bg-border" />
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{task.project?.name}</span>
+            <span className="font-medium">{task.project?.name}</span>
             <span>•</span>
-            <span className="font-mono">{task.project?.code}</span>
+            <span className="font-mono text-xs">{task.project?.code}</span>
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditing(!isEditing)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Edit3 className="h-4 w-4 mr-2" />
-            {isEditing ? 'Ukončiť úpravy' : 'Upraviť'}
-          </Button>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="text-muted-foreground hover:text-foreground">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem>
-                <Copy className="h-4 w-4 mr-2" />
-                Duplikovať
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Share2 className="h-4 w-4 mr-2" />
-                Zdieľať
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Archive className="h-4 w-4 mr-2" />
-                Archivovať
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-red-600">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Vymazať
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="text-muted-foreground hover:text-foreground">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem>
+              <Copy className="h-4 w-4 mr-2" />
+              Duplikovať
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Share2 className="h-4 w-4 mr-2" />
+              Zdieľať
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <Archive className="h-4 w-4 mr-2" />
+              Archivovať
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-red-600">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Vymazať
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Task Header Card */}
+      {/* Compact Task Header */}
       <Card className="bg-card border border-border shadow-sm">
-        <CardContent className="p-6">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold text-foreground">{task.title}</h1>
-                {deadlineBadge && (
-                  <div className="flex items-center gap-2">
-                    <div className={`w-6 h-6 ${deadlineBadge.color} rounded-full flex items-center justify-center ${
-                      deadlineBadge.animate ? 'animate-pulse' : ''
-                    }`}>
-                      <span className="text-white text-xs font-bold">
-                        {deadlineBadge.icon}
+        <CardContent className="p-4">
+          <div className="space-y-4">
+            {/* Title and Project Info */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-2xl font-bold text-foreground truncate">{task.title}</h1>
+                  {deadlineBadge && (
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <div className={`w-5 h-5 ${deadlineBadge.color} rounded-full flex items-center justify-center ${
+                        deadlineBadge.animate ? 'animate-pulse' : ''
+                      }`}>
+                        <span className="text-white text-xs font-bold">
+                          {deadlineBadge.icon}
+                        </span>
+                      </div>
+                      <span className={`text-xs font-medium ${deadlineStatus?.color} ${
+                        deadlineBadge.animate ? 'animate-pulse' : ''
+                      }`}>
+                        {deadlineBadge.text}
                       </span>
                     </div>
-                    <span className={`text-sm font-bold ${deadlineStatus?.color} ${
-                      deadlineBadge.animate ? 'animate-pulse' : ''
-                    }`}>
-                      {deadlineBadge.text}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <StatusSelect 
-                  status={task.status} 
-                  onStatusChange={handleStatusChange}
-                />
+                  )}
+                </div>
                 
-                <PrioritySelect 
-                  priority={task.priority} 
-                  onPriorityChange={handlePriorityChange}
-                />
+                {/* Project info */}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="font-medium">{task.project?.name}</span>
+                  <span>•</span>
+                  <span className="font-mono text-xs">{task.project?.code}</span>
+                </div>
               </div>
             </div>
 
+            {/* All Metadata in One Row */}
+            <div className="pt-4 border-t border-border">
+              <div className="flex flex-wrap items-start gap-6">
+                {/* Status */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Activity className="h-4 w-4" />
+                    Status
+                  </div>
+                  <StatusSelect 
+                    status={task.status} 
+                    onStatusChange={handleStatusChange}
+                  />
+                </div>
 
-            {/* Dates */}
-            <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Play className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-foreground">Začiatok:</span>
-                <InlineDateEdit
-                  value={task.start_date ? format(new Date(task.start_date), 'dd.MM.yyyy', { locale: sk }) : null}
-                  placeholder="Kliknite pre nastavenie"
-                  onSave={async (value) => {
-                    const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
-                    await handleStartDateChange(isoDate);
-                  }}
-                  icon={Calendar}
-                />
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Flag className="h-4 w-4 text-red-600" />
-                <span className="text-sm font-medium text-foreground">Deadline:</span>
-                <InlineDateEdit
-                  value={task.due_date ? format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk }) : null}
-                  placeholder="Kliknite pre nastavenie"
-                  onSave={async (value) => {
-                    const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
-                    await handleDueDateChange(isoDate);
-                  }}
-                  icon={Calendar}
-                />
-              </div>
-              
-              {task.due_date && deadlineStatus && !deadlineStatus.showBadge && (
-                <span className={cn("ml-2 font-medium", deadlineStatus.color)}>
-                  ({deadlineStatus.text})
-                </span>
-              )}
-            </div>
+                {/* Priority */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <TrendingUp className="h-4 w-4" />
+                    Priorita
+                  </div>
+                  <PrioritySelect 
+                    priority={task.priority} 
+                    onPriorityChange={handlePriorityChange}
+                  />
+                </div>
 
-            {/* Assignees */}
-            <div className="flex items-center gap-4 pt-4 border-t border-border">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">Priradení:</span>
+                {/* Start Date */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <Play className="h-4 w-4" />
+                      Začiatok
+                    </div>
+                    {task.start_date && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleStartDateChange(null)}
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        title="Zrušiť dátum"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                  <InlineDateEdit
+                    value={task.start_date ? format(new Date(task.start_date), 'dd.MM.yyyy', { locale: sk }) : null}
+                    placeholder="Nastaviť dátum"
+                    onSave={async (value) => {
+                      const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
+                      await handleStartDateChange(isoDate);
+                    }}
+                    icon={Calendar}
+                  />
+                </div>
+                
+                {/* Due Date */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <Flag className="h-4 w-4" />
+                      Deadline
+                    </div>
+                    {task.due_date && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDueDateChange(null)}
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        title="Zrušiť deadline"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                  <InlineDateEdit
+                    value={task.due_date ? format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk }) : null}
+                    placeholder="Nastaviť deadline"
+                    onSave={async (value) => {
+                      const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
+                      await handleDueDateChange(isoDate);
+                    }}
+                    icon={Calendar}
+                  />
+                </div>
+
+                {/* Assignees */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <User className="h-4 w-4" />
+                    Priradení
+                  </div>
+                  <MultiAssigneeSelect
+                    taskId={task.id}
+                    currentAssignees={assignees}
+                    onAssigneesChange={handleAssigneesChange}
+                  />
+                </div>
               </div>
-              <MultiAssigneeSelect
-                taskId={task.id}
-                currentAssignees={assignees}
-                onAssigneesChange={handleAssigneesChange}
-              />
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="flex flex-col xl:flex-row gap-4">
         {/* Left Column - Main Content */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="flex-1 space-y-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="bg-muted">
-              <TabsTrigger value="overview" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
+            <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+              <TabsTrigger value="overview" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                 <FileText className="h-4 w-4 mr-2" />
-                Prehľad
+                <span className="hidden sm:inline">Prehľad</span>
               </TabsTrigger>
-              <TabsTrigger value="time" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
+              <TabsTrigger value="time" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                 <Clock className="h-4 w-4 mr-2" />
-                Čas
+                <span className="hidden sm:inline">Čas</span>
               </TabsTrigger>
-              <TabsTrigger value="costs" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
+              <TabsTrigger value="costs" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                 <Euro className="h-4 w-4 mr-2" />
-                Náklady
+                <span className="hidden sm:inline">Náklady</span>
               </TabsTrigger>
-              <TabsTrigger value="report" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
+              <TabsTrigger value="settings" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                <Settings className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Nastavenia</span>
+              </TabsTrigger>
+              <TabsTrigger value="report" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                 <BarChart3 className="h-4 w-4 mr-2" />
-                Report
+                <span className="hidden sm:inline">Report</span>
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="space-y-6 mt-6">
+            <TabsContent value="overview" className="space-y-4 mt-4">
               {/* Description */}
               <Card className="bg-card border border-border shadow-sm">
-                <CardHeader className="bg-muted/50">
+                <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-semibold text-foreground">Popis úlohy</CardTitle>
+                    <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Popis úlohy
+                    </CardTitle>
                     {isSaving && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" />
                         Ukladám...
                       </div>
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="p-6">
+                <CardContent className="pt-0">
                   <FileUploadHandler
                     taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
                     onFileUploaded={(fileUrl, htmlContent) => {
-                      // Files are automatically added to Files section below
-                      // No need to modify description content
                       console.log('File uploaded to Files section, URL:', fileUrl);
-                      // Files will be automatically refreshed by TaskFiles component
                     }}
                   >
                     <QuillEditor
@@ -751,7 +796,7 @@ export default function TaskDetailPage() {
                       content={descriptionHtml}
                       onChange={handleDescriptionChange}
                       placeholder="Napíšte popis úlohy..."
-                      className="min-h-[200px]"
+                      className="min-h-[150px]"
                       editable={isEditing}
                       taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
                     />
@@ -764,29 +809,17 @@ export default function TaskDetailPage() {
 
               {/* Task Files */}
               <TaskFiles taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
-
-              {/* Comments */}
-              <Card className="bg-card border border-border shadow-sm">
-                <CardHeader className="bg-muted/50">
-                  <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    Komentáre
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <CommentsList 
-                    taskId={task.id}
-                    onCommentAdded={() => {
-                      // Optionally refresh task data
-                    }}
-                  />
-                </CardContent>
-              </Card>
             </TabsContent>
 
-            <TabsContent value="time" className="mt-6">
+            <TabsContent value="time" className="mt-4">
               <Card className="bg-card border border-border shadow-sm">
-                <CardContent className="p-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Časové záznamy
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
                   <TimePanel 
                     projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
                     tasks={[{
@@ -804,9 +837,15 @@ export default function TaskDetailPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="costs" className="mt-6">
+            <TabsContent value="costs" className="mt-4">
               <Card className="bg-card border border-border shadow-sm">
-                <CardContent className="p-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <Euro className="h-4 w-4" />
+                    Náklady
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
                   <CostsPanel 
                     projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
                     tasks={[task]}
@@ -819,10 +858,144 @@ export default function TaskDetailPage() {
               </Card>
             </TabsContent>
 
-
-            <TabsContent value="report" className="mt-6">
+            <TabsContent value="settings" className="space-y-4 mt-4">
+              {/* Time Settings */}
               <Card className="bg-card border border-border shadow-sm">
-                <CardContent className="p-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Časové nastavenia
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Estimated Hours */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Odhad hodín</label>
+                      <Input
+                        type="number"
+                        step="0.25"
+                        min="0"
+                        value={task?.estimated_hours || ''}
+                        onChange={(e) => {
+                          const value = e.target.value ? parseFloat(e.target.value) : null;
+                          setTask(prev => prev ? { ...prev, estimated_hours: value } : null);
+                          setHasChanges(true);
+                        }}
+                        placeholder="0"
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Actual Hours - Read Only */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Natrackovaný čas</label>
+                      <div className="px-3 py-2 bg-muted rounded-md text-sm text-foreground">
+                        {task?.actual_hours ? `${task.actual_hours}h` : '0h'}
+                      </div>
+                    </div>
+
+                    {/* Hourly Rate - Read Only */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Hodinovka projektu</label>
+                      <div className="px-3 py-2 bg-muted rounded-md text-sm text-foreground">
+                        {task?.project?.hourly_rate ? `${task.project.hourly_rate.toFixed(2)}€/h` : 'Nenastavené'}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Budget Settings */}
+              <Card className="bg-card border border-border shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Rozpočtové nastavenia
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Rozpočet projektu</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={task?.project?.budget ? task.project.budget.toFixed(2) : ''}
+                        onChange={(e) => {
+                          const value = e.target.value ? parseFloat(e.target.value) : null;
+                          setTask(prev => prev ? { 
+                            ...prev, 
+                            project: prev.project ? { ...prev.project, budget: value } : undefined 
+                          } : null);
+                          setHasChanges(true);
+                        }}
+                        placeholder="0.00"
+                        className="flex-1"
+                      />
+                      <span className="text-sm text-muted-foreground">€</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Project Info */}
+              <Card className="bg-card border border-border shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-foreground">Informácie o projekte</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-sm font-medium text-foreground">{task.project?.name}</div>
+                      <div className="text-xs text-muted-foreground font-mono">{task.project?.code}</div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full text-muted-foreground hover:text-foreground"
+                      onClick={() => router.push(`/projects/${params.projectId}`)}
+                    >
+                      Zobraziť projekt
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Save Button */}
+              {hasChanges && (
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Ukladám...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Uložiť nastavenia
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="report" className="mt-4">
+              <Card className="bg-card border border-border shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Report
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
                   <ProjectReport 
                     projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId}
                     taskId={task.id}
@@ -833,146 +1006,53 @@ export default function TaskDetailPage() {
           </Tabs>
         </div>
 
-        {/* Right Column - Sidebar */}
-        <div className="space-y-6">
-          {/* Billing and Time Tracking Settings */}
-          <Card className="bg-card border border-border shadow-sm">
-            <CardHeader className="bg-muted/50">
-              <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <Euro className="h-5 w-5" />
-                Nastavenia
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              {/* Estimated Hours */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Odhad hodín
-                </label>
-                <Input
-                  type="number"
-                  step="0.25"
-                  min="0"
-                  value={task?.estimated_hours || ''}
-                  onChange={(e) => {
-                    const value = e.target.value ? parseFloat(e.target.value) : null;
-                    setTask(prev => prev ? { ...prev, estimated_hours: value } : null);
-                    setHasChanges(true);
-                  }}
-                  placeholder="0"
-                  className="w-full"
-                />
-              </div>
+        {/* Right Sidebar */}
+        <div className="w-full xl:w-80 space-y-4 order-first xl:order-last">
+          <Tabs value={rightSidebarTab} onValueChange={setRightSidebarTab} className="w-full">
+            <TabsList className="inline-flex h-9 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+              <TabsTrigger value="comments" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Komentáre</span>
+              </TabsTrigger>
+              <TabsTrigger value="links" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                <Link className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Linky</span>
+              </TabsTrigger>
+            </TabsList>
 
-              {/* Actual Hours - Read Only */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  Natrackovaný čas
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 px-3 py-2 bg-muted rounded-md text-sm text-foreground">
-                    {task?.actual_hours ? `${task.actual_hours}h` : '0h'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Hourly Rate - Read Only */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                  <Euro className="h-4 w-4" />
-                  Hodinovka projektu
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 px-3 py-2 bg-muted rounded-md text-sm text-foreground">
-                    {task?.project?.hourly_rate ? `${task.project.hourly_rate.toFixed(2)}€/h` : 'Nenastavené'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Budget */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Rozpočet projektu
-                </label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={task?.project?.budget ? task.project.budget.toFixed(2) : ''}
-                    onChange={(e) => {
-                      const value = e.target.value ? parseFloat(e.target.value) : null;
-                      setTask(prev => prev ? { 
-                        ...prev, 
-                        project: prev.project ? { ...prev.project, budget: value } : null 
-                      } : null);
-                      setHasChanges(true);
+            <TabsContent value="comments" className="mt-4">
+              <Card className="bg-card border border-border shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Komentáre
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <CommentsList 
+                    taskId={task.id}
+                    onCommentAdded={() => {
+                      // Optionally refresh task data
                     }}
-                    placeholder="0.00"
-                    className="flex-1"
                   />
-                  <span className="text-xs text-muted-foreground">€</span>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-              {/* Save Button */}
-              {hasChanges && (
-                <div className="flex justify-end pt-2">
-                  <Button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    size="sm"
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Ukladám...
-                      </>
-                    ) : (
-                      "Uložiť nastavenia"
-                    )}
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Google Drive Links */}
-          <Card className="bg-card border border-border shadow-sm">
-            <CardHeader className="bg-muted/50">
-              <CardTitle className="text-lg font-semibold text-foreground">Google Drive</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <GoogleDriveLinks taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
-            </CardContent>
-          </Card>
-
-          {/* Project Info */}
-          <Card className="bg-card border border-border shadow-sm">
-            <CardHeader className="bg-muted/50">
-              <CardTitle className="text-lg font-semibold text-foreground">Projekt</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-3">
-                <div>
-                  <div className="text-sm font-medium text-foreground">{task.project?.name}</div>
-                  <div className="text-xs text-muted-foreground font-mono">{task.project?.code}</div>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full text-muted-foreground hover:text-foreground"
-                  onClick={() => router.push(`/projects/${params.projectId}`)}
-                >
-                  Zobraziť projekt
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            <TabsContent value="links" className="mt-4">
+              <Card className="bg-card border border-border shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <Link className="h-4 w-4" />
+                    Google Drive
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <GoogleDriveLinks taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

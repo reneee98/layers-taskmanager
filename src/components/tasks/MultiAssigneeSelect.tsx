@@ -150,34 +150,36 @@ export function MultiAssigneeSelect({
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center gap-1.5 flex-wrap">
       {/* Current assignees */}
       {currentAssignees.map((assignee) => (
-        <Badge
+        <div
           key={assignee.id}
-          variant="secondary"
-          className="h-7 px-2 py-1 text-xs flex items-center gap-1"
+          className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded-md border border-border/50 hover:bg-muted/70 transition-colors"
         >
-          <Avatar className="h-4 w-4">
-            <AvatarFallback className="text-xs">
-              {getInitials(assignee.user?.name || "")}
+          <Avatar className="h-5 w-5">
+            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+              {getInitials(assignee.user?.name || assignee.user?.email || "")}
             </AvatarFallback>
           </Avatar>
-          <span>{(assignee.user?.name || "Neznámy").split(" ")[0]}</span>
+          <span className="text-xs font-medium">
+            {assignee.user?.name || assignee.user?.email || "Neznámy"}
+          </span>
           <Button
             variant="ghost"
             size="sm"
-            className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+            className="h-4 w-4 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={() => handleRemoveAssignee(assignee.user_id)}
+            title="Odstrániť"
           >
             <X className="h-3 w-3" />
           </Button>
-        </Badge>
+        </div>
       ))}
 
       {/* Add assignee select */}
       <Select onValueChange={handleAddAssignee}>
-        <SelectTrigger className="h-7 px-2 py-1 text-xs border-dashed hover:border-solid transition-colors w-auto max-w-[120px]">
+        <SelectTrigger className="h-8 px-2 py-1 text-xs border-dashed hover:border-solid transition-colors w-auto min-w-[100px]">
           <SelectValue placeholder="+ Priradiť">
             <div className="flex items-center gap-1 text-muted-foreground">
               <Plus className="h-3 w-3" />
@@ -192,11 +194,11 @@ export function MultiAssigneeSelect({
               <SelectItem key={user.id} value={user.id}>
                 <div className="flex items-center gap-2">
                   <Avatar className="h-4 w-4">
-                    <AvatarFallback className="text-xs">
+                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
                       {getInitials(user.name)}
                     </AvatarFallback>
                   </Avatar>
-                  <span>{user.name || "Neznámy"}</span>
+                  <span className="text-xs">{user.name || "Neznámy"}</span>
                 </div>
               </SelectItem>
             ))}

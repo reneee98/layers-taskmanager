@@ -29,6 +29,7 @@ export interface Project {
   id: string;
   name: string;
   description: string | null;
+  code: string | null;
   status: 'active' | 'on_hold' | 'completed' | 'cancelled';
   start_date: string | null;
   end_date: string | null;
@@ -39,6 +40,11 @@ export interface Project {
   workspace_id: string;
   client_id: string | null;
   created_by: string | null;
+  client?: {
+    id: string;
+    name: string;
+    email: string | null;
+  } | null;
 }
 
 export interface Client {
@@ -47,6 +53,8 @@ export interface Client {
   email: string | null;
   phone: string | null;
   address: string | null;
+  tax_id: string | null;
+  notes: string | null;
   created_at: string;
   updated_at: string;
   workspace_id: string;
@@ -57,7 +65,7 @@ export interface Task {
   id: string;
   title: string;
   description: string | null;
-  status: 'todo' | 'in_progress' | 'review' | 'done';
+  status: 'todo' | 'in_progress' | 'review' | 'sent_to_client' | 'done' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   due_date: string | null;
   created_at: string;
@@ -73,6 +81,16 @@ export interface Task {
   hourly_rate_cents?: number | null;
   budget_cents?: number | null;
   start_date?: string | null;
+  end_date?: string | null;
+  calculated_price?: number | null;
+  // Related data
+  project?: {
+    id: string;
+    name: string;
+    code: string;
+    hourly_rate?: number | null;
+    budget?: number | null;
+  };
 }
 
 export interface GoogleDriveLink {
@@ -83,6 +101,25 @@ export interface GoogleDriveLink {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+}
+
+export interface TaskAssignee {
+  id: string;
+  task_id: string;
+  user_id: string;
+  assigned_at: string;
+  assigned_by: string | null;
+  workspace_id: string;
+  user: {
+    id: string;
+    email: string;
+    display_name: string;
+    avatar_url: string | null;
+    role: string;
+    created_at: string;
+    updated_at: string;
+    name: string;
+  };
 }
 
 export interface TaskChecklistItem {

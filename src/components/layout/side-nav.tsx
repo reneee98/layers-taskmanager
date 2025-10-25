@@ -316,8 +316,8 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
             <div className="space-y-1 mb-8">
               {!isCollapsed && (
                 <div className="px-3 py-2">
-                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    OVERVIEW
+                  <h2 className="text-xs font-semibold text-muted-foreground tracking-wider">
+                    Overview
                   </h2>
                 </div>
               )}
@@ -330,8 +330,8 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
             <div className="space-y-1 mb-8">
               {!isCollapsed && (
                 <div className="px-3 py-2">
-                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    NÁSTROJE
+                  <h2 className="text-xs font-semibold text-muted-foreground tracking-wider">
+                    Nástroje
                   </h2>
                 </div>
               )}
@@ -344,8 +344,8 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
             {!isCollapsed && (
               <div className="space-y-1">
                 <div className="px-3 py-2">
-                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    ŠTATISTIKY
+                  <h2 className="text-xs font-semibold text-muted-foreground tracking-wider">
+                    Štatistiky
                   </h2>
                 </div>
                 <div className="space-y-2">

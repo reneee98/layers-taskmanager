@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, TaskAssignee } from "@/types/database";
+import { Profile, TaskAssignee } from "@/types/database";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,12 +24,12 @@ import { toast } from "@/hooks/use-toast";
 
 interface TaskAssigneesProps {
   taskId: string;
-  assignees: User[];
-  onAssigneesChange: (assignees: User[]) => void;
+  assignees: Profile[];
+  onAssigneesChange: (assignees: Profile[]) => void;
 }
 
 export function TaskAssignees({ taskId, assignees, onAssigneesChange }: TaskAssigneesProps) {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
@@ -165,10 +165,10 @@ export function TaskAssignees({ taskId, assignees, onAssigneesChange }: TaskAssi
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="text-xs">
-                            {getInitials(user.name)}
+                            {getInitials(user.display_name || user.email)}
                           </AvatarFallback>
                         </Avatar>
-                        <span>{user.name}</span>
+                        <span>{user.display_name || user.email}</span>
                         <Badge variant="secondary" className="text-xs">
                           {user.role}
                         </Badge>
@@ -211,11 +211,11 @@ export function TaskAssignees({ taskId, assignees, onAssigneesChange }: TaskAssi
               <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-sm">
-                    {getInitials(assignee.name)}
+                    {getInitials(assignee.display_name || assignee.email)}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <div className="text-sm font-medium">{assignee.name}</div>
+                  <div className="text-sm font-medium">{assignee.display_name || assignee.email}</div>
                   <div className="text-xs text-muted-foreground">{assignee.email}</div>
                 </div>
                 <Badge variant="secondary" className="text-xs">

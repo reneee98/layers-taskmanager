@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { User, TaskAssignee } from "@/types/database";
+import { Profile, TaskAssignee } from "@/types/database";
 import { X, Plus } from "lucide-react";
 
 interface MultiAssigneeSelectProps {
@@ -25,7 +25,7 @@ export function MultiAssigneeSelect({
   currentAssignees,
   onAssigneesChange,
 }: MultiAssigneeSelectProps) {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const getInitials = (name: string | undefined) => {
@@ -73,7 +73,7 @@ export function MultiAssigneeSelect({
       return;
     }
 
-    console.log("Adding assignee:", user.name, "to task:", taskId);
+    console.log("Adding assignee:", user.display_name || user.email, "to task:", taskId);
     console.log("User ID being sent:", userId);
     console.log("User object:", user);
 
@@ -195,10 +195,10 @@ export function MultiAssigneeSelect({
                 <div className="flex items-center gap-2">
                   <Avatar className="h-4 w-4">
                     <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                      {getInitials(user.name)}
+                      {getInitials(user.display_name || user.email)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-xs">{user.name || "Neznámy"}</span>
+                  <span className="text-xs">{user.display_name || user.email || "Neznámy"}</span>
                 </div>
               </SelectItem>
             ))}

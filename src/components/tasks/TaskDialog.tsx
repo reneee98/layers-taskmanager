@@ -53,7 +53,7 @@ export function TaskDialog({
       setStatus(task.status);
       setPriority(task.priority);
       setEstimatedHours(task.estimated_hours?.toString() || "");
-      setBudgetAmount(task.budget_amount?.toString() || "");
+      setBudgetAmount(task.budget_cents ? (task.budget_cents / 100).toString() : "");
       setDueDate(task.due_date || "");
     } else {
       resetForm();

@@ -10,12 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { User } from "@/types/database";
+import { Profile } from "@/types/database";
 
 interface SimpleAssigneeSelectProps {
   taskId: string;
-  currentAssignee: User | null;
-  onAssigneeChange: (assignee: User | null) => void;
+  currentAssignee: Profile | null;
+  onAssigneeChange: (assignee: Profile | null) => void;
 }
 
 export function SimpleAssigneeSelect({
@@ -23,7 +23,7 @@ export function SimpleAssigneeSelect({
   currentAssignee,
   onAssigneeChange,
 }: SimpleAssigneeSelectProps) {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const getInitials = (name: string) => {
@@ -126,10 +126,10 @@ export function SimpleAssigneeSelect({
             <div className="flex items-center gap-1">
               <Avatar className="h-4 w-4">
                 <AvatarFallback className="text-xs">
-                  {getInitials(currentAssignee.name)}
+                  {getInitials(currentAssignee.display_name || currentAssignee.email)}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-xs">{currentAssignee.name.split(" ")[0]}</span>
+              <span className="text-xs">{(currentAssignee.display_name || currentAssignee.email).split(" ")[0]}</span>
             </div>
           ) : (
             <div className="flex items-center gap-1 text-muted-foreground">
@@ -148,10 +148,10 @@ export function SimpleAssigneeSelect({
             <div className="flex items-center gap-2">
               <Avatar className="h-4 w-4">
                 <AvatarFallback className="text-xs">
-                  {getInitials(user.name)}
+                  {getInitials(user.display_name || user.email)}
                 </AvatarFallback>
               </Avatar>
-              <span>{user.name}</span>
+              <span>{user.display_name || user.email}</span>
             </div>
           </SelectItem>
         ))}

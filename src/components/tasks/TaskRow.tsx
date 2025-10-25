@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Task, User } from "@/types/database";
+import { Task, Profile } from "@/types/database";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
   DropdownMenu,
@@ -279,31 +279,12 @@ export function TaskRow({
         </DropdownMenu>
       </TableCell>
 
-      {/* Assignees - show avatars with overflow */}
+      {/* Assignees - placeholder */}
       <TableCell className="py-4 pl-6 pr-2">
         <div className="flex items-center gap-1">
-          {task.assignees && task.assignees.length > 0 ? (
-            <>
-              {task.assignees.slice(0, 4).map((assignee, index) => (
-                  <Avatar key={assignee.id} className="h-6 w-6">
-                    <AvatarFallback className="text-xs bg-muted text-muted-foreground">
-                      {getInitials(assignee.user?.name || "")}
-                    </AvatarFallback>
-                  </Avatar>
-              ))}
-              {task.assignees.length > 4 && (
-                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-                  <span className="text-xs text-muted-foreground">
-                    +{task.assignees.length - 4}
-                  </span>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="h-6 w-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
-              <span className="text-xs text-muted-foreground">?</span>
-            </div>
-          )}
+          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+            <span className="text-xs text-muted-foreground">-</span>
+          </div>
         </div>
       </TableCell>
 
@@ -332,11 +313,11 @@ export function TaskRow({
       <TableCell className="py-4 pl-6 pr-2 w-fit">
         {(() => {
           // If there's a fixed budget amount, show it
-          if (task.budget_amount && task.budget_amount > 0) {
+          if (task.budget_cents && task.budget_cents > 0) {
             return (
               <div className="flex items-center justify-end gap-1 text-xs font-medium">
                 <span className="text-green-600">
-                  {formatCurrency(task.budget_amount)}
+                  {formatCurrency(task.budget_cents / 100)}
                 </span>
                 <span className="text-xs text-muted-foreground">(fixná)</span>
               </div>

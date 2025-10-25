@@ -58,7 +58,6 @@ export const TaskForm = ({
     defaultValues: task
       ? {
           project_id: task.project_id,
-          parent_task_id: task.parent_task_id,
           title: task.title,
           description: task.description || "",
           status: task.status,

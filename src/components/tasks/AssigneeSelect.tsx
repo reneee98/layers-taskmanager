@@ -18,12 +18,12 @@ import {
 } from "@/components/ui/popover";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { User } from "@/types/database";
+import { Profile } from "@/types/database";
 
 interface AssigneeSelectProps {
   taskId: string;
-  currentAssignees: User[];
-  onAssigneesChange: (assignees: User[]) => void;
+  currentAssignees: Profile[];
+  onAssigneesChange: (assignees: Profile[]) => void;
 }
 
 export function AssigneeSelect({
@@ -32,7 +32,7 @@ export function AssigneeSelect({
   onAssigneesChange,
 }: AssigneeSelectProps) {
   const [open, setOpen] = useState(false);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const getInitials = (name: string) => {
@@ -61,7 +61,7 @@ export function AssigneeSelect({
     fetchUsers();
   }, []);
 
-  const handleUserSelect = async (user: User) => {
+  const handleUserSelect = async (user: Profile) => {
     const isAlreadyAssigned = currentAssignees.some(
       (assignee) => assignee.id === user.id
     );
@@ -105,10 +105,10 @@ export function AssigneeSelect({
         >
           <Avatar className="h-5 w-5">
             <AvatarFallback className="text-xs">
-              {getInitials(assignee.name)}
+              {getInitials(assignee.display_name || assignee.email)}
             </AvatarFallback>
           </Avatar>
-          <span className="text-xs">{assignee.name.split(" ")[0]}</span>
+          <span className="text-xs">{(assignee.display_name || assignee.email).split(" ")[0]}</span>
           <Button
             variant="ghost"
             size="sm"
@@ -145,16 +145,16 @@ export function AssigneeSelect({
                   return (
                     <CommandItem
                       key={user.id}
-                      value={user.name}
+                      value={user.display_name || user.email}
                       onSelect={() => handleUserSelect(user)}
                       className="flex items-center gap-2"
                     >
                       <Avatar className="h-6 w-6">
                         <AvatarFallback className="text-xs">
-                          {getInitials(user.name)}
+                          {getInitials(user.display_name || user.email)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="flex-1">{user.name}</span>
+                      <span className="flex-1">{user.display_name || user.email}</span>
                       <Check
                         className={cn(
                           "h-4 w-4",

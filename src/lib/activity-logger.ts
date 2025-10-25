@@ -131,7 +131,6 @@ export const ActivityTypes = {
   TASK_DUE_DATE_CHANGED: "task_due_date_changed",
   TASK_ESTIMATED_HOURS_CHANGED: "task_estimated_hours_changed",
   TASK_BUDGET_CHANGED: "task_budget_changed",
-  TASK_GOOGLE_DRIVE_LINK_CHANGED: "task_google_drive_link_changed",
   
   // Time activities
   TIME_ADDED: "time_added",

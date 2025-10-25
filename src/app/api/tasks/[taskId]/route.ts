@@ -259,23 +259,6 @@ export async function PATCH(
       });
     }
 
-    // Check for Google Drive link change
-    if (validation.data.google_drive_link !== undefined && validation.data.google_drive_link !== currentTask.google_drive_link) {
-      await logActivity({
-        workspaceId,
-        userId: user.id,
-        type: ActivityTypes.TASK_GOOGLE_DRIVE_LINK_CHANGED,
-        action: validation.data.google_drive_link ? `Pridal Google Drive link` : `Odstránil Google Drive link`,
-        details: task.title,
-        projectId: task.project_id,
-        taskId: task.id,
-        metadata: {
-          old_link: currentTask.google_drive_link,
-          new_link: validation.data.google_drive_link,
-          user_display_name: userDisplayName
-        }
-      });
-    }
 
     // Check if task was completed
     if (validation.data.status === 'done' && currentTask.status !== 'done') {

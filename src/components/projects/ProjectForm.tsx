@@ -47,8 +47,8 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
     reset,
     setValue,
     watch,
-  } = useForm<ProjectFormData | UpdateProjectData>({
-    resolver: zodResolver(isEditing ? updateProjectSchema : projectSchema),
+  } = useForm<ProjectFormData>({
+    resolver: zodResolver(projectSchema),
     defaultValues: project
       ? {
           client_id: project.client_id,
@@ -56,13 +56,13 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
           code: project.code || "",
           description: project.description || "",
           status: project.status,
-          currency: project.currency || "EUR",
-          hourly_rate: project.hourly_rate || null,
-          fixed_fee: project.fixed_fee || null,
-          external_costs_budget: project.external_costs_budget || null,
+          currency: "EUR",
+          hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
+          fixed_fee: project.budget || null,
+          external_costs_budget: null,
           start_date: project.start_date || "",
           end_date: project.end_date || "",
-          notes: project.notes || "",
+          notes: "",
         }
       : {
           status: "draft",
@@ -137,13 +137,13 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
         code: project.code || "",
         description: project.description || "",
         status: project.status,
-        currency: project.currency || "EUR",
-        hourly_rate: project.hourly_rate || null,
-        fixed_fee: project.fixed_fee || null,
-        external_costs_budget: project.external_costs_budget || null,
+        currency: "EUR",
+        hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
+        fixed_fee: project.budget || null,
+        external_costs_budget: null,
         start_date: project.start_date || "",
         end_date: project.end_date || "",
-        notes: project.notes || "",
+        notes: "",
       });
     } else {
       reset({

@@ -237,7 +237,7 @@ export function TaskTable({
           <span>
             Celková cena:{" "}
             {filteredTasks
-              .reduce((sum, task) => sum + (task.budget_amount || 0), 0)
+              .reduce((sum, task) => sum + (task.budget_cents ? task.budget_cents / 100 : 0), 0)
               .toLocaleString("sk-SK", {
                 style: "currency",
                 currency: "EUR",

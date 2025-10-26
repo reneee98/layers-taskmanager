@@ -1,0 +1,101 @@
+import { isToday, isAfter, isBefore, startOfDay, endOfDay, addDays } from "date-fns";
+
+export interface AssignedTask {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  estimated_hours: number | null;
+  actual_hours: number | null;
+  due_date: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+  updated_at: string;
+  project_id: string;
+  assignee_id: string | null;
+  budget_amount: number | null;
+  days_until_deadline: number | null;
+  assignees?: {
+    id: string;
+    user_id: string;
+    user?: {
+      id: string;
+      name: string;
+      email: string;
+    };
+  }[];
+  project: {
+    id: string;
+    name: string;
+    code: string;
+    client?: {
+      id: string;
+      name: string;
+    };
+  };
+}
+
+export type DashboardTabType = "today" | "overdue" | "sent_to_client" | "in_progress" | "all_active" | "this_week";
+
+export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabType): AssignedTask[] => {
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const todayEnd = endOfDay(now);
+  const weekEnd = addDays(todayStart, 7);
+
+  switch (tabType) {
+    case "today":
+      return tasks.filter(task => {
+        // Úloha je "dnes" ak má deadline dnes ALEBO ak má štart dnes
+        const hasDueDateToday = task.due_date && isToday(new Date(task.due_date));
+        const hasStartDateToday = task.start_date && isToday(new Date(task.start_date));
+        return hasDueDateToday || hasStartDateToday;
+      });
+
+    case "overdue":
+      return tasks.filter(task => {
+        if (!task.due_date) return false;
+        const dueDate = new Date(task.due_date);
+        return isBefore(dueDate, todayStart) && task.status !== "done" && task.status !== "cancelled";
+      });
+
+    case "sent_to_client":
+      return tasks.filter(task => task.status === "sent_to_client");
+
+    case "in_progress":
+      return tasks.filter(task => task.status === "in_progress");
+
+    case "all_active":
+      return tasks.filter(task => 
+        task.status !== "done" && task.status !== "cancelled"
+      );
+
+    case "this_week":
+      return tasks.filter(task => {
+        // Úloha je "tento týždeň" ak má deadline tento týždeň ALEBO ak má štart tento týždeň
+        const hasDueDateThisWeek = task.due_date && 
+          new Date(task.due_date) >= todayStart && 
+          new Date(task.due_date) <= weekEnd;
+        const hasStartDateThisWeek = task.start_date && 
+          new Date(task.start_date) >= todayStart && 
+          new Date(task.start_date) <= weekEnd;
+        return hasDueDateThisWeek || hasStartDateThisWeek;
+      });
+
+    default:
+      return tasks;
+  }
+};
+
+export const getTaskCountsByTab = (tasks: AssignedTask[]): Record<DashboardTabType, number> => {
+  return {
+    today: filterTasksByTab(tasks, "today").length,
+    overdue: filterTasksByTab(tasks, "overdue").length,
+    sent_to_client: filterTasksByTab(tasks, "sent_to_client").length,
+    in_progress: filterTasksByTab(tasks, "in_progress").length,
+    all_active: filterTasksByTab(tasks, "all_active").length,
+    this_week: filterTasksByTab(tasks, "this_week").length,
+  };
+};

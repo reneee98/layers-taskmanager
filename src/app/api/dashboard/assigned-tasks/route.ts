@@ -94,6 +94,8 @@ export async function GET(req: NextRequest) {
         priority,
         estimated_hours,
         actual_hours,
+        start_date,
+        end_date,
         due_date,
         created_at,
         updated_at,

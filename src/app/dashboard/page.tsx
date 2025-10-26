@@ -17,7 +17,7 @@ import {
   Clock, 
   AlertTriangle, 
   CheckCircle, 
-  Calendar,
+  Calendar as CalendarIcon,
   FolderKanban,
   User,
   ArrowRight,
@@ -47,19 +47,44 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpRight,
-  Flame
+  ArrowLeft,
+  Flame,
+  List,
+  CalendarDays
 } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/format";
-import { format, isAfter, isBefore, addDays } from "date-fns";
+import { format, isAfter, isBefore, addDays, isToday, parse, startOfWeek, getDay } from "date-fns";
 import { sk } from "date-fns/locale";
+import dynamic from 'next/dynamic';
+
+const Calendar = dynamic(
+  () => import('react-big-calendar').then(mod => mod.Calendar),
+  { ssr: false }
+);
+
+import { dateFnsLocalizer } from 'react-big-calendar';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { getDeadlineStatus, getDeadlineRowClass, getDeadlineDotClass } from "@/lib/deadline-utils";
 import Link from "next/link";
 import type { Task } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { WorkspaceInvitations } from "@/components/workspace/WorkspaceInvitations";
-import { TaskFilters, TaskFilter } from "@/components/tasks/TaskFilters";
 import { TaskDialog } from "@/components/tasks/TaskDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
 import { cn } from "@/lib/utils";
+
+const locales = {
+  sk: sk,
+};
+
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek: () => startOfWeek(new Date(), { locale: locales.sk }),
+  getDay,
+  locales,
+});
 
 interface AssignedTask {
   id: string;
@@ -70,6 +95,8 @@ interface AssignedTask {
   estimated_hours: number | null;
   actual_hours: number | null;
   due_date: string | null;
+  start_date: string | null;
+  end_date: string | null;
   created_at: string;
   updated_at: string;
   project_id: string;
@@ -120,59 +147,39 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [showLoadMore, setShowLoadMore] = useState(false);
-  const [filters, setFilters] = useState<TaskFilter>({
-    status: [],
-    priority: [],
-    assignee: [],
-    deadline: "all",
-  });
+  const [activeTab, setActiveTab] = useState<DashboardTabType>("today");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
   const [isQuickTaskOpen, setIsQuickTaskOpen] = useState(false);
   const [personalProjectId, setPersonalProjectId] = useState<string | null>(null);
   const activitiesRef = useRef<HTMLDivElement>(null);
 
-  // Filter tasks based on current filters
-  const filteredTasks = tasks.filter((task) => {
-    // Status filter
-    if (filters.status.length > 0 && !filters.status.includes(task.status)) {
-      return false;
-    }
+  type ViewMode = "list" | "calendar";
 
-    // Priority filter
-    if (filters.priority.length > 0 && !filters.priority.includes(task.priority)) {
-      return false;
-    }
-
-    // Deadline filter
-    if (filters.deadline !== "all") {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const taskDate = task.due_date ? new Date(task.due_date) : null;
-
-      switch (filters.deadline) {
-        case "today":
-          if (!taskDate || taskDate.getTime() !== today.getTime()) return false;
-          break;
-        case "tomorrow":
-          const tomorrow = new Date(today);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          if (!taskDate || taskDate.getTime() !== tomorrow.getTime()) return false;
-          break;
-        case "this_week":
-          const weekEnd = new Date(today);
-          weekEnd.setDate(weekEnd.getDate() + 7);
-          if (!taskDate || taskDate < today || taskDate > weekEnd) return false;
-          break;
-        case "overdue":
-          if (!taskDate || taskDate >= today) return false;
-          break;
-        case "no_deadline":
-          if (taskDate) return false;
-          break;
+  const navigateMonth = (direction: "prev" | "next") => {
+    if (direction === "next") {
+      if (calendarMonth === 11) {
+        setCalendarMonth(0);
+        setCalendarYear(calendarYear + 1);
+      } else {
+        setCalendarMonth(calendarMonth + 1);
+      }
+    } else {
+      if (calendarMonth === 0) {
+        setCalendarMonth(11);
+        setCalendarYear(calendarYear - 1);
+      } else {
+        setCalendarMonth(calendarMonth - 1);
       }
     }
+  };
 
-    return true;
-  });
+  // Filter tasks based on active tab
+  const filteredTasks = filterTasksByTab(tasks, activeTab);
+  
+  // Get task counts for each tab
+  const taskCounts = getTaskCountsByTab(tasks);
 
   const handleShowMoreActivities = () => {
     setShowAllActivities(true);
@@ -552,7 +559,7 @@ export default function DashboardPage() {
         <Card className="bg-card border border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Blížia sa</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">{upcomingTasks.length}</div>
@@ -573,37 +580,108 @@ export default function DashboardPage() {
                 {/* Tasks Section */}
                 <div className="min-h-[600px]">
                   <div className="px-6 py-4 bg-muted/50 border-b border-border/50">
-                    <div className="flex items-center gap-3 text-lg font-semibold text-foreground">
-                      <div className="p-2 bg-primary rounded-lg">
-                        <User className="h-5 w-5 text-primary-foreground" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 text-lg font-semibold text-foreground">
+                        <div className="p-2 bg-primary rounded-lg">
+                          <User className="h-5 w-5 text-primary-foreground" />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span>Moje úlohy</span>
+                          {filteredTasks.length > 0 && (
+                            <Badge variant="outline" className="px-3 py-1 text-sm font-medium bg-background border-border text-foreground">
+                              {filteredTasks.length}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span>Moje úlohy</span>
-                        {filteredTasks.length > 0 && (
-                          <Badge variant="outline" className="px-3 py-1 text-sm font-medium bg-background border-border text-foreground">
-                            {filteredTasks.length}
-                          </Badge>
-                        )}
-                      </div>
+                      {/* Zoznam / Kalendár prepínač */}
+                      <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)} className="w-auto">
+                        <TabsList className="inline-flex h-9 items-center justify-center rounded-md bg-background p-1 text-muted-foreground border border-border">
+                          <TabsTrigger value="list" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-muted data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                            <List className="h-4 w-4" />
+                            <span className="ml-2">Zoznam</span>
+                          </TabsTrigger>
+                          <TabsTrigger value="calendar" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-muted data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                            <CalendarIcon className="h-4 w-4" />
+                            <span className="ml-2">Kalendár</span>
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
                     </div>
                   </div>
-              {/* Task Filters */}
+              {/* Dashboard Tabs */}
               <div className="px-6 py-4 border-b border-border/50">
-                <TaskFilters
-                  filters={filters}
-                  onFiltersChange={setFilters}
-                  totalTasks={tasks.length}
-                  filteredTasks={filteredTasks.length}
-                />
+                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DashboardTabType)} className="w-full">
+                  <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+                    <TabsTrigger value="all_active" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                      <List className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline">Všetky aktívne</span>
+                      {taskCounts.all_active > 0 && (
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                          {taskCounts.all_active}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="today" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                      <CalendarIcon className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline">Úlohy dnes</span>
+                      {taskCounts.today > 0 && (
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                          {taskCounts.today}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="this_week" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                      <CalendarDays className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline">Tento týždeň</span>
+                      {taskCounts.this_week > 0 && (
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                          {taskCounts.this_week}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="overdue" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline">Po termíne</span>
+                      {taskCounts.overdue > 0 && (
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                          {taskCounts.overdue}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="sent_to_client" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                      <Send className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline">Poslané klientovi</span>
+                      {taskCounts.sent_to_client > 0 && (
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                          {taskCounts.sent_to_client}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="in_progress" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                      <Play className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline">In progress</span>
+                      {taskCounts.in_progress > 0 && (
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                          {taskCounts.in_progress}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
+              
+              {/* Conditional rendering based on view mode */}
+              {viewMode === "list" ? (
+                <>
               {filteredTasks.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <FolderKanban className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium text-foreground">
-                    {tasks.length === 0 ? "Nemáte priradené úlohy" : "Žiadne úlohy nevyhovujú filtrom"}
+                    {tasks.length === 0 ? "Nemáte priradené úlohy" : "Žiadne úlohy v tejto kategórii"}
                   </p>
                   <p className="text-sm mt-2 text-muted-foreground">
-                    {tasks.length === 0 ? "Začnite vytvorením nového projektu" : "Skúste zmeniť filtre"}
+                    {tasks.length === 0 ? "Začnite vytvorením nového projektu" : "Skúste vybrať inú kategóriu"}
                   </p>
                 </div>
               ) : (
@@ -750,7 +828,7 @@ export default function DashboardPage() {
                             <div>
                               {task.due_date ? (
                                 <div className="text-xs flex items-center gap-1 text-muted-foreground whitespace-nowrap">
-                                  <Calendar className="h-3 w-3 text-muted-foreground" />
+                                  <CalendarIcon className="h-3 w-3 text-muted-foreground" />
                                   <span>{format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk })}</span>
                                 </div>
                               ) : (
@@ -772,10 +850,304 @@ export default function DashboardPage() {
                 </Table>
                 </div>
               )}
+                </>
+              ) : (
+                <div className="px-6 pt-6 pb-12 h-[900px]">
+                  {/* Custom Apple-style toolbar */}
+                  <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-3xl font-bold text-foreground tracking-tight">
+                      {format(new Date(calendarYear, calendarMonth, 1), 'MMMM yyyy', { locale: sk })}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => navigateMonth("prev")}
+                        className="p-2 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <ArrowLeft className="h-5 w-5 text-muted-foreground" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCalendarMonth(new Date().getMonth());
+                          setCalendarYear(new Date().getFullYear());
+                        }}
+                        className="px-4 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-foreground"
+                      >
+                        Dnes
+                      </button>
+                      <button
+                        onClick={() => navigateMonth("next")}
+                        className="p-2 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                      </button>
+                    </div>
+                  </div>
+                  <style>{`
+                    .rbc-calendar {
+                      background: transparent;
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', system-ui, sans-serif;
+                    }
+                    .rbc-header {
+                      padding: 20px 0 0 0;
+                      font-weight: 600;
+                      font-size: 11px;
+                      text-transform: uppercase;
+                      letter-spacing: 0.5px;
+                      color: rgb(107, 114, 128);
+                      border-bottom: none;
+                      text-align: right;
+                    }
+                    .rbc-today {
+                      background-color: transparent;
+                    }
+                    .rbc-day-bg {
+                      border: none;
+                      border-right: 1px solid rgba(0, 0, 0, 0.04);
+                      border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+                      min-height: 140px;
+                      background: transparent;
+                      transition: background 0.15s ease;
+                      padding-bottom: 8px;
+                    }
+                    .rbc-day-bg.rbc-off-range-bg {
+                      background: rgba(0, 0, 0, 0.02);
+                    }
+                    .rbc-off-range-bg .rbc-date-cell {
+                      color: rgb(156, 163, 175) !important;
+                      opacity: 0.4 !important;
+                    }
+                    .rbc-date-cell.rbc-off-range {
+                      color: rgb(156, 163, 175) !important;
+                      opacity: 0.4 !important;
+                    }
+                    /* Highlight only Saturday and Sunday columns - target all cells */
+                    .rbc-month-row .rbc-day-bg:nth-child(6),
+                    .rbc-month-row .rbc-day-bg:nth-child(7) {
+                      background: rgba(0, 0, 0, 0.04) !important;
+                    }
+                    .rbc-day-bg:last-child {
+                      border-right: none;
+                    }
+                    .rbc-day-bg:hover {
+                      background: rgba(0, 0, 0, 0.01);
+                    }
+                    .rbc-off-range-bg {
+                      background: transparent;
+                    }
+                    .rbc-month-row {
+                      margin-top: 0 !important;
+                      padding-top: 0 !important;
+                    }
+                    .rbc-day-bg.rbc-today {
+                      background-color: rgba(var(--primary-rgb), 0.04);
+                    }
+                    .rbc-date-cell {
+                      padding: 10px 12px;
+                      font-weight: 500;
+                      font-size: 15px;
+                      color: #1f2937;
+                      transition: all 0.15s ease;
+                      text-align: right;
+                    }
+                    .rbc-off-range-bg .rbc-day-bg .rbc-date-cell {
+                      color: rgb(156, 163, 175);
+                    }
+                    .rbc-day-bg.rbc-today .rbc-date-cell {
+                      color: white !important;
+                      font-weight: 600;
+                      background: hsl(var(--primary));
+                      width: 28px;
+                      height: 28px;
+                      display: inline-flex;
+                      align-items: center;
+                      justify-content: center;
+                      border-radius: 50%;
+                    }
+                    .rbc-event {
+                      border: none;
+                      border-radius: 4px;
+                      padding: 4px 8px;
+                      font-size: 12px;
+                      font-weight: 500;
+                      margin: 2px 4px;
+                      cursor: pointer;
+                      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                      white-space: nowrap;
+                    }
+                    .rbc-event:hover {
+                      opacity: 0.85;
+                      transform: translateY(-1px);
+                      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+                    }
+                    .rbc-month-row {
+                      border-color: transparent;
+                    }
+                    .rbc-toolbar {
+                      margin-bottom: 40px;
+                      padding: 0;
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                    }
+                    .rbc-toolbar button {
+                      color: #6b7280;
+                      background: transparent;
+                      border: none;
+                      cursor: pointer;
+                      padding: 8px 12px;
+                      border-radius: 6px;
+                      font-weight: 500;
+                      font-size: 14px;
+                      transition: all 0.15s ease;
+                      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+                    }
+                    .rbc-toolbar button:hover {
+                      background: rgba(0, 0, 0, 0.04);
+                      color: #1f2937;
+                    }
+                    .rbc-toolbar button:active {
+                      background: rgba(0, 0, 0, 0.08);
+                      transform: scale(0.96);
+                    }
+                    .rbc-toolbar button.rbc-active {
+                      background: transparent;
+                      color: #1f2937;
+                      font-weight: 600;
+                    }
+                    .rbc-toolbar-label {
+                      font-size: 24px;
+                      font-weight: 600;
+                      color: #1f2937;
+                      letter-spacing: -0.5px;
+                    }
+                    .rbc-month-view {
+                      border: none;
+                    }
+                    .rbc-month-row {
+                      border: none;
+                    }
+                    .rbc-toolbar-label-container {
+                      display: flex;
+                      align-items: center;
+                      gap: 12px;
+                    }
+                    .rbc-toolbar button.rbc-toolbar-label {
+                      padding: 0;
+                      font-size: 24px;
+                      font-weight: 600;
+                      color: #1f2937;
+                      letter-spacing: -0.5px;
+                      cursor: default;
+                    }
+                    .rbc-toolbar button.rbc-toolbar-label:hover {
+                      background: transparent;
+                    }
+                  `}</style>
+                  <div className="h-full">
+                    <Calendar
+                      localizer={localizer}
+                      events={filteredTasks
+                        .filter(task => task.due_date)
+                        .map(task => {
+                          // Use start_date if available, otherwise use due_date
+                          const startDate = task.start_date 
+                            ? new Date(task.start_date + 'T00:00:00')
+                            : new Date(task.due_date + 'T00:00:00');
+                          
+                          // Use end_date if available, otherwise use due_date
+                          const endDate = task.end_date
+                            ? new Date(task.end_date + 'T00:00:00')
+                            : new Date(task.due_date + 'T00:00:00');
+
+                          // For all-day events in react-big-calendar, end should be the start of next day
+                          const exclusiveEndDate = addDays(endDate, 1);
+
+                          return {
+                            id: task.id,
+                            title: task.title,
+                            start: startDate,
+                            end: exclusiveEndDate,
+                            allDay: true,
+                            resource: task,
+                          };
+                        })}
+                      views={['month']}
+                      defaultView="month"
+                      culture="sk"
+                      toolbar={false}
+                      date={new Date(calendarYear, calendarMonth, 1)}
+                      onSelectEvent={(event: any) => {
+                        window.location.href = `/projects/${event.resource.project?.id || 'unknown'}/tasks/${event.resource.id}`;
+                      }}
+                      eventPropGetter={(event: any) => {
+                        // Generate consistent color based on task ID hash - soft tints with base color text
+                        const colorSchemes = [
+                          { bg: '#dbeafe', text: '#1e40af' }, // soft blue tint, dark blue text
+                          { bg: '#d1fae5', text: '#065f46' }, // soft emerald tint, dark emerald text
+                          { bg: '#fef3c7', text: '#92400e' }, // soft amber tint, dark amber text
+                          { bg: '#e9d5ff', text: '#5b21b6' }, // soft purple tint, dark purple text
+                          { bg: '#fce7f3', text: '#9f1239' }, // soft pink tint, dark pink text
+                          { bg: '#cffafe', text: '#0e7490' }, // soft cyan tint, dark cyan text
+                          { bg: '#e0e7ff', text: '#3730a3' }, // soft indigo tint, dark indigo text
+                          { bg: '#ccfbf1', text: '#134e4a' }, // soft teal tint, dark teal text
+                          { bg: '#fed7aa', text: '#9a3412' }, // soft orange tint, dark orange text
+                          { bg: '#f3e8ff', text: '#6b21a8' }, // soft violet tint, dark violet text
+                        ];
+                        
+                        // Simple hash function to get consistent color for same task
+                        let hash = 0;
+                        for (let i = 0; i < event.resource.id.length; i++) {
+                          hash = event.resource.id.charCodeAt(i) + ((hash << 5) - hash);
+                        }
+                        const colorIndex = Math.abs(hash) % colorSchemes.length;
+                        const colorScheme = colorSchemes[colorIndex];
+                        
+                        return {
+                          style: {
+                            backgroundColor: colorScheme.bg,
+                            color: colorScheme.text,
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '2px 8px',
+                            fontSize: '13px',
+                            fontWeight: '500',
+                          }
+                        };
+                      }}
+                      components={{
+                        month: {
+                          header: ({ date }: any) => (
+                            <div className="px-3 py-3 border-b border-border text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">
+                              {format(date, 'EEE', { locale: sk })}
+                            </div>
+                          ),
+                          dateHeader: ({ date, label }: any) => {
+                            const isTodayDate = isToday(date);
+                            return (
+                              <div
+                                className={cn(
+                                  "text-sm font-medium transition-colors px-3 py-2",
+                                  isTodayDate 
+                                    ? "bg-black rounded-full w-7 h-7 flex items-center justify-center text-white ml-auto"
+                                    : "text-right"
+                                )}
+                              >
+                                {label}
+                              </div>
+                            );
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
                 </div>
                 
                 {/* Activity Section */}
-                <div className="min-h-[600px]">
+                <div className="h-fit">
                   <div className="px-6 py-4 bg-muted/50 border-b border-border/50">
                     <div className="flex items-center gap-3 text-lg font-semibold text-foreground">
                       <div className="p-2 bg-gray-900 rounded-lg">

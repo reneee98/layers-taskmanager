@@ -897,6 +897,9 @@ export default function DashboardPage() {
                       border-bottom: none;
                       text-align: right;
                     }
+                    .dark .rbc-header {
+                      color: rgb(156, 163, 175);
+                    }
                     .rbc-today {
                       background-color: transparent;
                     }
@@ -909,8 +912,25 @@ export default function DashboardPage() {
                       transition: background 0.15s ease;
                       padding-bottom: 8px;
                     }
+                    .dark .rbc-day-bg,
+                    .dark .rbc-month-row .rbc-day-bg,
+                    html.dark .rbc-day-bg,
+                    html.dark .rbc-month-row .rbc-day-bg,
+                    body.dark .rbc-day-bg,
+                    body.dark .rbc-month-row .rbc-day-bg,
+                    .dark .rbc-month-row,
+                    html.dark .rbc-month-row,
+                    body.dark .rbc-month-row {
+                      border-right: 1px solid hsl(var(--border)) !important;
+                      border-bottom: 1px solid hsl(var(--border)) !important;
+                      border-left: none !important;
+                      border-top: none !important;
+                    }
                     .rbc-day-bg.rbc-off-range-bg {
                       background: rgba(0, 0, 0, 0.02);
+                    }
+                    .dark .rbc-day-bg.rbc-off-range-bg {
+                      background: rgba(255, 255, 255, 0.03);
                     }
                     .rbc-off-range-bg .rbc-date-cell {
                       color: rgb(156, 163, 175) !important;
@@ -925,11 +945,18 @@ export default function DashboardPage() {
                     .rbc-month-row .rbc-day-bg:nth-child(7) {
                       background: rgba(0, 0, 0, 0.04) !important;
                     }
+                    .dark .rbc-month-row .rbc-day-bg:nth-child(6),
+                    .dark .rbc-month-row .rbc-day-bg:nth-child(7) {
+                      background: rgba(255, 255, 255, 0.06) !important;
+                    }
                     .rbc-day-bg:last-child {
                       border-right: none;
                     }
                     .rbc-day-bg:hover {
                       background: rgba(0, 0, 0, 0.01);
+                    }
+                    .dark .rbc-day-bg:hover {
+                      background: rgba(255, 255, 255, 0.02);
                     }
                     .rbc-off-range-bg {
                       background: transparent;
@@ -941,6 +968,9 @@ export default function DashboardPage() {
                     .rbc-day-bg.rbc-today {
                       background-color: rgba(var(--primary-rgb), 0.04);
                     }
+                    .dark .rbc-day-bg.rbc-today {
+                      background-color: rgba(59, 130, 246, 0.15);
+                    }
                     .rbc-date-cell {
                       padding: 10px 12px;
                       font-weight: 500;
@@ -948,6 +978,9 @@ export default function DashboardPage() {
                       color: #1f2937;
                       transition: all 0.15s ease;
                       text-align: right;
+                    }
+                    .dark .rbc-date-cell {
+                      color: #e5e7eb;
                     }
                     .rbc-off-range-bg .rbc-day-bg .rbc-date-cell {
                       color: rgb(156, 163, 175);
@@ -1082,8 +1115,22 @@ export default function DashboardPage() {
                         window.location.href = `/projects/${event.resource.project?.id || 'unknown'}/tasks/${event.resource.id}`;
                       }}
                       eventPropGetter={(event: any) => {
+                        // Check if dark mode is active
+                        const isDarkMode = document.documentElement.classList.contains('dark');
+                        
                         // Generate consistent color based on task ID hash - soft tints with base color text
-                        const colorSchemes = [
+                        const colorSchemes = isDarkMode ? [
+                          { bg: 'rgba(30, 64, 175, 0.15)', text: '#93c5fd' }, // soft blue tint (dark mode)
+                          { bg: 'rgba(6, 95, 70, 0.15)', text: '#6ee7b7' }, // soft emerald tint (dark mode)
+                          { bg: 'rgba(146, 64, 14, 0.15)', text: '#fbbf24' }, // soft amber tint (dark mode)
+                          { bg: 'rgba(91, 33, 182, 0.15)', text: '#c4b5fd' }, // soft purple tint (dark mode)
+                          { bg: 'rgba(159, 18, 57, 0.15)', text: '#f9a8d4' }, // soft pink tint (dark mode)
+                          { bg: 'rgba(14, 116, 144, 0.15)', text: '#67e8f9' }, // soft cyan tint (dark mode)
+                          { bg: 'rgba(55, 48, 163, 0.15)', text: '#a5b4fc' }, // soft indigo tint (dark mode)
+                          { bg: 'rgba(19, 78, 74, 0.15)', text: '#5eead4' }, // soft teal tint (dark mode)
+                          { bg: 'rgba(154, 52, 18, 0.15)', text: '#fb923c' }, // soft orange tint (dark mode)
+                          { bg: 'rgba(107, 33, 168, 0.15)', text: '#c084fc' }, // soft violet tint (dark mode)
+                        ] : [
                           { bg: '#dbeafe', text: '#1e40af' }, // soft blue tint, dark blue text
                           { bg: '#d1fae5', text: '#065f46' }, // soft emerald tint, dark emerald text
                           { bg: '#fef3c7', text: '#92400e' }, // soft amber tint, dark amber text
@@ -1147,7 +1194,7 @@ export default function DashboardPage() {
                 </div>
                 
                 {/* Activity Section */}
-                <div className="h-fit">
+                <div className="h-full flex flex-col">
                   <div className="px-6 py-4 bg-muted/50 border-b border-border/50">
                     <div className="flex items-center gap-3 text-lg font-semibold text-foreground">
                       <div className="p-2 bg-gray-900 rounded-lg">
@@ -1163,7 +1210,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="p-6 max-h-[600px] overflow-y-auto">
+                  <div className="p-6 flex-1 overflow-y-auto">
               {activities.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Zap className="h-12 w-12 mx-auto mb-4 opacity-50" />

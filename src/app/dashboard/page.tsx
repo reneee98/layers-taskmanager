@@ -856,7 +856,7 @@ export default function DashboardPage() {
                   {/* Custom Apple-style toolbar */}
                   <div className="flex items-center justify-between mb-8">
                     <h2 className="text-3xl font-bold text-foreground tracking-tight">
-                      {format(new Date(calendarYear, calendarMonth, 1), 'MMMM yyyy', { locale: sk })}
+                      {format(new Date(calendarYear, calendarMonth, 1), 'LLLL yyyy', { locale: sk }).replace(/^[a-z]/, (c) => c.toUpperCase())}
                     </h2>
                     <div className="flex items-center gap-2">
                       <button
@@ -907,10 +907,14 @@ export default function DashboardPage() {
                       border: none;
                       border-right: 1px solid rgba(0, 0, 0, 0.04);
                       border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-                      min-height: 125px;
+                      min-height: 170px;
                       background: transparent;
                       transition: background 0.15s ease;
-                      padding-bottom: 14px;
+                      padding-bottom: 20px;
+                      padding-top: 0 !important;
+                    }
+                    .rbc-day-bg .rbc-date-cell {
+                      margin-bottom: 2px !important;
                     }
                     .dark .rbc-day-bg,
                     .dark .rbc-month-row .rbc-day-bg,
@@ -964,7 +968,10 @@ export default function DashboardPage() {
                     .rbc-month-row {
                       margin-top: 0 !important;
                       padding-top: 0 !important;
-                      padding-bottom: 4px !important;
+                      padding-bottom: 0 !important;
+                    }
+                    .rbc-month-view {
+                      padding-bottom: 0 !important;
                     }
                     .rbc-day-bg.rbc-today {
                       background-color: rgba(var(--primary-rgb), 0.04);
@@ -973,7 +980,7 @@ export default function DashboardPage() {
                       background-color: rgba(59, 130, 246, 0.15);
                     }
                     .rbc-date-cell {
-                      padding: 10px 12px;
+                      padding: 12px 8px 0px 12px !important;
                       font-weight: 500;
                       font-size: 15px;
                       color: #1f2937;
@@ -997,23 +1004,53 @@ export default function DashboardPage() {
                       justify-content: center;
                       border-radius: 50%;
                     }
-                    .rbc-event {
+                    .rbc-event,
+                    .rbc-event-content,
+                    .rbc-event-label {
                       border: none;
-                      border-radius: 3px;
-                      padding: 1px 4px;
-                      font-size: 10px;
+                      border-radius: 2px;
+                      padding: 0 2px !important;
+                      font-size: 9px !important;
                       font-weight: 500;
-                      margin: 1px 2px;
+                      margin: 1px;
+                      margin-top: 2px;
                       cursor: pointer;
                       transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
                       overflow: hidden;
                       text-overflow: ellipsis;
                       white-space: nowrap;
+                      line-height: 1.2;
+                      height: 13px;
+                      position: relative;
+                      top: -2px;
                     }
                     .rbc-event:hover {
                       opacity: 0.85;
                       transform: translateY(-1px);
                       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+                    }
+                    .rbc-event-more {
+                      border: none;
+                      border-radius: 2px;
+                      padding: 0 2px !important;
+                      font-size: 9px !important;
+                      font-weight: 500;
+                      margin: 1px;
+                      margin-top: 2px;
+                      cursor: pointer;
+                      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                      white-space: nowrap;
+                      line-height: 1.2;
+                      height: 13px;
+                      position: relative;
+                      top: -2px;
+                      color: rgb(107, 114, 128) !important;
+                      background: rgba(107, 114, 128, 0.1) !important;
+                    }
+                    .rbc-event-more:hover {
+                      text-decoration: underline;
                     }
                     .rbc-month-row {
                       border-color: transparent;

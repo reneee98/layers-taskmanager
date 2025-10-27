@@ -48,16 +48,17 @@ export async function resolveHourlyRate(
     };
   }
 
-  // Priority 2: Check projects.hourly_rate
+  // Priority 2: Check projects.hourly_rate_cents
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("hourly_rate")
+    .select("hourly_rate_cents")
     .eq("id", projectId)
     .maybeSingle();
 
-  if (!projectError && project?.hourly_rate != null) {
+  if (!projectError && project?.hourly_rate_cents != null) {
+    // Convert from cents to dollars
     return {
-      hourlyRate: Number(project.hourly_rate),
+      hourlyRate: Number(project.hourly_rate_cents) / 100,
       source: "project_member", // Use same source for consistency
     };
   }
@@ -108,7 +109,7 @@ export function resolveHourlyRateSync(
   userId: string,
   projectId: string,
   projectMember?: { hourly_rate?: number | null } | null,
-  project?: { hourly_rate?: number | null } | null,
+  project?: { hourly_rate_cents?: number | null } | null,
   rates?: Array<{
     id: string;
     name: string;
@@ -128,10 +129,11 @@ export function resolveHourlyRateSync(
     };
   }
 
-  // Priority 2: projects.hourly_rate
-  if (project?.hourly_rate != null) {
+  // Priority 2: projects.hourly_rate_cents
+  if (project?.hourly_rate_cents != null) {
+    // Convert from cents to dollars
     return {
-      hourlyRate: Number(project.hourly_rate),
+      hourlyRate: Number(project.hourly_rate_cents) / 100,
       source: "project_member", // Use same source for consistency
     };
   }

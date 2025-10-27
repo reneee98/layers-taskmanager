@@ -151,7 +151,7 @@ export default function ProjectReportPage() {
     <div className="min-h-screen bg-background print:bg-white">
       {/* Header */}
       <div className="border-b bg-card">
-        <div className="container mx-auto px-6 py-4">
+        <div className="w-full px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
@@ -174,7 +174,7 @@ export default function ProjectReportPage() {
       </div>
 
       {/* Report Content */}
-      <div className="container mx-auto px-6 py-8 print:py-0 space-y-6 print:space-y-4">
+      <div className="w-full px-6 py-8 print:py-0 space-y-6 print:space-y-4">
         {/* Project Header */}
         <div className="space-y-4 print:mb-8mm">
           <Card className="border border-border shadow-sm">

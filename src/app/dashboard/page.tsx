@@ -907,10 +907,10 @@ export default function DashboardPage() {
                       border: none;
                       border-right: 1px solid rgba(0, 0, 0, 0.04);
                       border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-                      min-height: 140px;
+                      min-height: 125px;
                       background: transparent;
                       transition: background 0.15s ease;
-                      padding-bottom: 16px;
+                      padding-bottom: 14px;
                     }
                     .dark .rbc-day-bg,
                     .dark .rbc-month-row .rbc-day-bg,

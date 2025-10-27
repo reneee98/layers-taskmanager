@@ -279,12 +279,29 @@ export function TaskRow({
         </DropdownMenu>
       </TableCell>
 
-      {/* Assignees - placeholder */}
+      {/* Assignees */}
       <TableCell className="py-4 pl-6 pr-2">
         <div className="flex items-center gap-1">
-          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-            <span className="text-xs text-muted-foreground">-</span>
-          </div>
+          {task.assignees && task.assignees.length > 0 ? (
+            <>
+              {task.assignees.slice(0, 3).map((assignee: Profile, index: number) => (
+                <Avatar key={assignee.id} className="h-6 w-6 border-2 border-background">
+                  <AvatarFallback className="text-xs">
+                    {getInitials(assignee.display_name || assignee.email)}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {task.assignees.length > 3 && (
+                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center border-2 border-background">
+                  <span className="text-xs text-muted-foreground">+{task.assignees.length - 3}</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+              <span className="text-xs text-muted-foreground">-</span>
+            </div>
+          )}
         </div>
       </TableCell>
 

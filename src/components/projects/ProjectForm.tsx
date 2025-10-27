@@ -49,28 +49,13 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
     watch,
   } = useForm<ProjectFormData>({
     resolver: zodResolver(projectSchema),
-    defaultValues: project
-      ? {
-          client_id: project.client_id,
-          name: project.name,
-          code: project.code || "",
-          description: project.description || "",
-          status: project.status,
-          currency: "EUR",
-          hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
-          fixed_fee: project.budget || null,
-          external_costs_budget: null,
-          start_date: project.start_date || "",
-          end_date: project.end_date || "",
-          notes: "",
-        }
-      : {
-          status: "draft",
-          currency: "EUR",
-          hourly_rate: null,
-          fixed_fee: null,
-          external_costs_budget: null,
-        },
+    defaultValues: {
+      status: "draft",
+      currency: "EUR",
+      hourly_rate: null,
+      fixed_fee: null,
+      external_costs_budget: null,
+    },
   });
 
   useEffect(() => {
@@ -130,31 +115,61 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
 
   // Reset form when project changes
   useEffect(() => {
-    if (project) {
-      reset({
-        client_id: project.client_id,
-        name: project.name,
-        code: project.code || "",
-        description: project.description || "",
-        status: project.status,
-        currency: "EUR",
-        hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
-        fixed_fee: project.budget || null,
-        external_costs_budget: null,
-        start_date: project.start_date || "",
-        end_date: project.end_date || "",
-        notes: "",
-      });
-    } else {
-      reset({
-        status: "draft",
-        currency: "EUR",
-        hourly_rate: null,
-        fixed_fee: null,
-        external_costs_budget: null,
-      });
-    }
-  }, [project, reset]);
+    const resetForm = async () => {
+      if (project) {
+        // Always fetch fresh data from API when editing
+        try {
+          const response = await fetch(`/api/projects/${project.id}`);
+          const result = await response.json();
+          
+          if (result.success && result.data) {
+            const freshProject = result.data;
+            reset({
+              client_id: freshProject.client_id,
+              name: freshProject.name,
+              code: freshProject.code || "",
+              description: freshProject.description || "",
+              status: freshProject.status,
+              currency: "EUR",
+              hourly_rate: freshProject.hourly_rate || null,
+              fixed_fee: freshProject.fixed_fee || null,
+              external_costs_budget: null,
+              start_date: freshProject.start_date || "",
+              end_date: freshProject.end_date || "",
+              notes: "",
+            });
+          }
+        } catch (error) {
+          console.error("Failed to fetch project:", error);
+          // Fallback to provided project if fetch fails
+          reset({
+            client_id: project.client_id,
+            name: project.name,
+            code: project.code || "",
+            description: project.description || "",
+            status: project.status,
+            currency: "EUR",
+            hourly_rate: project.hourly_rate || null,
+            fixed_fee: project.fixed_fee || null,
+            external_costs_budget: null,
+            start_date: project.start_date || "",
+            end_date: project.end_date || "",
+            notes: "",
+          });
+        }
+      } else {
+        reset({
+          status: "draft",
+          currency: "EUR",
+          hourly_rate: null,
+          fixed_fee: null,
+          external_costs_budget: null,
+        });
+      }
+    };
+    
+    resetForm();
+  }, [project?.id, reset, open]);
 
   const handleFormSubmit = async (data: ProjectFormData | UpdateProjectData) => {
     setIsSubmitting(true);

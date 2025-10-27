@@ -10,7 +10,7 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Laydo - Alpha verzia 1.0",
+  title: "Layers",
   description: "Profesionálny systém na správu úloh a projektov",
 };
 

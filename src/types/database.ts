@@ -34,6 +34,9 @@ export interface Project {
   start_date: string | null;
   end_date: string | null;
   budget: number | null;
+  budget_cents: number | null;
+  fixed_fee?: number | null;
+  hourly_rate?: number | null;
   hourly_rate_cents: number | null;
   created_at: string;
   updated_at: string;
@@ -90,6 +93,7 @@ export interface Task {
     code: string;
     hourly_rate?: number | null;
     budget?: number | null;
+    fixed_fee?: number | null;
   };
   assignees?: Array<{
     id: string;

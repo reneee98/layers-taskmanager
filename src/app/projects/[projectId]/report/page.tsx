@@ -21,6 +21,37 @@ export default function ProjectReportPage() {
   const [timeEntries, setTimeEntries] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Add CSS for better PDF formatting
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print {
+        @page {
+          size: A4;
+          margin: 10mm;
+        }
+        @page {
+          @top-center {
+            content: "Layers - Report";
+          }
+          @bottom-center {
+            content: "Layers";
+          }
+        }
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
+
   const fetchData = async () => {
     setIsLoading(true);
     try {
@@ -72,12 +103,22 @@ export default function ProjectReportPage() {
     // Add print mode class to body
     document.body.classList.add('print-mode');
     
+    // Set document title for PDF filename and header
+    const originalTitle = document.title;
+    if (project) {
+      const safeName = project.name.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+      document.title = `${safeName}-report.pdf`;
+    } else {
+      document.title = "report.pdf";
+    }
+    
     // Small delay to ensure styles are applied
     setTimeout(() => {
       window.print();
       
-      // Remove print mode class after printing
+      // Restore original title and remove print mode class after printing
       setTimeout(() => {
+        document.title = originalTitle;
         document.body.classList.remove('print-mode');
       }, 1000);
     }, 100);
@@ -145,64 +186,75 @@ export default function ProjectReportPage() {
   }
 
   const totalHours = tasks.reduce((sum, task) => sum + (task.actual_hours || 0), 0);
-  const totalPrice = tasks.reduce((sum, task) => sum + (task.calculated_price || 0), 0);
+  const totalPrice = tasks.reduce((sum, task) => {
+    // Use budget_cents (fixed price) if available, otherwise use calculated_price
+    const price = task.budget_cents ? task.budget_cents / 100 : (task.calculated_price || 0);
+    return sum + price;
+  }, 0);
 
   return (
-    <div className="min-h-screen bg-background print:bg-white">
-      {/* Header */}
-      <div className="border-b bg-card">
-        <div className="w-full px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => window.history.back()}
-                className="print:hidden"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Späť na projekt
-              </Button>
-              <h1 className="text-xl font-semibold text-foreground">{project.name} - Report</h1>
-            </div>
-            <Button onClick={handleDownloadPDF} className="gap-2 print:hidden">
-              <Download className="h-4 w-4" />
-              Stiahnuť PDF
-            </Button>
+    <div className="space-y-4 min-h-screen bg-background print:bg-white">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.history.back()}
+            className="text-muted-foreground hover:text-foreground hover:bg-accent print:hidden"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Späť
+          </Button>
+          <div className="h-4 w-px bg-border print:hidden" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground print:hidden">
+            <span className="font-medium">{project.name}</span>
+            <span>•</span>
+            <span className="font-mono text-xs">{project.code}</span>
+            <span>•</span>
+            <span className="text-muted-foreground">Report</span>
           </div>
         </div>
+        
+        <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="gap-2 print:hidden">
+          <Download className="h-4 w-4" />
+          Stiahnuť PDF
+        </Button>
       </div>
 
       {/* Report Content */}
-      <div className="w-full px-6 py-8 print:py-0 space-y-6 print:space-y-4">
+      <div className="space-y-6 print:space-y-2mm">
         {/* Project Header */}
-        <div className="space-y-4 print:mb-8mm">
-          <Card className="border border-border shadow-sm">
-            <CardContent className="pt-6">
-              <div className="text-center print:text-center space-y-3">
-                <div>
-                  <h1 className="text-4xl font-bold print:text-2xl print:mb-2mm text-foreground">{project.name}</h1>
-                  <Badge variant="outline" className="mt-2 text-base px-3 py-1 print:text-sm print:mb-3mm bg-muted/50 text-muted-foreground">
-                    {project.code}
-                  </Badge>
-                </div>
-                <div className="flex justify-center gap-6 text-sm text-muted-foreground print:gap-4 print:text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-muted rounded-lg">
-                      <Users className="h-4 w-4 print:hidden text-muted-foreground" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-xs font-medium text-foreground">Klient</p>
-                      <p className="text-sm">{project.client?.name || 'N/A'}</p>
-                    </div>
+        <div className="space-y-4 print:mb-0">
+          <Card className="border border-border shadow-sm print:mb-0">
+            <CardContent className="pt-8 pb-6 print:pt-1mm print:pb-1mm">
+              <div className="space-y-4 print:space-y-0">
+                <div className="flex justify-between items-start print:justify-between">
+                  {/* Left side - Project name and code */}
+                  <div>
+                    <h1 className="text-3xl font-bold print:text-2xl print:mb-0 text-foreground">{project.name}</h1>
+                    <p className="mt-1 text-sm text-muted-foreground print:text-xs print:mt-0 print:text-gray-500">{project.code}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-muted rounded-lg">
-                      <Calendar className="h-4 w-4 print:hidden text-muted-foreground" />
+                  
+                  {/* Right side - Client and Date */}
+                  <div className="flex gap-6 text-sm print:gap-4">
+                    <div className="flex flex-col items-end text-muted-foreground print:items-end">
+                      <div className="p-2 bg-muted/50 rounded-lg print:hidden">
+                        <Users className="h-5 w-5" />
+                      </div>
+                      <div className="text-right print:text-right mt-2">
+                        <p className="text-xs text-muted-foreground">Klient</p>
+                        <p className="font-medium text-foreground mt-0.5">{project.client?.name || 'N/A'}</p>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <p className="text-xs font-medium text-foreground">Dátum reportu</p>
-                      <p className="text-sm">{format(new Date(), 'dd.MM.yyyy HH:mm')}</p>
+                    <div className="flex flex-col items-end text-muted-foreground print:items-end">
+                      <div className="p-2 bg-muted/50 rounded-lg print:hidden">
+                        <Calendar className="h-5 w-5" />
+                      </div>
+                      <div className="text-right print:text-right mt-2">
+                        <p className="text-xs text-muted-foreground">Dátum</p>
+                        <p className="font-medium text-foreground mt-0.5">{format(new Date(), 'dd.MM.yyyy')}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -211,73 +263,69 @@ export default function ProjectReportPage() {
           </Card>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:grid print:grid-cols-3 print:gap-4mm">
-            <Card className="border border-border shadow-sm hover:shadow-md transition-shadow print:border-gray-200">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 print:pb-1">
-                <CardTitle className="text-sm font-semibold text-foreground print:text-xs print:font-semibold">Úlohy</CardTitle>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:grid print:grid-cols-3 print:gap-2mm">
+            <Card className="border border-border shadow-sm hover:shadow-md transition-shadow print:border-gray-200 print:mb-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 print:pb-0 print:pt-1mm">
+                <CardTitle className="text-sm font-semibold text-foreground print:text-2xs print:font-semibold">Úlohy</CardTitle>
                 <FileText className="h-5 w-5 text-muted-foreground print:hidden" />
               </CardHeader>
-              <CardContent className="print:pt-1">
-                <div className="text-3xl font-bold print:text-lg print:font-bold print:mb-1mm text-foreground">{tasks.length}</div>
-                <p className="text-xs text-muted-foreground print:text-xs">Celkový počet úloh</p>
+              <CardContent className="print:pt-0 print:pb-1mm">
+                <div className="text-3xl font-bold print:text-2xl print:font-bold print:mb-0 text-foreground">{tasks.length}</div>
+                <p className="text-xs text-muted-foreground print:text-2xs print:mt-0">Celkový počet úloh</p>
               </CardContent>
             </Card>
             
-            <Card className="border border-border shadow-sm hover:shadow-md transition-shadow print:border-gray-200">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 print:pb-1">
-                <CardTitle className="text-sm font-semibold text-foreground print:text-xs print:font-semibold">Hodiny</CardTitle>
+            <Card className="border border-border shadow-sm hover:shadow-md transition-shadow print:border-gray-200 print:mb-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 print:pb-0 print:pt-1mm">
+                <CardTitle className="text-sm font-semibold text-foreground print:text-2xs print:font-semibold">Hodiny</CardTitle>
                 <Clock className="h-5 w-5 text-muted-foreground print:hidden" />
               </CardHeader>
-              <CardContent className="print:pt-1">
-                <div className="text-3xl font-bold print:text-lg print:font-bold print:mb-1mm font-mono text-foreground">{formatHours(totalHours)}</div>
-                <p className="text-xs text-muted-foreground print:text-xs">Odpracované hodiny</p>
+              <CardContent className="print:pt-0 print:pb-1mm">
+                <div className="text-3xl font-bold print:text-2xl print:font-bold print:mb-0 text-foreground">{formatHours(totalHours)}</div>
+                <p className="text-xs text-muted-foreground print:text-2xs print:mt-0">Odpracované hodiny</p>
               </CardContent>
             </Card>
             
-            <Card className="border border-border shadow-sm hover:shadow-md transition-shadow print:border-gray-200">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 print:pb-1">
-                <CardTitle className="text-sm font-semibold text-foreground print:text-xs print:font-semibold">Cena</CardTitle>
+            <Card className="border border-border shadow-sm hover:shadow-md transition-shadow print:border-gray-200 print:mb-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 print:pb-0 print:pt-1mm">
+                <CardTitle className="text-sm font-semibold text-foreground print:text-2xs print:font-semibold">Cena</CardTitle>
                 <Euro className="h-5 w-5 text-muted-foreground print:hidden" />
               </CardHeader>
-              <CardContent className="print:pt-1">
-                <div className="text-3xl font-bold print:text-lg print:font-bold print:mb-1mm font-mono text-foreground">{formatCurrency(totalPrice)}</div>
-                <p className="text-xs text-muted-foreground print:text-xs">Celková cena</p>
+              <CardContent className="print:pt-0 print:pb-1mm">
+                <div className="text-3xl font-bold print:text-2xl print:font-bold print:mb-0 text-foreground">{formatCurrency(totalPrice)}</div>
+                <p className="text-xs text-muted-foreground print:text-2xs print:mt-0">Celková cena</p>
               </CardContent>
             </Card>
           </div>
         </div>
 
         {/* Tasks Table */}
-        <Card className="border border-border shadow-sm print:border-gray-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground print:text-sm print:font-semibold print:text-blue-600">
-              <FileText className="h-5 w-5 print:hidden text-muted-foreground" />
+        <Card className="border border-border shadow-sm print:border-gray-200 print:mb-0">
+          <CardHeader className="print:hidden">
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <FileText className="h-5 w-5 text-muted-foreground" />
               Úlohy a časy
             </CardTitle>
           </CardHeader>
-          <CardContent className="print:pt-2">
+          <CardContent className="print:pt-0 print:pb-1mm">
             <div className="rounded-md border border-border print:border-0">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="w-[50%] print:w-[50%] print:text-xs print:font-semibold text-foreground">Úloha</TableHead>
-                    <TableHead className="text-right w-[20%] print:w-[20%] print:text-xs print:font-semibold text-foreground">Odhadené hodiny</TableHead>
-                    <TableHead className="text-right w-[20%] print:w-[20%] print:text-xs print:font-semibold text-foreground">Odpracované hodiny</TableHead>
-                    <TableHead className="text-right w-[20%] print:w-[20%] print:text-xs print:font-semibold text-foreground">Cena</TableHead>
+                    <TableHead className="w-[60%] print:w-[60%] print:text-xs print:font-semibold text-foreground">Úloha</TableHead>
+                    <TableHead className="w-[20%] text-right print:w-[20%] print:text-right print:text-xs print:font-semibold text-foreground">Hodiny</TableHead>
+                    <TableHead className="w-[20%] text-right print:w-[20%] print:text-right print:text-xs print:font-semibold text-foreground">Cena</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {tasks.map((task) => (
                     <TableRow key={task.id} className="print:border-0 hover:bg-muted/30">
                       <TableCell className="font-medium print:text-xs print:font-medium text-foreground">{task.title}</TableCell>
-                      <TableCell className="text-right font-mono text-sm print:font-mono print:text-xs print:text-right text-foreground">
-                        {task.estimated_hours ? formatHours(task.estimated_hours) : '—'}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm print:font-mono print:text-xs print:text-right text-foreground">
+                      <TableCell className="text-right text-sm print:text-xs print:text-right text-foreground">
                         {task.actual_hours ? formatHours(task.actual_hours) : '—'}
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm font-semibold print:font-mono print:text-xs print:text-right print:font-semibold text-foreground">
-                        {task.calculated_price ? formatCurrency(task.calculated_price) : '—'}
+                      <TableCell className="text-right text-sm font-semibold print:text-xs print:text-right print:font-semibold text-foreground">
+                        {task.budget_cents ? formatCurrency(task.budget_cents / 100) : (task.calculated_price ? formatCurrency(task.calculated_price) : '—')}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -288,79 +336,76 @@ export default function ProjectReportPage() {
         </Card>
 
         {/* Time Entries */}
-        <Card className="border border-border shadow-sm print:border-gray-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground print:text-sm print:font-semibold print:text-blue-600">
-              <Clock className="h-5 w-5 print:hidden text-muted-foreground" />
+        {timeEntries.some(({ timeEntries: entries }) => entries.length > 0) && (
+        <Card className="border border-border shadow-sm print:border-gray-200 print:mb-0">
+          <CardHeader className="print:hidden">
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <Clock className="h-5 w-5 text-muted-foreground" />
               Detailné časové záznamy
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6 print:space-y-4mm print:pt-2">
-            {timeEntries.map(({ taskTitle, timeEntries: entries }) => (
-              <div key={taskTitle} className="space-y-3 print:space-y-2mm">
-                <h3 className="text-lg font-medium text-primary print:text-sm print:font-semibold print:text-gray-700 print:mb-1mm">{taskTitle}</h3>
-                {entries.length > 0 ? (
-                  <div className="rounded-md border border-border print:border-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/50">
-                          <TableHead className="w-[15%] print:w-[15%] print:text-xs print:font-semibold text-foreground">Dátum</TableHead>
-                          <TableHead className="w-[20%] print:w-[20%] print:text-xs print:font-semibold text-foreground">Používateľ</TableHead>
-                          <TableHead className="text-right w-[12%] print:w-[12%] print:text-xs print:font-semibold text-foreground">Hodiny</TableHead>
-                          <TableHead className="text-right w-[12%] print:w-[12%] print:text-xs print:font-semibold text-foreground">Sadzba</TableHead>
-                          <TableHead className="text-right w-[12%] print:w-[12%] print:text-xs print:font-semibold text-foreground">Suma</TableHead>
-                          <TableHead className="w-[29%] print:w-[29%] print:text-xs print:font-semibold text-foreground">Poznámka</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {entries.map((entry: any) => (
-                          <TableRow key={entry.id} className="print:border-0 hover:bg-muted/30">
-                            <TableCell className="text-sm print:text-xs text-foreground">
-                              {format(new Date(entry.date), 'dd.MM.yyyy')}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center print:hidden">
-                                  <span className="text-xs font-medium">
-                                    {entry.user?.display_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || '?'}
-                                  </span>
-                                </div>
-                                <span className="text-sm print:text-xs text-foreground">{entry.user?.display_name || 'Neznámy'}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm print:font-mono print:text-xs print:text-right text-foreground">
-                              {formatHours(entry.hours)}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm print:font-mono print:text-xs print:text-right text-foreground">
-                              {formatCurrency(entry.hourly_rate)}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm font-medium print:font-mono print:text-xs print:text-right print:font-semibold text-foreground">
-                              {formatCurrency(entry.amount)}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground print:text-xs print:text-gray-600">
-                              {entry.description || '—'}
-                            </TableCell>
+            <CardContent className="space-y-6 print:space-y-2mm print:pt-0 print:pb-1mm">
+              {timeEntries
+                .filter(({ timeEntries: entries }) => entries.length > 0)
+                .map(({ taskTitle, timeEntries: entries }) => (
+                  <div key={taskTitle} className="space-y-3 print:space-y-0">
+                    <h3 className="text-lg font-medium text-primary print:text-sm print:font-semibold print:text-gray-700 print:mb-0">{taskTitle}</h3>
+                    <div className="rounded-md border border-border print:border-0 print:-mt-3mm">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50">
+                            <TableHead className="w-[14%] print:w-[14%] print:text-xs print:font-semibold text-foreground">Dátum</TableHead>
+                            <TableHead className="w-[18%] print:w-[18%] print:text-xs print:font-semibold text-foreground">Používateľ</TableHead>
+                            <TableHead className="w-[30%] print:w-[30%] print:text-xs print:font-semibold text-foreground">Poznámka</TableHead>
+                            <TableHead className="w-[12%] text-right print:w-[12%] print:text-right print:text-xs print:font-semibold text-foreground">Hodiny</TableHead>
+                            <TableHead className="w-[12%] text-right print:w-[12%] print:text-right print:text-xs print:font-semibold text-foreground">Sadzba</TableHead>
+                            <TableHead className="w-[14%] text-right print:w-[14%] print:text-right print:text-xs print:font-semibold text-foreground">Suma</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {entries.map((entry: any) => (
+                            <TableRow key={entry.id} className="print:border-0 hover:bg-muted/30">
+                              <TableCell className="text-sm print:text-xs text-foreground">
+                                {format(new Date(entry.date), 'dd.MM.yyyy')}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center print:hidden">
+                                    <span className="text-xs font-medium">
+                                      {entry.user?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || entry.user?.email?.charAt(0).toUpperCase() || '?'}
+                                    </span>
+                                  </div>
+                                  <span className="text-sm print:text-xs text-foreground">{entry.user?.name || entry.user?.email || 'Neznámy'}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground print:text-xs print:text-gray-600">
+                                {entry.description || '—'}
+                              </TableCell>
+                              <TableCell className="text-right text-sm print:text-xs print:text-right text-foreground">
+                                {formatHours(entry.hours)}
+                              </TableCell>
+                              <TableCell className="text-right text-sm print:text-xs print:text-right text-foreground">
+                                {formatCurrency(entry.hourly_rate)}
+                              </TableCell>
+                              <TableCell className="text-right text-sm font-medium print:text-xs print:text-right print:font-semibold text-foreground">
+                                {formatCurrency(entry.amount)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground print:text-gray-600 print:py-4mm">
-                    <Clock className="h-8 w-8 mx-auto mb-2 opacity-50 print:hidden" />
-                    <p className="print:text-xs">Žiadne časové záznamy</p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+                ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Footer */}
-        <div className="print:mt-8mm print:pt-4mm print:border-t print:border-gray-200">
-          <div className="text-center text-sm text-muted-foreground print:text-xs print:text-gray-500">
+        <div className="print:hidden">
+          <div className="text-center text-sm text-muted-foreground">
             <p>Report vygenerovaný dňa {format(new Date(), 'dd.MM.yyyy HH:mm')}</p>
-            <p className="mt-1 font-medium print:text-xs">Laydo - Alpha verzia 1.0</p>
+            <p className="mt-0 font-medium">Layers</p>
           </div>
         </div>
       </div>

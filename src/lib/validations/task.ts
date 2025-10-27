@@ -15,6 +15,7 @@ export const taskSchema = z.object({
   assignee_id: z.string().uuid("Neplatné ID používateľa").optional().nullable(),
   estimated_hours: z.number().min(0, "Odhad musí byť kladný").optional().nullable(),
   budget_amount: z.number().min(0, "Budget musí byť kladný").optional().nullable(),
+  budget_cents: z.number().min(0, "Budget v centoch musí byť kladný").optional().nullable(),
   start_date: z.string().optional().or(z.literal("")).nullable(),
   end_date: z.string().optional().or(z.literal("")).nullable(),
   due_date: z.string().optional().or(z.literal("")).nullable(),

@@ -87,6 +87,10 @@ export default function TaskDetailPage() {
       const result = await response.json();
 
       if (result.success) {
+        console.log('>>> Task loaded from API:', {
+          project_fixed_fee: result.data.project?.fixed_fee,
+          project_budget_cents: result.data.project?.budget_cents
+        });
         setTask(result.data);
         setDescription(result.data.description || "");
         setDescriptionHtml(result.data.description || "");
@@ -164,36 +168,31 @@ export default function TaskDetailPage() {
 
     setIsSaving(true);
     try {
-      // Save task settings
+      // Save task settings (including task budget)
+      const taskPayload: any = {
+        estimated_hours: task.estimated_hours,
+      };
+      
+      // Include task budget if it exists
+      if (task.budget_cents !== undefined) {
+        taskPayload.budget_cents = task.budget_cents;
+      }
+      
+      console.log('>>> Saving task with payload:', taskPayload);
+      
       const taskResponse = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          estimated_hours: task.estimated_hours,
-        }),
+        body: JSON.stringify(taskPayload),
       });
 
       const taskResult = await taskResponse.json();
 
-      // Save project budget if changed
-      let projectResult = { success: true };
-      if (task.project?.budget !== undefined) {
-        const projectResponse = await fetch(`/api/projects/${task.project_id}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            budget: task.project.budget,
-          }),
-        });
-        projectResult = await projectResponse.json();
-      }
-
-      if (taskResult.success && projectResult.success) {
-        setTask(taskResult.data);
+      if (taskResult.success) {
+        // Reload task to get fresh data from database
+        await fetchTask();
         setHasChanges(false);
         toast({
           title: "Úspech",
@@ -916,18 +915,20 @@ export default function TaskDetailPage() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Rozpočet projektu</label>
+                    <label className="text-sm font-medium text-foreground">Rozpočet úlohy</label>
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
                         step="0.01"
                         min="0"
-                        value={task?.project?.budget ? task.project.budget.toFixed(2) : ''}
+                        value={task?.budget_cents ? (task.budget_cents / 100).toString() : ''}
                         onChange={(e) => {
                           const value = e.target.value ? parseFloat(e.target.value) : null;
+                          const budgetCents = value ? Math.round(value * 100) : null;
+                          console.log('>>> Updating task budget:', value, 'cents:', budgetCents);
                           setTask(prev => prev ? { 
                             ...prev, 
-                            project: prev.project ? { ...prev.project, budget: value } : undefined 
+                            budget_cents: budgetCents
                           } : null);
                           setHasChanges(true);
                         }}
@@ -936,6 +937,9 @@ export default function TaskDetailPage() {
                       />
                       <span className="text-sm text-muted-foreground">€</span>
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Individuálny rozpočet tejto úlohy. Nechajte prázdne pre výpočet z hodín.
+                    </p>
                   </div>
                 </CardContent>
               </Card>

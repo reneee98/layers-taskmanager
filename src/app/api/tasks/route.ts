@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       .from("tasks")
       .select(`
         *,
-        project:projects(id, name, code)
+        project:projects(id, name, code, hourly_rate_cents, budget_cents)
       `)
       .eq("workspace_id", workspaceId)
       .order("order_index", { ascending: true })
@@ -102,9 +102,17 @@ export async function GET(request: NextRequest) {
           .eq("task_id", task.id);
 
         const calculatedPrice = timeEntries?.reduce((sum, entry) => sum + (entry.amount || 0), 0) || 0;
-
+        
+        // Convert project rates from cents to euros
+        const projectWithRates = task.project ? {
+          ...task.project,
+          hourly_rate: task.project.hourly_rate_cents ? task.project.hourly_rate_cents / 100 : null,
+          fixed_fee: task.project.budget_cents ? task.project.budget_cents / 100 : null
+        } : null;
+        
         return {
           ...task,
+          project: projectWithRates,
           assignees: assigneesWithUsers,
           calculated_price: calculatedPrice
         };

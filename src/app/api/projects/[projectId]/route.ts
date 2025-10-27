@@ -23,10 +23,11 @@ export async function GET(
       return NextResponse.json({ success: false, error: error.message }, { status: 404 });
     }
 
-    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
     const projectWithHourlyRate = {
       ...project,
-      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null
+      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
+      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null
     };
 
     return NextResponse.json({ success: true, data: projectWithHourlyRate });
@@ -45,9 +46,13 @@ export async function PATCH(
   try {
     const { projectId } = await params;
     const body = await request.json();
+    console.log(">>> PATCH /api/projects - Body received:", JSON.stringify(body, null, 2));
+    
     const validation = validateSchema(updateProjectSchema, body);
+    console.log(">>> PATCH /api/projects - Validation result:", JSON.stringify(validation, null, 2));
 
     if (!validation.success) {
+      console.error("[DEBUG] PATCH /api/projects - Validation FAILED");
       return NextResponse.json(validation, { status: 400 });
     }
 
@@ -70,13 +75,19 @@ export async function PATCH(
       }
     }
 
-    // Convert hourly_rate to hourly_rate_cents if provided
+    // Convert hourly_rate to hourly_rate_cents and fixed_fee to budget_cents if provided
     const updateData = { ...validation.data };
     if (updateData.hourly_rate !== undefined) {
       updateData.hourly_rate_cents = updateData.hourly_rate ? Math.round(updateData.hourly_rate * 100) : null;
       delete updateData.hourly_rate;
     }
+    if (updateData.fixed_fee !== undefined) {
+      updateData.budget_cents = updateData.fixed_fee ? Math.round(updateData.fixed_fee * 100) : null;
+      delete updateData.fixed_fee;
+    }
 
+    console.log(">>> PATCH /api/projects - Updating with data:", JSON.stringify(updateData, null, 2));
+    
     const { data: project, error } = await supabase
       .from("projects")
       .update(updateData)
@@ -85,13 +96,16 @@ export async function PATCH(
       .single();
 
     if (error) {
+      console.error(">>> PATCH /api/projects - Database error:", error.message);
+      console.error(">>> PATCH /api/projects - Error details:", JSON.stringify(error, null, 2));
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
     const projectWithHourlyRate = {
       ...project,
-      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null
+      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
+      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null
     };
 
     return NextResponse.json({ success: true, data: projectWithHourlyRate });

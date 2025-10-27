@@ -19,21 +19,23 @@ export async function GET(
       .from("tasks")
       .select(`
         *,
-        project:projects(id, name, code, hourly_rate_cents)
+        project:projects(id, name, code, hourly_rate_cents, budget_cents)
       `)
       .eq("id", taskId)
       .single();
 
     if (error) {
+      console.error(`Task fetch error for ${taskId}:`, error);
       return NextResponse.json({ success: false, error: error.message }, { status: 404 });
     }
 
-    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
     const taskWithHourlyRate = {
       ...task,
       project: task.project ? {
         ...task.project,
-        hourly_rate: task.project.hourly_rate_cents ? task.project.hourly_rate_cents / 100 : null
+        hourly_rate: task.project.hourly_rate_cents ? task.project.hourly_rate_cents / 100 : null,
+        fixed_fee: task.project.budget_cents ? task.project.budget_cents / 100 : null
       } : null
     };
 
@@ -92,20 +94,22 @@ export async function PATCH(
       .eq("workspace_id", workspaceId)
       .select(`
         *,
-        project:projects(id, name, code, hourly_rate_cents)
+        project:projects(id, name, code, hourly_rate_cents, budget_cents)
       `)
       .single();
 
     if (error) {
+      console.error('Database error:', error);
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
     const taskWithHourlyRate = {
       ...task,
       project: task.project ? {
         ...task.project,
-        hourly_rate: task.project.hourly_rate_cents ? task.project.hourly_rate_cents / 100 : null
+        hourly_rate: task.project.hourly_rate_cents ? task.project.hourly_rate_cents / 100 : null,
+        fixed_fee: task.project.budget_cents ? task.project.budget_cents / 100 : null
       } : null
     };
 

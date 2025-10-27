@@ -53,6 +53,7 @@ export function TaskDialog({
       setStatus(task.status);
       setPriority(task.priority);
       setEstimatedHours(task.estimated_hours?.toString() || "");
+      // Use task's budget_cents (individual budget for this task)
       setBudgetAmount(task.budget_cents ? (task.budget_cents / 100).toString() : "");
       setDueDate(task.due_date || "");
     } else {
@@ -89,9 +90,10 @@ export function TaskDialog({
         payload.estimated_hours = parseFloat(estimatedHours);
       }
 
-      // Only include budget_amount if it has a value
+      // Only include budget_cents if it has a value (individual task budget in cents)
       if (budgetAmount && budgetAmount.trim() !== "") {
-        payload.budget_amount = parseFloat(budgetAmount);
+        const budgetValue = parseFloat(budgetAmount);
+        payload.budget_cents = Math.round(budgetValue * 100);
       }
 
       const method = task ? "PATCH" : "POST";
@@ -106,6 +108,7 @@ export function TaskDialog({
       const result = await response.json();
 
       if (result.success) {
+        
         toast({
           title: "Úspech",
           description: task ? "Úloha bola aktualizovaná" : "Úloha bola vytvorená",
@@ -215,6 +218,9 @@ export function TaskDialog({
                   onChange={(e) => setBudgetAmount(e.target.value)}
                   placeholder="Napr. 5000"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Nechajte prázdne pre kalkuláciu z hodín
+                </p>
               </div>
             </div>
 

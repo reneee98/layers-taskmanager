@@ -94,10 +94,11 @@ export async function GET(request: NextRequest) {
       !invoicedProjectIds.has(project.id)
     );
 
-    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
     const projectsWithHourlyRate = activeProjects.map(project => ({
       ...project,
-      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null
+      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
+      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null
     }));
 
     return NextResponse.json({ success: true, data: projectsWithHourlyRate });
@@ -153,16 +154,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert hourly_rate to hourly_rate_cents
+    // Convert hourly_rate to hourly_rate_cents and fixed_fee to budget_cents
     const projectData = {
       ...validation.data,
       workspace_id: workspaceId,
       client_id: validation.data.client_id || null,
-      hourly_rate_cents: validation.data.hourly_rate ? Math.round(validation.data.hourly_rate * 100) : null
+      hourly_rate_cents: validation.data.hourly_rate ? Math.round(validation.data.hourly_rate * 100) : null,
+      budget_cents: validation.data.fixed_fee ? Math.round(validation.data.fixed_fee * 100) : null
     };
     
-    // Remove hourly_rate from data since we're using hourly_rate_cents
+    // Remove hourly_rate and fixed_fee from data since we're using hourly_rate_cents and budget_cents
     delete projectData.hourly_rate;
+    delete projectData.fixed_fee;
 
     const { data: project, error } = await supabase
       .from("projects")
@@ -174,10 +177,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    // Convert hourly_rate_cents back to hourly_rate for frontend compatibility
+    // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
     const projectWithHourlyRate = {
       ...project,
-      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null
+      hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
+      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null
     };
 
     return NextResponse.json({ success: true, data: projectWithHourlyRate }, { status: 201 });

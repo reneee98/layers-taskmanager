@@ -999,11 +999,11 @@ export default function DashboardPage() {
                     }
                     .rbc-event {
                       border: none;
-                      border-radius: 4px;
-                      padding: 2px 6px;
-                      font-size: 11px;
+                      border-radius: 3px;
+                      padding: 1px 4px;
+                      font-size: 10px;
                       font-weight: 500;
-                      margin: 2px 4px;
+                      margin: 1px 2px;
                       cursor: pointer;
                       transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
                       overflow: hidden;

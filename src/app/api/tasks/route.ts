@@ -85,16 +85,12 @@ export async function GET(request: NextRequest) {
             const profile = profiles?.find(p => p.id === assignee.user_id);
             return {
               ...assignee,
-              user: profile ? {
+              ...profile ? {
                 id: profile.id,
+                display_name: profile.display_name,
                 email: profile.email,
-                name: profile.display_name, // Map display_name to name
-                avatar_url: null,
                 role: profile.role,
-                is_active: true,
-                created_at: "",
-                updated_at: ""
-              } : null
+              } : {}
             };
           });
         }

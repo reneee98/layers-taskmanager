@@ -91,6 +91,16 @@ export interface Task {
     hourly_rate?: number | null;
     budget?: number | null;
   };
+  assignees?: Array<{
+    id: string;
+    task_id: string;
+    user_id: string;
+    assigned_at: string;
+    assigned_by: string | null;
+    display_name?: string;
+    email?: string;
+    role?: string;
+  }>;
 }
 
 export interface GoogleDriveLink {

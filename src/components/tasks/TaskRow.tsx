@@ -284,10 +284,10 @@ export function TaskRow({
         <div className="flex items-center gap-1">
           {task.assignees && task.assignees.length > 0 ? (
             <>
-              {task.assignees.slice(0, 3).map((assignee: Profile, index: number) => (
-                <Avatar key={assignee.id} className="h-6 w-6 border-2 border-background">
+              {task.assignees.slice(0, 3).map((assignee) => (
+                <Avatar key={assignee.user_id || assignee.id} className="h-6 w-6 border-2 border-background">
                   <AvatarFallback className="text-xs">
-                    {getInitials(assignee.display_name || assignee.email)}
+                    {getInitials((assignee as any).display_name || (assignee as any).email || '?')}
                   </AvatarFallback>
                 </Avatar>
               ))}

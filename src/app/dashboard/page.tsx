@@ -907,10 +907,10 @@ export default function DashboardPage() {
                       border: none;
                       border-right: 1px solid rgba(0, 0, 0, 0.04);
                       border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-                      min-height: 140px;
+                      min-height: 180px;
                       background: transparent;
                       transition: background 0.15s ease;
-                      padding-bottom: 8px;
+                      padding-bottom: 24px;
                     }
                     .dark .rbc-day-bg,
                     .dark .rbc-month-row .rbc-day-bg,
@@ -964,6 +964,7 @@ export default function DashboardPage() {
                     .rbc-month-row {
                       margin-top: 0 !important;
                       padding-top: 0 !important;
+                      padding-bottom: 12px !important;
                     }
                     .rbc-day-bg.rbc-today {
                       background-color: rgba(var(--primary-rgb), 0.04);

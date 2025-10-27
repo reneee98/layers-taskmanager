@@ -55,6 +55,7 @@ export const mockProjects: Project[] = [
     start_date: "2024-01-01",
     end_date: "2024-06-30",
     hourly_rate_cents: 7500,
+    budget_cents: 5000000,
     budget: 50000,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",

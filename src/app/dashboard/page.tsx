@@ -578,7 +578,7 @@ export default function DashboardPage() {
         <CardContent className="p-0">
           <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] divide-x divide-border">
                 {/* Tasks Section */}
-                <div className="min-h-[600px]">
+                <div>
                   <div className="px-6 py-4 bg-muted/50 border-b border-border/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 text-lg font-semibold text-foreground">

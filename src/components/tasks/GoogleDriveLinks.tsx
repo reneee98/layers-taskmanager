@@ -76,6 +76,18 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
       return;
     }
 
+    // Basic URL validation
+    try {
+      new URL(formData.url);
+    } catch {
+      toast({
+        title: "Chyba",
+        description: "Neplatná URL adresa",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     const url = editingLink
       ? `/api/tasks/${taskId}/drive-links/${editingLink.id}`
@@ -91,7 +103,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
         credentials: 'include',
         body: JSON.stringify({
           url: formData.url,
-          description: formData.description || null,
+          description: formData.description || "",
         }),
       });
 
@@ -108,9 +120,15 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
         fetchLinks();
       } else {
         console.error("Submit response:", result);
+        let errorMessage = result.error || "Chyba pri ukladaní linku";
+        
+        if (result.validation && Array.isArray(result.validation)) {
+          errorMessage = result.validation.map((err: any) => err.message).join(", ");
+        }
+        
         toast({
           title: "Chyba",
-          description: result.error || "Chyba pri ukladaní linku",
+          description: errorMessage,
           variant: "destructive",
         });
       }

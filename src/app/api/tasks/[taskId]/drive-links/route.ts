@@ -3,8 +3,19 @@ import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
 const createLinkSchema = z.object({
-  url: z.string().url(),
-  description: z.string().optional().nullable(),
+  url: z.string().url("Neplatná URL adresa").refine(
+    (url) => {
+      // Allow Google Drive URLs and other valid URLs
+      try {
+        const urlObj = new URL(url);
+        return urlObj.protocol === 'https:' || urlObj.protocol === 'http:';
+      } catch {
+        return false;
+      }
+    },
+    "URL musí byť platná adresa"
+  ),
+  description: z.string().optional().nullable().transform(val => val === "" ? null : val),
 });
 
 // GET - Fetch all Google Drive links for a task
@@ -58,8 +69,9 @@ export async function POST(
     console.log("Task ID:", taskId);
 
     const body = await request.json();
+    console.log("Request body:", body);
+    
     const validatedData = createLinkSchema.parse(body);
-
     console.log("Validated data:", validatedData);
 
     // Skip workspace verification for now - RLS will handle it
@@ -85,7 +97,12 @@ export async function POST(
   } catch (error) {
     console.error("Error in POST drive-links:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      console.error("Validation errors:", error.errors);
+      return NextResponse.json({ 
+        error: "Validation failed", 
+        validation: error.errors,
+        code: "VALIDATION_ERROR"
+      }, { status: 400 });
     }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

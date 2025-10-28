@@ -3,8 +3,19 @@ import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
 const updateLinkSchema = z.object({
-  url: z.string().url().optional(),
-  description: z.string().optional().nullable(),
+  url: z.string().url("Neplatná URL adresa").refine(
+    (url) => {
+      // Allow Google Drive URLs and other valid URLs
+      try {
+        const urlObj = new URL(url);
+        return urlObj.protocol === 'https:' || urlObj.protocol === 'http:';
+      } catch {
+        return false;
+      }
+    },
+    "URL musí byť platná adresa"
+  ).optional(),
+  description: z.string().optional().nullable().transform(val => val === "" ? null : val),
 });
 
 // PUT - Update a Google Drive link

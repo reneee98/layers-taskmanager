@@ -3,17 +3,23 @@ import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
 const createLinkSchema = z.object({
-  url: z.string().url("Neplatná URL adresa").refine(
+  url: z.string().min(1, "URL je povinná").refine(
     (url) => {
-      // Allow Google Drive URLs and other valid URLs
+      // More flexible URL validation - allow various formats
       try {
-        const urlObj = new URL(url);
+        // If it doesn't start with protocol, try adding https://
+        let testUrl = url;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          testUrl = 'https://' + url;
+        }
+        
+        const urlObj = new URL(testUrl);
         return urlObj.protocol === 'https:' || urlObj.protocol === 'http:';
       } catch {
         return false;
       }
     },
-    "URL musí byť platná adresa"
+    "Neplatná URL adresa"
   ),
   description: z.string().optional().nullable().transform(val => val === "" ? null : val),
 });

@@ -76,9 +76,13 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
       return;
     }
 
-    // Basic URL validation
+    // Basic URL validation - more flexible
     try {
-      new URL(formData.url);
+      let testUrl = formData.url;
+      if (!testUrl.startsWith('http://') && !testUrl.startsWith('https://')) {
+        testUrl = 'https://' + testUrl;
+      }
+      new URL(testUrl);
     } catch {
       toast({
         title: "Chyba",
@@ -102,7 +106,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
         },
         credentials: 'include',
         body: JSON.stringify({
-          url: formData.url,
+          url: formData.url.startsWith('http') ? formData.url : 'https://' + formData.url,
           description: formData.description || "",
         }),
       });

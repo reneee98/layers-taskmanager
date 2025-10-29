@@ -132,7 +132,10 @@ interface Activity {
   user_name?: string;
   created_at: string;
   project?: string;
+  project_id?: string;
   project_code?: string;
+  task_id?: string;
+  task_title?: string;
   client?: string;
   description?: string;
   content?: string;
@@ -142,7 +145,9 @@ interface Activity {
 
 export default function DashboardPage() {
   const { workspace, loading: workspaceLoading } = useWorkspace();
-  const [tasks, setTasks] = useState<AssignedTask[]>([]);
+  const [tasks, setTasks] = useState<AssignedTask[]>([]); // Priradené používateľovi
+  const [allActiveTasks, setAllActiveTasks] = useState<AssignedTask[]>([]); // Všetky aktívne v workspace
+  const [unassignedTasks, setUnassignedTasks] = useState<AssignedTask[]>([]); // Nepriradené
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAllActivities, setShowAllActivities] = useState(false);
@@ -176,10 +181,29 @@ export default function DashboardPage() {
   };
 
   // Filter tasks based on active tab
-  const filteredTasks = filterTasksByTab(tasks, activeTab);
+  // Pre "all_active" používame všetky aktívne tasky
+  // Pre "unassigned" používame nepriradené tasky
+  // Pre ostatné taby používame priradené tasky
+  let tasksToFilter: AssignedTask[];
+  if (activeTab === 'all_active') {
+    tasksToFilter = allActiveTasks;
+  } else if (activeTab === 'unassigned') {
+    tasksToFilter = unassignedTasks;
+  } else {
+    tasksToFilter = tasks;
+  }
+  const filteredTasks = filterTasksByTab(tasksToFilter, activeTab);
   
   // Get task counts for each tab
-  const taskCounts = getTaskCountsByTab(tasks);
+  const taskCounts = {
+    all_active: filterTasksByTab(allActiveTasks, "all_active").length,
+    unassigned: filterTasksByTab(unassignedTasks, "unassigned").length,
+    today: filterTasksByTab(tasks, "today").length,
+    overdue: filterTasksByTab(tasks, "overdue").length,
+    sent_to_client: filterTasksByTab(tasks, "sent_to_client").length,
+    in_progress: filterTasksByTab(tasks, "in_progress").length,
+    this_week: filterTasksByTab(tasks, "this_week").length,
+  };
 
   const handleShowMoreActivities = () => {
     setShowAllActivities(true);
@@ -217,20 +241,37 @@ export default function DashboardPage() {
       
       setIsLoading(true);
       try {
-        const [tasksResponse, activitiesResponse, projectsResponse] = await Promise.all([
-          fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}`),
+        // Načítaj priradené, všetky aktívne a nepriradené tasky
+        const [assignedTasksResponse, allActiveTasksResponse, unassignedTasksResponse, activitiesResponse, projectsResponse] = await Promise.all([
+          fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=false`),
+          fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=true`),
+          fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=true`),
           fetch(`/api/dashboard/activity?workspace_id=${workspace.id}`),
           fetch(`/api/projects`)
         ]);
 
-        const tasksResult = await tasksResponse.json();
+        const assignedTasksResult = await assignedTasksResponse.json();
+        const allActiveTasksResult = await allActiveTasksResponse.json();
+        const unassignedTasksResult = await unassignedTasksResponse.json();
         const activitiesResult = await activitiesResponse.json();
         const projectsResult = await projectsResponse.json();
         
-        if (tasksResult.success) {
-          setTasks(tasksResult.data);
+        if (assignedTasksResult.success) {
+          setTasks(assignedTasksResult.data);
         } else {
-          console.error("Failed to fetch tasks:", tasksResult.error);
+          console.error("Failed to fetch assigned tasks:", assignedTasksResult.error);
+        }
+
+        if (allActiveTasksResult.success) {
+          setAllActiveTasks(allActiveTasksResult.data);
+        } else {
+          console.error("Failed to fetch all active tasks:", allActiveTasksResult.error);
+        }
+
+        if (unassignedTasksResult.success) {
+          setUnassignedTasks(unassignedTasksResult.data);
+        } else {
+          console.error("Failed to fetch unassigned tasks:", unassignedTasksResult.error);
         }
 
 
@@ -287,7 +328,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [workspace]);
+  }, [workspace, activeTab]);
 
   const getStatusBadgeVariant = (status: string) => {
     const variantMap: { [key: string]: string } = {
@@ -664,6 +705,15 @@ export default function DashboardPage() {
                       {taskCounts.in_progress > 0 && (
                         <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
                           {taskCounts.in_progress}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="unassigned" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                      <User className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline">Nepriradené</span>
+                      {taskCounts.unassigned > 0 && (
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                          {taskCounts.unassigned}
                         </Badge>
                       )}
                     </TabsTrigger>
@@ -1259,8 +1309,23 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   {(showAllActivities ? activities : activities.slice(0, 6)).map((activity) => {
                     const Icon = getActivityIcon(activity.type);
+                    const handleActivityClick = () => {
+                      // Ak má aktivita task_id a project_id, presmeruj na detail úlohy
+                      if (activity.task_id && activity.project_id) {
+                        window.location.href = `/projects/${activity.project_id}/tasks/${activity.task_id}`;
+                      }
+                    };
+                    
                     return (
-                      <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                      <div 
+                        key={activity.id} 
+                        onClick={handleActivityClick}
+                        className={cn(
+                          "flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors",
+                          activity.task_id && activity.project_id ? "cursor-pointer" : ""
+                        )}
+                        title={activity.task_id && activity.project_id ? "Kliknite pre zobrazenie detailu úlohy" : ""}
+                      >
                         <div className={cn("p-2 rounded-full", getActivityColor(activity.type))}>
                           <Icon className="h-4 w-4" />
                         </div>
@@ -1336,16 +1401,26 @@ export default function DashboardPage() {
               // Refresh tasks and activities
               const fetchData = async () => {
                 try {
-                  const [tasksResponse, activitiesResponse] = await Promise.all([
-                    fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace?.id}`),
+                  const [assignedTasksResponse, allActiveTasksResponse, unassignedTasksResponse, activitiesResponse] = await Promise.all([
+                    fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace?.id}&show_unassigned=false&show_all=false`),
+                    fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace?.id}&show_unassigned=false&show_all=true`),
+                    fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace?.id}&show_unassigned=true`),
                     fetch(`/api/dashboard/activity?workspace_id=${workspace?.id}`)
                   ]);
 
-                  const tasksResult = await tasksResponse.json();
+                  const assignedTasksResult = await assignedTasksResponse.json();
+                  const allActiveTasksResult = await allActiveTasksResponse.json();
+                  const unassignedTasksResult = await unassignedTasksResponse.json();
                   const activitiesResult = await activitiesResponse.json();
                   
-                  if (tasksResult.success) {
-                    setTasks(tasksResult.data);
+                  if (assignedTasksResult.success) {
+                    setTasks(assignedTasksResult.data);
+                  }
+                  if (allActiveTasksResult.success) {
+                    setAllActiveTasks(allActiveTasksResult.data);
+                  }
+                  if (unassignedTasksResult.success) {
+                    setUnassignedTasks(unassignedTasksResult.data);
                   }
                   if (activitiesResult.success) {
                     setActivities(activitiesResult.data);

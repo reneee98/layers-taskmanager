@@ -93,10 +93,13 @@ export async function GET(req: NextRequest) {
         action: activity.action,
         details: activity.details,
         project: project?.name,
+        project_id: activity.project_id,
         project_code: project?.code,
         task_title: task?.title,
+        task_id: activity.task_id,
         user: user?.display_name || "Neznámy používateľ",
         user_email: user?.email,
+        user_name: user?.display_name,
         created_at: activity.created_at,
         metadata: activity.metadata
       };

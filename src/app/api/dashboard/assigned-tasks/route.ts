@@ -60,64 +60,179 @@ export async function GET(req: NextRequest) {
     }
 
     
-    // Najdi všetky úlohy priradené používateľovi cez task_assignees
-    // Najprv nájdeme task IDs, kde je aktuálny používateľ assignee
-    const { data: taskAssignees, error: assigneesError } = await supabase
-      .from("task_assignees")
-      .select("task_id")
-      .eq("user_id", user.id)
-      .eq("workspace_id", workspaceId);
-
-    if (assigneesError) {
-      console.error("Error fetching task assignees:", assigneesError);
-      return NextResponse.json(
-        { success: false, error: assigneesError.message },
-        { status: 500 }
-      );
-    }
-
-    if (!taskAssignees || taskAssignees.length === 0) {
-      console.log(`DEBUG: No tasks assigned to user ${user.id} in workspace ${workspaceId}`);
-      return NextResponse.json({
-        success: true,
-        data: []
-      });
-    }
-
-    const taskIds = taskAssignees.map(ta => ta.task_id);
-    console.log(`DEBUG: Found ${taskIds.length} tasks assigned to user ${user.id}:`, taskIds);
-
-    // Načítaj úlohy s projektmi - len tie, kde je používateľ skutočne assignee
-    const { data: tasks, error: tasksError } = await supabase
-      .from("tasks")
-      .select(`
-        id,
-        title,
-        description,
-        status,
-        priority,
-        estimated_hours,
-        actual_hours,
-        start_date,
-        end_date,
-        due_date,
-        created_at,
-        updated_at,
-        project_id,
-        assignee_id,
-        assigned_to,
-        budget_amount,
-        workspace_id,
-        project:projects!inner(
+    // Získaj query parametre
+    const { searchParams } = new URL(req.url);
+    const showUnassigned = searchParams.get('show_unassigned') === 'true';
+    const showAll = searchParams.get('show_all') === 'true';
+    
+    let tasks;
+    let tasksError;
+    
+    if (showUnassigned) {
+      // Zobraziť len nepriradené tasky (bez assigneeov)
+      console.log(`DEBUG: Showing unassigned tasks in workspace ${workspaceId}`);
+      
+      // Najprv nájdeme všetky tasky s assignees
+      const { data: tasksWithAssignees } = await supabase
+        .from("task_assignees")
+        .select("task_id")
+        .eq("workspace_id", workspaceId);
+      
+      const taskIdsWithAssignees = tasksWithAssignees?.map(ta => ta.task_id) || [];
+      
+      // Potom načítame všetky aktívne tasky a odfiltrujeme tie, ktoré majú assignees
+      const { data: allTasks, error: allTasksError } = await supabase
+        .from("tasks")
+        .select(`
           id,
-          name,
-          code,
+          title,
+          description,
+          status,
+          priority,
+          estimated_hours,
+          actual_hours,
+          start_date,
+          end_date,
+          due_date,
+          created_at,
+          updated_at,
+          project_id,
+          assignee_id,
+          assigned_to,
+          budget_amount,
           workspace_id,
-          client:clients(name)
-        )
-      `)
-      .in("id", taskIds)
-      .eq("workspace_id", workspaceId);
+          project:projects!inner(
+            id,
+            name,
+            code,
+            workspace_id,
+            client:clients(name)
+          )
+        `)
+        .eq("workspace_id", workspaceId)
+        .neq("status", "done")
+        .neq("status", "cancelled");
+      
+      // Filtrujeme nepriradené tasky (tie, ktoré NIE sú v taskIdsWithAssignees)
+      tasks = allTasks?.filter(task => !taskIdsWithAssignees.includes(task.id)) || [];
+      tasksError = allTasksError;
+    } else if (showAll) {
+      // Zobraziť všetky aktívne tasky v workspace, ktoré SÚ priradené (majú assignees)
+      console.log(`DEBUG: Showing all active assigned tasks in workspace ${workspaceId}`);
+      
+      // Najprv nájdeme všetky tasky s assignees
+      const { data: tasksWithAssignees } = await supabase
+        .from("task_assignees")
+        .select("task_id")
+        .eq("workspace_id", workspaceId);
+      
+      const taskIdsWithAssignees = tasksWithAssignees?.map(ta => ta.task_id) || [];
+      
+      if (taskIdsWithAssignees.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: []
+        });
+      }
+      
+      // Potom načítame len tie aktívne tasky, ktoré majú assignees
+      const { data: allTasks, error: allTasksError } = await supabase
+        .from("tasks")
+        .select(`
+          id,
+          title,
+          description,
+          status,
+          priority,
+          estimated_hours,
+          actual_hours,
+          start_date,
+          end_date,
+          due_date,
+          created_at,
+          updated_at,
+          project_id,
+          assignee_id,
+          assigned_to,
+          budget_amount,
+          workspace_id,
+          project:projects!inner(
+            id,
+            name,
+            code,
+            workspace_id,
+            client:clients(name)
+          )
+        `)
+        .eq("workspace_id", workspaceId)
+        .neq("status", "done")
+        .neq("status", "cancelled")
+        .in("id", taskIdsWithAssignees);
+      
+      tasks = allTasks;
+      tasksError = allTasksError;
+    } else {
+      // Zobraziť len tasky priradené aktuálnemu používateľovi
+      const { data: taskAssignees, error: assigneesError } = await supabase
+        .from("task_assignees")
+        .select("task_id")
+        .eq("user_id", user.id)
+        .eq("workspace_id", workspaceId);
+
+      if (assigneesError) {
+        console.error("Error fetching task assignees:", assigneesError);
+        return NextResponse.json(
+          { success: false, error: assigneesError.message },
+          { status: 500 }
+        );
+      }
+
+      if (!taskAssignees || taskAssignees.length === 0) {
+        console.log(`DEBUG: No tasks assigned to user ${user.id} in workspace ${workspaceId}`);
+        return NextResponse.json({
+          success: true,
+          data: []
+        });
+      }
+
+      const taskIds = taskAssignees.map(ta => ta.task_id);
+      console.log(`DEBUG: Found ${taskIds.length} tasks assigned to user ${user.id}:`, taskIds);
+
+      // Načítaj úlohy s projektmi - len tie, kde je používateľ skutočne assignee
+      const { data: userTasks, error: userTasksError } = await supabase
+        .from("tasks")
+        .select(`
+          id,
+          title,
+          description,
+          status,
+          priority,
+          estimated_hours,
+          actual_hours,
+          start_date,
+          end_date,
+          due_date,
+          created_at,
+          updated_at,
+          project_id,
+          assignee_id,
+          assigned_to,
+          budget_amount,
+          workspace_id,
+          project:projects!inner(
+            id,
+            name,
+            code,
+            workspace_id,
+            client:clients(name)
+          )
+        `)
+        .in("id", taskIds)
+        .eq("workspace_id", workspaceId);
+      
+      tasks = userTasks;
+      tasksError = userTasksError;
+    }
     
 
     if (tasksError) {
@@ -129,14 +244,14 @@ export async function GET(req: NextRequest) {
     }
 
     if (!tasks || tasks.length === 0) {
-      console.log(`DEBUG: No tasks found for IDs:`, taskIds);
+      console.log(`DEBUG: No tasks found ${showAll ? 'in workspace' : 'for user'}`);
       return NextResponse.json({
         success: true,
         data: []
       });
     }
 
-    console.log(`DEBUG: Found ${tasks.length} tasks for user ${user.id}`);
+    console.log(`DEBUG: Found ${tasks.length} tasks ${showAll ? 'in workspace' : 'for user ' + user.id}`);
 
     // Načítaj assignee-ov pre každú úlohu
     const tasksWithAssignees = await Promise.all(

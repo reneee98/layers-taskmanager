@@ -37,7 +37,7 @@ export interface AssignedTask {
   };
 }
 
-export type DashboardTabType = "today" | "overdue" | "sent_to_client" | "in_progress" | "all_active" | "this_week";
+export type DashboardTabType = "today" | "overdue" | "sent_to_client" | "in_progress" | "all_active" | "this_week" | "unassigned";
 
 export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabType): AssignedTask[] => {
   const now = new Date();
@@ -84,6 +84,14 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
         return hasDueDateThisWeek || hasStartDateThisWeek;
       });
 
+    case "unassigned":
+      // Nepriradené tasky - bez assigneeov
+      return tasks.filter(task => 
+        (!task.assignees || task.assignees.length === 0) &&
+        task.status !== "done" && 
+        task.status !== "cancelled"
+      );
+
     default:
       return tasks;
   }
@@ -97,5 +105,6 @@ export const getTaskCountsByTab = (tasks: AssignedTask[]): Record<DashboardTabTy
     in_progress: filterTasksByTab(tasks, "in_progress").length,
     all_active: filterTasksByTab(tasks, "all_active").length,
     this_week: filterTasksByTab(tasks, "this_week").length,
+    unassigned: filterTasksByTab(tasks, "unassigned").length,
   };
 };

@@ -39,41 +39,28 @@ BEGIN
   RAISE NOTICE 'Valentina is member: %', is_member;
   
   -- Step 3: Fix access
-  IF NOT is_owner AND NOT is_member THEN
-    -- Make her the owner
-    UPDATE workspaces 
-    SET owner_id = valentina_user_id
-    WHERE id = layers_workspace_id;
-    
-    RAISE NOTICE '✓ Made Valentina owner of Layers workspace';
-    
-    -- Add her as member with owner role
+  -- IMPORTANT: Cannot make her owner due to unique constraint on workspaces.owner_id
+  -- (She already owns another workspace). Instead, add her as member with admin/owner role.
+  
+  IF NOT is_member THEN
+    -- Add her as member with 'owner' role (gives her full access)
     INSERT INTO workspace_members (workspace_id, user_id, role, created_at)
     VALUES (layers_workspace_id, valentina_user_id, 'owner', NOW())
     ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = 'owner';
     
-    RAISE NOTICE '✓ Added Valentina as member with owner role';
-  ELSIF NOT is_owner THEN
-    -- She is member but not owner - make her owner
-    UPDATE workspaces 
-    SET owner_id = valentina_user_id
-    WHERE id = layers_workspace_id;
-    
+    RAISE NOTICE '✓ Added Valentina as member of Layers workspace with owner role';
+  ELSE
+    -- Update role to owner if she's already a member but with different role
     UPDATE workspace_members
     SET role = 'owner'
-    WHERE workspace_id = layers_workspace_id AND user_id = valentina_user_id;
+    WHERE workspace_id = layers_workspace_id AND user_id = valentina_user_id AND role != 'owner';
     
-    RAISE NOTICE '✓ Made Valentina owner of Layers workspace and updated member role';
-  ELSIF NOT is_member THEN
-    -- She is owner but not member - add as member
-    INSERT INTO workspace_members (workspace_id, user_id, role, created_at)
-    VALUES (layers_workspace_id, valentina_user_id, 'owner', NOW())
-    ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = 'owner';
-    
-    RAISE NOTICE '✓ Added Valentina as member (already was owner)';
-  ELSE
-    RAISE NOTICE '✓ Valentina already has access to Layers workspace';
+    RAISE NOTICE '✓ Valentina already has access to Layers workspace (checked/updated role)';
   END IF;
+  
+  -- Note: We cannot change workspaces.owner_id because of unique constraint
+  -- (Valentina already owns another workspace), but being a member with 'owner' role
+  -- gives her the same permissions.
   
   RAISE NOTICE 'Fix completed successfully!';
 END $$;

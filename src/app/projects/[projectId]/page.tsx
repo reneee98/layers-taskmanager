@@ -89,6 +89,10 @@ export default function ProjectDetailPage() {
       if (result.success) {
         toast({ title: "Úspech", description: "Úloha bola aktualizovaná" });
         fetchTasks();
+        // Refresh project summary (zisk, náklady) when task is updated, especially if budget changed
+        if (refreshSummary) {
+          refreshSummary();
+        }
       } else {
         throw new Error(result.error);
       }
@@ -113,6 +117,10 @@ export default function ProjectDetailPage() {
       if (result.success) {
         toast({ title: "Úspech", description: "Úloha bola odstránená" });
         fetchTasks();
+        // Refresh project summary (zisk, náklady) when task is deleted
+        if (refreshSummary) {
+          refreshSummary();
+        }
       } else {
         throw new Error(result.error);
       }
@@ -239,7 +247,13 @@ export default function ProjectDetailPage() {
         task={editingTask}
         open={isTaskDialogOpen}
         onOpenChange={setIsTaskDialogOpen}
-        onSuccess={fetchTasks}
+        onSuccess={() => {
+          fetchTasks();
+          // Refresh project summary (zisk, náklady, atď.) after task is added/updated
+          if (refreshSummary) {
+            refreshSummary();
+          }
+        }}
       />
     </div>
   );

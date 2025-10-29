@@ -29,7 +29,7 @@ export async function GET(
     // Get tasks count and completion
     const { data: tasks, error: tasksError } = await supabase
       .from("tasks")
-      .select("id, status, budget_amount")
+      .select("id, status, budget_cents")
       .eq("project_id", projectId);
 
     if (tasksError) {
@@ -41,7 +41,8 @@ export async function GET(
 
     const totalTasks = tasks.length;
     const completedTasks = tasks.filter(task => task.status === "done").length;
-    const totalBudget = tasks.reduce((sum, task) => sum + (task.budget_amount || 0), 0);
+    // Convert budget_cents to euros for calculation
+    const totalBudget = tasks.reduce((sum, task) => sum + ((task.budget_cents || 0) / 100), 0);
 
     // Get time entries (labor cost) - get task IDs first
     const taskIds = tasks.map(task => task.id);

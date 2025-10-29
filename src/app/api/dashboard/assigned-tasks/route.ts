@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
 
     
     // Najdi všetky úlohy priradené používateľovi cez task_assignees
+    // Najprv nájdeme task IDs, kde je aktuálny používateľ assignee
     const { data: taskAssignees, error: assigneesError } = await supabase
       .from("task_assignees")
       .select("task_id")
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest) {
       .eq("workspace_id", workspaceId);
 
     if (assigneesError) {
+      console.error("Error fetching task assignees:", assigneesError);
       return NextResponse.json(
         { success: false, error: assigneesError.message },
         { status: 500 }
@@ -75,6 +77,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (!taskAssignees || taskAssignees.length === 0) {
+      console.log(`DEBUG: No tasks assigned to user ${user.id} in workspace ${workspaceId}`);
       return NextResponse.json({
         success: true,
         data: []
@@ -82,8 +85,9 @@ export async function GET(req: NextRequest) {
     }
 
     const taskIds = taskAssignees.map(ta => ta.task_id);
+    console.log(`DEBUG: Found ${taskIds.length} tasks assigned to user ${user.id}:`, taskIds);
 
-    // Načítaj úlohy s projektmi
+    // Načítaj úlohy s projektmi - len tie, kde je používateľ skutočne assignee
     const { data: tasks, error: tasksError } = await supabase
       .from("tasks")
       .select(`
@@ -117,11 +121,22 @@ export async function GET(req: NextRequest) {
     
 
     if (tasksError) {
+      console.error("Error fetching tasks:", tasksError);
       return NextResponse.json(
         { success: false, error: tasksError.message },
         { status: 500 }
       );
     }
+
+    if (!tasks || tasks.length === 0) {
+      console.log(`DEBUG: No tasks found for IDs:`, taskIds);
+      return NextResponse.json({
+        success: true,
+        data: []
+      });
+    }
+
+    console.log(`DEBUG: Found ${tasks.length} tasks for user ${user.id}`);
 
     // Načítaj assignee-ov pre každú úlohu
     const tasksWithAssignees = await Promise.all(

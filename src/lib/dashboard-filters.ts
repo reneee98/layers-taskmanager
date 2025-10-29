@@ -48,6 +48,10 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
   switch (tabType) {
     case "today":
       return tasks.filter(task => {
+        // Nezobrazovať úlohy so statusom "sent_to_client"
+        if (task.status === "sent_to_client") {
+          return false;
+        }
         // Úloha je "dnes" ak má deadline dnes ALEBO ak má štart dnes
         const hasDueDateToday = task.due_date && isToday(new Date(task.due_date));
         const hasStartDateToday = task.start_date && isToday(new Date(task.start_date));

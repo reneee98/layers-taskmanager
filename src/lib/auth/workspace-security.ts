@@ -139,6 +139,9 @@ export async function validateWorkspaceDataAccess(
  */
 export async function getUserAccessibleWorkspaces(userId: string) {
   try {
+    console.log(`=== DEBUG getUserAccessibleWorkspaces START ===`);
+    console.log(`User ID: ${userId}`);
+    
     const regularClient = createClient();
     
     // CRITICAL: Use service role client to bypass RLS and prevent infinite recursion
@@ -147,14 +150,18 @@ export async function getUserAccessibleWorkspaces(userId: string) {
     // to ensure RLS doesn't block owners from seeing their workspaces.
     const serviceClient = createServiceClient();
 
+    console.log(`Service client available: ${!!serviceClient}`);
+
     if (!serviceClient) {
       console.warn("Service role client not available - using regular client with RLS");
       // Fallback: try with regular client
+      console.log(`DEBUG: Attempting to fetch owned workspaces with regular client for userId: ${userId}`);
       const { data: ownedWorkspaces, error: ownedError } = await regularClient
         .from('workspaces')
         .select('id, name, description, owner_id, created_at')
         .eq('owner_id', userId);
 
+      console.log(`DEBUG: Regular client result - workspaces: ${ownedWorkspaces?.length || 0}, error: ${ownedError?.message || 'none'}`);
       if (ownedError) {
         console.error("Error fetching owned workspaces (fallback):", ownedError);
         return [];
@@ -163,21 +170,29 @@ export async function getUserAccessibleWorkspaces(userId: string) {
       const allWorkspaces: any[] = [];
       if (ownedWorkspaces) {
         ownedWorkspaces.forEach(workspace => {
+          console.log(`DEBUG: Adding owned workspace: ${workspace.name} (${workspace.id})`);
           allWorkspaces.push({
             ...workspace,
             role: 'owner'
           });
         });
       }
+      console.log(`=== DEBUG getUserAccessibleWorkspaces END (fallback) ===`);
       return allWorkspaces;
     }
 
     // Get owned workspaces - use service client to bypass RLS
     // This ensures owners can always see their workspaces even if RLS has issues
+    console.log(`DEBUG: Attempting to fetch owned workspaces with service client for userId: ${userId}`);
     const { data: ownedWorkspaces, error: ownedError } = await serviceClient
       .from('workspaces')
       .select('id, name, description, owner_id, created_at')
       .eq('owner_id', userId);
+
+    console.log(`DEBUG: Service client owned workspaces result - count: ${ownedWorkspaces?.length || 0}, error: ${ownedError?.message || 'none'}`);
+    if (ownedWorkspaces && ownedWorkspaces.length > 0) {
+      console.log(`DEBUG: Owned workspaces details:`, ownedWorkspaces.map(w => ({ id: w.id, name: w.name, owner_id: w.owner_id })));
+    }
 
     if (ownedError) {
       console.error("Error fetching owned workspaces:", ownedError);
@@ -239,11 +254,14 @@ export async function getUserAccessibleWorkspaces(userId: string) {
       });
     }
 
-    console.log(`DEBUG: getUserAccessibleWorkspaces returning ${allWorkspaces.length} workspace(s) for user ${userId}`);
+    console.log(`DEBUG: Total workspaces for user ${userId}: ${allWorkspaces.length}`);
+    console.log(`DEBUG: Workspace names:`, allWorkspaces.map(w => w.name));
+    console.log(`=== DEBUG getUserAccessibleWorkspaces END ===`);
     return allWorkspaces;
 
   } catch (error) {
     console.error("Error in getUserAccessibleWorkspaces:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
     return [];
   }
 }

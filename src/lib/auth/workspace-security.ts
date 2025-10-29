@@ -204,21 +204,46 @@ export async function getUserAccessibleWorkspaces(userId: string) {
     // If service client is not available, skip member workspaces (fallback)
     let memberWorkspaces = null;
     if (serviceClient) {
-      const { data, error: memberError } = await serviceClient
+      // First get workspace_members to find which workspaces user is member of
+      const { data: members, error: memberError } = await serviceClient
         .from('workspace_members')
-        .select(`
-          workspace_id,
-          role,
-          workspaces(id, name, description, owner_id, created_at)
-        `)
+        .select('workspace_id, role')
         .eq('user_id', userId);
 
       if (memberError) {
         console.error("Error fetching member workspaces:", memberError);
         // Don't return empty - continue with owned workspaces only
-      } else {
-        console.log(`DEBUG: Found ${data?.length || 0} member workspaces for user ${userId}:`, data);
-        memberWorkspaces = data;
+      } else if (members && members.length > 0) {
+        console.log(`DEBUG: Found ${members.length} workspace memberships for user ${userId}`);
+        
+        // Get workspace IDs (exclude owned workspaces to avoid duplicates)
+        const ownedWorkspaceIds = new Set(ownedWorkspaces?.map(w => w.id) || []);
+        const memberWorkspaceIds = members
+          .map(m => m.workspace_id)
+          .filter(id => !ownedWorkspaceIds.has(id)); // Remove duplicates with owned workspaces
+        
+        if (memberWorkspaceIds.length > 0) {
+          // Fetch workspace details using service client to bypass RLS
+          const { data: memberWorkspaceData, error: workspaceError } = await serviceClient
+            .from('workspaces')
+            .select('id, name, description, owner_id, created_at')
+            .in('id', memberWorkspaceIds);
+          
+          if (workspaceError) {
+            console.error("Error fetching member workspace details:", workspaceError);
+          } else if (memberWorkspaceData) {
+            // Map memberships to workspaces with roles
+            memberWorkspaces = memberWorkspaceData.map(workspace => {
+              const member = members.find(m => m.workspace_id === workspace.id);
+              return {
+                workspace_id: workspace.id,
+                role: member?.role || 'member',
+                workspaces: workspace
+              };
+            });
+            console.log(`DEBUG: Fetched ${memberWorkspaces.length} member workspace details`);
+          }
+        }
       }
     } else {
       console.warn("Service role client not available - skipping member workspaces to avoid RLS recursion");
@@ -238,17 +263,20 @@ export async function getUserAccessibleWorkspaces(userId: string) {
     }
 
     // Add member workspaces (only if service client was available)
-    if (memberWorkspaces) {
+    if (memberWorkspaces && memberWorkspaces.length > 0) {
       console.log(`DEBUG: User ${userId} is member of ${memberWorkspaces.length} workspace(s)`);
       memberWorkspaces.forEach(member => {
         if (member.workspaces) {
           const workspace = Array.isArray(member.workspaces) ? member.workspaces[0] : member.workspaces;
           if (workspace) {
             console.log(`DEBUG: Adding member workspace: ${workspace.name} (${workspace.id}) with role: ${member.role}`);
-            allWorkspaces.push({
-              ...workspace,
-              role: member.role
-            });
+            // Avoid duplicates - check if already in allWorkspaces
+            if (!allWorkspaces.find(w => w.id === workspace.id)) {
+              allWorkspaces.push({
+                ...workspace,
+                role: member.role
+              });
+            }
           }
         }
       });

@@ -85,63 +85,22 @@ export async function GET(request: NextRequest) {
       }));
     }
     
-    // Get all users who have access to this workspace
-    // This includes users who are assigned to tasks or have time entries
-    const { data: taskAssignees, error: assigneesError } = await supabase
-      .from('task_assignees')
-      .select('user_id')
-      .eq('workspace_id', workspaceId);
+    // SECURITY: Zobrazujeme len používateľov, ktorí SÚ členmi workspace
+    // NEFILTRUJEME podľa task_assignees alebo time_entries, lebo by to zobrazovalo
+    // používateľov, ktorí nie sú členmi workspace - narušenie súkromia!
     
-    const { data: timeEntries, error: timeEntriesError } = await supabase
-      .from('time_entries')
-      .select('user_id')
-      .eq('workspace_id', workspaceId);
+    // Vytvoríme zoznam platných používateľov - len owner a members
+    const validUserIds = new Set<string>();
     
-    console.log("Task assignees:", taskAssignees);
-    console.log("Time entries:", timeEntries);
+    // Pridaj owner
+    validUserIds.add(workspace.owner_id);
     
-    if (assigneesError) {
-      console.error("Error fetching task assignees:", assigneesError);
-      return NextResponse.json({ success: false, error: "Failed to fetch task assignees" }, { status: 500 });
+    // Pridaj všetkých členov workspace
+    if (members && members.length > 0) {
+      members.forEach(m => validUserIds.add(m.user_id));
     }
     
-    if (timeEntriesError) {
-      console.error("Error fetching time entries:", timeEntriesError);
-      return NextResponse.json({ success: false, error: "Failed to fetch time entries" }, { status: 500 });
-    }
-    
-    // Get unique user IDs
-    const userIds = new Set();
-    if (taskAssignees) {
-      taskAssignees.forEach(assignee => userIds.add(assignee.user_id));
-    }
-    if (timeEntries) {
-      timeEntries.forEach(entry => userIds.add(entry.user_id));
-    }
-    
-    console.log("Unique user IDs:", Array.from(userIds));
-    
-    // Get profiles for all unique users
-    let assigneeProfiles: any[] = [];
-    if (userIds.size > 0) {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, email, display_name, role')
-        .in('id', Array.from(userIds));
-      
-      if (profilesError) {
-        console.error("Error fetching profiles:", profilesError);
-        return NextResponse.json({ success: false, error: "Failed to fetch profiles" }, { status: 500 });
-      }
-      
-      // Map display_name to name for frontend compatibility
-      assigneeProfiles = (profiles || []).map(profile => ({
-        ...profile,
-        name: profile.display_name || profile.email?.split('@')[0] || 'Neznámy'
-      }));
-    }
-    
-    console.log("Assignee profiles:", assigneeProfiles);
+    console.log("Valid workspace user IDs (owner + members only):", Array.from(validUserIds));
     
     // Get owner profile (using workspace from earlier)
     const { data: ownerProfile, error: ownerError } = await supabase
@@ -157,12 +116,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Failed to fetch owner profile" }, { status: 500 });
     }
     
-    // Combine owner, members, and task assignees
+    // SECURITY: Combine owner and members ONLY - žiadni task assignees alebo time entries!
+    // Používatelia, ktorí nie sú členmi workspace, NEMÔŽU byť zobrazení
     const allUsers = [];
-    const userIdsCombined = new Set(); // To avoid duplicates
+    const userIdsCombined = new Set<string>(); // To avoid duplicates
     
-    // Add owner
-    if (ownerProfile) {
+    // Add owner (len ak je v validUserIds)
+    if (ownerProfile && validUserIds.has(ownerProfile.id)) {
       allUsers.push({
         id: ownerProfile.id,
         email: ownerProfile.email,
@@ -174,9 +134,15 @@ export async function GET(request: NextRequest) {
       userIdsCombined.add(ownerProfile.id);
     }
     
-    // Add members
+    // Add members (len členovia workspace, nie task assignees!)
     if (members && memberProfiles) {
       members.forEach(member => {
+        // SECURITY CHECK: Skontroluj, či je používateľ skutočne v validUserIds
+        if (!validUserIds.has(member.user_id)) {
+          console.log(`SECURITY: Skipping user ${member.user_id} - not a valid workspace member`);
+          return;
+        }
+        
         const profile = memberProfiles.find(p => p.id === member.user_id);
         if (profile && !userIdsCombined.has(profile.id)) {
           allUsers.push({
@@ -192,22 +158,7 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // Add task assignees
-    if (assigneeProfiles && assigneeProfiles.length > 0) {
-      assigneeProfiles.forEach(profile => {
-        if (!userIdsCombined.has(profile.id)) {
-          allUsers.push({
-            id: profile.id,
-            email: profile.email,
-            name: profile.name,
-            display_name: profile.display_name || profile.email.split('@')[0],
-            avatar_url: null,
-            role: 'assignee'
-          });
-          userIdsCombined.add(profile.id);
-        }
-      });
-    }
+    // SECURITY: NEPRIDÁVAME task assignees ani time entries - len členovia workspace!
     
     // Apply search filter if provided
     let filteredUsers = allUsers;

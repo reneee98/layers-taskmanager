@@ -23,6 +23,15 @@ export async function GET(
     const { taskId } = await params;
     const supabase = createClient();
 
+    // Get workspace owner ID pre filtrovanie assignees
+    const { data: workspace } = await supabase
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+    
+    const workspaceOwnerId = workspace?.owner_id;
+
     // First verify the task belongs to the user's workspace
     const { data: task, error: taskError } = await supabase
       .from("tasks")
@@ -53,39 +62,60 @@ export async function GET(
       );
     }
 
-    // Fetch users separately from profiles table
+    // Fetch users separately from profiles table - len pre členov workspace
     const userIds = assignees?.map(a => a.user_id) || [];
     let users: any[] = [];
     
     if (userIds.length > 0) {
-      const { data: usersData, error: usersError } = await supabase
-        .from("profiles")
-        .select("*")
-        .in("id", userIds);
+      // Najprv skontrolujme, ktorí používatelia sú členmi workspace
+      const { data: workspaceMembers } = await supabase
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspaceId)
+        .in("user_id", userIds);
       
-      if (usersError) {
-        console.error("Failed to fetch users:", usersError);
-        return NextResponse.json(
-          { success: false, error: "Nepodarilo sa načítať používateľov" },
-          { status: 500 }
-        );
+      const memberUserIds = new Set(workspaceMembers?.map(m => m.user_id) || []);
+      // Pripočítame aj owner workspace, ak je medzi assignees
+      if (workspaceOwnerId) {
+        memberUserIds.add(workspaceOwnerId);
       }
       
-      // Map display_name to name for frontend compatibility
-      users = (usersData || []).map(user => ({
-        ...user,
-        name: user.display_name || user.email?.split('@')[0] || 'Neznámy'
-      }));
+      console.log(`DEBUG assignees filter: workspaceId=${workspaceId}, ownerId=${workspaceOwnerId}, userIds=${JSON.stringify(userIds)}, memberUserIds=${JSON.stringify(Array.from(memberUserIds))}`);
+      
+      // Filtruj userIds len na tých, ktorí sú členmi workspace
+      const validUserIds = Array.from(memberUserIds).filter(id => userIds.includes(id));
+      
+      console.log(`DEBUG assignees filter: validUserIds=${JSON.stringify(validUserIds)}, filtered from ${userIds.length} to ${validUserIds.length}`);
+      
+      if (validUserIds.length > 0) {
+        const { data: usersData, error: usersError } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", validUserIds);
+        
+        if (usersError) {
+          console.error("Failed to fetch users:", usersError);
+          return NextResponse.json(
+            { success: false, error: "Nepodarilo sa načítať používateľov" },
+            { status: 500 }
+          );
+        }
+        
+        // Map display_name to name for frontend compatibility
+        users = (usersData || []).map(user => ({
+          ...user,
+          name: user.display_name || user.email?.split('@')[0] || 'Neznámy'
+        }));
+      }
     }
 
-    // Combine assignees with user data
-    const assigneesWithUsers = assignees?.map(assignee => {
+    // Combine assignees with user data - len pre validné assignees (členov workspace)
+    const assigneesWithUsers = assignees?.filter(assignee => {
+      // Zobraz len assignees, ktorí sú členmi workspace
+      const hasUser = users.find(u => u.id === assignee.user_id);
+      return hasUser !== undefined;
+    }).map(assignee => {
       const user = users.find(u => u.id === assignee.user_id);
-      console.log("Assigning user to assignee:", {
-        assignee_user_id: assignee.user_id,
-        found_user: user,
-        all_users: users
-      });
       return {
         ...assignee,
         user: user

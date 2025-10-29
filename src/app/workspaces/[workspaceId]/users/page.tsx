@@ -136,12 +136,15 @@ export default function WorkspaceUsersPage() {
         return;
       }
 
-      // Get profiles for all members
-      const userIds = members.map(m => m.user_id);
+      // Collect all user IDs (members + owner if not in members)
+      const memberUserIds = members.map(m => m.user_id);
+      const allUserIds = [...new Set([...memberUserIds, workspace.owner_id])];
+
+      // Get profiles for all users (members + owner)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, display_name, email')
-        .in('id', userIds);
+        .in('id', allUserIds);
 
       if (profilesError) {
         console.error("Error fetching profiles:", profilesError);
@@ -151,18 +154,44 @@ export default function WorkspaceUsersPage() {
 
       // Create a map of user_id -> profile for quick lookup
       const profileMap = new Map(profiles.map(p => [p.id, p]));
+      
+      // Create a map of user_id -> member data for quick lookup
+      const memberMap = new Map(members.map(m => [m.user_id, m]));
 
-      // Format members data
-      const formattedMembers = members.map(m => {
-        const profile = profileMap.get(m.user_id);
-        return {
-          user_id: m.user_id,
-          role: m.role,
-          display_name: profile?.display_name || profile?.email || 'Unknown User',
-          email: profile?.email,
-          is_owner: workspace.owner_id === m.user_id,
-          joined_at: m.created_at,
-        };
+      // Format all users (owner + members)
+      const formattedMembers: WorkspaceUser[] = [];
+      
+      // Add owner first (if exists and has profile)
+      if (workspace.owner_id) {
+        const ownerProfile = profileMap.get(workspace.owner_id);
+        if (ownerProfile) {
+          const ownerMember = memberMap.get(workspace.owner_id);
+          formattedMembers.push({
+            user_id: workspace.owner_id,
+            role: ownerMember?.role || 'owner',
+            display_name: ownerProfile.display_name || ownerProfile.email || 'Unknown User',
+            email: ownerProfile.email,
+            is_owner: true,
+            joined_at: ownerMember?.created_at || workspace.created_at || new Date().toISOString(),
+          });
+        }
+      }
+
+      // Add other members (excluding owner if already added)
+      members.forEach(m => {
+        if (m.user_id !== workspace.owner_id) {
+          const profile = profileMap.get(m.user_id);
+          if (profile) {
+            formattedMembers.push({
+              user_id: m.user_id,
+              role: m.role,
+              display_name: profile.display_name || profile.email || 'Unknown User',
+              email: profile.email,
+              is_owner: false,
+              joined_at: m.created_at,
+            });
+          }
+        }
       });
 
       console.log("Frontend Members:", formattedMembers);
@@ -400,7 +429,20 @@ export default function WorkspaceUsersPage() {
 
       // Prevent removing another owner
       if (workspace.owner_id === user.user_id) {
-        setError("Cannot remove another workspace owner");
+        setError("Nie je možné odstrániť vlastníka workspace");
+        return;
+      }
+
+      // Check if user is actually a member (not just owner without membership record)
+      const { data: memberCheck } = await supabase
+        .from('workspace_members')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', user.user_id)
+        .single();
+
+      if (!memberCheck) {
+        setError("Používateľ nie je členom workspace, takže sa nedá odstrániť");
         return;
       }
 
@@ -413,7 +455,7 @@ export default function WorkspaceUsersPage() {
 
       if (deleteError) {
         console.error("Error removing user from workspace:", deleteError);
-        setError("Failed to remove user from workspace");
+        setError(`Chyba pri odstraňovaní: ${deleteError.message || "Nepodarilo sa odstrániť používateľa z workspace"}`);
         return;
       }
 

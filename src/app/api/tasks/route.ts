@@ -16,6 +16,15 @@ export async function GET(request: NextRequest) {
     }
     
     const supabase = createClient();
+    
+    // Get workspace owner ID pre filtrovanie assignees
+    const { data: workspace } = await supabase
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+    
+    const workspaceOwnerId = workspace?.owner_id;
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("project_id");
     const status = searchParams.get("status");
@@ -72,27 +81,47 @@ export async function GET(request: NextRequest) {
           .eq("task_id", task.id)
           .eq("workspace_id", workspaceId);
 
-        // Get user profiles for assignees
+        // Get user profiles for assignees - len pre členov workspace
         let assigneesWithUsers: any[] = [];
         if (assignees && assignees.length > 0) {
           const userIds = assignees.map(a => a.user_id);
-          const { data: profiles } = await supabase
-            .from("profiles")
-            .select("id, display_name, email, role")
-            .in("id", userIds);
+          
+          // Najprv skontrolujme, ktorí používatelia sú členmi workspace
+          const { data: workspaceMembers } = await supabase
+            .from("workspace_members")
+            .select("user_id")
+            .eq("workspace_id", workspaceId)
+            .in("user_id", userIds);
+          
+          const memberUserIds = new Set(workspaceMembers?.map(m => m.user_id) || []);
+          // Pripočítame aj owner workspace, ak je medzi assignees
+          if (workspaceOwnerId) {
+            memberUserIds.add(workspaceOwnerId);
+          }
+          
+          // Filtruj assignees len na tých, ktorí sú členmi workspace
+          const validAssignees = assignees.filter(a => memberUserIds.has(a.user_id));
+          
+          if (validAssignees.length > 0) {
+            const validUserIds = validAssignees.map(a => a.user_id);
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("id, display_name, email, role")
+              .in("id", validUserIds);
 
-          assigneesWithUsers = assignees.map(assignee => {
-            const profile = profiles?.find(p => p.id === assignee.user_id);
-            return {
-              ...assignee,
-              ...profile ? {
-                id: profile.id,
-                display_name: profile.display_name,
-                email: profile.email,
-                role: profile.role,
-              } : {}
-            };
-          });
+            assigneesWithUsers = validAssignees.map(assignee => {
+              const profile = profiles?.find(p => p.id === assignee.user_id);
+              return {
+                ...assignee,
+                ...profile ? {
+                  id: profile.id,
+                  display_name: profile.display_name,
+                  email: profile.email,
+                  role: profile.role,
+                } : {}
+              };
+            });
+          }
         }
 
         // Calculate total price from time entries

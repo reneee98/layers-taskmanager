@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@/lib/supabase/service";
 import { getServerUser } from "@/lib/auth/admin";
 
 export interface WorkspaceAccessResult {
@@ -138,10 +139,15 @@ export async function validateWorkspaceDataAccess(
  */
 export async function getUserAccessibleWorkspaces(userId: string) {
   try {
-    const supabase = createClient();
+    const regularClient = createClient();
+    
+    // CRITICAL: Use service role client to bypass RLS and prevent infinite recursion
+    // Regular client would trigger RLS policies which query workspace_members,
+    // causing infinite recursion
+    const serviceClient = createServiceClient();
 
-    // Get owned workspaces - use service role to bypass RLS
-    const { data: ownedWorkspaces, error: ownedError } = await supabase
+    // Get owned workspaces - can use regular client since workspaces table doesn't have RLS recursion
+    const { data: ownedWorkspaces, error: ownedError } = await regularClient
       .from('workspaces')
       .select('id, name, description, owner_id, created_at')
       .eq('owner_id', userId);
@@ -151,25 +157,36 @@ export async function getUserAccessibleWorkspaces(userId: string) {
       return [];
     }
 
-    // Get member workspaces - use service role to bypass RLS
-    const { data: memberWorkspaces, error: memberError } = await supabase
-      .from('workspace_members')
-      .select(`
-        workspace_id,
-        role,
-        workspaces(id, name, description, owner_id, created_at)
-      `)
-      .eq('user_id', userId);
+    // Get member workspaces - MUST use service role to bypass RLS and prevent infinite recursion
+    // Regular client would trigger RLS which queries workspace_members again → recursion
+    // If service client is not available, skip member workspaces (fallback)
+    let memberWorkspaces = null;
+    if (serviceClient) {
+      const { data, error: memberError } = await serviceClient
+        .from('workspace_members')
+        .select(`
+          workspace_id,
+          role,
+          workspaces(id, name, description, owner_id, created_at)
+        `)
+        .eq('user_id', userId);
 
-    if (memberError) {
-      console.error("Error fetching member workspaces:", memberError);
-      return [];
+      if (memberError) {
+        console.error("Error fetching member workspaces:", memberError);
+        // Don't return empty - continue with owned workspaces only
+      } else {
+        console.log(`DEBUG: Found ${data?.length || 0} member workspaces for user ${userId}:`, data);
+        memberWorkspaces = data;
+      }
+    } else {
+      console.warn("Service role client not available - skipping member workspaces to avoid RLS recursion");
     }
 
     const allWorkspaces: any[] = [];
 
     // Add owned workspaces
     if (ownedWorkspaces) {
+      console.log(`DEBUG: User ${userId} owns ${ownedWorkspaces.length} workspace(s)`);
       ownedWorkspaces.forEach(workspace => {
         allWorkspaces.push({
           ...workspace,
@@ -178,10 +195,12 @@ export async function getUserAccessibleWorkspaces(userId: string) {
       });
     }
 
-    // Add member workspaces
+    // Add member workspaces (only if service client was available)
     if (memberWorkspaces) {
+      console.log(`DEBUG: User ${userId} is member of ${memberWorkspaces.length} workspace(s)`);
       memberWorkspaces.forEach(member => {
         if (member.workspaces) {
+          console.log(`DEBUG: Adding member workspace: ${member.workspaces.name} (${member.workspaces.id}) with role: ${member.role}`);
           allWorkspaces.push({
             ...member.workspaces,
             role: member.role
@@ -190,6 +209,7 @@ export async function getUserAccessibleWorkspaces(userId: string) {
       });
     }
 
+    console.log(`DEBUG: getUserAccessibleWorkspaces returning ${allWorkspaces.length} workspace(s) for user ${userId}`);
     return allWorkspaces;
 
   } catch (error) {

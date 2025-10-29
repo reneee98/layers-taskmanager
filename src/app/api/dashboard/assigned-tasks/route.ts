@@ -59,6 +59,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Uložíme workspace owner ID pre použitie neskôr
+    const workspaceOwnerId = workspace.owner_id;
+
     
     // Získaj query parametre
     const { searchParams } = new URL(req.url);
@@ -263,31 +266,51 @@ export async function GET(req: NextRequest) {
           .eq("task_id", task.id)
           .eq("workspace_id", workspaceId);
 
-        // Get user profiles for assignees
+        // Get user profiles for assignees - len pre členov workspace
         let assigneesWithUsers: any[] = [];
         if (assignees && assignees.length > 0) {
           const userIds = assignees.map(a => a.user_id);
-          const { data: profiles } = await supabase
-            .from("profiles")
-            .select("id, display_name, email, role")
-            .in("id", userIds);
+          
+          // Najprv skontrolujme, ktorí používatelia sú členmi workspace
+          const { data: workspaceMembers } = await supabase
+            .from("workspace_members")
+            .select("user_id")
+            .eq("workspace_id", workspaceId)
+            .in("user_id", userIds);
+          
+          const memberUserIds = new Set(workspaceMembers?.map(m => m.user_id) || []);
+          // Pripočítame aj owner workspace, ak je medzi assignees
+          if (workspaceOwnerId) {
+            memberUserIds.add(workspaceOwnerId);
+          }
+          
+          // Filtruj assignees len na tých, ktorí sú členmi workspace
+          const validAssignees = assignees.filter(a => memberUserIds.has(a.user_id));
+          
+          if (validAssignees.length > 0) {
+            const validUserIds = validAssignees.map(a => a.user_id);
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("id, display_name, email, role")
+              .in("id", validUserIds);
 
-          assigneesWithUsers = assignees.map(assignee => {
-            const profile = profiles?.find(p => p.id === assignee.user_id);
-            return {
-              ...assignee,
-              user: profile ? {
-                id: profile.id,
-                email: profile.email,
-                name: profile.display_name, // Map display_name to name
-                avatar_url: null,
-                role: profile.role,
-                is_active: true,
-                created_at: "",
-                updated_at: ""
-              } : null
-            };
-          });
+            assigneesWithUsers = validAssignees.map(assignee => {
+              const profile = profiles?.find(p => p.id === assignee.user_id);
+              return {
+                ...assignee,
+                user: profile ? {
+                  id: profile.id,
+                  email: profile.email,
+                  name: profile.display_name, // Map display_name to name
+                  avatar_url: null,
+                  role: profile.role,
+                  is_active: true,
+                  created_at: "",
+                  updated_at: ""
+                } : null
+              };
+            });
+          }
         }
 
         return {

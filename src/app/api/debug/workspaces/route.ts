@@ -4,8 +4,19 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    // Log all SUPABASE env vars at runtime for debugging
+    console.log('=== DEBUG WORKSPACES API START ===');
+    console.log('All SUPABASE env vars:', Object.keys(process.env)
+      .filter(k => k.includes('SUPABASE'))
+      .map(k => `${k}=${k.includes('SERVICE_ROLE') ? '[REDACTED]' : process.env[k]?.substring(0, 20) + '...'}`)
+      .join(', '));
+    console.log('SUPABASE_SERVICE_ROLE_KEY exists:', typeof process.env.SUPABASE_SERVICE_ROLE_KEY !== 'undefined');
+    console.log('SUPABASE_SERVICE_ROLE_KEY length:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0);
+    
     const supabase = createClient();
     const serviceClient = createServiceClient();
+    
+    console.log('Service client created:', !!serviceClient);
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     

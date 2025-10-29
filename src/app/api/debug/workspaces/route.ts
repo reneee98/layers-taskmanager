@@ -21,6 +21,8 @@ export async function GET() {
       userId: user.id,
       userEmail: user.email,
       serviceClientAvailable: !!serviceClient,
+      serviceKeyConfigured: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      warning: serviceClient ? null : "CRITICAL: SUPABASE_SERVICE_ROLE_KEY is not configured. Member workspaces cannot be fetched due to RLS. Add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables.",
     };
 
     // Check owned workspaces

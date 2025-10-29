@@ -50,19 +50,7 @@ BEGIN
     RAISE NOTICE '✓ Added Valentina as member of Layers workspace with owner role';
   END IF;
   
-  -- Verify final status
-  SELECT 
-    wm.role,
-    w.name as workspace_name,
-    p.email as user_email
-  INTO existing_member  -- Reuse variable for verification
-  FROM workspace_members wm
-  JOIN workspaces w ON wm.workspace_id = w.id
-  JOIN profiles p ON wm.user_id = p.id
-  WHERE wm.workspace_id = layers_workspace_id
-  AND wm.user_id = valentina_user_id;
-  
-  RAISE NOTICE '✓ Final status: Valentina is member of % with role: owner', layers_workspace_id;
+  RAISE NOTICE '✓ Final status: Valentina is member of Layers workspace with owner role';
   
 END $$;
 

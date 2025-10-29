@@ -200,11 +200,14 @@ export async function getUserAccessibleWorkspaces(userId: string) {
       console.log(`DEBUG: User ${userId} is member of ${memberWorkspaces.length} workspace(s)`);
       memberWorkspaces.forEach(member => {
         if (member.workspaces) {
-          console.log(`DEBUG: Adding member workspace: ${member.workspaces.name} (${member.workspaces.id}) with role: ${member.role}`);
-          allWorkspaces.push({
-            ...member.workspaces,
-            role: member.role
-          });
+          const workspace = Array.isArray(member.workspaces) ? member.workspaces[0] : member.workspaces;
+          if (workspace) {
+            console.log(`DEBUG: Adding member workspace: ${workspace.name} (${workspace.id}) with role: ${member.role}`);
+            allWorkspaces.push({
+              ...workspace,
+              role: member.role
+            });
+          }
         }
       });
     }

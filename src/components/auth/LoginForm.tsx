@@ -78,7 +78,7 @@ export function LoginForm() {
           </div>
           <CardTitle className="text-2xl text-center">Laydo</CardTitle>
           <CardDescription className="text-center">
-            Alpha verzia 1.0 - Prihláste sa do svojho účtu
+            Verzia {process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0-alpha'} - Prihláste sa do svojho účtu
           </CardDescription>
         </CardHeader>
         <CardContent>

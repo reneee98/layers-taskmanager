@@ -302,7 +302,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                 <h1 className="text-2xl font-bold text-foreground">
                   Layers
                 </h1>
-                <span className="text-sm text-muted-foreground">Alpha verzia 1.0</span>
+                <span className="text-sm text-muted-foreground">Verzia {process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0-alpha'}</span>
               </div>
             )}
           </div>

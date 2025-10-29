@@ -66,12 +66,11 @@ export async function POST(
     }
 
     // Remove user from workspace_members using service client (bypasses RLS)
-    const { error: deleteError, count } = await serviceClient
+    const { error: deleteError } = await serviceClient
       .from('workspace_members')
       .delete()
       .eq('workspace_id', workspaceId)
-      .eq('user_id', profile.id)
-      .select('*', { count: 'exact', head: true });
+      .eq('user_id', profile.id);
 
     if (deleteError) {
       console.error("Error removing user:", deleteError);

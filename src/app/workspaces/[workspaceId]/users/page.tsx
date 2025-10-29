@@ -138,7 +138,8 @@ export default function WorkspaceUsersPage() {
 
       // Collect all user IDs (members + owner if not in members)
       const memberUserIds = members.map(m => m.user_id);
-      const allUserIds = [...new Set([...memberUserIds, workspace.owner_id])];
+      const allUserIdsSet = new Set([...memberUserIds, workspace.owner_id]);
+      const allUserIds = Array.from(allUserIdsSet);
 
       // Get profiles for all users (members + owner)
       const { data: profiles, error: profilesError } = await supabase

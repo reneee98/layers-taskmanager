@@ -273,9 +273,13 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
               <Input
                 id="url"
                 name="url"
+                type="url"
                 value={formData.url}
                 onChange={handleInputChange}
                 placeholder="https://example.com/..."
+                autoComplete="url"
+                data-1p-ignore
+                data-lpignore="true"
                 required
               />
             </div>
@@ -287,6 +291,9 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
                 value={formData.description}
                 onChange={handleInputChange}
                 placeholder="Napríklad: dokument, prezentácia, súbor..."
+                autoComplete="off"
+                data-1p-ignore
+                data-lpignore="true"
                 rows={3}
               />
             </div>

@@ -24,7 +24,7 @@ const updateLinkSchema = z.object({
   description: z.string().optional().nullable().transform(val => val === "" ? null : val),
 });
 
-// PUT - Update a Google Drive link
+// PUT - Update a link
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ taskId: string; linkId: string }> }
@@ -64,7 +64,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete a Google Drive link
+// DELETE - Delete a link
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ taskId: string; linkId: string }> }

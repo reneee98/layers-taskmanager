@@ -38,7 +38,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
         console.error("Error fetching links:", result.error);
         toast({
           title: "Chyba",
-          description: result.error || "Chyba pri načítavaní Google Drive linkov",
+          description: result.error || "Chyba pri načítavaní linkov",
           variant: "destructive",
         });
       }
@@ -46,7 +46,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
       console.error("Error fetching links:", error);
       toast({
         title: "Chyba",
-        description: "Chyba pri načítavaní Google Drive linkov",
+        description: "Chyba pri načítavaní linkov",
         variant: "destructive",
       });
     } finally {
@@ -116,7 +116,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
       if (response.ok) {
         toast({
           title: "Úspech",
-          description: editingLink ? "Google Drive link bol aktualizovaný" : "Google Drive link bol pridaný",
+          description: editingLink ? "Link bol aktualizovaný" : "Link bol pridaný",
         });
         setIsDialogOpen(false);
         setFormData({ url: "", description: "" });
@@ -162,7 +162,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
       if (response.ok) {
         toast({
           title: "Úspech",
-          description: "Google Drive link bol vymazaný",
+          description: "Link bol vymazaný",
         });
         fetchLinks();
       } else {
@@ -200,7 +200,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
   return (
     <div className="space-y-4">
       <Button onClick={handleAddClick} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-        <Plus className="mr-2 h-4 w-4" /> Pridať Google Drive link
+        <Plus className="mr-2 h-4 w-4" /> Pridať link
       </Button>
 
       {isLoading && (
@@ -210,7 +210,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
       )}
 
       {!isLoading && links.length === 0 && (
-        <p className="text-center text-muted-foreground">Žiadne Google Drive linky.</p>
+        <p className="text-center text-muted-foreground">Žiadne linky.</p>
       )}
 
       {!isLoading && links.length > 0 && (
@@ -227,7 +227,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
                   className="flex items-center gap-2 text-sm font-medium text-primary hover:underline truncate"
                 >
                   <LinkIcon className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
-                  <span className="truncate text-foreground">{link.description || "Google Drive link"}</span>
+                  <span className="truncate text-foreground">{link.description || "Link"}</span>
                   <ExternalLink className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
                 </a>
                 <p className="text-xs text-muted-foreground mt-1 truncate">{link.url}</p>
@@ -261,7 +261,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingLink ? "Upraviť Google Drive link" : "Pridať Google Drive link"}
+              {editingLink ? "Upraviť link" : "Pridať link"}
             </DialogTitle>
             <DialogDescription>
               {editingLink ? "Upravte URL adresu a popis linku" : "Pridajte URL adresu a voliteľný popis"}
@@ -275,7 +275,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
                 name="url"
                 value={formData.url}
                 onChange={handleInputChange}
-                placeholder="https://drive.google.com/..."
+                placeholder="https://example.com/..."
                 required
               />
             </div>
@@ -286,7 +286,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
-                placeholder="Export ver.1"
+                placeholder="Napríklad: dokument, prezentácia, súbor..."
                 rows={3}
               />
             </div>

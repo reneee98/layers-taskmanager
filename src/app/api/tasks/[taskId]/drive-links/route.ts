@@ -24,7 +24,7 @@ const createLinkSchema = z.object({
   description: z.string().optional().nullable().transform(val => val === "" ? null : val),
 });
 
-// GET - Fetch all Google Drive links for a task
+// GET - Fetch all links for a task
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ taskId: string }> }
@@ -56,7 +56,7 @@ export async function GET(
   }
 }
 
-// POST - Create a new Google Drive link
+// POST - Create a new link
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ taskId: string }> }

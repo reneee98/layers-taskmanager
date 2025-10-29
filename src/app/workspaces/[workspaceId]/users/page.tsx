@@ -99,7 +99,7 @@ export default function WorkspaceUsersPage() {
       // Check if current user has access to the workspace
       const { data: workspace, error: workspaceError } = await supabase
         .from('workspaces')
-        .select('owner_id')
+        .select('owner_id, created_at')
         .eq('id', workspaceId)
         .single();
 

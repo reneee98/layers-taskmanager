@@ -32,6 +32,9 @@ export async function GET() {
       serviceKeyStartsWithEyJ: serviceKeyValue?.startsWith('eyJ') || false,
       nextPublicSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
       allEnvKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE')).join(', '),
+      allEnvKeysCount: Object.keys(process.env).filter(k => k.includes('SUPABASE')).length,
+      directServiceKeyCheck: typeof process.env.SUPABASE_SERVICE_ROLE_KEY !== 'undefined',
+      envKeysSample: Object.keys(process.env).slice(0, 20).join(', '), // First 20 env keys for debugging
       warning: serviceClient ? null : `CRITICAL: SUPABASE_SERVICE_ROLE_KEY issue detected. Exists: ${serviceKeyExists}, Length: ${serviceKeyLength}, Starts with eyJ: ${serviceKeyValue?.startsWith('eyJ') || false}. ${!serviceKeyExists ? 'Add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables and redeploy.' : !serviceKeyValue?.startsWith('eyJ') ? 'Key format looks invalid (should be JWT starting with eyJ).' : 'Key exists but service client creation failed - check logs.'}`,
     };
 

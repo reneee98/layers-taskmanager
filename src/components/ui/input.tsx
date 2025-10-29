@@ -5,7 +5,22 @@ import { cn } from "@/lib/utils";
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, autoComplete, ...props }, ref) => {
+    // Add browser extension protection attributes for non-email/password fields
+    // Password managers should work normally for email/password fields
+    const shouldIgnoreExtensions = 
+      type !== "password" && 
+      type !== "email" &&
+      (!autoComplete || (autoComplete !== "email" && autoComplete !== "username" && autoComplete !== "current-password" && autoComplete !== "new-password"));
+    
+    const extensionProtectionProps = shouldIgnoreExtensions
+      ? {
+          "data-1p-ignore": true,
+          "data-lpignore": "true",
+          autoComplete: autoComplete || "off",
+        }
+      : { autoComplete };
+
     return (
       <input
         type={type}
@@ -14,6 +29,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           className
         )}
         ref={ref}
+        {...extensionProtectionProps}
         {...props}
       />
     );

@@ -5,7 +5,19 @@ import { cn } from "@/lib/utils"
 const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   React.ComponentProps<"textarea">
->(({ className, ...props }, ref) => {
+>(({ className, autoComplete, ...props }, ref) => {
+  // Add browser extension protection attributes for textarea fields
+  const shouldIgnoreExtensions = 
+    (!autoComplete || (autoComplete !== "email" && autoComplete !== "username" && autoComplete !== "password"));
+
+  const extensionProtectionProps = shouldIgnoreExtensions
+    ? {
+        "data-1p-ignore": true,
+        "data-lpignore": "true",
+        autoComplete: autoComplete || "off",
+      }
+    : { autoComplete };
+
   return (
     <textarea
       className={cn(
@@ -13,6 +25,7 @@ const Textarea = React.forwardRef<
         className
       )}
       ref={ref}
+      {...extensionProtectionProps}
       {...props}
     />
   )

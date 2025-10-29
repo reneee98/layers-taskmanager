@@ -11,6 +11,10 @@
 -- Drop existing policy
 DROP POLICY IF EXISTS "Users can view accessible workspaces" ON workspaces;
 
+-- Drop existing function if it exists (with different signature)
+DROP FUNCTION IF EXISTS user_has_workspace_access(UUID, UUID);
+DROP FUNCTION IF EXISTS user_has_workspace_access(uuid, uuid);
+
 -- Create a helper function that checks if user has access to workspace
 -- This function bypasses RLS to prevent recursion issues
 CREATE OR REPLACE FUNCTION user_has_workspace_access(p_workspace_id UUID, p_user_id UUID)

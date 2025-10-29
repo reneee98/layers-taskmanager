@@ -17,12 +17,16 @@ export async function GET() {
       }, { status: 401 });
     }
 
+    const serviceKeyExists = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceKeyLength = process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0;
+    
     const debugInfo: any = {
       userId: user.id,
       userEmail: user.email,
       serviceClientAvailable: !!serviceClient,
-      serviceKeyConfigured: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      warning: serviceClient ? null : "CRITICAL: SUPABASE_SERVICE_ROLE_KEY is not configured. Member workspaces cannot be fetched due to RLS. Add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables.",
+      serviceKeyConfigured: serviceKeyExists,
+      serviceKeyLength: serviceKeyLength,
+      warning: serviceClient ? null : `CRITICAL: SUPABASE_SERVICE_ROLE_KEY is not configured or not loaded. Service key exists: ${serviceKeyExists}, length: ${serviceKeyLength}. ${serviceKeyExists ? 'Variable exists but service client failed - check if key is valid.' : 'Add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables and redeploy.'}`,
     };
 
     // Check owned workspaces

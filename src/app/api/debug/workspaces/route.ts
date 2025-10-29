@@ -17,8 +17,10 @@ export async function GET() {
       }, { status: 401 });
     }
 
-    const serviceKeyExists = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const serviceKeyLength = process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0;
+    const serviceKeyValue = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceKeyExists = !!serviceKeyValue;
+    const serviceKeyLength = serviceKeyValue?.length || 0;
+    const serviceKeyPreview = serviceKeyValue ? `${serviceKeyValue.substring(0, 20)}...` : 'N/A';
     
     const debugInfo: any = {
       userId: user.id,
@@ -26,7 +28,11 @@ export async function GET() {
       serviceClientAvailable: !!serviceClient,
       serviceKeyConfigured: serviceKeyExists,
       serviceKeyLength: serviceKeyLength,
-      warning: serviceClient ? null : `CRITICAL: SUPABASE_SERVICE_ROLE_KEY is not configured or not loaded. Service key exists: ${serviceKeyExists}, length: ${serviceKeyLength}. ${serviceKeyExists ? 'Variable exists but service client failed - check if key is valid.' : 'Add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables and redeploy.'}`,
+      serviceKeyPreview: serviceKeyPreview,
+      serviceKeyStartsWithEyJ: serviceKeyValue?.startsWith('eyJ') || false,
+      nextPublicSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      allEnvKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE')).join(', '),
+      warning: serviceClient ? null : `CRITICAL: SUPABASE_SERVICE_ROLE_KEY issue detected. Exists: ${serviceKeyExists}, Length: ${serviceKeyLength}, Starts with eyJ: ${serviceKeyValue?.startsWith('eyJ') || false}. ${!serviceKeyExists ? 'Add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables and redeploy.' : !serviceKeyValue?.startsWith('eyJ') ? 'Key format looks invalid (should be JWT starting with eyJ).' : 'Key exists but service client creation failed - check logs.'}`,
     };
 
     // Check owned workspaces

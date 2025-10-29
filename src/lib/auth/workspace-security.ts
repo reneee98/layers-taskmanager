@@ -143,11 +143,38 @@ export async function getUserAccessibleWorkspaces(userId: string) {
     
     // CRITICAL: Use service role client to bypass RLS and prevent infinite recursion
     // Regular client would trigger RLS policies which query workspace_members,
-    // causing infinite recursion
+    // causing infinite recursion. Also use service client for owned workspaces
+    // to ensure RLS doesn't block owners from seeing their workspaces.
     const serviceClient = createServiceClient();
 
-    // Get owned workspaces - can use regular client since workspaces table doesn't have RLS recursion
-    const { data: ownedWorkspaces, error: ownedError } = await regularClient
+    if (!serviceClient) {
+      console.warn("Service role client not available - using regular client with RLS");
+      // Fallback: try with regular client
+      const { data: ownedWorkspaces, error: ownedError } = await regularClient
+        .from('workspaces')
+        .select('id, name, description, owner_id, created_at')
+        .eq('owner_id', userId);
+
+      if (ownedError) {
+        console.error("Error fetching owned workspaces (fallback):", ownedError);
+        return [];
+      }
+
+      const allWorkspaces: any[] = [];
+      if (ownedWorkspaces) {
+        ownedWorkspaces.forEach(workspace => {
+          allWorkspaces.push({
+            ...workspace,
+            role: 'owner'
+          });
+        });
+      }
+      return allWorkspaces;
+    }
+
+    // Get owned workspaces - use service client to bypass RLS
+    // This ensures owners can always see their workspaces even if RLS has issues
+    const { data: ownedWorkspaces, error: ownedError } = await serviceClient
       .from('workspaces')
       .select('id, name, description, owner_id, created_at')
       .eq('owner_id', userId);

@@ -278,8 +278,6 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
                 onChange={handleInputChange}
                 placeholder="https://example.com/..."
                 autoComplete="url"
-                data-1p-ignore
-                data-lpignore="true"
                 required
               />
             </div>
@@ -292,8 +290,6 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
                 onChange={handleInputChange}
                 placeholder="Napríklad: dokument, prezentácia, súbor..."
                 autoComplete="off"
-                data-1p-ignore
-                data-lpignore="true"
                 rows={3}
               />
             </div>

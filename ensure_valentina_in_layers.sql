@@ -13,8 +13,7 @@ WHERE (p.email ILIKE '%valentina%busova%' OR p.email ILIKE '%valentina%' OR p.di
 LIMIT 1
 ON CONFLICT (workspace_id, user_id) 
 DO UPDATE SET 
-  role = 'owner',
-  updated_at = NOW();
+  role = 'owner';
 
 -- Verify it worked
 SELECT 

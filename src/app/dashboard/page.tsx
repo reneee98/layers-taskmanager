@@ -101,7 +101,7 @@ interface AssignedTask {
   updated_at: string;
   project_id: string;
   assignee_id: string | null;
-  budget_amount: number | null;
+  budget_cents: number | null;
   days_until_deadline: number | null;
   assignees?: {
     id: string;

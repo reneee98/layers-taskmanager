@@ -49,7 +49,7 @@ interface Task {
   priority: string;
   estimated_hours: number | null;
   actual_hours: number | null;
-  budget_amount: number | null;
+  budget_cents: number | null;
   due_date: string | null;
   project: {
     id: string;
@@ -523,10 +523,10 @@ export default function InvoicesPage() {
                                 </Badge>
                               </div>
                               <div className="text-sm text-muted-foreground">
-                                {task.budget_amount && task.budget_amount > 0 && (
+                                {task.budget_cents && task.budget_cents > 0 && (
                                   <span className="flex items-center gap-1">
                                     <Clock className="h-3 w-3" />
-                                    {formatCurrency(task.budget_amount)}
+                                    {formatCurrency((task.budget_cents || 0) / 100)}
                                   </span>
                                 )}
                               </div>

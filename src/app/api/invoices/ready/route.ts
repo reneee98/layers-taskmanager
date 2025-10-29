@@ -122,8 +122,8 @@ export async function GET(request: NextRequest) {
         const laborCost = timeEntries?.reduce((sum, entry) => sum + (entry.amount || 0), 0) || 0;
         const externalCost = costItems?.reduce((sum, item) => sum + (item.total || 0), 0) || 0;
         
-        // Add fixed budget amounts for done tasks
-        const fixedBudgetCost = doneTasks.reduce((sum: number, task: any) => sum + (task.budget_amount || 0), 0);
+        // Add fixed budget amounts for done tasks (convert budget_cents to euros)
+        const fixedBudgetCost = doneTasks.reduce((sum: number, task: any) => sum + ((task.budget_cents || 0) / 100), 0);
         
         const totalCost = laborCost + externalCost + fixedBudgetCost;
 
@@ -170,8 +170,8 @@ export async function GET(request: NextRequest) {
         const laborCost = timeEntries?.reduce((sum, entry) => sum + (entry.amount || 0), 0) || 0;
         const externalCost = costItems?.reduce((sum, item) => sum + (item.total || 0), 0) || 0;
         
-        // Add fixed budget amount for this task
-        const fixedBudgetCost = task.budget_amount || 0;
+        // Add fixed budget amount for this task (convert budget_cents to euros)
+        const fixedBudgetCost = (task.budget_cents || 0) / 100;
         
         const totalCost = laborCost + externalCost + fixedBudgetCost;
 

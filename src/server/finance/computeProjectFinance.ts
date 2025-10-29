@@ -114,7 +114,7 @@ export const computeProjectFinance = async (
   // 5. Get total budget from tasks
   let budgetQuery = supabase
     .from("tasks")
-    .select("budget_amount")
+    .select("budget_cents")
     .eq("project_id", projectId);
   
   if (taskId) {
@@ -128,7 +128,8 @@ export const computeProjectFinance = async (
     return null;
   }
   
-  const budgetAmount = tasks?.reduce((sum, task) => sum + (task.budget_amount || 0), 0) || 0;
+  // Convert budget_cents to euros
+  const budgetAmount = tasks?.reduce((sum, task) => sum + ((task.budget_cents || 0) / 100), 0) || 0;
 
   // 6. Calculate totals - labor + budget is revenue, external costs are losses
   const totalCost = externalCost; // Only external costs count as costs

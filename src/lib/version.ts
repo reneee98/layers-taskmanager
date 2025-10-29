@@ -1,10 +1,10 @@
 // Utility to get app version from package.json
 // This will be resolved at build time
 
-let cachedVersion: string | null = null;
+let cachedVersion: string = '1.0.0-alpha';
 
 export const getAppVersion = (): string => {
-  if (cachedVersion) {
+  if (cachedVersion !== '1.0.0-alpha') {
     return cachedVersion;
   }
 
@@ -27,7 +27,6 @@ export const getAppVersion = (): string => {
   }
 
   // Browser fallback
-  cachedVersion = '1.0.0-alpha';
   return cachedVersion;
 };
 

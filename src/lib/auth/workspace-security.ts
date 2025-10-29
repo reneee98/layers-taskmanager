@@ -202,8 +202,9 @@ export async function getUserAccessibleWorkspaces(userId: string) {
     // Get member workspaces - MUST use service role to bypass RLS and prevent infinite recursion
     // Regular client would trigger RLS which queries workspace_members again → recursion
     // If service client is not available, skip member workspaces (fallback)
-    let memberWorkspaces = null;
+    let memberWorkspaces: any[] | null = null;
     if (serviceClient) {
+      console.log(`DEBUG: Service client available, fetching member workspaces for user ${userId}`);
       // First get workspace_members to find which workspaces user is member of
       const { data: members, error: memberError } = await serviceClient
         .from('workspace_members')
@@ -211,48 +212,72 @@ export async function getUserAccessibleWorkspaces(userId: string) {
         .eq('user_id', userId);
 
       if (memberError) {
-        console.error("Error fetching member workspaces:", memberError);
-        // Don't return empty - continue with owned workspaces only
-      } else if (members && members.length > 0) {
-        console.log(`DEBUG: Found ${members.length} workspace memberships for user ${userId}`);
-        console.log(`DEBUG: Member workspace IDs:`, members.map(m => m.workspace_id));
-        console.log(`DEBUG: Member roles:`, members.map(m => ({ workspace_id: m.workspace_id, role: m.role })));
+        console.error("ERROR: Failed to fetch workspace_members:", memberError);
+        console.error("ERROR Details:", JSON.stringify(memberError, null, 2));
+      } else {
+        console.log(`DEBUG: workspace_members query result:`, { 
+          count: members?.length || 0, 
+          members: members || null,
+          error: memberError || null
+        });
         
-        // Get workspace IDs (exclude owned workspaces to avoid duplicates)
-        const ownedWorkspaceIds = new Set(ownedWorkspaces?.map(w => w.id) || []);
-        const memberWorkspaceIds = members
-          .map(m => m.workspace_id)
-          .filter(id => !ownedWorkspaceIds.has(id)); // Remove duplicates with owned workspaces
-        
-        console.log(`DEBUG: Member workspace IDs (after filtering owned):`, memberWorkspaceIds);
-        console.log(`DEBUG: Layers workspace ID: 6dd7d31a-3d36-4d92-a8eb-7146703a00b0`);
-        console.log(`DEBUG: Is Layers in memberWorkspaceIds?`, memberWorkspaceIds.includes('6dd7d31a-3d36-4d92-a8eb-7146703a00b0'));
-        
-        if (memberWorkspaceIds.length > 0) {
-          // Fetch workspace details using service client to bypass RLS
-          const { data: memberWorkspaceData, error: workspaceError } = await serviceClient
-            .from('workspaces')
-            .select('id, name, description, owner_id, created_at')
-            .in('id', memberWorkspaceIds);
+        if (members && members.length > 0) {
+          console.log(`DEBUG: Found ${members.length} workspace memberships for user ${userId}`);
+          console.log(`DEBUG: Member workspace IDs (raw):`, members.map(m => m.workspace_id));
+          console.log(`DEBUG: Member roles:`, members.map(m => ({ workspace_id: m.workspace_id, role: m.role })));
           
-          if (workspaceError) {
-            console.error("Error fetching member workspace details:", workspaceError);
-          } else if (memberWorkspaceData) {
-            // Map memberships to workspaces with roles
-            memberWorkspaces = memberWorkspaceData.map(workspace => {
-              const member = members.find(m => m.workspace_id === workspace.id);
-              return {
-                workspace_id: workspace.id,
-                role: member?.role || 'member',
-                workspaces: workspace
-              };
+          // Get workspace IDs (exclude owned workspaces to avoid duplicates)
+          const ownedWorkspaceIds = new Set(ownedWorkspaces?.map(w => w.id) || []);
+          const memberWorkspaceIds = members
+            .map(m => m.workspace_id)
+            .filter(id => !ownedWorkspaceIds.has(id)); // Remove duplicates with owned workspaces
+          
+          console.log(`DEBUG: Owned workspace IDs:`, Array.from(ownedWorkspaceIds));
+          console.log(`DEBUG: Member workspace IDs (after filtering owned):`, memberWorkspaceIds);
+          console.log(`DEBUG: Layers workspace ID: 6dd7d31a-3d36-4d92-a8eb-7146703a00b0`);
+          console.log(`DEBUG: Is Layers in memberWorkspaceIds?`, memberWorkspaceIds.includes('6dd7d31a-3d36-4d92-a8eb-7146703a00b0'));
+          
+          if (memberWorkspaceIds.length > 0) {
+            console.log(`DEBUG: Fetching details for ${memberWorkspaceIds.length} member workspaces...`);
+            // Fetch workspace details using service client to bypass RLS
+            const { data: memberWorkspaceData, error: workspaceError } = await serviceClient
+              .from('workspaces')
+              .select('id, name, description, owner_id, created_at')
+              .in('id', memberWorkspaceIds);
+            
+            console.log(`DEBUG: Workspace details fetch result:`, {
+              count: memberWorkspaceData?.length || 0,
+              data: memberWorkspaceData || null,
+              error: workspaceError || null
             });
-            console.log(`DEBUG: Fetched ${memberWorkspaces.length} member workspace details`);
+            
+            if (workspaceError) {
+              console.error("ERROR: Failed to fetch member workspace details:", workspaceError);
+              console.error("ERROR Details:", JSON.stringify(workspaceError, null, 2));
+            } else if (memberWorkspaceData && memberWorkspaceData.length > 0) {
+              // Map memberships to workspaces with roles
+              memberWorkspaces = memberWorkspaceData.map(workspace => {
+                const member = members.find(m => m.workspace_id === workspace.id);
+                return {
+                  workspace_id: workspace.id,
+                  role: member?.role || 'member',
+                  workspaces: workspace
+                };
+              });
+              console.log(`DEBUG: Successfully mapped ${memberWorkspaces.length} member workspaces`);
+            } else {
+              console.warn(`DEBUG: No workspace data returned for ${memberWorkspaceIds.length} workspace IDs`);
+            }
+          } else {
+            console.warn(`DEBUG: No member workspace IDs after filtering (all are owned or empty)`);
           }
+        } else {
+          console.warn(`DEBUG: No workspace memberships found for user ${userId}`);
         }
       }
     } else {
-      console.warn("Service role client not available - skipping member workspaces to avoid RLS recursion");
+      console.error("CRITICAL: Service role client not available - member workspaces will NOT be fetched!");
+      console.error("This means users who are members (not owners) will not see their workspaces!");
     }
 
     const allWorkspaces: any[] = [];
@@ -269,9 +294,14 @@ export async function getUserAccessibleWorkspaces(userId: string) {
     }
 
     // Add member workspaces (only if service client was available)
-    if (memberWorkspaces && memberWorkspaces.length > 0) {
+    console.log(`DEBUG: memberWorkspaces value:`, memberWorkspaces);
+    console.log(`DEBUG: memberWorkspaces is array:`, Array.isArray(memberWorkspaces));
+    console.log(`DEBUG: memberWorkspaces length:`, memberWorkspaces?.length || 0);
+    
+    if (memberWorkspaces && Array.isArray(memberWorkspaces) && memberWorkspaces.length > 0) {
       console.log(`DEBUG: User ${userId} is member of ${memberWorkspaces.length} workspace(s)`);
-      memberWorkspaces.forEach(member => {
+      memberWorkspaces.forEach((member, index) => {
+        console.log(`DEBUG: Processing member workspace ${index}:`, member);
         if (member.workspaces) {
           const workspace = Array.isArray(member.workspaces) ? member.workspaces[0] : member.workspaces;
           if (workspace) {
@@ -282,10 +312,19 @@ export async function getUserAccessibleWorkspaces(userId: string) {
                 ...workspace,
                 role: member.role
               });
+              console.log(`DEBUG: ✓ Added workspace ${workspace.name} to allWorkspaces`);
+            } else {
+              console.log(`DEBUG: ⚠ Skipped workspace ${workspace.name} (duplicate)`);
             }
+          } else {
+            console.warn(`DEBUG: ⚠ Member workspace ${index} has no workspace data`);
           }
+        } else {
+          console.warn(`DEBUG: ⚠ Member ${index} has no workspaces property`);
         }
       });
+    } else {
+      console.warn(`DEBUG: No member workspaces to add (memberWorkspaces is ${memberWorkspaces === null ? 'null' : memberWorkspaces === undefined ? 'undefined' : 'empty'})`);
     }
 
     console.log(`DEBUG: Total workspaces for user ${userId}: ${allWorkspaces.length}`);

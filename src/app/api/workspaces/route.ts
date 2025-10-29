@@ -14,9 +14,14 @@ export async function GET(request: NextRequest) {
     const supabase = createClient();
     
     // Use the new security function to get accessible workspaces
+    console.log(`=== API /api/workspaces START ===`);
+    console.log(`User: ${user.email} (${user.id})`);
     const allWorkspaces = await getUserAccessibleWorkspaces(user.id);
     
-    console.log(`DEBUG: User ${user.email} (${user.id}) accessible workspaces:`, allWorkspaces);
+    console.log(`=== API /api/workspaces RESULT ===`);
+    console.log(`Total workspaces returned: ${allWorkspaces.length}`);
+    console.log(`Workspace names:`, allWorkspaces.map(w => w.name));
+    console.log(`Workspace details:`, allWorkspaces.map(w => ({ id: w.id, name: w.name, role: w.role })));
     
     // If no workspaces exist, create one
     if (allWorkspaces.length === 0) {

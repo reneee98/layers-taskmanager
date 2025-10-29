@@ -215,12 +215,18 @@ export async function getUserAccessibleWorkspaces(userId: string) {
         // Don't return empty - continue with owned workspaces only
       } else if (members && members.length > 0) {
         console.log(`DEBUG: Found ${members.length} workspace memberships for user ${userId}`);
+        console.log(`DEBUG: Member workspace IDs:`, members.map(m => m.workspace_id));
+        console.log(`DEBUG: Member roles:`, members.map(m => ({ workspace_id: m.workspace_id, role: m.role })));
         
         // Get workspace IDs (exclude owned workspaces to avoid duplicates)
         const ownedWorkspaceIds = new Set(ownedWorkspaces?.map(w => w.id) || []);
         const memberWorkspaceIds = members
           .map(m => m.workspace_id)
           .filter(id => !ownedWorkspaceIds.has(id)); // Remove duplicates with owned workspaces
+        
+        console.log(`DEBUG: Member workspace IDs (after filtering owned):`, memberWorkspaceIds);
+        console.log(`DEBUG: Layers workspace ID: 6dd7d31a-3d36-4d92-a8eb-7146703a00b0`);
+        console.log(`DEBUG: Is Layers in memberWorkspaceIds?`, memberWorkspaceIds.includes('6dd7d31a-3d36-4d92-a8eb-7146703a00b0'));
         
         if (memberWorkspaceIds.length > 0) {
           // Fetch workspace details using service client to bypass RLS

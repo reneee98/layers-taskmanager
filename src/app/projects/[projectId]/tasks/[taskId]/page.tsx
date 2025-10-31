@@ -65,12 +65,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { Project } from "@/types/database";
 
 export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
   const [assignees, setAssignees] = useState<TaskAssignee[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [description, setDescription] = useState("");
   const [descriptionHtml, setDescriptionHtml] = useState("");
@@ -123,9 +132,23 @@ export default function TaskDetailPage() {
     }
   };
 
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch("/api/projects");
+      const result = await response.json();
+
+      if (result.success) {
+        setProjects(result.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch projects:", error);
+    }
+  };
+
   useEffect(() => {
     fetchTask();
     fetchAssignees();
+    fetchProjects();
   }, [params.taskId]);
 
   useEffect(() => {
@@ -418,6 +441,52 @@ export default function TaskDetailPage() {
     }
   };
 
+  const handleProjectChange = async (newProjectId: string) => {
+    if (!task || newProjectId === task.project_id) return;
+    
+    try {
+      const response = await fetch(`/api/tasks/${params.taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          project_id: newProjectId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Reload task to get updated project data
+        await fetchTask();
+        toast({
+          title: "Úspech",
+          description: "Úloha bola presunutá do iného projektu",
+        });
+        // Dispatch event to refresh project summary
+        window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
+          detail: { taskId: params.taskId, projectId: newProjectId } 
+        }));
+        // Redirect to new project's task page
+        router.push(`/projects/${newProjectId}/tasks/${params.taskId}`);
+      } else {
+        toast({
+          title: "Chyba",
+          description: result.error || "Nepodarilo sa presunúť úlohu",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating project:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa presunúť úlohu",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDueDateChange = async (newDueDate: string | null) => {
     if (!task) return;
     
@@ -591,11 +660,32 @@ export default function TaskDetailPage() {
             Späť
           </Button>
           <div className="h-4 w-px bg-border" />
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-medium">{task.project?.name}</span>
-            <span>•</span>
-            <span className="font-mono text-xs">{task.project?.code}</span>
-          </div>
+          <Select
+            value={task.project_id}
+            onValueChange={handleProjectChange}
+          >
+            <SelectTrigger className="w-auto h-auto border-none shadow-none hover:bg-accent px-2 py-1 data-[state=open]:bg-accent">
+              <SelectValue>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <span className="font-medium">{task.project?.name}</span>
+                  <span>•</span>
+                  <span className="font-mono text-xs">{task.project?.code}</span>
+                </div>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{project.name}</span>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      ({project.code})
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         
         <DropdownMenu>
@@ -653,12 +743,33 @@ export default function TaskDetailPage() {
                   )}
                 </div>
                 
-                {/* Project info */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="font-medium">{task.project?.name}</span>
-                  <span>•</span>
-                  <span className="font-mono text-xs">{task.project?.code}</span>
-                </div>
+                {/* Project Select */}
+                <Select
+                  value={task.project_id}
+                  onValueChange={handleProjectChange}
+                >
+                  <SelectTrigger className="w-auto h-auto border-none shadow-none hover:bg-accent px-2 py-1 data-[state=open]:bg-accent">
+                    <SelectValue>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                        <span className="font-medium">{task.project?.name}</span>
+                        <span>•</span>
+                        <span className="font-mono text-xs">{task.project?.code}</span>
+                      </div>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{project.name}</span>
+                          <span className="text-xs text-muted-foreground font-mono">
+                            ({project.code})
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

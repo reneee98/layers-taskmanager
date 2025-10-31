@@ -22,7 +22,7 @@ export const taskSchema = z.object({
   order_index: z.number().int("Poradie musí byť celé číslo").default(0).optional(),
 });
 
-export const updateTaskSchema = taskSchema.partial().omit({ project_id: true });
+export const updateTaskSchema = taskSchema.partial();
 
 export const reorderTasksSchema = z.object({
   tasks: z.array(

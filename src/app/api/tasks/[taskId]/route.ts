@@ -188,6 +188,38 @@ export async function PATCH(
       });
     }
 
+    // Check for project change
+    if (validation.data.project_id && validation.data.project_id !== currentTask.project_id) {
+      const { data: oldProject } = await supabase
+        .from("projects")
+        .select("name, code")
+        .eq("id", currentTask.project_id)
+        .single();
+      
+      const { data: newProject } = await supabase
+        .from("projects")
+        .select("name, code")
+        .eq("id", validation.data.project_id)
+        .single();
+
+      await logActivity({
+        workspaceId,
+        userId: user.id,
+        type: ActivityTypes.TASK_UPDATED,
+        action: `Presunul úlohu z projektu "${oldProject?.name || 'Neznámy'}" do projektu "${newProject?.name || 'Neznámy'}"`,
+        details: task.title,
+        projectId: task.project_id,
+        taskId: task.id,
+        metadata: {
+          old_project_id: currentTask.project_id,
+          old_project_name: oldProject?.name,
+          new_project_id: validation.data.project_id,
+          new_project_name: newProject?.name,
+          user_display_name: userDisplayName
+        }
+      });
+    }
+
     // Check for assignment change
     if (validation.data.assigned_to !== undefined && validation.data.assigned_to !== currentTask.assigned_to) {
       const activityType = validation.data.assigned_to ? ActivityTypes.TASK_ASSIGNED : ActivityTypes.TASK_UNASSIGNED;

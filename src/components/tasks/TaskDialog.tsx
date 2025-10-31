@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import type { Task } from "@/types/database";
+import type { Task, Project } from "@/types/database";
 
 interface TaskDialogProps {
   projectId: string;
@@ -45,6 +45,8 @@ export function TaskDialog({
   const [estimatedHours, setEstimatedHours] = useState("");
   const [budgetAmount, setBudgetAmount] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     if (task) {
@@ -56,8 +58,27 @@ export function TaskDialog({
       // Use task's budget_cents (individual budget for this task)
       setBudgetAmount(task.budget_cents ? (task.budget_cents / 100).toString() : "");
       setDueDate(task.due_date || "");
+      setSelectedProjectId(task.project_id);
     } else {
       resetForm();
+    }
+  }, [task, open]);
+
+  useEffect(() => {
+    // Fetch projects only when editing (task exists)
+    if (task && open) {
+      const fetchProjects = async () => {
+        try {
+          const response = await fetch("/api/projects");
+          const result = await response.json();
+          if (result.success) {
+            setProjects(result.data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch projects:", error);
+        }
+      };
+      fetchProjects();
     }
   }, [task, open]);
 
@@ -69,6 +90,7 @@ export function TaskDialog({
     setEstimatedHours("");
     setBudgetAmount("");
     setDueDate("");
+    setSelectedProjectId(projectId);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,7 +99,7 @@ export function TaskDialog({
 
     try {
       const payload: any = {
-        project_id: projectId,
+        project_id: task ? selectedProjectId : projectId,
         title: title.trim(),
         description: description.trim() || null,
         status,
@@ -138,6 +160,29 @@ export function TaskDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
+            {task && (
+              <div className="space-y-2">
+                <Label htmlFor="project">Projekt</Label>
+                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Vybrať projekt" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{project.name}</span>
+                          <span className="text-xs text-muted-foreground font-mono">
+                            ({project.code})
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="title">Názov *</Label>
               <Input

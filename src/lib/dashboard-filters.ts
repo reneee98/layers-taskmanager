@@ -53,8 +53,9 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
           return false;
         }
         // Úloha je "dnes" ak má deadline dnes ALEBO ak má štart dnes
-        const hasDueDateToday = task.due_date && isToday(new Date(task.due_date));
-        const hasStartDateToday = task.start_date && isToday(new Date(task.start_date));
+        // Normalize dates to start of day for accurate comparison
+        const hasDueDateToday = task.due_date && isToday(startOfDay(new Date(task.due_date)));
+        const hasStartDateToday = task.start_date && isToday(startOfDay(new Date(task.start_date)));
         return hasDueDateToday || hasStartDateToday;
       });
 

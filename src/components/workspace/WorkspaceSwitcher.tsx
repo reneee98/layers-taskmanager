@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Building2, Plus } from "lucide-react";
+import { ChevronDown, Building2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -90,18 +90,6 @@ export function WorkspaceSwitcher() {
             </DropdownMenuItem>
           ))}
         </div>
-        <div className="border-t border-border my-2" />
-        <DropdownMenuItem className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-accent transition-colors">
-          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-            <Plus className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-medium text-foreground">Vytvoriť nový workspace</div>
-            <div className="text-xs text-muted-foreground">
-              Začať nový projekt
-            </div>
-          </div>
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Save } from "lucide-react";
@@ -39,7 +38,6 @@ export function UserSettings() {
         // Set form values
         setValue("language", result.data.language);
         setValue("theme", result.data.theme);
-        setValue("notifications", result.data.notifications);
       } else {
         throw new Error(result.error);
       }
@@ -153,59 +151,6 @@ export function UserSettings() {
               )}
             </div>
 
-            {/* Notifications */}
-            <div className="space-y-4">
-              <Label>Notifikácie</Label>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="email-notifications">E-mail notifikácie</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Dostávajte notifikácie na e-mail
-                    </p>
-                  </div>
-                  <Switch
-                    id="email-notifications"
-                    checked={watch("notifications.email") ?? settings?.notifications.email ?? true}
-                    onCheckedChange={(checked) => 
-                      setValue("notifications.email", checked, { shouldDirty: true })
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="push-notifications">Push notifikácie</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Dostávajte push notifikácie v prehliadači
-                    </p>
-                  </div>
-                  <Switch
-                    id="push-notifications"
-                    checked={watch("notifications.push") ?? settings?.notifications.push ?? true}
-                    onCheckedChange={(checked) => 
-                      setValue("notifications.push", checked, { shouldDirty: true })
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="task-notifications">Notifikácie o úlohách</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Dostávajte notifikácie o zmenách v úlohách
-                    </p>
-                  </div>
-                  <Switch
-                    id="task-notifications"
-                    checked={watch("notifications.task_updates") ?? settings?.notifications.task_updates ?? true}
-                    onCheckedChange={(checked) => 
-                      setValue("notifications.task_updates", checked, { shouldDirty: true })
-                    }
-                  />
-                </div>
-              </div>
-            </div>
 
             <div className="flex justify-end">
               <Button type="submit" disabled={!isDirty || saving}>

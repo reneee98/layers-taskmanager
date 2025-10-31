@@ -2,6 +2,8 @@ export interface Profile {
   id: string;
   email: string;
   display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   avatar_url: string | null;
   role: string;
   created_at: string;
@@ -12,6 +14,11 @@ export interface Workspace {
   id: string;
   name: string;
   description: string | null;
+  company_name: string | null;
+  company_tax_id: string | null;
+  company_address: string | null;
+  company_phone: string | null;
+  company_email: string | null;
   created_at: string;
   updated_at: string;
   owner_id: string;

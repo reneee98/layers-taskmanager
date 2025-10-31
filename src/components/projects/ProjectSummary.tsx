@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatHours } from "@/lib/format";
@@ -24,9 +24,13 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
   const [summary, setSummary] = useState<ProjectSummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchSummary = async () => {
+  const fetchSummary = useCallback(async (showLoading = false) => {
     try {
-      const response = await fetch(`/api/projects/${projectId}/summary`);
+      if (showLoading) {
+        setIsLoading(true);
+      }
+      // Add timestamp to prevent caching and ensure fresh data
+      const response = await fetch(`/api/projects/${projectId}/summary?t=${Date.now()}`);
       const result = await response.json();
 
       if (result.success) {
@@ -37,11 +41,11 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectId]);
 
   useEffect(() => {
-    fetchSummary();
-  }, [projectId]);
+    fetchSummary(true); // Show loading on initial fetch
+  }, [fetchSummary]);
 
   // Listen for updates from parent component
   useEffect(() => {
@@ -49,7 +53,7 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
       // Register the refresh function with parent
       onUpdate(fetchSummary);
     }
-  }, [onUpdate, projectId]);
+  }, [onUpdate, fetchSummary]);
 
   if (isLoading) {
     return (

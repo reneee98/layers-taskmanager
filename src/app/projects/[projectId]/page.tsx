@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProjectHeader } from "@/components/projects/ProjectHeader";
@@ -20,7 +20,7 @@ export default function ProjectDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [refreshSummary, setRefreshSummary] = useState<(() => Promise<void>) | null>(null);
+  const refreshSummaryRef = useRef<(() => Promise<void>) | null>(null);
 
   const fetchProject = async () => {
     try {
@@ -68,14 +68,26 @@ export default function ProjectDetailPage() {
   // Listen for time entry added events from task detail pages
   useEffect(() => {
     const handleTimeEntryAdded = () => {
-      if (refreshSummary) {
-        refreshSummary();
+      if (refreshSummaryRef.current && typeof refreshSummaryRef.current === 'function') {
+        refreshSummaryRef.current();
       }
     };
 
+    const handleTaskStatusChanged = () => {
+      if (refreshSummaryRef.current && typeof refreshSummaryRef.current === 'function') {
+        refreshSummaryRef.current();
+      }
+      // Also refresh tasks list when status changes
+      fetchTasks();
+    };
+
     window.addEventListener('timeEntryAdded', handleTimeEntryAdded);
-    return () => window.removeEventListener('timeEntryAdded', handleTimeEntryAdded);
-  }, [refreshSummary]);
+    window.addEventListener('taskStatusChanged', handleTaskStatusChanged);
+    return () => {
+      window.removeEventListener('timeEntryAdded', handleTimeEntryAdded);
+      window.removeEventListener('taskStatusChanged', handleTaskStatusChanged);
+    };
+  }, []);
 
   const handleUpdateTask = async (taskId: string, data: Partial<Task>) => {
     try {
@@ -90,8 +102,14 @@ export default function ProjectDetailPage() {
         toast({ title: "Úspech", description: "Úloha bola aktualizovaná" });
         fetchTasks();
         // Refresh project summary (zisk, náklady) when task is updated, especially if budget changed
-        if (refreshSummary) {
-          refreshSummary();
+        if (refreshSummaryRef.current && typeof refreshSummaryRef.current === 'function') {
+          refreshSummaryRef.current();
+        }
+        // Dispatch event to refresh dashboard stats when status changes
+        if (data.status) {
+          window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
+            detail: { taskId, status: data.status } 
+          }));
         }
       } else {
         throw new Error(result.error);
@@ -118,8 +136,8 @@ export default function ProjectDetailPage() {
         toast({ title: "Úspech", description: "Úloha bola odstránená" });
         fetchTasks();
         // Refresh project summary (zisk, náklady) when task is deleted
-        if (refreshSummary) {
-          refreshSummary();
+        if (refreshSummaryRef.current && typeof refreshSummaryRef.current === 'function') {
+          refreshSummaryRef.current();
         }
       } else {
         throw new Error(result.error);
@@ -188,9 +206,13 @@ export default function ProjectDetailPage() {
     );
   }
 
+  const handleUpdateSummary = (refreshFn: () => Promise<void>) => {
+    refreshSummaryRef.current = refreshFn;
+  };
+
   return (
     <div className="w-full space-y-6">
-      <ProjectHeader project={project} tasks={tasks} onUpdate={setRefreshSummary} />
+      <ProjectHeader project={project} tasks={tasks} onUpdate={handleUpdateSummary} />
 
       {/* Task List */}
       <div className="space-y-4">
@@ -220,8 +242,8 @@ export default function ProjectDetailPage() {
               // Refresh project data when task is updated
               fetchProject();
               // Also refresh summary if available
-              if (refreshSummary) {
-                refreshSummary();
+              if (refreshSummaryRef.current && typeof refreshSummaryRef.current === 'function') {
+                refreshSummaryRef.current();
               }
             }}
           />
@@ -250,8 +272,8 @@ export default function ProjectDetailPage() {
         onSuccess={() => {
           fetchTasks();
           // Refresh project summary (zisk, náklady, atď.) after task is added/updated
-          if (refreshSummary) {
-            refreshSummary();
+          if (refreshSummaryRef.current && typeof refreshSummaryRef.current === 'function') {
+            refreshSummaryRef.current();
           }
         }}
       />

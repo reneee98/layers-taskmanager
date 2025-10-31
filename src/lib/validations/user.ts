@@ -8,6 +8,8 @@ export const registerSchema = z.object({
 
 export const updateProfileSchema = z.object({
   display_name: z.string().min(2, "Meno musí mať aspoň 2 znaky").max(50, "Meno je príliš dlhé").optional(),
+  first_name: z.string().min(1, "Meno je povinné").max(100, "Meno je príliš dlhé").optional(),
+  last_name: z.string().min(1, "Priezvisko je povinné").max(100, "Priezvisko je príliš dlhé").optional(),
   avatar_url: z.string().url("Neplatný URL formát").optional(),
 });
 

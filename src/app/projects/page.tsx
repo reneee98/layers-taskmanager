@@ -143,6 +143,22 @@ function ProjectsPageContent() {
   };
 
   const handleDeleteProject = async (projectId: string) => {
+    // Check if this is a personal project
+    const project = projects.find(p => p.id === projectId) || archivedProjects.find(p => p.id === projectId);
+    const isPersonalProject = project && (
+      project.name === "Osobné úlohy" || 
+      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")))
+    );
+    
+    if (isPersonalProject) {
+      toast({
+        title: "Chyba",
+        description: "Nie je možné odstrániť osobný projekt",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!confirm("Naozaj chcete vymazať tento projekt?")) return;
 
     try {
@@ -180,6 +196,22 @@ function ProjectsPageContent() {
   };
 
   const handleCompleteProject = async (projectId: string) => {
+    // Check if this is a personal project
+    const project = projects.find(p => p.id === projectId);
+    const isPersonalProject = project && (
+      project.name === "Osobné úlohy" || 
+      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")))
+    );
+    
+    if (isPersonalProject) {
+      toast({
+        title: "Chyba",
+        description: "Nie je možné meniť status osobného projektu",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!confirm("Naozaj chcete označiť tento projekt ako dokončený?")) return;
 
     try {
@@ -209,6 +241,22 @@ function ProjectsPageContent() {
   };
 
   const handleReactivateProject = async (projectId: string) => {
+    // Check if this is a personal project
+    const project = archivedProjects.find(p => p.id === projectId) || projects.find(p => p.id === projectId);
+    const isPersonalProject = project && (
+      project.name === "Osobné úlohy" || 
+      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")))
+    );
+    
+    if (isPersonalProject) {
+      toast({
+        title: "Chyba",
+        description: "Nie je možné meniť status osobného projektu",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!confirm("Naozaj chcete reaktivovať tento projekt?")) return;
 
     try {
@@ -395,30 +443,42 @@ function ProjectsPageContent() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        {!showArchived && project.status !== 'completed' && (
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCompleteProject(project.id);
-                            }}
-                            className="text-green-600 focus:text-green-600"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Označiť ako dokončený
-                          </DropdownMenuItem>
-                        )}
-                        {showArchived && project.status === 'completed' && (
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleReactivateProject(project.id);
-                            }}
-                            className="text-blue-600 focus:text-blue-600"
-                          >
-                            <Play className="h-4 w-4 mr-2" />
-                            Reaktivovať
-                          </DropdownMenuItem>
-                        )}
+                        {(() => {
+                          const isPersonalProject = project.name === "Osobné úlohy" || 
+                            (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
+                          
+                          if (!isPersonalProject) {
+                            return (
+                              <>
+                                {!showArchived && project.status !== 'completed' && (
+                                  <DropdownMenuItem 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCompleteProject(project.id);
+                                    }}
+                                    className="text-green-600 focus:text-green-600"
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Označiť ako dokončený
+                                  </DropdownMenuItem>
+                                )}
+                                {showArchived && project.status === 'completed' && (
+                                  <DropdownMenuItem 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleReactivateProject(project.id);
+                                    }}
+                                    className="text-blue-600 focus:text-blue-600"
+                                  >
+                                    <Play className="h-4 w-4 mr-2" />
+                                    Reaktivovať
+                                  </DropdownMenuItem>
+                                )}
+                              </>
+                            );
+                          }
+                          return null;
+                        })()}
                         <DropdownMenuItem 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -429,17 +489,28 @@ function ProjectsPageContent() {
                           <Pencil className="h-4 w-4 mr-2" />
                           Upraviť
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteProject(project.id);
-                          }}
-                          className="text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Vymazať
-                        </DropdownMenuItem>
+                        {(() => {
+                          const isPersonalProject = project.name === "Osobné úlohy" || 
+                            (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
+                          if (!isPersonalProject) {
+                            return (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteProject(project.id);
+                                  }}
+                                  className="text-red-600 focus:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Vymazať
+                                </DropdownMenuItem>
+                              </>
+                            );
+                          }
+                          return null;
+                        })()}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

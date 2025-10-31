@@ -14,14 +14,7 @@ export async function GET(request: NextRequest) {
     const supabase = createClient();
     
     // Use the new security function to get accessible workspaces
-    console.log(`=== API /api/workspaces START ===`);
-    console.log(`User: ${user.email} (${user.id})`);
     const allWorkspaces = await getUserAccessibleWorkspaces(user.id);
-    
-    console.log(`=== API /api/workspaces RESULT ===`);
-    console.log(`Total workspaces returned: ${allWorkspaces.length}`);
-    console.log(`Workspace names:`, allWorkspaces.map(w => w.name));
-    console.log(`Workspace details:`, allWorkspaces.map(w => ({ id: w.id, name: w.name, role: w.role })));
     
     // If no workspaces exist, create one
     if (allWorkspaces.length === 0) {
@@ -57,6 +50,27 @@ export async function GET(request: NextRequest) {
         console.error("Error adding owner to workspace_members:", memberError);
         // Necháme to pokračovať, pretože workspace bol vytvorený
       }
+
+      // Automaticky vytvor osobný projekt "Osobné úlohy"
+      const personalProjectCode = `PERSONAL-${newWorkspace.id.substring(0, 8).toUpperCase()}`;
+      const { data: personalProject, error: projectError } = await supabase
+        .from('projects')
+        .insert({
+          workspace_id: newWorkspace.id,
+          name: 'Osobné úlohy',
+          code: personalProjectCode,
+          description: 'Projekt pre osobné úlohy bez klienta',
+          status: 'active',
+          client_id: null,
+          created_by: user.id
+        })
+        .select('id, name, code')
+        .single();
+
+      if (projectError) {
+        console.error("Error creating personal project:", projectError);
+        // Necháme to pokračovať, pretože workspace bol vytvorený
+      }
       
       allWorkspaces.push({
         ...newWorkspace,
@@ -65,13 +79,8 @@ export async function GET(request: NextRequest) {
     }
     
     // SECURITY FIX: Allow users to see workspaces they have access to (as owner or member)
-    const filteredWorkspaces = allWorkspaces.filter(workspace => {
-      // Allow all workspaces that user has access to (already filtered by getUserAccessibleWorkspaces)
-      console.log(`SECURITY: Allowing workspace ${workspace.name} for user ${user.email} - role: ${workspace.role}`);
-      return true;
-    });
+    const filteredWorkspaces = allWorkspaces.filter(() => true);
     
-    console.log(`DEBUG: Final workspaces for user ${user.email}:`, filteredWorkspaces);
     return NextResponse.json({ success: true, data: filteredWorkspaces });
   } catch (error) {
     console.error("Error in workspaces GET:", error);

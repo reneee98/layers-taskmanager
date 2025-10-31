@@ -87,10 +87,6 @@ export default function TaskDetailPage() {
       const result = await response.json();
 
       if (result.success) {
-        console.log('>>> Task loaded from API:', {
-          project_fixed_fee: result.data.project?.fixed_fee,
-          project_budget_cents: result.data.project?.budget_cents
-        });
         setTask(result.data);
         setDescription(result.data.description || "");
         setDescriptionHtml(result.data.description || "");
@@ -177,8 +173,6 @@ export default function TaskDetailPage() {
       if (task.budget_cents !== undefined) {
         taskPayload.budget_cents = task.budget_cents;
       }
-      
-      console.log('>>> Saving task with payload:', taskPayload);
       
       const taskResponse = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
@@ -282,6 +276,10 @@ export default function TaskDetailPage() {
           title: "Úspech",
           description: "Status úlohy bol aktualizovaný",
         });
+        // Dispatch event to refresh project summary
+        window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
+          detail: { taskId: params.taskId, status: newStatus } 
+        }));
       } else {
         toast({
           title: "Chyba",
@@ -360,6 +358,10 @@ export default function TaskDetailPage() {
           title: "Úspech",
           description: "Dátum začiatku bol aktualizovaný",
         });
+        // Dispatch event to refresh dashboard
+        window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
+          detail: { taskId: params.taskId } 
+        }));
       } else {
         toast({
           title: "Chyba",
@@ -419,6 +421,12 @@ export default function TaskDetailPage() {
   const handleDueDateChange = async (newDueDate: string | null) => {
     if (!task) return;
     
+    console.log('[Frontend] handleDueDateChange called:', {
+      taskId: params.taskId,
+      oldDueDate: task.due_date,
+      newDueDate: newDueDate
+    });
+    
     try {
       const response = await fetch(`/api/tasks/${params.taskId}`, {
         method: "PATCH",
@@ -431,13 +439,30 @@ export default function TaskDetailPage() {
       });
 
       const result = await response.json();
+      console.log('[Frontend] API response:', {
+        success: result.success,
+        data: result.data,
+        error: result.error,
+        returnedStartDate: result.data?.start_date,
+        oldStartDate: task.start_date
+      });
 
       if (result.success) {
-        setTask({ ...task, due_date: newDueDate });
+        // Update task with returned data (includes updated start_date if it was auto-set)
+        const updatedTask = { ...task, due_date: newDueDate, start_date: result.data?.start_date || task.start_date };
+        console.log('[Frontend] Updating task with:', {
+          due_date: updatedTask.due_date,
+          start_date: updatedTask.start_date
+        });
+        setTask(updatedTask);
         toast({
           title: "Úspech",
           description: "Deadline bol aktualizovaný",
         });
+        // Dispatch event to refresh dashboard
+        window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
+          detail: { taskId: params.taskId } 
+        }));
       } else {
         toast({
           title: "Chyba",
@@ -446,7 +471,11 @@ export default function TaskDetailPage() {
         });
       }
     } catch (error) {
-      console.error("Error updating due date:", error);
+      console.error("[Frontend] Error updating due date:", error);
+      console.error("[Frontend] Error details:", {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       toast({
         title: "Chyba",
         description: "Nepodarilo sa aktualizovať deadline",
@@ -713,7 +742,23 @@ export default function TaskDetailPage() {
                     value={task.due_date ? format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk }) : null}
                     placeholder="Nastaviť deadline"
                     onSave={async (value) => {
-                      const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
+                      // InlineDateEdit with type="date" returns value in YYYY-MM-DD format
+                      // If value is already in ISO format, use it directly
+                      // Otherwise try to parse it
+                      let isoDate: string | null = null;
+                      if (value) {
+                        // Check if value is already in YYYY-MM-DD format
+                        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                          isoDate = value;
+                        } else {
+                          // Try to parse other formats
+                          const parsed = new Date(value);
+                          if (!isNaN(parsed.getTime())) {
+                            isoDate = parsed.toISOString().split('T')[0];
+                          }
+                        }
+                      }
+                      console.log('[Frontend] Parsing due_date:', { value, isoDate });
                       await handleDueDateChange(isoDate);
                     }}
                     icon={Calendar}
@@ -786,8 +831,8 @@ export default function TaskDetailPage() {
                 <CardContent className="pt-0">
                   <FileUploadHandler
                     taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
-                    onFileUploaded={(fileUrl, htmlContent) => {
-                      console.log('File uploaded to Files section, URL:', fileUrl);
+                    onFileUploaded={() => {
+                      // File uploaded successfully
                     }}
                   >
                     <QuillEditor
@@ -925,7 +970,6 @@ export default function TaskDetailPage() {
                         onChange={(e) => {
                           const value = e.target.value ? parseFloat(e.target.value) : null;
                           const budgetCents = value ? Math.round(value * 100) : null;
-                          console.log('>>> Updating task budget:', value, 'cents:', budgetCents);
                           setTask(prev => prev ? { 
                             ...prev, 
                             budget_cents: budgetCents

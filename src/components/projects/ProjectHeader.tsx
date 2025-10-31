@@ -31,7 +31,7 @@ export const ProjectHeader = ({ project, tasks, onUpdate }: ProjectHeaderProps) 
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Klient:</span>
-          <span className="font-medium">{project.client?.name}</span>
+          <span className="font-medium">{project.client?.name || 'Bez klienta'}</span>
         </div>
       </div>
 

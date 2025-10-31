@@ -171,12 +171,27 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
     resetForm();
   }, [project?.id, reset, open]);
 
+  const isPersonalProject = project && (
+    project.name === "Osobné úlohy" || 
+    (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")))
+  );
+
   const handleFormSubmit = async (data: ProjectFormData | UpdateProjectData) => {
     setIsSubmitting(true);
 
     try {
       const url = isEditing ? `/api/projects/${project.id}` : "/api/projects";
       const method = isEditing ? "PATCH" : "POST";
+      
+      // Prevent status change for personal project
+      if (isPersonalProject && data.status !== undefined) {
+        delete (data as any).status;
+      }
+      
+      // Prevent client assignment for personal project
+      if (isPersonalProject && data.client_id !== undefined) {
+        (data as any).client_id = null;
+      }
 
       // Clean up data - convert empty strings to null for optional fields
       const cleanedData = {
@@ -272,27 +287,29 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="client_id">Klient *</Label>
-              <Select
-                value={watch("client_id") || ""}
-                onValueChange={(value) => setValue("client_id", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Vyberte klienta" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.client_id && (
-                <p className="text-sm text-destructive">{errors.client_id.message}</p>
-              )}
-            </div>
+            {!isPersonalProject && (
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="client_id">Klient *</Label>
+                <Select
+                  value={watch("client_id") || ""}
+                  onValueChange={(value) => setValue("client_id", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Vyberte klienta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.client_id && (
+                  <p className="text-sm text-destructive">{errors.client_id.message}</p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="name">Názov *</Label>
@@ -322,22 +339,37 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
               {errors.code && <p className="text-sm text-destructive">{errors.code.message}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="status">Status *</Label>
-              <Select value={watch("status") || ""} onValueChange={(value) => setValue("status", value as any)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Návrh</SelectItem>
-                  <SelectItem value="active">Aktívny</SelectItem>
-                  <SelectItem value="on_hold">Pozastavený</SelectItem>
-                  <SelectItem value="completed">Dokončený</SelectItem>
-                  <SelectItem value="cancelled">Zrušený</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.status && <p className="text-sm text-destructive">{errors.status.message}</p>}
-            </div>
+            {!isPersonalProject ? (
+              <div className="space-y-2">
+                <Label htmlFor="status">Status *</Label>
+                <Select value={watch("status") || ""} onValueChange={(value) => setValue("status", value as any)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Návrh</SelectItem>
+                    <SelectItem value="active">Aktívny</SelectItem>
+                    <SelectItem value="on_hold">Pozastavený</SelectItem>
+                    <SelectItem value="completed">Dokončený</SelectItem>
+                    <SelectItem value="cancelled">Zrušený</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.status && <p className="text-sm text-destructive">{errors.status.message}</p>}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Input 
+                  id="status" 
+                  value="Aktívny" 
+                  disabled 
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Status osobného projektu sa nedá meniť
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="description">Popis</Label>

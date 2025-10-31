@@ -225,6 +225,91 @@ export async function PATCH(
           user_display_name: userDisplayName
         }
       });
+
+      // Automatically set start_date to today if task is overdue or due today
+      // Use currentTask.status (before update) to check if task is done/cancelled
+      const taskStatus = validation.data.status !== undefined ? validation.data.status : currentTask.status;
+      if (validation.data.due_date && taskStatus !== 'done' && taskStatus !== 'cancelled') {
+        // Get today's date in local timezone (YYYY-MM-DD format)
+        const now = new Date();
+        const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
+        
+        // Parse due_date (it's already in YYYY-MM-DD format)
+        const dueDateParts = validation.data.due_date.split('-');
+        const dueDateLocal = new Date(parseInt(dueDateParts[0]), parseInt(dueDateParts[1]) - 1, parseInt(dueDateParts[2]));
+        
+        // Compare dates (ignoring time)
+        const isOverdue = dueDateLocal < todayLocal;
+        const isDueToday = dueDateLocal.getTime() === todayLocal.getTime();
+        
+        console.log(`[Task ${taskId}] Checking auto-set start_date:`, {
+          dueDate: validation.data.due_date,
+          dueDateLocal: dueDateLocal.toISOString().split('T')[0],
+          todayStr,
+          todayLocal: todayLocal.toISOString().split('T')[0],
+          isOverdue,
+          isDueToday,
+          currentStartDate: currentTask.start_date,
+          taskStatus
+        });
+        
+        // Set start_date to today if overdue or due today
+        // For overdue tasks, always set start_date AND due_date to today
+        // This ensures overdue tasks appear in "today" tab and are moved to today
+        if (isOverdue || isDueToday) {
+          const updateData: { start_date: string; due_date?: string } = { start_date: todayStr };
+          
+          // If task is overdue, also update due_date to today
+          if (isOverdue) {
+            updateData.due_date = todayStr;
+            console.log(`[Task ${taskId}] Auto-setting start_date and due_date to today (${todayStr}) because task is overdue`);
+          } else {
+            console.log(`[Task ${taskId}] Auto-setting start_date to today (${todayStr}) because task is due today`);
+          }
+          
+          const { error: updateError } = await supabase
+            .from("tasks")
+            .update(updateData)
+            .eq("id", taskId)
+            .eq("workspace_id", workspaceId);
+
+          if (updateError) {
+            console.error(`[Task ${taskId}] Error updating start_date:`, updateError);
+          } else {
+            // Reload task to get updated data
+            const { data: updatedTask, error: reloadError } = await supabase
+              .from("tasks")
+              .select(`
+                *,
+                project:projects(id, name, code, hourly_rate_cents, budget_cents)
+              `)
+              .eq("id", taskId)
+              .single();
+
+            if (reloadError) {
+              console.error(`[Task ${taskId}] Error reloading task:`, reloadError);
+            } else if (updatedTask) {
+              console.log(`[Task ${taskId}] Successfully updated start_date to ${updatedTask.start_date}${isOverdue ? ` and due_date to ${updatedTask.due_date}` : ''}`);
+              // Update the returned task data with fresh data
+              Object.assign(task, updatedTask);
+              taskWithHourlyRate.start_date = updatedTask.start_date;
+              if (isOverdue) {
+                taskWithHourlyRate.due_date = updatedTask.due_date;
+              }
+              taskWithHourlyRate.project = updatedTask.project ? {
+                ...updatedTask.project,
+                hourly_rate: updatedTask.project.hourly_rate_cents ? updatedTask.project.hourly_rate_cents / 100 : null,
+                fixed_fee: updatedTask.project.budget_cents ? updatedTask.project.budget_cents / 100 : null
+              } : null;
+            }
+          }
+        } else {
+          console.log(`[Task ${taskId}] Not auto-setting start_date: isOverdue=${isOverdue}, isDueToday=${isDueToday}, hasStartDateToday=${hasStartDateToday}`);
+        }
+      } else {
+        console.log(`[Task ${taskId}] Skipping auto-set start_date: taskStatus=${taskStatus}, due_date=${validation.data.due_date}`);
+      }
     }
 
     // Check for estimated hours change

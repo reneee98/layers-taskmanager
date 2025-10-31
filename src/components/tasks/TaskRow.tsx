@@ -40,6 +40,7 @@ import { formatHours, formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getTextPreview } from "@/lib/utils/html";
+import { getDeadlineStatus, getDeadlineDotClass } from "@/lib/deadline-utils";
 
 interface TaskRowProps {
   task: Task;
@@ -187,6 +188,11 @@ export function TaskRow({
       .slice(0, 2);
   };
 
+  // Get deadline status and dot class
+  const deadlineStatus = getDeadlineStatus(task.deadline);
+  const deadlineDotClass = getDeadlineDotClass(deadlineStatus);
+  const showDeadlineDot = !!deadlineDotClass;
+
   return (
     <TableRow
       draggable
@@ -210,9 +216,9 @@ export function TaskRow({
       <TableCell className="py-4 pl-6 pr-2">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 flex-shrink-0">
-              {/* Placeholder for deadline indicator if needed */}
-            </div>
+            {showDeadlineDot && (
+              <div className={cn("flex-shrink-0", deadlineDotClass)} />
+            )}
             <Link 
               href={`/projects/${task.project_id}?tab=time`}
               className="font-semibold text-sm text-foreground hover:text-foreground/80 hover:underline inline-flex items-center gap-1 group/link"
@@ -222,7 +228,7 @@ export function TaskRow({
             </Link>
           </div>
           {task.description && (
-            <div className="text-xs text-muted-foreground line-clamp-1 ml-2">
+            <div className="text-xs text-muted-foreground line-clamp-1">
               {getTextPreview(task.description, 80)}
             </div>
           )}

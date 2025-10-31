@@ -46,17 +46,44 @@ export async function PATCH(
   try {
     const { projectId } = await params;
     const body = await request.json();
-    console.log(">>> PATCH /api/projects - Body received:", JSON.stringify(body, null, 2));
     
     const validation = validateSchema(updateProjectSchema, body);
-    console.log(">>> PATCH /api/projects - Validation result:", JSON.stringify(validation, null, 2));
 
     if (!validation.success) {
-      console.error("[DEBUG] PATCH /api/projects - Validation FAILED");
       return NextResponse.json(validation, { status: 400 });
     }
 
     const supabase = createClient();
+
+    // Check if this is a personal project
+    const { data: existingProject, error: projectError } = await supabase
+      .from("projects")
+      .select("name, code")
+      .eq("id", projectId)
+      .single();
+
+    if (projectError || !existingProject) {
+      return NextResponse.json({ success: false, error: "Projekt nebol nájdený" }, { status: 404 });
+    }
+
+    const isPersonalProject = existingProject.name === "Osobné úlohy" || 
+                              (existingProject.code && (existingProject.code === "PERSONAL" || existingProject.code.startsWith("PERSONAL-")));
+
+    // Prevent status change for personal project
+    if (isPersonalProject && validation.data.status !== undefined) {
+      return NextResponse.json(
+        { success: false, error: "Nie je možné meniť status osobného projektu" },
+        { status: 400 }
+      );
+    }
+
+    // Prevent client assignment for personal project
+    if (isPersonalProject && validation.data.client_id !== undefined && validation.data.client_id !== null) {
+      return NextResponse.json(
+        { success: false, error: "Osobný projekt nemôže mať klienta" },
+        { status: 400 }
+      );
+    }
 
     // Check if code is unique (if being updated)
     if (validation.data.code) {
@@ -85,8 +112,6 @@ export async function PATCH(
       updateData.budget_cents = updateData.fixed_fee ? Math.round(updateData.fixed_fee * 100) : null;
       delete updateData.fixed_fee;
     }
-
-    console.log(">>> PATCH /api/projects - Updating with data:", JSON.stringify(updateData, null, 2));
     
     const { data: project, error } = await supabase
       .from("projects")
@@ -96,8 +121,7 @@ export async function PATCH(
       .single();
 
     if (error) {
-      console.error(">>> PATCH /api/projects - Database error:", error.message);
-      console.error(">>> PATCH /api/projects - Error details:", JSON.stringify(error, null, 2));
+      console.error("Failed to update project:", error.message);
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
@@ -124,6 +148,28 @@ export async function DELETE(
   try {
     const { projectId } = await params;
     const supabase = createClient();
+
+    // Check if this is a personal project
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("name, code")
+      .eq("id", projectId)
+      .single();
+
+    if (projectError || !project) {
+      return NextResponse.json({ success: false, error: "Projekt nebol nájdený" }, { status: 404 });
+    }
+
+    const isPersonalProject = project.name === "Osobné úlohy" || 
+                              (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
+
+    // Prevent deletion of personal project
+    if (isPersonalProject) {
+      return NextResponse.json(
+        { success: false, error: "Nie je možné odstrániť osobný projekt" },
+        { status: 400 }
+      );
+    }
 
     const { error } = await supabase.from("projects").delete().eq("id", projectId);
 

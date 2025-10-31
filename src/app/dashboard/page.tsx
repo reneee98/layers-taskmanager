@@ -50,7 +50,6 @@ import {
   ArrowLeft,
   Flame,
   List,
-  CalendarDays
 } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/format";
 import { format, isAfter, isBefore, addDays, isToday, parse, startOfWeek, getDay } from "date-fns";
@@ -71,8 +70,22 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { WorkspaceInvitations } from "@/components/workspace/WorkspaceInvitations";
 import { TaskDialog } from "@/components/tasks/TaskDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
 import { cn } from "@/lib/utils";
+import { WeekCalendar } from "@/components/calendar/WeekCalendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const locales = {
   sk: sk,
@@ -154,11 +167,23 @@ export default function DashboardPage() {
   const [showLoadMore, setShowLoadMore] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTabType>("today");
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [calendarView, setCalendarView] = useState<"month" | "week">("month");
   const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+  const [calendarDate, setCalendarDate] = useState(() => {
+    // Initialize with today's date, ensuring it's set to start of day
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  });
   const [isQuickTaskOpen, setIsQuickTaskOpen] = useState(false);
   const [personalProjectId, setPersonalProjectId] = useState<string | null>(null);
   const activitiesRef = useRef<HTMLDivElement>(null);
+  const [moreEventsModalOpen, setMoreEventsModalOpen] = useState(false);
+  const [moreEventsDate, setMoreEventsDate] = useState<Date | null>(null);
+  const [moreEventsTasks, setMoreEventsTasks] = useState<AssignedTask[]>([]);
+  const [workspaceUsers, setWorkspaceUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null); // null = všetci používatelia
 
   type ViewMode = "list" | "calendar";
 
@@ -180,29 +205,107 @@ export default function DashboardPage() {
     }
   };
 
+  const navigateWeek = (direction: "prev" | "next") => {
+    const normalizedDate = new Date(calendarDate);
+    normalizedDate.setHours(0, 0, 0, 0);
+    const weekStart = startOfWeek(normalizedDate, { locale: sk, weekStartsOn: 1 });
+    const newWeekStart = addDays(weekStart, direction === "next" ? 7 : -7);
+    setCalendarDate(newWeekStart);
+    setCalendarMonth(newWeekStart.getMonth());
+    setCalendarYear(newWeekStart.getFullYear());
+  };
+
+  const handleNavigate = (direction: "prev" | "next") => {
+    if (calendarView === "week") {
+      navigateWeek(direction);
+    } else {
+      navigateMonth(direction);
+    }
+  };
+
+  const handleToday = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    setCalendarDate(today);
+    setCalendarMonth(today.getMonth());
+    setCalendarYear(today.getFullYear());
+  };
+
+  const handleMoreEventsClick = (events: any[], date: Date) => {
+    // Get tasks for this date from calendar tasks (already filtered by user)
+    const dateTasks = calendarTasks.filter(task => {
+      if (!task.due_date) return false;
+      
+      const taskDate = new Date(task.due_date + 'T00:00:00');
+      const startDate = task.start_date 
+        ? new Date(task.start_date + 'T00:00:00')
+        : taskDate;
+      const endDate = task.end_date
+        ? new Date(task.end_date + 'T00:00:00')
+        : taskDate;
+      
+      const dayStart = new Date(date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(date);
+      dayEnd.setHours(23, 59, 59, 999);
+      
+      return (startDate <= dayEnd && endDate >= dayStart);
+    });
+
+    setMoreEventsDate(date);
+    setMoreEventsTasks(dateTasks);
+    setMoreEventsModalOpen(true);
+  };
+
   // Filter tasks based on active tab
   // Pre "all_active" používame všetky aktívne tasky
   // Pre "unassigned" používame nepriradené tasky
+  // Pre "today" používame všetky aktívne tasky (aby sa zobrazili aj nepriradené s start_date dnes)
   // Pre ostatné taby používame priradené tasky
   let tasksToFilter: AssignedTask[];
   if (activeTab === 'all_active') {
     tasksToFilter = allActiveTasks;
   } else if (activeTab === 'unassigned') {
     tasksToFilter = unassignedTasks;
+  } else if (activeTab === 'today') {
+    // Use all active tasks for "today" tab to show all tasks with start_date today
+    tasksToFilter = allActiveTasks;
   } else {
     tasksToFilter = tasks;
   }
   const filteredTasks = filterTasksByTab(tasksToFilter, activeTab);
   
+  // Filter tasks for calendar by selected user
+  const getCalendarTasks = () => {
+    let calendarTasks = allActiveTasks;
+    
+    // Filter by selected user if one is selected
+    if (selectedUserId) {
+      calendarTasks = allActiveTasks.filter(task => {
+        // Check if task has assignees and if selected user is among them
+        // Also check assignee_id for backward compatibility
+        if (task.assignee_id === selectedUserId) {
+          return true;
+        }
+        if (task.assignees && task.assignees.length > 0) {
+          return task.assignees.some(assignee => assignee.user_id === selectedUserId);
+        }
+        return false; // Skip unassigned tasks when filtering by user
+      });
+    }
+    
+    return calendarTasks;
+  };
+  
+  const calendarTasks = getCalendarTasks();
+  
   // Get task counts for each tab
   const taskCounts = {
     all_active: filterTasksByTab(allActiveTasks, "all_active").length,
     unassigned: filterTasksByTab(unassignedTasks, "unassigned").length,
-    today: filterTasksByTab(tasks, "today").length,
-    overdue: filterTasksByTab(tasks, "overdue").length,
+    today: filterTasksByTab(allActiveTasks, "today").length, // Use allActiveTasks for accurate count
     sent_to_client: filterTasksByTab(tasks, "sent_to_client").length,
     in_progress: filterTasksByTab(tasks, "in_progress").length,
-    this_week: filterTasksByTab(tasks, "this_week").length,
   };
 
   const handleShowMoreActivities = () => {
@@ -235,19 +338,193 @@ export default function DashboardPage() {
     }
   }, [showAllActivities]);
 
+  // Style "+XY more" buttons in calendar
+  useEffect(() => {
+    if (calendarView === "month") {
+      const styleMoreButtons = () => {
+        const moreButtons = document.querySelectorAll('.rbc-show-more, .rbc-button-link.rbc-show-more, .rbc-event-more');
+        const root = document.documentElement;
+        const isDark = root.classList.contains('dark');
+        
+        // Get actual CSS variable values
+        const getCSSVarValue = (varName: string) => {
+          const value = getComputedStyle(root).getPropertyValue(varName).trim();
+          if (value) {
+            // Convert HSL values like "240 4.8% 96%" to "hsl(240, 4.8%, 96%)"
+            const parts = value.split(' ');
+            if (parts.length === 3) {
+              return `hsl(${parts[0]}, ${parts[1]}, ${parts[2]})`;
+            }
+            return value;
+          }
+          return '';
+        };
+        
+        const mutedBgValue = getCSSVarValue('--muted');
+        const mutedFgValue = getCSSVarValue('--muted-foreground');
+        const accentBgValue = getCSSVarValue('--accent');
+        const accentFgValue = getCSSVarValue('--accent-foreground');
+        
+        // Fallback colors if CSS vars not available
+        const mutedBg = mutedBgValue || (isDark ? 'rgba(39, 39, 42, 1)' : 'rgba(244, 244, 245, 1)');
+        const mutedFg = mutedFgValue || (isDark ? 'rgba(161, 161, 170, 1)' : 'rgba(113, 113, 122, 1)');
+        const accentBg = accentBgValue || (isDark ? 'rgba(39, 39, 42, 1)' : 'rgba(244, 244, 245, 1)');
+        const accentFg = accentFgValue || (isDark ? 'rgba(250, 250, 250, 1)' : 'rgba(24, 24, 27, 1)');
+        
+        moreButtons.forEach((button: any) => {
+          if (button && !button.dataset.styled) {
+            button.dataset.styled = 'true';
+            
+            // Reset and apply all styles - blue link style
+            const blueColor = isDark ? 'rgba(96, 165, 250, 1)' : 'rgba(37, 99, 235, 1)'; // blue-400 in dark, blue-600 in light
+            const blueHover = isDark ? 'rgba(147, 197, 253, 1)' : 'rgba(59, 130, 246, 1)'; // blue-300 in dark, blue-500 in light
+            
+            button.setAttribute('style', `
+              border: none !important;
+              border-radius: 6px !important;
+              padding: 6px 10px !important;
+              font-size: 12px !important;
+              font-weight: 500 !important;
+              margin: 2px 1px !important;
+              margin-top: 2px !important;
+              cursor: pointer !important;
+              transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+              line-height: 1.4 !important;
+              height: auto !important;
+              min-height: 24px !important;
+              color: ${blueColor} !important;
+              background: transparent !important;
+              display: inline-flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              box-shadow: none !important;
+              text-decoration: underline !important;
+              text-underline-offset: 2px !important;
+            `);
+            
+            // Remove any existing hover handlers
+            const handleMouseEnter = () => {
+              button.style.color = blueHover;
+              button.style.textDecoration = 'underline';
+              button.style.textUnderlineOffset = '2px';
+            };
+            
+            const handleMouseLeave = () => {
+              button.style.color = blueColor;
+              button.style.textDecoration = 'underline';
+              button.style.textUnderlineOffset = '2px';
+            };
+            
+            button.addEventListener('mouseenter', handleMouseEnter);
+            button.addEventListener('mouseleave', handleMouseLeave);
+          }
+        });
+      };
+
+      // Style immediately and also watch for new buttons
+      const timeout = setTimeout(styleMoreButtons, 100);
+      const interval = setInterval(styleMoreButtons, 500);
+      
+      // Also use MutationObserver to catch dynamically added buttons
+      const observer = new MutationObserver(() => {
+        setTimeout(styleMoreButtons, 50);
+      });
+      const calendarElement = document.querySelector('.rbc-calendar');
+      if (calendarElement) {
+        observer.observe(calendarElement, { childList: true, subtree: true });
+      }
+
+      return () => {
+        clearTimeout(timeout);
+        clearInterval(interval);
+        observer.disconnect();
+      };
+    }
+  }, [calendarView, calendarMonth, calendarYear]);
+
+  // Automatically set start_date to today for overdue tasks and tasks due today without start_date
+  useEffect(() => {
+    const updateTasksStartDate = async () => {
+      if (!workspace || isLoading) return;
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+      
+      // Check all active tasks (not just filtered ones)
+      const tasksToUpdate = allActiveTasks.filter(task => {
+        // Skip done and cancelled tasks
+        if (task.status === 'done' || task.status === 'cancelled') return false;
+        
+        // Skip tasks without due_date
+        if (!task.due_date) return false;
+        
+        const dueDate = new Date(task.due_date);
+        dueDate.setHours(0, 0, 0, 0);
+        
+        // Check if task is overdue (due_date is before today)
+        const isOverdue = dueDate < today;
+        
+        // Check if task is due today
+        const isDueToday = isToday(dueDate);
+        
+        // Get current start_date
+        const currentStartDate = task.start_date ? new Date(task.start_date) : null;
+        const hasStartDateToday = currentStartDate && isToday(currentStartDate);
+        
+        // Update if:
+        // 1. Task is overdue AND doesn't have start_date set to today
+        // 2. Task is due today AND doesn't have start_date set
+        return (isOverdue && !hasStartDateToday) || (isDueToday && !task.start_date);
+      });
+
+      // Update tasks that need start_date set to today
+      for (const task of tasksToUpdate) {
+        try {
+          const response = await fetch(`/api/tasks/${task.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ start_date: todayStr }),
+          });
+
+          if (response.ok) {
+            // Update local state
+            setTasks(prevTasks => 
+              prevTasks.map(t => t.id === task.id ? { ...t, start_date: todayStr } : t)
+            );
+            setAllActiveTasks(prevTasks => 
+              prevTasks.map(t => t.id === task.id ? { ...t, start_date: todayStr } : t)
+            );
+            setUnassignedTasks(prevTasks => 
+              prevTasks.map(t => t.id === task.id ? { ...t, start_date: todayStr } : t)
+            );
+          }
+        } catch (error) {
+          console.error(`Error updating start_date for task ${task.id}:`, error);
+        }
+      }
+    };
+
+    // Only run if we have tasks and are not loading
+    if (allActiveTasks.length > 0 && !isLoading) {
+      updateTasksStartDate();
+    }
+  }, [allActiveTasks, workspace, isLoading]);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!workspace) return;
       
       setIsLoading(true);
       try {
-        // Načítaj priradené, všetky aktívne a nepriradené tasky
-        const [assignedTasksResponse, allActiveTasksResponse, unassignedTasksResponse, activitiesResponse, projectsResponse] = await Promise.all([
+        // Načítaj priradené, všetky aktívne a nepriradené tasky + používateľov workspace
+        const [assignedTasksResponse, allActiveTasksResponse, unassignedTasksResponse, activitiesResponse, projectsResponse, usersResponse] = await Promise.all([
           fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=false`),
           fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=true`),
           fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=true`),
           fetch(`/api/dashboard/activity?workspace_id=${workspace.id}`),
-          fetch(`/api/projects`)
+          fetch(`/api/projects`),
+          fetch(`/api/workspace-users?workspace_id=${workspace.id}`)
         ]);
 
         const assignedTasksResult = await assignedTasksResponse.json();
@@ -255,6 +532,7 @@ export default function DashboardPage() {
         const unassignedTasksResult = await unassignedTasksResponse.json();
         const activitiesResult = await activitiesResponse.json();
         const projectsResult = await projectsResponse.json();
+        const usersResult = await usersResponse.json();
         
         if (assignedTasksResult.success) {
           setTasks(assignedTasksResult.data);
@@ -282,43 +560,71 @@ export default function DashboardPage() {
         }
 
         // Find or create personal project
-        if (projectsResult.success) {
-          console.log("Available projects:", projectsResult.data);
+        if (projectsResult.success && projectsResult.data) {
+          // Hľadáme projekt podľa názvu "Osobné úlohy" alebo kódu začínajúceho sa na "PERSONAL-"
           const personalProject = projectsResult.data.find((p: any) => 
-            p.name === "Osobné úlohy" || p.code === "PERSONAL"
+            p.name === "Osobné úlohy" || (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
           );
           
           if (personalProject) {
-            console.log("Found personal project:", personalProject);
             setPersonalProjectId(personalProject.id);
           } else {
-            console.log("Personal project not found, creating...");
-            // Create personal project if it doesn't exist
+            // First, try to find it in all statuses
             try {
-              const createResponse = await fetch('/api/projects', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  name: "Osobné úlohy",
-                  code: "PERSONAL",
-                  description: "Projekt pre osobné úlohy bez klienta",
-                  status: "active",
-                  client_id: null
-                })
-              });
+              const allStatusesResponse = await fetch('/api/projects?status=draft,active,on_hold,completed,cancelled');
+              const allStatusesResult = await allStatusesResponse.json();
               
-              const createResult = await createResponse.json();
-              console.log("Create project result:", createResult);
-              if (createResult.success) {
-                setPersonalProjectId(createResult.data.id);
-                console.log("Personal project created with ID:", createResult.data.id);
-              } else {
-                console.error("Failed to create personal project:", createResult.error);
+              if (allStatusesResult.success && allStatusesResult.data) {
+                const existingPersonalProject = allStatusesResult.data.find((p: any) => 
+                  p.name === "Osobné úlohy" || (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
+                );
+                
+                if (existingPersonalProject) {
+                  setPersonalProjectId(existingPersonalProject.id);
+                } else {
+                  // Create personal project if it really doesn't exist
+                  // Fallback: vytvor osobný projekt ak neexistuje (pre starých používateľov)
+                  const personalProjectCode = workspace ? `PERSONAL-${workspace.id.substring(0, 8).toUpperCase()}` : 'PERSONAL';
+                  const createResponse = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      name: "Osobné úlohy",
+                      code: personalProjectCode,
+                      description: "Projekt pre osobné úlohy bez klienta",
+                      status: "active",
+                      client_id: null
+                    })
+                  });
+                  
+                  const createResult = await createResponse.json();
+                  
+                  if (createResult.success && createResult.data) {
+                    setPersonalProjectId(createResult.data.id);
+                  } else {
+                    console.error("Failed to create personal project:", createResult.error || createResult);
+                  }
+                }
               }
             } catch (error) {
-              console.error("Failed to create personal project:", error);
+              console.error("Failed to handle personal project:", error);
             }
           }
+        } else {
+          console.error("Failed to fetch projects:", projectsResult.error || "Unknown error");
+        }
+
+        // Load workspace users
+        if (usersResult.success && usersResult.data) {
+          // Map users to ensure we have id, name, and email
+          const mappedUsers = usersResult.data.map((user: any) => ({
+            id: user.id || user.user_id,
+            name: user.name || user.display_name || user.email?.split('@')[0] || 'Neznámy',
+            email: user.email || ''
+          }));
+          setWorkspaceUsers(mappedUsers);
+        } else {
+          console.error("Failed to fetch workspace users:", usersResult.error);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -329,6 +635,48 @@ export default function DashboardPage() {
 
     fetchData();
   }, [workspace, activeTab]);
+
+  // Listen for task status changes to refresh stats
+  useEffect(() => {
+    const handleTaskStatusChanged = async () => {
+      if (!workspace) return;
+      
+      try {
+        // Refresh tasks data when status changes
+        const [assignedTasksResponse, allActiveTasksResponse, unassignedTasksResponse, activitiesResponse] = await Promise.all([
+          fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=false`),
+          fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=true`),
+          fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=true`),
+          fetch(`/api/dashboard/activity?workspace_id=${workspace.id}`)
+        ]);
+
+        const assignedTasksResult = await assignedTasksResponse.json();
+        const allActiveTasksResult = await allActiveTasksResponse.json();
+        const unassignedTasksResult = await unassignedTasksResponse.json();
+        const activitiesResult = await activitiesResponse.json();
+        
+        if (assignedTasksResult.success) {
+          setTasks(assignedTasksResult.data);
+        }
+        if (allActiveTasksResult.success) {
+          setAllActiveTasks(allActiveTasksResult.data);
+        }
+        if (unassignedTasksResult.success) {
+          setUnassignedTasks(unassignedTasksResult.data);
+        }
+        if (activitiesResult.success) {
+          setActivities(activitiesResult.data);
+        }
+      } catch (error) {
+        console.error("Error refreshing dashboard data:", error);
+      }
+    };
+
+    window.addEventListener('taskStatusChanged', handleTaskStatusChanged);
+    return () => {
+      window.removeEventListener('taskStatusChanged', handleTaskStatusChanged);
+    };
+  }, [workspace]);
 
   const getStatusBadgeVariant = (status: string) => {
     const variantMap: { [key: string]: string } = {
@@ -370,6 +718,34 @@ export default function DashboardPage() {
       'urgent': 'Urgent'
     };
     return priorityMap[priority] || priority;
+  };
+
+  const getTabLabel = (tab: DashboardTabType) => {
+    const labels: Record<DashboardTabType, string> = {
+      'all_active': 'Všetky aktívne',
+      'today': 'Úlohy dnes',
+      'sent_to_client': 'Poslané klientovi',
+      'in_progress': 'In progress',
+      'unassigned': 'Nepriradené',
+    };
+    return labels[tab] || tab;
+  };
+
+  const getTabIcon = (tab: DashboardTabType) => {
+    switch (tab) {
+      case 'all_active':
+        return List;
+      case 'today':
+        return CalendarIcon;
+      case 'sent_to_client':
+        return Send;
+      case 'in_progress':
+        return Play;
+      case 'unassigned':
+        return User;
+      default:
+        return List;
+    }
   };
 
 
@@ -546,7 +922,6 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <Button
             onClick={() => {
-              console.log("Quick task button clicked, personalProjectId:", personalProjectId);
               setIsQuickTaskOpen(true);
             }}
             disabled={!personalProjectId}
@@ -652,11 +1027,55 @@ export default function DashboardPage() {
                   </div>
               {/* Dashboard Tabs */}
               <div className="px-6 py-4 border-b border-border/50">
-                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DashboardTabType)} className="w-full">
-                  <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+                {/* Mobile: Select Dropdown */}
+                <div className="lg:hidden">
+                  <Select value={activeTab} onValueChange={(value) => setActiveTab(value as DashboardTabType)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue>
+                        {(() => {
+                          const Icon = getTabIcon(activeTab);
+                          return (
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4" />
+                              <span>{getTabLabel(activeTab)}</span>
+                              {taskCounts[activeTab] > 0 && (
+                                <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                                  {taskCounts[activeTab]}
+                                </Badge>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(['all_active', 'today', 'sent_to_client', 'in_progress', 'unassigned'] as DashboardTabType[]).map((tab) => {
+                        const Icon = getTabIcon(tab);
+                        return (
+                          <SelectItem key={tab} value={tab}>
+                            <div className="flex items-center gap-2 w-full">
+                              <Icon className="h-4 w-4" />
+                              <span>{getTabLabel(tab)}</span>
+                              {taskCounts[tab] > 0 && (
+                                <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                                  {taskCounts[tab]}
+                                </Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Desktop: Tabs */}
+                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DashboardTabType)} className="w-full hidden lg:block">
+                  <div className="overflow-x-auto">
+                    <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground min-w-max">
                     <TabsTrigger value="all_active" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                       <List className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Všetky aktívne</span>
+                      <span>Všetky aktívne</span>
                       {taskCounts.all_active > 0 && (
                         <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
                           {taskCounts.all_active}
@@ -665,34 +1084,16 @@ export default function DashboardPage() {
                     </TabsTrigger>
                     <TabsTrigger value="today" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                       <CalendarIcon className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Úlohy dnes</span>
+                      <span>Úlohy dnes</span>
                       {taskCounts.today > 0 && (
                         <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
                           {taskCounts.today}
                         </Badge>
                       )}
                     </TabsTrigger>
-                    <TabsTrigger value="this_week" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                      <CalendarDays className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Tento týždeň</span>
-                      {taskCounts.this_week > 0 && (
-                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
-                          {taskCounts.this_week}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="overdue" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                      <AlertTriangle className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Po termíne</span>
-                      {taskCounts.overdue > 0 && (
-                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
-                          {taskCounts.overdue}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
                     <TabsTrigger value="sent_to_client" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                       <Send className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Poslané klientovi</span>
+                      <span>Poslané klientovi</span>
                       {taskCounts.sent_to_client > 0 && (
                         <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
                           {taskCounts.sent_to_client}
@@ -701,7 +1102,7 @@ export default function DashboardPage() {
                     </TabsTrigger>
                     <TabsTrigger value="in_progress" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                       <Play className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">In progress</span>
+                      <span>In progress</span>
                       {taskCounts.in_progress > 0 && (
                         <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
                           {taskCounts.in_progress}
@@ -710,7 +1111,7 @@ export default function DashboardPage() {
                     </TabsTrigger>
                     <TabsTrigger value="unassigned" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                       <User className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Nepriradené</span>
+                      <span>Nepriradené</span>
                       {taskCounts.unassigned > 0 && (
                         <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
                           {taskCounts.unassigned}
@@ -718,6 +1119,7 @@ export default function DashboardPage() {
                       )}
                     </TabsTrigger>
                   </TabsList>
+                  </div>
                 </Tabs>
               </div>
               
@@ -906,30 +1308,79 @@ export default function DashboardPage() {
                   {/* Custom Apple-style toolbar */}
                   <div className="flex items-center justify-between mb-8">
                     <h2 className="text-3xl font-bold text-foreground tracking-tight">
-                      {format(new Date(calendarYear, calendarMonth, 1), 'LLLL yyyy', { locale: sk }).replace(/^[a-z]/, (c) => c.toUpperCase())}
+                      {calendarView === "month" 
+                        ? format(new Date(calendarYear, calendarMonth, 1), 'LLLL yyyy', { locale: sk }).replace(/^[a-z]/, (c) => c.toUpperCase())
+                        : (() => {
+                            const normalizedDate = new Date(calendarDate);
+                            normalizedDate.setHours(0, 0, 0, 0);
+                            const weekStart = startOfWeek(normalizedDate, { locale: sk, weekStartsOn: 1 });
+                            const weekEnd = addDays(weekStart, 6);
+                            if (weekStart.getMonth() === weekEnd.getMonth()) {
+                              return format(weekStart, 'd.', { locale: sk }) + ' - ' + format(weekEnd, 'd. LLLL yyyy', { locale: sk }).replace(/^[a-z]/, (c) => c.toUpperCase());
+                            } else {
+                              return format(weekStart, 'd. LLLL', { locale: sk }).replace(/^[a-z]/, (c) => c.toUpperCase()) + ' - ' + format(weekEnd, 'd. LLLL yyyy', { locale: sk }).replace(/^[a-z]/, (c) => c.toUpperCase());
+                            }
+                          })()
+                      }
                     </h2>
+                    <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
+                        <Select value={selectedUserId || "all"} onValueChange={(value) => setSelectedUserId(value === "all" ? null : value)}>
+                          <SelectTrigger className="w-[180px] h-9">
+                            <SelectValue placeholder="Všetci používatelia" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Všetci používatelia</SelectItem>
+                            {workspaceUsers.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.name || user.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select value={calendarView} onValueChange={(value: "week" | "month") => {
+                          if (value === "week") {
+                            if (calendarView === "month") {
+                              // Switch from month to week - always use today's date
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              setCalendarDate(today);
+                              setCalendarMonth(today.getMonth());
+                              setCalendarYear(today.getFullYear());
+                            }
+                            setCalendarView("week");
+                          } else {
+                            if (calendarView === "week") {
+                              // Switch from week to month - use first day of current week's month
+                              setCalendarMonth(calendarDate.getMonth());
+                              setCalendarYear(calendarDate.getFullYear());
+                            }
+                            setCalendarView("month");
+                          }
+                        }}>
+                          <SelectTrigger className="w-[120px] h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="week">Týždeň</SelectItem>
+                            <SelectItem value="month">Mesiac</SelectItem>
+                          </SelectContent>
+                        </Select>
                       <button
-                        onClick={() => navigateMonth("prev")}
+                            onClick={() => handleNavigate("prev")}
                         className="p-2 rounded-lg hover:bg-muted transition-colors"
+                            aria-label="Predchádzajúci"
                       >
                         <ArrowLeft className="h-5 w-5 text-muted-foreground" />
                       </button>
                       <button
-                        onClick={() => {
-                          setCalendarMonth(new Date().getMonth());
-                          setCalendarYear(new Date().getFullYear());
-                        }}
-                        className="px-4 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-foreground"
-                      >
-                        Dnes
-                      </button>
-                      <button
-                        onClick={() => navigateMonth("next")}
+                            onClick={() => handleNavigate("next")}
                         className="p-2 rounded-lg hover:bg-muted transition-colors"
+                            aria-label="Ďalší"
                       >
                         <ArrowRight className="h-5 w-5 text-muted-foreground" />
                       </button>
+                      </div>
                     </div>
                   </div>
                   <style>{`
@@ -1079,28 +1530,87 @@ export default function DashboardPage() {
                       transform: translateY(-1px);
                       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
                     }
-                    .rbc-event-more {
-                      border: none;
-                      border-radius: 2px;
-                      padding: 0 2px !important;
-                      font-size: 9px !important;
-                      font-weight: 500;
-                      margin: 1px;
-                      margin-top: 2px;
-                      cursor: pointer;
-                      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                      white-space: nowrap;
-                      line-height: 1.2;
-                      height: 13px;
-                      position: relative;
-                      top: -2px;
-                      color: rgb(107, 114, 128) !important;
-                      background: rgba(107, 114, 128, 0.1) !important;
+                    /* Force style for +XY more button - blue link style */
+                    #calendar-container .rbc-show-more,
+                    #calendar-container .rbc-button-link.rbc-show-more,
+                    #calendar-container .rbc-calendar .rbc-show-more,
+                    #calendar-container .rbc-calendar .rbc-button-link.rbc-show-more,
+                    #calendar-container .rbc-calendar .rbc-event-more,
+                    .rbc-calendar .rbc-month-view .rbc-show-more,
+                    .rbc-calendar .rbc-month-view .rbc-button-link.rbc-show-more,
+                    .rbc-calendar .rbc-month-view .rbc-event-more,
+                    .rbc-calendar .rbc-day-bg .rbc-show-more,
+                    .rbc-calendar .rbc-day-bg .rbc-button-link.rbc-show-more,
+                    .rbc-calendar .rbc-day-bg .rbc-event-more,
+                    div.rbc-calendar button.rbc-show-more,
+                    div.rbc-calendar button.rbc-button-link.rbc-show-more,
+                    div.rbc-calendar div.rbc-event-more {
+                      border: none !important;
+                      border-radius: 6px !important;
+                      padding: 6px 10px !important;
+                      font-size: 12px !important;
+                      font-weight: 500 !important;
+                      margin: 2px 1px !important;
+                      margin-top: 2px !important;
+                      cursor: pointer !important;
+                      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                      overflow: hidden !important;
+                      text-overflow: ellipsis !important;
+                      white-space: nowrap !important;
+                      line-height: 1.4 !important;
+                      height: auto !important;
+                      min-height: 24px !important;
+                      position: relative !important;
+                      top: -2px !important;
+                      color: rgb(37, 99, 235) !important;
+                      background: transparent !important;
+                      display: inline-flex !important;
+                      align-items: center !important;
+                      justify-content: center !important;
+                      box-shadow: none !important;
+                      text-decoration: underline !important;
+                      text-underline-offset: 2px !important;
                     }
-                    .rbc-event-more:hover {
-                      text-decoration: underline;
+                    #calendar-container .rbc-show-more:hover,
+                    #calendar-container .rbc-button-link.rbc-show-more:hover,
+                    #calendar-container .rbc-calendar .rbc-show-more:hover,
+                    #calendar-container .rbc-calendar .rbc-button-link.rbc-show-more:hover,
+                    #calendar-container .rbc-calendar .rbc-event-more:hover,
+                    .rbc-calendar .rbc-month-view .rbc-show-more:hover,
+                    .rbc-calendar .rbc-month-view .rbc-button-link.rbc-show-more:hover,
+                    .rbc-calendar .rbc-month-view .rbc-event-more:hover,
+                    .rbc-calendar .rbc-day-bg .rbc-show-more:hover,
+                    .rbc-calendar .rbc-day-bg .rbc-button-link.rbc-show-more:hover,
+                    .rbc-calendar .rbc-day-bg .rbc-event-more:hover,
+                    div.rbc-calendar button.rbc-show-more:hover,
+                    div.rbc-calendar button.rbc-button-link.rbc-show-more:hover,
+                    div.rbc-calendar div.rbc-event-more:hover {
+                      color: rgb(59, 130, 246) !important;
+                      background: transparent !important;
+                      text-decoration: underline !important;
+                      text-underline-offset: 2px !important;
+                    }
+                    .dark #calendar-container .rbc-show-more,
+                    .dark #calendar-container .rbc-button-link.rbc-show-more,
+                    .dark #calendar-container .rbc-calendar .rbc-show-more,
+                    .dark #calendar-container .rbc-calendar .rbc-button-link.rbc-show-more,
+                    .dark .rbc-calendar .rbc-month-view .rbc-show-more,
+                    .dark .rbc-calendar .rbc-month-view .rbc-button-link.rbc-show-more,
+                    .dark .rbc-calendar .rbc-day-bg .rbc-show-more,
+                    .dark .rbc-calendar .rbc-day-bg .rbc-button-link.rbc-show-more {
+                      color: rgb(96, 165, 250) !important;
+                      background: transparent !important;
+                    }
+                    .dark #calendar-container .rbc-show-more:hover,
+                    .dark #calendar-container .rbc-button-link.rbc-show-more:hover,
+                    .dark #calendar-container .rbc-calendar .rbc-show-more:hover,
+                    .dark #calendar-container .rbc-calendar .rbc-button-link.rbc-show-more:hover,
+                    .dark .rbc-calendar .rbc-month-view .rbc-show-more:hover,
+                    .dark .rbc-calendar .rbc-month-view .rbc-button-link.rbc-show-more:hover,
+                    .dark .rbc-calendar .rbc-day-bg .rbc-show-more:hover,
+                    .dark .rbc-calendar .rbc-day-bg .rbc-button-link.rbc-show-more:hover {
+                      color: rgb(147, 197, 253) !important;
+                      background: transparent !important;
                     }
                     .rbc-month-row {
                       border-color: transparent;
@@ -1165,11 +1675,91 @@ export default function DashboardPage() {
                     .rbc-toolbar button.rbc-toolbar-label:hover {
                       background: transparent;
                     }
+                    /* Week view styles */
+                    .rbc-time-view {
+                      border: none;
+                    }
+                    .rbc-time-header {
+                      border-bottom: 1px solid hsl(var(--border));
+                    }
+                    .rbc-time-header-content {
+                      border-left: none;
+                    }
+                    .rbc-time-content {
+                      border-top: 1px solid hsl(var(--border));
+                    }
+                    .rbc-time-slot {
+                      border-top: 1px solid rgba(0, 0, 0, 0.04);
+                    }
+                    .dark .rbc-time-slot {
+                      border-top: 1px solid hsl(var(--border));
+                    }
+                    .rbc-day-slot {
+                      border-right: 1px solid rgba(0, 0, 0, 0.04);
+                    }
+                    .dark .rbc-day-slot {
+                      border-right: 1px solid hsl(var(--border));
+                    }
+                    .rbc-day-slot:last-child {
+                      border-right: none;
+                    }
+                    .rbc-time-header-gutter {
+                      border-right: 1px solid hsl(var(--border));
+                    }
+                    .rbc-time-gutter {
+                      border-right: 1px solid hsl(var(--border));
+                    }
+                    .rbc-time-gutter .rbc-time-slot {
+                      border-right: none;
+                    }
+                    .rbc-time-slot .rbc-label {
+                      padding: 0 8px;
+                      font-size: 11px;
+                      color: rgb(107, 114, 128);
+                      text-align: right;
+                    }
+                    .dark .rbc-time-slot .rbc-label {
+                      color: rgb(156, 163, 175);
+                    }
+                    .rbc-allday-cell {
+                      border-bottom: 1px solid hsl(var(--border));
+                    }
+                    .rbc-allday-cell .rbc-day-bg {
+                      border-right: 1px solid rgba(0, 0, 0, 0.04);
+                      min-height: 40px;
+                    }
+                    .dark .rbc-allday-cell .rbc-day-bg {
+                      border-right: 1px solid hsl(var(--border));
+                    }
+                    .rbc-week-view .rbc-day-bg {
+                      min-height: 120px;
+                    }
+                    .rbc-event {
+                      font-size: 12px !important;
+                      padding: 4px 8px !important;
+                      height: auto !important;
+                      line-height: 1.4 !important;
+                    }
+                    .rbc-event-label {
+                      font-size: 12px !important;
+                    }
+                    .rbc-event-content {
+                      font-size: 12px !important;
+                    }
                   `}</style>
-                  <div className="h-full">
+                  <div id="calendar-container" className="h-full">
+                    {calendarView === "week" ? (
+                      <WeekCalendar
+                        date={calendarDate}
+                        tasks={calendarTasks.filter(task => task.due_date)}
+                        onTaskClick={(task) => {
+                          window.location.href = `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`;
+                        }}
+                      />
+                    ) : (
                     <Calendar
                       localizer={localizer}
-                      events={filteredTasks
+                      events={calendarTasks
                         .filter(task => task.due_date)
                         .map(task => {
                           // Use start_date if available, otherwise use due_date
@@ -1195,10 +1785,14 @@ export default function DashboardPage() {
                           };
                         })}
                       views={['month']}
-                      defaultView="month"
+                        view="month"
                       culture="sk"
                       toolbar={false}
                       date={new Date(calendarYear, calendarMonth, 1)}
+                        onNavigate={(date: Date) => {
+                          setCalendarMonth(date.getMonth());
+                          setCalendarYear(date.getFullYear());
+                        }}
                       onSelectEvent={(event: any) => {
                         window.location.href = `/projects/${event.resource.project?.id || 'unknown'}/tasks/${event.resource.id}`;
                       }}
@@ -1274,12 +1868,40 @@ export default function DashboardPage() {
                             );
                           },
                         },
-                      }}
-                    />
+                          popup: ({ events, date, onSelectEvent }: any) => {
+                            // This will be called when "+XY more" is clicked
+                            // We'll handle it via onShowMore prop instead
+                            return null;
+                          },
+                          event: ({ event }: any) => {
+                            return (
+                              <div
+                                onClick={() => {
+                                  window.location.href = `/projects/${event.resource?.project?.id || 'unknown'}/tasks/${event.resource?.id}`;
+                                }}
+                                className="cursor-pointer"
+                              >
+                                {event.title}
+                              </div>
+                            );
+                          },
+                          agenda: {
+                            event: ({ event }: any) => (
+                              <div>{event.title}</div>
+                            ),
+                          },
+                        }}
+                        onShowMore={(events: any[], date: Date) => {
+                          handleMoreEventsClick(events, date);
+                        }}
+                        popup
+                        popupOffset={20}
+                      />
+                    )}
                   </div>
                 </div>
               )}
-                </div>
+              </div>
                 
                 {/* Activity Section */}
                 <div className="h-full flex flex-col">
@@ -1385,7 +2007,7 @@ export default function DashboardPage() {
               )}
                   </div>
                 </div>
-              </div>
+          </div>
             </CardContent>
           </Card>
         </div>
@@ -1433,6 +2055,89 @@ export default function DashboardPage() {
             }}
         />
       )}
+
+      {/* More Events Modal */}
+      <Dialog open={moreEventsModalOpen} onOpenChange={setMoreEventsModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {moreEventsDate && format(moreEventsDate, 'EEEE, d. MMMM yyyy', { locale: sk }).replace(/^[a-z]/, (c) => c.toUpperCase())}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 mt-4">
+            {moreEventsTasks.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Žiadne úlohy na tento deň
+              </div>
+            ) : (
+              moreEventsTasks.map((task) => {
+                const isDarkMode = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
+                const colorSchemes = isDarkMode ? [
+                  { bg: 'rgba(30, 64, 175, 0.15)', text: '#93c5fd' },
+                  { bg: 'rgba(6, 95, 70, 0.15)', text: '#6ee7b7' },
+                  { bg: 'rgba(146, 64, 14, 0.15)', text: '#fbbf24' },
+                  { bg: 'rgba(91, 33, 182, 0.15)', text: '#c4b5fd' },
+                  { bg: 'rgba(159, 18, 57, 0.15)', text: '#f9a8d4' },
+                  { bg: 'rgba(14, 116, 144, 0.15)', text: '#67e8f9' },
+                  { bg: 'rgba(55, 48, 163, 0.15)', text: '#a5b4fc' },
+                  { bg: 'rgba(19, 78, 74, 0.15)', text: '#5eead4' },
+                  { bg: 'rgba(154, 52, 18, 0.15)', text: '#fb923c' },
+                  { bg: 'rgba(107, 33, 168, 0.15)', text: '#c084fc' },
+                ] : [
+                  { bg: '#dbeafe', text: '#1e40af' },
+                  { bg: '#d1fae5', text: '#065f46' },
+                  { bg: '#fef3c7', text: '#92400e' },
+                  { bg: '#e9d5ff', text: '#5b21b6' },
+                  { bg: '#fce7f3', text: '#9f1239' },
+                  { bg: '#cffafe', text: '#0e7490' },
+                  { bg: '#e0e7ff', text: '#3730a3' },
+                  { bg: '#ccfbf1', text: '#134e4a' },
+                  { bg: '#fed7aa', text: '#9a3412' },
+                  { bg: '#f3e8ff', text: '#6b21a8' },
+                ];
+                
+                let hash = 0;
+                for (let i = 0; i < task.id.length; i++) {
+                  hash = task.id.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                const colorIndex = Math.abs(hash) % colorSchemes.length;
+                const colorScheme = colorSchemes[colorIndex];
+
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => {
+                      setMoreEventsModalOpen(false);
+                      window.location.href = `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`;
+                    }}
+                    className={cn(
+                      "px-4 py-3 rounded-lg cursor-pointer transition-all hover:shadow-md flex flex-col gap-1"
+                    )}
+                    style={{
+                      backgroundColor: colorScheme.bg,
+                      color: colorScheme.text,
+                    }}
+                  >
+                    <div className="font-semibold text-sm">
+                      {task.title}
+                    </div>
+                    {task.project && (
+                      <div className="text-xs opacity-75">
+                        {task.project.code || task.project.name}
+                      </div>
+                    )}
+                    {task.description && (
+                      <div className="text-xs opacity-70 mt-1 line-clamp-2">
+                        {task.description}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

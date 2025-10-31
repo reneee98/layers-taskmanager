@@ -74,11 +74,6 @@ const toolsNavItems: Array<{
   adminOnly?: boolean;
 }> = [
   {
-    title: "Časové záznamy",
-    href: "/time-entries",
-    icon: Clock,
-  },
-  {
     title: "Správa používateľov",
     href: (workspaceId: string) => `/workspaces/${workspaceId}/users`,
     icon: UserCog,
@@ -109,17 +104,13 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        console.log('Fetching workspace stats...');
         const response = await fetch('/api/workspace-stats');
         const result = await response.json();
         
-        console.log('Workspace stats response:', result);
-        
         if (result.success) {
           setStats(result.data);
-          console.log('Stats updated:', result.data);
         } else {
-          console.error('API returned error:', result.error);
+          console.error('Failed to fetch workspace stats:', result.error);
         }
       } catch (error) {
         console.error('Failed to fetch workspace stats:', error);
@@ -129,10 +120,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
     };
 
     if (workspace) {
-      console.log('Workspace found, fetching stats for:', workspace.id);
       fetchStats();
-    } else {
-      console.log('No workspace found');
     }
   }, [workspace]);
 

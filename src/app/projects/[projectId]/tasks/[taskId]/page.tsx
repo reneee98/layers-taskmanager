@@ -635,7 +635,7 @@ export default function TaskDetailPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-2">
                   <h1 className="text-2xl font-bold text-foreground truncate">{task.title}</h1>
-                  {deadlineBadge && (
+                  {deadlineBadge && task.status !== "done" && task.status !== "cancelled" && (
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <div className={`w-5 h-5 ${deadlineBadge.color} rounded-full flex items-center justify-center ${
                         deadlineBadge.animate ? 'animate-pulse' : ''

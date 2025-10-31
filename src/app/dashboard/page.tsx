@@ -1169,7 +1169,7 @@ export default function DashboardPage() {
                             <div className="min-w-0 space-y-1">
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 flex-shrink-0">
-                                  {deadlineStatus && (
+                                  {deadlineStatus && task.status !== "done" && task.status !== "cancelled" && (
                                     <div className={getDeadlineDotClass(deadlineStatus)}></div>
                                   )}
                                 </div>

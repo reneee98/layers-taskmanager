@@ -1868,12 +1868,7 @@ export default function DashboardPage() {
                             );
                           },
                         },
-                          popup: ({ events, date, onSelectEvent }: any) => {
-                            // This will be called when "+XY more" is clicked
-                            // We'll handle it via onShowMore prop instead
-                            return null;
-                          },
-                          event: ({ event }: any) => {
+                        event: ({ event }: any) => {
                             return (
                               <div
                                 onClick={() => {

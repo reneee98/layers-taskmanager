@@ -189,7 +189,7 @@ export function TaskRow({
   };
 
   // Get deadline status and dot class
-  const deadlineStatus = getDeadlineStatus(task.deadline);
+  const deadlineStatus = getDeadlineStatus(task.due_date);
   const deadlineDotClass = getDeadlineDotClass(deadlineStatus);
   const showDeadlineDot = !!deadlineDotClass;
 

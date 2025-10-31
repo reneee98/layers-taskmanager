@@ -305,7 +305,7 @@ export async function PATCH(
             }
           }
         } else {
-          console.log(`[Task ${taskId}] Not auto-setting start_date: isOverdue=${isOverdue}, isDueToday=${isDueToday}, hasStartDateToday=${hasStartDateToday}`);
+          console.log(`[Task ${taskId}] Not auto-setting start_date: isOverdue=${isOverdue}, isDueToday=${isDueToday}`);
         }
       } else {
         console.log(`[Task ${taskId}] Skipping auto-set start_date: taskStatus=${taskStatus}, due_date=${validation.data.due_date}`);

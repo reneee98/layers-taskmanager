@@ -37,7 +37,7 @@ export interface AssignedTask {
   };
 }
 
-export type DashboardTabType = "today" | "overdue" | "sent_to_client" | "in_progress" | "all_active" | "this_week" | "unassigned";
+export type DashboardTabType = "today" | "sent_to_client" | "in_progress" | "all_active" | "unassigned";
 
 export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabType): AssignedTask[] => {
   const now = new Date();
@@ -59,13 +59,6 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
         return hasDueDateToday || hasStartDateToday;
       });
 
-    case "overdue":
-      return tasks.filter(task => {
-        if (!task.due_date) return false;
-        const dueDate = new Date(task.due_date);
-        return isBefore(dueDate, todayStart) && task.status !== "done" && task.status !== "cancelled";
-      });
-
     case "sent_to_client":
       return tasks.filter(task => task.status === "sent_to_client");
 
@@ -76,18 +69,6 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
       return tasks.filter(task => 
         task.status !== "done" && task.status !== "cancelled"
       );
-
-    case "this_week":
-      return tasks.filter(task => {
-        // Úloha je "tento týždeň" ak má deadline tento týždeň ALEBO ak má štart tento týždeň
-        const hasDueDateThisWeek = task.due_date && 
-          new Date(task.due_date) >= todayStart && 
-          new Date(task.due_date) <= weekEnd;
-        const hasStartDateThisWeek = task.start_date && 
-          new Date(task.start_date) >= todayStart && 
-          new Date(task.start_date) <= weekEnd;
-        return hasDueDateThisWeek || hasStartDateThisWeek;
-      });
 
     case "unassigned":
       // Nepriradené tasky - bez assigneeov
@@ -105,11 +86,9 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
 export const getTaskCountsByTab = (tasks: AssignedTask[]): Record<DashboardTabType, number> => {
   return {
     today: filterTasksByTab(tasks, "today").length,
-    overdue: filterTasksByTab(tasks, "overdue").length,
     sent_to_client: filterTasksByTab(tasks, "sent_to_client").length,
     in_progress: filterTasksByTab(tasks, "in_progress").length,
     all_active: filterTasksByTab(tasks, "all_active").length,
-    this_week: filterTasksByTab(tasks, "this_week").length,
     unassigned: filterTasksByTab(tasks, "unassigned").length,
   };
 };

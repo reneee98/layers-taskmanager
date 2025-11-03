@@ -175,10 +175,14 @@ export async function POST(
 
     // Then, insert new assignees
     if (assigneeIds.length > 0) {
+      // Get current user for assigned_by field
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const assigneesToInsert = assigneeIds.map(userId => ({
         task_id: taskId,
         user_id: userId,
         workspace_id: workspaceId,
+        assigned_by: user?.id || null,
       }));
 
       const { error: insertError } = await supabase

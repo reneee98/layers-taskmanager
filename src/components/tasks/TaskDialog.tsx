@@ -21,6 +21,9 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import type { Task, Project } from "@/types/database";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
 
 interface TaskDialogProps {
   projectId?: string | null; // Optional - if null, task will be created without project
@@ -47,6 +50,8 @@ export function TaskDialog({
   const [dueDate, setDueDate] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId || null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [workspaceUsers, setWorkspaceUsers] = useState<Array<{ id: string; display_name: string; email: string; role: string }>>([]);
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
 
   useEffect(() => {
     if (task) {
@@ -65,7 +70,7 @@ export function TaskDialog({
   }, [task, open]);
 
   useEffect(() => {
-    // Fetch projects when dialog is open (both for creating and editing)
+    // Fetch projects and workspace users when dialog is open (both for creating and editing)
     if (open) {
       const fetchProjects = async () => {
         try {
@@ -78,7 +83,21 @@ export function TaskDialog({
           console.error("Failed to fetch projects:", error);
         }
       };
+      
+      const fetchWorkspaceUsers = async () => {
+        try {
+          const response = await fetch("/api/workspace-users");
+          const result = await response.json();
+          if (result.success) {
+            setWorkspaceUsers(result.data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch workspace users:", error);
+        }
+      };
+      
       fetchProjects();
+      fetchWorkspaceUsers();
     }
   }, [open]);
 
@@ -91,6 +110,27 @@ export function TaskDialog({
     setBudgetAmount("");
     setDueDate("");
     setSelectedProjectId(projectId || null);
+    setSelectedAssignees([]);
+  };
+  
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase();
+  };
+  
+  const handleAssigneeToggle = (userId: string) => {
+    if (selectedAssignees.includes(userId)) {
+      setSelectedAssignees(selectedAssignees.filter(id => id !== userId));
+    } else {
+      setSelectedAssignees([...selectedAssignees, userId]);
+    }
+  };
+  
+  const handleRemoveAssignee = (userId: string) => {
+    setSelectedAssignees(selectedAssignees.filter(id => id !== userId));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,6 +176,24 @@ export function TaskDialog({
       const result = await response.json();
 
       if (result.success) {
+        // If creating a new task and assignees are selected, assign them
+        if (!task && selectedAssignees.length > 0 && result.data?.id) {
+          try {
+            const assigneeResponse = await fetch(`/api/tasks/${result.data.id}/assignees`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ assigneeIds: selectedAssignees }),
+            });
+            
+            const assigneeResult = await assigneeResponse.json();
+            if (!assigneeResult.success) {
+              console.error("Failed to assign users to task:", assigneeResult.error);
+            }
+          } catch (assigneeError) {
+            console.error("Error assigning users to task:", assigneeError);
+            // Don't fail the entire operation if assignment fails
+          }
+        }
         
         toast({
           title: "Úspech",
@@ -290,6 +348,72 @@ export function TaskDialog({
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
+
+            {!task && (
+              <div className="space-y-2">
+                <Label>Priradiť používateľov</Label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {selectedAssignees.map((userId) => {
+                    const user = workspaceUsers.find(u => u.id === userId);
+                    if (!user) return null;
+                    return (
+                      <Badge
+                        key={userId}
+                        variant="secondary"
+                        className="flex items-center gap-1 px-2 py-1"
+                      >
+                        <Avatar className="h-4 w-4">
+                          <AvatarFallback className="text-xs">
+                            {getInitials(user.display_name || user.email)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs">{user.display_name || user.email}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAssignee(userId)}
+                          className="ml-1 hover:bg-muted rounded-full p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+                <Select
+                  value=""
+                  onValueChange={(value) => {
+                    if (value && !selectedAssignees.includes(value)) {
+                      handleAssigneeToggle(value);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pridať používateľa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workspaceUsers
+                      .filter(user => !selectedAssignees.includes(user.id))
+                      .map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-xs">
+                                {getInitials(user.display_name || user.email)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span>{user.display_name || user.email}</span>
+                            {user.role && (
+                              <Badge variant="outline" className="text-xs">
+                                {user.role}
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

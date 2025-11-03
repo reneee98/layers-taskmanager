@@ -214,20 +214,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    // Automatically assign the task creator as an assignee
-    const { error: assigneeError } = await supabase
-      .from("task_assignees")
-      .insert({
-        task_id: task.id,
-        user_id: user.id,
-        workspace_id: workspaceId,
-        assigned_by: user.id,
-      });
-
-    if (assigneeError) {
-      console.error("Error assigning task creator:", assigneeError);
-      // Don't fail the request if assignment fails, but log it
-    }
+    // Assignees are now set explicitly via the request body or after task creation
+    // No automatic assignment of task creator
 
     // Log activity - task created
     const userDisplayName = await getUserDisplayName(user.id);

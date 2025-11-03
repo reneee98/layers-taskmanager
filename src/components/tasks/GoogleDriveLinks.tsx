@@ -14,9 +14,10 @@ import { GoogleDriveLink } from "@/types/database";
 
 interface GoogleDriveLinksProps {
   taskId: string;
+  onLinksChange?: () => void;
 }
 
-export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
+export function GoogleDriveLinks({ taskId, onLinksChange }: GoogleDriveLinksProps) {
   const [links, setLinks] = useState<GoogleDriveLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -122,6 +123,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
         setFormData({ url: "", description: "" });
         setEditingLink(null);
         fetchLinks();
+        onLinksChange?.();
       } else {
         console.error("Submit response:", result);
         let errorMessage = result.error || "Chyba pri ukladaní linku";
@@ -165,6 +167,7 @@ export function GoogleDriveLinks({ taskId }: GoogleDriveLinksProps) {
           description: "Link bol vymazaný",
         });
         fetchLinks();
+        onLinksChange?.();
       } else {
         console.error("Delete response:", result);
         toast({

@@ -88,6 +88,8 @@ export default function TaskDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [rightSidebarTab, setRightSidebarTab] = useState("comments");
   const [hasChanges, setHasChanges] = useState(false);
+  const [commentsCount, setCommentsCount] = useState(0);
+  const [linksCount, setLinksCount] = useState(0);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchTask = async () => {
@@ -145,10 +147,36 @@ export default function TaskDetailPage() {
     }
   };
 
+  const fetchCommentsCount = async () => {
+    try {
+      const response = await fetch(`/api/tasks/${params.taskId}/comments`);
+      const result = await response.json();
+      if (result.success) {
+        setCommentsCount(result.data?.length || 0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch comments count:", error);
+    }
+  };
+
+  const fetchLinksCount = async () => {
+    try {
+      const response = await fetch(`/api/tasks/${params.taskId}/drive-links`);
+      const result = await response.json();
+      if (result.success) {
+        setLinksCount(result.data?.length || 0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch links count:", error);
+    }
+  };
+
   useEffect(() => {
     fetchTask();
     fetchAssignees();
     fetchProjects();
+    fetchCommentsCount();
+    fetchLinksCount();
   }, [params.taskId]);
 
   useEffect(() => {
@@ -1172,10 +1200,20 @@ export default function TaskDetailPage() {
               <TabsTrigger value="comments" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                 <MessageSquare className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Komentáre</span>
+                {commentsCount > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 text-xs">
+                    {commentsCount}
+                  </Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="links" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                 <Link className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Linky</span>
+                {linksCount > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 text-xs">
+                    {linksCount}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
 
@@ -1191,7 +1229,8 @@ export default function TaskDetailPage() {
                   <CommentsList 
                     taskId={task.id}
                     onCommentAdded={() => {
-                      // Optionally refresh task data
+                      // Refresh comments count when comment is added
+                      fetchCommentsCount();
                     }}
                   />
                 </CardContent>
@@ -1207,7 +1246,13 @@ export default function TaskDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <GoogleDriveLinks taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
+                  <GoogleDriveLinks 
+                    taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
+                    onLinksChange={() => {
+                      // Refresh links count when link is added/deleted
+                      fetchLinksCount();
+                    }}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>

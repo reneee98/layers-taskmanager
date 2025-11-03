@@ -112,6 +112,7 @@ export function CommentsList({ taskId, onCommentAdded }: CommentsListProps) {
           title: "Úspech",
           description: "Komentár bol odstránený",
         });
+        onCommentAdded?.();
       } else {
         toast({
           title: "Chyba",

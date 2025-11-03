@@ -212,7 +212,27 @@ export async function POST(request: NextRequest) {
     const existingCodes = (existingProjects || []).map(p => p.code).filter(Boolean) as string[];
 
     // Check if provided code already exists
-    let projectCode = validation.data.code;
+    let projectCode: string | undefined = validation.data.code;
+    
+    // If no code provided, generate one from name
+    if (!projectCode) {
+      if (validation.data.name) {
+        projectCode = generateUniqueProjectCode(validation.data.name, existingCodes);
+      } else {
+        return NextResponse.json(
+          { success: false, error: "Kód projektu alebo názov je povinný" },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Ensure projectCode is a string
+    if (!projectCode) {
+      return NextResponse.json(
+        { success: false, error: "Nepodarilo sa vygenerovať kód projektu" },
+        { status: 400 }
+      );
+    }
     
     if (existingCodes.includes(projectCode)) {
       // Code already exists, generate a unique one automatically

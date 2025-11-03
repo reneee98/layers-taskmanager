@@ -23,7 +23,7 @@ import { toast } from "@/hooks/use-toast";
 import type { Task, Project } from "@/types/database";
 
 interface TaskDialogProps {
-  projectId: string;
+  projectId?: string | null; // Optional - if null, task will be created without project
   task?: Task | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -45,7 +45,7 @@ export function TaskDialog({
   const [estimatedHours, setEstimatedHours] = useState("");
   const [budgetAmount, setBudgetAmount] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [selectedProjectId, setSelectedProjectId] = useState(projectId);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId || null);
   const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
@@ -65,8 +65,8 @@ export function TaskDialog({
   }, [task, open]);
 
   useEffect(() => {
-    // Fetch projects only when editing (task exists)
-    if (task && open) {
+    // Fetch projects when dialog is open (both for creating and editing)
+    if (open) {
       const fetchProjects = async () => {
         try {
           const response = await fetch("/api/projects");
@@ -80,7 +80,7 @@ export function TaskDialog({
       };
       fetchProjects();
     }
-  }, [task, open]);
+  }, [open]);
 
   const resetForm = () => {
     setTitle("");
@@ -90,7 +90,7 @@ export function TaskDialog({
     setEstimatedHours("");
     setBudgetAmount("");
     setDueDate("");
-    setSelectedProjectId(projectId);
+    setSelectedProjectId(projectId || null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,13 +99,19 @@ export function TaskDialog({
 
     try {
       const payload: any = {
-        project_id: task ? selectedProjectId : projectId,
         title: title.trim(),
         description: description.trim() || null,
         status,
         priority,
         due_date: dueDate || null,
       };
+
+      // Include project_id only if a project is selected
+      if (selectedProjectId) {
+        payload.project_id = selectedProjectId;
+      } else {
+        payload.project_id = null;
+      }
 
       // Only include estimated_hours if it has a value
       if (estimatedHours && estimatedHours.trim() !== "") {
@@ -160,28 +166,34 @@ export function TaskDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            {task && (
-              <div className="space-y-2">
-                <Label htmlFor="project">Projekt</Label>
-                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Vybrať projekt" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{project.name}</span>
-                          <span className="text-xs text-muted-foreground font-mono">
-                            ({project.code})
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="project">Projekt</Label>
+              <Select 
+                value={selectedProjectId || "none"} 
+                onValueChange={(val) => setSelectedProjectId(val === "none" ? null : val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Vybrať projekt" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Bez projektu</span>
+                    </div>
+                  </SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{project.name}</span>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          ({project.code})
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="title">Názov *</Label>

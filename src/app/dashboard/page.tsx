@@ -2004,9 +2004,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Task Dialog */}
-      {personalProjectId && (
-        <TaskDialog
-          projectId={personalProjectId}
+      <TaskDialog
+          projectId={null}
           open={isQuickTaskOpen}
           onOpenChange={setIsQuickTaskOpen}
             onSuccess={() => {
@@ -2044,7 +2043,6 @@ export default function DashboardPage() {
               fetchData();
             }}
         />
-      )}
 
       {/* More Events Modal */}
       <Dialog open={moreEventsModalOpen} onOpenChange={setMoreEventsModalOpen}>

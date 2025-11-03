@@ -1732,7 +1732,7 @@ export default function DashboardPage() {
                       localizer={localizer}
                       events={calendarTasks
                         .filter(task => task.due_date)
-                        .map(task => {
+                        .flatMap(task => {
                           // Use start_date if available, otherwise use due_date
                           const startDate = task.start_date 
                             ? new Date(task.start_date + 'T00:00:00')
@@ -1743,17 +1743,30 @@ export default function DashboardPage() {
                             ? new Date(task.end_date + 'T00:00:00')
                             : new Date(task.due_date + 'T00:00:00');
 
-                          // For all-day events in react-big-calendar, end should be the start of next day
-                          const exclusiveEndDate = addDays(endDate, 1);
+                          // Create a separate event for each day
+                          const events = [];
+                          const currentDate = new Date(startDate);
+                          
+                          // Iterate through each day from start to end (inclusive)
+                          while (currentDate <= endDate) {
+                            const dayStart = new Date(currentDate);
+                            dayStart.setHours(0, 0, 0, 0);
+                            const dayEnd = addDays(dayStart, 1); // Start of next day
 
-                          return {
-                            id: task.id,
-                            title: task.title,
-                            start: startDate,
-                            end: exclusiveEndDate,
-                            allDay: true,
-                            resource: task,
-                          };
+                            events.push({
+                              id: `${task.id}-${dayStart.toISOString().split('T')[0]}`,
+                              title: task.title,
+                              start: dayStart,
+                              end: dayEnd,
+                              allDay: true,
+                              resource: task,
+                            });
+
+                            // Move to next day
+                            currentDate.setDate(currentDate.getDate() + 1);
+                          }
+
+                          return events;
                         })}
                       views={['month']}
                         view="month"

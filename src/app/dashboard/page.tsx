@@ -1821,8 +1821,6 @@ export default function DashboardPage() {
                         onShowMore={(events: any[], date: Date) => {
                           handleMoreEventsClick(events, date);
                         }}
-                        popup
-                        popupOffset={20}
                       />
                     )}
                   </div>

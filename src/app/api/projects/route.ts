@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
       // Code already exists, generate a unique one automatically
       if (validation.data.name) {
         // Generate unique code based on project name
-        projectCode = await generateUniqueProjectCode(validation.data.name, existingCodes);
+        projectCode = generateUniqueProjectCode(validation.data.name, existingCodes);
       } else {
         // If no name, try to generate from existing code pattern
         const baseCode = projectCode.split('-')[0];

@@ -50,7 +50,7 @@ export function generateProjectCode(name: string): string {
  * Generates a unique project code by checking existing codes
  * Returns code with next available number (001, 002, 003, ...)
  */
-export async function generateUniqueProjectCode(name: string, existingCodes: string[] = []): Promise<string> {
+export function generateUniqueProjectCode(name: string, existingCodes: string[] = []): string {
   const baseCode = generateProjectCode(name);
   
   if (!baseCode) {

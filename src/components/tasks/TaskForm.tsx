@@ -157,7 +157,7 @@ export const TaskForm = ({
             <div className="space-y-2">
               <Label htmlFor="project_id">Projekt *</Label>
               <Select
-                value={watch("project_id")}
+                value={watch("project_id") || undefined}
                 onValueChange={(value) => setValue("project_id", value)}
               >
                 <SelectTrigger>

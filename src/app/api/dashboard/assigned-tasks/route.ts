@@ -125,10 +125,25 @@ export async function GET(req: NextRequest) {
       tasks = allTasks?.filter(task => !taskIdsWithAssignees.includes(task.id)) || [];
       tasksError = allTasksError;
     } else if (showAll) {
-      // Zobraziť všetky aktívne tasky v workspace (vrátane úloh bez assignees)
-      console.log(`DEBUG: Showing all active tasks in workspace ${workspaceId}`);
+      // Zobraziť všetky aktívne tasky v workspace, ktoré SÚ priradené (majú assignees)
+      console.log(`DEBUG: Showing all active assigned tasks in workspace ${workspaceId}`);
       
-      // Načítame všetky aktívne tasky v workspace
+      // Najprv nájdeme všetky tasky s assignees
+      const { data: tasksWithAssignees } = await supabase
+        .from("task_assignees")
+        .select("task_id")
+        .eq("workspace_id", workspaceId);
+      
+      const taskIdsWithAssignees = tasksWithAssignees?.map(ta => ta.task_id) || [];
+      
+      if (taskIdsWithAssignees.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: []
+        });
+      }
+      
+      // Potom načítame len tie aktívne tasky, ktoré majú assignees
       const { data: allTasks, error: allTasksError } = await supabase
         .from("tasks")
         .select(`
@@ -159,7 +174,8 @@ export async function GET(req: NextRequest) {
         `)
         .eq("workspace_id", workspaceId)
         .neq("status", "done")
-        .neq("status", "cancelled");
+        .neq("status", "cancelled")
+        .in("id", taskIdsWithAssignees);
       
       tasks = allTasks;
       tasksError = allTasksError;

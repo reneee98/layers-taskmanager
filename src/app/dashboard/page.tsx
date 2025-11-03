@@ -248,7 +248,7 @@ export default function DashboardPage() {
   // Filter tasks based on active tab
   // Pre "all_active" používame všetky aktívne tasky
   // Pre "unassigned" používame nepriradené tasky
-  // Pre "today" používame všetky aktívne tasky (aby sa zobrazili aj nepriradené s start_date dnes)
+  // Pre "today" používame úlohy priradené aktuálnemu používateľovi
   // Pre ostatné taby používame priradené tasky
   let tasksToFilter: AssignedTask[];
   if (activeTab === 'all_active') {
@@ -256,8 +256,8 @@ export default function DashboardPage() {
   } else if (activeTab === 'unassigned') {
     tasksToFilter = unassignedTasks;
   } else if (activeTab === 'today') {
-    // Use all active tasks for "today" tab to show all tasks with start_date today
-    tasksToFilter = allActiveTasks;
+    // Use tasks assigned to current user for "today" tab
+    tasksToFilter = tasks;
   } else {
     tasksToFilter = tasks;
   }
@@ -306,7 +306,7 @@ export default function DashboardPage() {
   const taskCounts = {
     all_active: filterTasksByTab(allActiveTasks, "all_active").length,
     unassigned: filterTasksByTab(unassignedTasks, "unassigned").length,
-    today: filterTasksByTab(allActiveTasks, "today").length, // Use allActiveTasks for accurate count
+    today: filterTasksByTab(tasks, "today").length, // Use tasks (assigned to current user) for accurate count
     sent_to_client: filterTasksByTab(tasks, "sent_to_client").length,
     in_progress: filterTasksByTab(tasks, "in_progress").length,
   };

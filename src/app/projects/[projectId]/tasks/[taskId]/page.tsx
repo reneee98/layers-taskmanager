@@ -163,11 +163,15 @@ export default function TaskDetailPage() {
     try {
       const response = await fetch(`/api/tasks/${params.taskId}/drive-links`);
       const result = await response.json();
-      if (result.success) {
+      // API returns { data: [...] } not { success: true, data: [...] }
+      if (response.ok && result.data) {
         setLinksCount(result.data?.length || 0);
+      } else {
+        setLinksCount(0);
       }
     } catch (error) {
       console.error("Failed to fetch links count:", error);
+      setLinksCount(0);
     }
   };
 

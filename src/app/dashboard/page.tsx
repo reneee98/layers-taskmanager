@@ -263,16 +263,16 @@ export default function DashboardPage() {
   }
   const filteredTasks = filterTasksByTab(tasksToFilter, activeTab);
   
-  // Filter tasks for calendar by selected user
-  const getCalendarTasks = () => {
-    let calendarTasks = allActiveTasks;
+  // Filter tasks for calendar by selected user - use useMemo to recalculate when dependencies change
+  const calendarTasks = useMemo(() => {
+    let filteredTasks = allActiveTasks;
     
     // Exclude tasks with status "sent_to_client" from calendar
-    calendarTasks = calendarTasks.filter(task => task.status !== "sent_to_client");
+    filteredTasks = filteredTasks.filter(task => task.status !== "sent_to_client");
     
     // Filter by selected user if one is selected
     if (selectedUserId) {
-      calendarTasks = calendarTasks.filter(task => {
+      filteredTasks = filteredTasks.filter(task => {
         // Check if task has assignees and if selected user is among them
         // Also check assignee_id for backward compatibility
         if (task.assignee_id === selectedUserId) {
@@ -285,10 +285,8 @@ export default function DashboardPage() {
       });
     }
     
-    return calendarTasks;
-  };
-  
-  const calendarTasks = getCalendarTasks();
+    return filteredTasks;
+  }, [allActiveTasks, selectedUserId]);
   
   // Create localizer inside component to avoid SSR issues
   const localizer = useMemo(() => {
@@ -1695,6 +1693,7 @@ export default function DashboardPage() {
                       />
                     ) : typeof window !== 'undefined' && localizer ? (
                     <Calendar
+                      key={`calendar-${selectedUserId || 'all'}-${calendarTasks.length}`}
                       localizer={localizer}
                       events={calendarTasks
                         .filter(task => task.due_date)

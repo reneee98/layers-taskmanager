@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 
 interface SearchResult {
   id: string;
@@ -212,7 +212,7 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-1">
                           <h4 className="font-semibold text-foreground truncate text-base">
-                            {result.title}
+                            {stripHtml(result.title)}
                           </h4>
                           <Badge 
                             variant="outline" 
@@ -223,12 +223,12 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
                         </div>
                         {result.subtitle && (
                           <p className="text-sm text-muted-foreground truncate">
-                            {result.subtitle}
+                            {stripHtml(result.subtitle)}
                           </p>
                         )}
                         {result.description && (
                           <p className="text-sm text-muted-foreground truncate">
-                            {result.description}
+                            {stripHtml(result.description)}
                           </p>
                         )}
                       </div>

@@ -78,7 +78,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 import { WeekCalendar } from "@/components/calendar/WeekCalendar";
 import {
   Dialog,
@@ -1137,7 +1137,7 @@ export default function DashboardPage() {
                                   )}
                                 </div>
                                 <h3 className="font-semibold truncate text-sm group-hover:text-foreground text-foreground">
-                                  {task.title}
+                                  {stripHtml(task.title)}
                                 </h3>
                               </div>
                             </div>
@@ -1755,7 +1755,7 @@ export default function DashboardPage() {
 
                             events.push({
                               id: `${task.id}-${dayStart.toISOString().split('T')[0]}`,
-                              title: task.title,
+                              title: stripHtml(task.title),
                               start: dayStart,
                               end: dayEnd,
                               allDay: true,
@@ -2100,7 +2100,7 @@ export default function DashboardPage() {
                     }}
                   >
                     <div className="font-semibold text-sm">
-                      {task.title}
+                      {stripHtml(task.title)}
                     </div>
                     {task.project && (
                       <div className="text-xs opacity-75">
@@ -2109,7 +2109,7 @@ export default function DashboardPage() {
                     )}
                     {task.description && (
                       <div className="text-xs opacity-70 mt-1 line-clamp-2">
-                        {task.description}
+                        {stripHtml(task.description)}
                       </div>
                     )}
                   </div>

@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * Removes HTML tags from a string (server-side version)
+ */
+const stripHtml = (html: string | null | undefined): string => {
+  if (!html) return '';
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&[a-z]+;/gi, '')
+    .trim();
+};
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -50,9 +69,9 @@ export async function GET(request: NextRequest) {
         results.push({
           id: project.id,
           type: 'project',
-          title: project.name,
+          title: stripHtml(project.name),
           subtitle: `${project.code} • ${project.client?.[0]?.name || 'Bez klienta'}`,
-          description: project.description,
+          description: stripHtml(project.description),
           url: `/projects/${project.id}`,
           icon: 'FolderKanban',
           badge: 'Projekt'
@@ -88,9 +107,9 @@ export async function GET(request: NextRequest) {
         results.push({
           id: task.id,
           type: 'task',
-          title: task.title,
+          title: stripHtml(task.title),
           subtitle: `${task.project?.[0]?.name || 'Neznámy projekt'} • ${statusMap[task.status as keyof typeof statusMap] || task.status}`,
-          description: task.description,
+          description: stripHtml(task.description),
           url: `/projects/${task.project?.[0]?.id || 'unknown'}/tasks/${task.id}`,
           icon: 'Clock',
           badge: task.priority === 'urgent' ? 'Urgentné' : 'Úloha'

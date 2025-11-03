@@ -2,7 +2,7 @@
 
 import { format, startOfWeek, addDays, isToday, eachDayOfInterval } from "date-fns";
 import { sk } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 import type { AssignedTask } from "./types";
 
 interface WeekCalendarProps {
@@ -140,10 +140,10 @@ export const WeekCalendar = ({ date, tasks, onTaskClick }: WeekCalendarProps) =>
                             backgroundColor: colorScheme.bg,
                             color: colorScheme.text,
                           }}
-                          title={`${task.title}${task.project ? ` - ${task.project.name}` : ''}`}
+                          title={`${stripHtml(task.title)}${task.project ? ` - ${task.project.name}` : ''}`}
                         >
                           <div className="truncate font-semibold">
-                            {task.title}
+                            {stripHtml(task.title)}
                           </div>
                           {task.project && (
                             <div className="text-[10px] opacity-75 truncate">

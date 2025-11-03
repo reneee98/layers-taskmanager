@@ -4,6 +4,7 @@ import { taskSchema } from "@/lib/validations/task";
 import { validateSchema } from "@/lib/zod-helpers";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
+import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,10 @@ export async function GET(request: NextRequest) {
       .single();
     
     const workspaceOwnerId = workspace?.owner_id;
+    
+    // Automatically move overdue tasks to today
+    await autoMoveOverdueTasksToToday(supabase, workspaceId);
+    
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("project_id");
     const status = searchParams.get("status");

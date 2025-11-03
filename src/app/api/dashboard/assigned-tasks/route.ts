@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/admin";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
+import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
 
 export async function GET(req: NextRequest) {
   try {
@@ -62,6 +63,8 @@ export async function GET(req: NextRequest) {
     // Uložíme workspace owner ID pre použitie neskôr
     const workspaceOwnerId = workspace.owner_id;
 
+    // Automatically move overdue tasks to today
+    await autoMoveOverdueTasksToToday(supabase, workspaceId);
     
     // Získaj query parametre
     const { searchParams } = new URL(req.url);

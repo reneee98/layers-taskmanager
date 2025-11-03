@@ -63,8 +63,10 @@ export async function GET(req: NextRequest) {
     // Uložíme workspace owner ID pre použitie neskôr
     const workspaceOwnerId = workspace.owner_id;
 
-    // Automatically move overdue tasks to today
-    await autoMoveOverdueTasksToToday(supabase, workspaceId);
+    // Automatically move overdue tasks to today (non-blocking, don't fail request if this fails)
+    autoMoveOverdueTasksToToday(supabase, workspaceId).catch(err => {
+      console.error("Error in autoMoveOverdueTasksToToday:", err);
+    });
     
     // Získaj query parametre
     const { searchParams } = new URL(req.url);

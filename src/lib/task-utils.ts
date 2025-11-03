@@ -2,7 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Automatically moves all overdue tasks to today by setting their start_date and due_date to today.
- * Only affects tasks that are not done or cancelled.
+ * Only affects tasks that are not done, cancelled, or sent to client.
  * 
  * @param supabase - Supabase client instance
  * @param workspaceId - Workspace ID to filter tasks
@@ -18,13 +18,14 @@ export async function autoMoveOverdueTasksToToday(
     const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
 
-    // Find all overdue tasks (due_date < today) that are not done or cancelled
+    // Find all overdue tasks (due_date < today) that are not done, cancelled, or sent to client
     const { data: overdueTasks, error: fetchError } = await supabase
       .from("tasks")
       .select("id, due_date, start_date, status")
       .eq("workspace_id", workspaceId)
       .not("status", "eq", "done")
       .not("status", "eq", "cancelled")
+      .not("status", "eq", "sent_to_client")
       .not("due_date", "is", null)
       .lt("due_date", todayStr);
 

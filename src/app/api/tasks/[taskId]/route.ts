@@ -19,8 +19,10 @@ export async function GET(
     // Get workspace ID for auto-moving overdue tasks
     const workspaceId = await getUserWorkspaceIdFromRequest(request);
     if (workspaceId) {
-      // Automatically move overdue tasks to today
-      await autoMoveOverdueTasksToToday(supabase, workspaceId);
+      // Automatically move overdue tasks to today (non-blocking, don't fail request if this fails)
+      autoMoveOverdueTasksToToday(supabase, workspaceId).catch(err => {
+        console.error("Error in autoMoveOverdueTasksToToday:", err);
+      });
     }
 
     const { data: task, error } = await supabase
@@ -267,9 +269,9 @@ export async function PATCH(
       });
 
       // Automatically set start_date to today if task is overdue or due today
-      // Use currentTask.status (before update) to check if task is done/cancelled
+      // Use currentTask.status (before update) to check if task is done/cancelled/sent_to_client
       const taskStatus = validation.data.status !== undefined ? validation.data.status : currentTask.status;
-      if (validation.data.due_date && taskStatus !== 'done' && taskStatus !== 'cancelled') {
+      if (validation.data.due_date && taskStatus !== 'done' && taskStatus !== 'cancelled' && taskStatus !== 'sent_to_client') {
         // Get today's date in local timezone (YYYY-MM-DD format)
         const now = new Date();
         const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());

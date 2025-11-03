@@ -27,8 +27,10 @@ export async function GET(request: NextRequest) {
     
     const workspaceOwnerId = workspace?.owner_id;
     
-    // Automatically move overdue tasks to today
-    await autoMoveOverdueTasksToToday(supabase, workspaceId);
+    // Automatically move overdue tasks to today (non-blocking, don't fail request if this fails)
+    autoMoveOverdueTasksToToday(supabase, workspaceId).catch(err => {
+      console.error("Error in autoMoveOverdueTasksToToday:", err);
+    });
     
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("project_id");

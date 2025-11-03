@@ -442,75 +442,7 @@ export default function DashboardPage() {
     }
   }, [calendarView, calendarMonth, calendarYear]);
 
-  // Automatically set start_date to today for overdue tasks and tasks due today without start_date
-  useEffect(() => {
-    const updateTasksStartDate = async () => {
-      if (!workspace || isLoading) return;
-      
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().split('T')[0];
-      
-      // Check all active tasks (not just filtered ones)
-      const tasksToUpdate = allActiveTasks.filter(task => {
-        // Skip done and cancelled tasks
-        if (task.status === 'done' || task.status === 'cancelled') return false;
-        
-        // Skip tasks without due_date
-        if (!task.due_date) return false;
-        
-        const dueDate = new Date(task.due_date);
-        dueDate.setHours(0, 0, 0, 0);
-        
-        // Check if task is overdue (due_date is before today)
-        const isOverdue = dueDate < today;
-        
-        // Check if task is due today
-        const isDueToday = isToday(dueDate);
-        
-        // Get current start_date
-        const currentStartDate = task.start_date ? new Date(task.start_date) : null;
-        const hasStartDateToday = currentStartDate && isToday(currentStartDate);
-        
-        // Update if:
-        // 1. Task is overdue AND doesn't have start_date set to today
-        // 2. Task is due today AND doesn't have start_date set
-        return (isOverdue && !hasStartDateToday) || (isDueToday && !task.start_date);
-      });
-
-      // Update tasks that need start_date set to today
-      for (const task of tasksToUpdate) {
-        try {
-          const response = await fetch(`/api/tasks/${task.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ start_date: todayStr }),
-          });
-
-          if (response.ok) {
-            // Update local state
-            setTasks(prevTasks => 
-              prevTasks.map(t => t.id === task.id ? { ...t, start_date: todayStr } : t)
-            );
-            setAllActiveTasks(prevTasks => 
-              prevTasks.map(t => t.id === task.id ? { ...t, start_date: todayStr } : t)
-            );
-            setUnassignedTasks(prevTasks => 
-              prevTasks.map(t => t.id === task.id ? { ...t, start_date: todayStr } : t)
-            );
-          }
-        } catch (error) {
-          console.error(`Error updating start_date for task ${task.id}:`, error);
-        }
-      }
-    };
-
-    // Only run if we have tasks and are not loading
-    if (allActiveTasks.length > 0 && !isLoading) {
-      updateTasksStartDate();
-    }
-  }, [allActiveTasks, workspace, isLoading]);
-
+  // Fetch dashboard data when workspace changes
   useEffect(() => {
     const fetchData = async () => {
       if (!workspace) return;
@@ -634,7 +566,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [workspace, activeTab]);
+  }, [workspace]);
 
   // Listen for task status changes to refresh stats
   useEffect(() => {

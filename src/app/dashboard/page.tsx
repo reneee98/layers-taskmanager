@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,18 +86,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-const locales = {
-  sk: sk,
-};
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek: () => startOfWeek(new Date(), { locale: locales.sk }),
-  getDay,
-  locales,
-});
 
 interface AssignedTask {
   id: string;
@@ -298,6 +286,20 @@ export default function DashboardPage() {
   };
   
   const calendarTasks = getCalendarTasks();
+  
+  // Create localizer inside component to avoid SSR issues
+  const localizer = useMemo(() => {
+    const locales = {
+      sk: sk,
+    };
+    return dateFnsLocalizer({
+      format,
+      parse,
+      startOfWeek: () => startOfWeek(new Date(), { locale: locales.sk }),
+      getDay,
+      locales,
+    });
+  }, []);
   
   // Get task counts for each tab
   const taskCounts = {
@@ -1688,7 +1690,7 @@ export default function DashboardPage() {
                           window.location.href = `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`;
                         }}
                       />
-                    ) : (
+                    ) : typeof window !== 'undefined' && localizer ? (
                     <Calendar
                       localizer={localizer}
                       events={calendarTasks
@@ -1822,6 +1824,10 @@ export default function DashboardPage() {
                           handleMoreEventsClick(events, date);
                         }}
                       />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+                      </div>
                     )}
                   </div>
                 </div>

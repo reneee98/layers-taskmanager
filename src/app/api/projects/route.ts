@@ -50,20 +50,21 @@ export async function GET(request: NextRequest) {
           project:projects(*, client:clients(*))
         `)
         .eq("workspace_id", workspaceId)
-        .eq("status", "invoiced")
-        .not("project_id", "is", null);
+        .eq("status", "invoiced");
 
       if (tasksError) {
         return NextResponse.json({ success: false, error: tasksError.message }, { status: 400 });
       }
 
-      // Get unique projects from invoiced tasks
+      // Get unique projects from invoiced tasks (filter out null project_id)
       const projectMap = new Map();
-      (invoicedTasks || []).forEach((task: any) => {
-        if (task.project && task.project_id && !projectMap.has(task.project_id)) {
-          projectMap.set(task.project_id, task.project);
-        }
-      });
+      (invoicedTasks || [])
+        .filter((task: any) => task.project_id && task.project)
+        .forEach((task: any) => {
+          if (!projectMap.has(task.project_id)) {
+            projectMap.set(task.project_id, task.project);
+          }
+        });
 
       // Also get projects with status completed/cancelled
       const { data: completedProjects, error: completedError } = await supabase

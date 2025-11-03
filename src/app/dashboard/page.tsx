@@ -267,9 +267,12 @@ export default function DashboardPage() {
   const getCalendarTasks = () => {
     let calendarTasks = allActiveTasks;
     
+    // Exclude tasks with status "sent_to_client" from calendar
+    calendarTasks = calendarTasks.filter(task => task.status !== "sent_to_client");
+    
     // Filter by selected user if one is selected
     if (selectedUserId) {
-      calendarTasks = allActiveTasks.filter(task => {
+      calendarTasks = calendarTasks.filter(task => {
         // Check if task has assignees and if selected user is among them
         // Also check assignee_id for backward compatibility
         if (task.assignee_id === selectedUserId) {

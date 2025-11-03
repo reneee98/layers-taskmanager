@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth";
 import { logActivity, ActivityTypes, getUserDisplayName, getTaskTitle } from "@/lib/activity-logger";
-import { getUserWorkspaceId } from "@/lib/auth/workspace";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export async function GET(
   request: NextRequest,
@@ -83,8 +83,12 @@ export async function POST(
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
     
-    // Get user's workspace ID - temporary hardcoded for testing
-    const workspaceId = "6dd7d31a-3d36-4d92-a8eb-7146703a00b0";
+    // Get user's workspace ID from request
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
+    
     console.log("Workspace ID:", workspaceId);
     
     const supabase = createClient();

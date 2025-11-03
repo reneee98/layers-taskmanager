@@ -96,7 +96,70 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Check if all tasks in the project are now invoiced
+      const { data: allProjectTasks, error: allTasksError } = await supabase
+        .from("tasks")
+        .select("id, status")
+        .eq("project_id", id)
+        .eq("workspace_id", workspaceId);
+
+      if (!allTasksError && allProjectTasks && allProjectTasks.length > 0) {
+        // Check if there are any tasks that are not invoiced or cancelled
+        // We exclude cancelled tasks because they don't count as active work
+        const activeStatuses = ['todo', 'in_progress', 'review', 'done', 'sent_to_client'];
+        const hasActiveTasks = allProjectTasks.some(
+          task => activeStatuses.includes(task.status)
+        );
+
+        // If no active tasks remain (all are invoiced or cancelled), mark project as completed
+        if (!hasActiveTasks) {
+          const { error: projectUpdateError } = await supabase
+            .from("projects")
+            .update({ status: "completed" })
+            .eq("id", id)
+            .eq("workspace_id", workspaceId);
+
+          if (projectUpdateError) {
+            console.error("Error updating project status:", projectUpdateError);
+            // Don't fail the request if project update fails
+          } else {
+            console.log(`[Mark Invoiced] Project ${id} marked as completed - all tasks are invoiced or cancelled`);
+          }
+        } else {
+          const activeTaskStatuses = allProjectTasks.filter(t => activeStatuses.includes(t.status)).map(t => t.status);
+          console.log(`[Mark Invoiced] Project ${id} not marked as completed - has ${allProjectTasks.length} total tasks, active tasks: ${activeTaskStatuses.join(', ')}`);
+        }
+      } else if (!allTasksError && (!allProjectTasks || allProjectTasks.length === 0)) {
+        // Project has no tasks, mark as completed anyway
+        const { error: projectUpdateError } = await supabase
+          .from("projects")
+          .update({ status: "completed" })
+          .eq("id", id)
+          .eq("workspace_id", workspaceId);
+
+        if (projectUpdateError) {
+          console.error("Error updating project status:", projectUpdateError);
+        } else {
+          console.log(`Project ${id} marked as completed - has no tasks`);
+        }
+      }
+
     } else if (type === 'task') {
+      // Get the task to find its project_id
+      const { data: task, error: taskFetchError } = await supabase
+        .from("tasks")
+        .select("project_id")
+        .eq("id", id)
+        .eq("workspace_id", workspaceId)
+        .single();
+
+      if (taskFetchError || !task) {
+        return NextResponse.json(
+          { success: false, error: "Úloha nebola nájdená" },
+          { status: 404 }
+        );
+      }
+
       // Mark single task as invoiced (filtered by workspace)
       const { error: updateError } = await supabase
         .from("tasks")
@@ -113,6 +176,41 @@ export async function POST(request: NextRequest) {
           { success: false, error: updateError.message },
           { status: 500 }
         );
+      }
+
+      // If task belongs to a project, check if all tasks in that project are now invoiced
+      if (task.project_id) {
+        const { data: allProjectTasks, error: allTasksError } = await supabase
+          .from("tasks")
+          .select("id, status")
+          .eq("project_id", task.project_id)
+          .eq("workspace_id", workspaceId);
+
+        if (!allTasksError && allProjectTasks) {
+          // Check if there are any tasks that are not invoiced or cancelled
+          const activeStatuses = ['todo', 'in_progress', 'review', 'done', 'sent_to_client'];
+          const hasActiveTasks = allProjectTasks.some(
+            t => activeStatuses.includes(t.status)
+          );
+
+          // If no active tasks remain (all are invoiced or cancelled), mark project as completed
+          if (!hasActiveTasks && allProjectTasks.length > 0) {
+            const { error: projectUpdateError } = await supabase
+              .from("projects")
+              .update({ status: "completed" })
+              .eq("id", task.project_id)
+              .eq("workspace_id", workspaceId);
+
+            if (projectUpdateError) {
+              console.error("Error updating project status:", projectUpdateError);
+              // Don't fail the request if project update fails
+            } else {
+              console.log(`Project ${task.project_id} marked as completed after task ${id} was invoiced`);
+            }
+          } else if (hasActiveTasks) {
+            console.log(`Project ${task.project_id} not marked as completed - has active tasks: ${allProjectTasks.filter(t => activeStatuses.includes(t.status)).map(t => t.status).join(', ')}`);
+          }
+        }
       }
 
     } else {

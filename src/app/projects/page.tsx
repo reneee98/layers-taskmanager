@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { Plus, MoreHorizontal, Pencil, Trash2, Circle, Play, Eye, CheckCircle, XCircle, Pause, Send, ChevronDown, Check, Archive, FolderOpen } from "lucide-react";
@@ -85,7 +85,7 @@ function ProjectsPageContent() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [showArchived, setShowArchived] = useState(false);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.append("status", statusFilter);
@@ -97,6 +97,7 @@ function ProjectsPageContent() {
       
       const [activeResponse, archivedResponse] = await Promise.all([
         fetch(`/api/projects?${activeParams}`),
+        // Fetch archived projects - same as invoices: projects with invoiced tasks
         fetch(`/api/projects?status=completed,cancelled`)
       ]);
 
@@ -107,9 +108,13 @@ function ProjectsPageContent() {
         setProjects(activeResult.data);
       }
       if (archivedResult.success) {
+        console.log('[Projects Page] Archived projects received:', archivedResult.data);
         setArchivedProjects(archivedResult.data);
+      } else {
+        console.error('[Projects Page] Error loading archived projects:', archivedResult);
       }
     } catch (error) {
+      console.error("Error fetching projects:", error);
       toast({
         title: "Chyba",
         description: "Nepodarilo sa načítať projekty",
@@ -118,7 +123,7 @@ function ProjectsPageContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [statusFilter, clientFilter]);
 
   const fetchClients = async () => {
     const response = await fetch("/api/clients");
@@ -131,11 +136,19 @@ function ProjectsPageContent() {
   useEffect(() => {
     fetchProjects();
     fetchClients();
-  }, []);
+  }, [fetchProjects]);
 
+  // Refresh projects when window gains focus (e.g., after marking invoice as archived)
   useEffect(() => {
-    fetchProjects();
-  }, [statusFilter, clientFilter]);
+    const handleFocus = () => {
+      fetchProjects();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchProjects]);
 
   const handleEditProject = (project: Project) => {
     setEditingProject(project);

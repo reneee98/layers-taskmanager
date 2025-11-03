@@ -4,6 +4,7 @@ import { projectSchema } from "@/lib/validations/project";
 import { validateSchema } from "@/lib/zod-helpers";
 import { getServerUser } from "@/lib/auth";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
+import { generateProjectCode, generateUniqueProjectCode } from "@/lib/generate-project-code";
 
 export const dynamic = "force-dynamic";
 
@@ -30,72 +31,127 @@ export async function GET(request: NextRequest) {
     const clientId = searchParams.get("client_id");
     const excludeStatus = searchParams.get("exclude_status");
 
-    // First, get all projects filtered by workspace
-    let query = supabase
-      .from("projects")
-      .select("*, client:clients(*)")
-      .eq("workspace_id", workspaceId)
-      .order("created_at", { ascending: false });
+    // Check if we're requesting archived projects (completed/cancelled)
+    const isArchivedRequest = status && (
+      status === 'completed' || 
+      status === 'cancelled' || 
+      (status.includes(',') && status.split(',').map(s => s.trim()).every(s => s === 'completed' || s === 'cancelled'))
+    );
 
-    if (status) {
-      // Handle multiple statuses separated by comma
-      if (status.includes(',')) {
-        const statuses = status.split(',');
-        query = query.in("status", statuses);
-      } else {
-        query = query.eq("status", status);
+    let finalProjects: any[] = [];
+
+    // For archived projects, use same logic as /api/invoices/archived - get projects with invoiced tasks
+    if (isArchivedRequest) {
+      // Get all invoiced tasks (same as in /api/invoices/archived)
+      const { data: invoicedTasks, error: tasksError } = await supabase
+        .from("tasks")
+        .select(`
+          project_id,
+          project:projects(*, client:clients(*))
+        `)
+        .eq("workspace_id", workspaceId)
+        .eq("status", "invoiced")
+        .not("project_id", "is", null);
+
+      if (tasksError) {
+        return NextResponse.json({ success: false, error: tasksError.message }, { status: 400 });
       }
-    }
 
-    // Note: We'll handle excludeStatus filtering after the query
+      // Get unique projects from invoiced tasks
+      const projectMap = new Map();
+      (invoicedTasks || []).forEach((task: any) => {
+        if (task.project && task.project_id && !projectMap.has(task.project_id)) {
+          projectMap.set(task.project_id, task.project);
+        }
+      });
 
-    if (clientId) {
-      query = query.eq("client_id", clientId);
-    }
+      // Also get projects with status completed/cancelled
+      const { data: completedProjects, error: completedError } = await supabase
+        .from("projects")
+        .select("*, client:clients(*)")
+        .eq("workspace_id", workspaceId)
+        .in("status", ["completed", "cancelled"]);
 
-    const { data: allProjects, error } = await query;
+      if (!completedError && completedProjects) {
+        completedProjects.forEach((project: any) => {
+          if (!projectMap.has(project.id)) {
+            projectMap.set(project.id, project);
+          }
+        });
+      }
 
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
-    }
+      finalProjects = Array.from(projectMap.values());
 
-    if (!allProjects || allProjects.length === 0) {
-      return NextResponse.json({ success: true, data: [] });
-    }
+      // Apply client filter if specified
+      if (clientId) {
+        finalProjects = finalProjects.filter((p: any) => p.client_id === clientId);
+      }
 
-    // Apply excludeStatus filtering if needed
-    let filteredProjects = allProjects;
-    if (excludeStatus) {
-      const statusesToExclude = excludeStatus.includes(',') 
-        ? excludeStatus.split(',') 
-        : [excludeStatus];
-      filteredProjects = allProjects.filter(project => 
-        !statusesToExclude.includes(project.status)
+    } else {
+      // For active projects, use normal filtering
+      let query = supabase
+        .from("projects")
+        .select("*, client:clients(*)")
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: false });
+
+      if (status) {
+        // Handle multiple statuses separated by comma
+        if (status.includes(',')) {
+          const statuses = status.split(',');
+          query = query.in("status", statuses);
+        } else {
+          query = query.eq("status", status);
+        }
+      }
+
+      if (clientId) {
+        query = query.eq("client_id", clientId);
+      }
+
+      const { data: allProjects, error } = await query;
+
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      }
+
+      if (!allProjects || allProjects.length === 0) {
+        return NextResponse.json({ success: true, data: [] });
+      }
+
+      // Apply excludeStatus filtering if needed
+      let filteredProjects = allProjects;
+      if (excludeStatus) {
+        const statusesToExclude = excludeStatus.includes(',') 
+          ? excludeStatus.split(',') 
+          : [excludeStatus];
+        filteredProjects = allProjects.filter(project => 
+          !statusesToExclude.includes(project.status)
+        );
+      }
+
+      // Filter out projects with invoiced tasks (only for active projects)
+      const { data: invoicedTasks, error: tasksError } = await supabase
+        .from("tasks")
+        .select("project_id")
+        .eq("workspace_id", workspaceId)
+        .eq("status", "invoiced");
+
+      if (tasksError) {
+        return NextResponse.json({ success: false, error: tasksError.message }, { status: 400 });
+      }
+
+      const invoicedProjectIds = new Set(
+        (invoicedTasks || []).map(task => task.project_id).filter(Boolean)
+      );
+
+      finalProjects = filteredProjects.filter(project => 
+        !invoicedProjectIds.has(project.id)
       );
     }
 
-    // Get all invoiced tasks
-    const { data: invoicedTasks, error: tasksError } = await supabase
-      .from("tasks")
-      .select("project_id")
-      .eq("status", "invoiced");
-
-    if (tasksError) {
-      return NextResponse.json({ success: false, error: tasksError.message }, { status: 400 });
-    }
-
-    // Get project IDs that have invoiced tasks
-    const invoicedProjectIds = new Set(
-      (invoicedTasks || []).map(task => task.project_id)
-    );
-
-    // Filter out projects that have invoiced tasks
-    const activeProjects = filteredProjects.filter(project => 
-      !invoicedProjectIds.has(project.id)
-    );
-
     // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
-    const projectsWithHourlyRate = activeProjects.map(project => ({
+    const projectsWithHourlyRate = finalProjects.map(project => ({
       ...project,
       hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
       fixed_fee: project.budget_cents ? project.budget_cents / 100 : null
@@ -139,24 +195,54 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient();
 
-    // Check if code is unique within workspace
-    const { data: existing } = await supabase
+    // Get all existing project codes in this workspace to ensure uniqueness
+    const { data: existingProjects, error: fetchError } = await supabase
       .from("projects")
-      .select("id")
-      .eq("code", validation.data.code)
-      .eq("workspace_id", workspaceId)
-      .single();
+      .select("code")
+      .eq("workspace_id", workspaceId);
 
-    if (existing) {
+    if (fetchError) {
       return NextResponse.json(
-        { success: false, error: "Kód projektu už existuje" },
-        { status: 400 }
+        { success: false, error: "Chyba pri načítaní existujúcich projektov" },
+        { status: 500 }
       );
+    }
+
+    const existingCodes = (existingProjects || []).map(p => p.code).filter(Boolean) as string[];
+
+    // Check if provided code already exists
+    let projectCode = validation.data.code;
+    
+    if (existingCodes.includes(projectCode)) {
+      // Code already exists, generate a unique one automatically
+      if (validation.data.name) {
+        // Generate unique code based on project name
+        projectCode = await generateUniqueProjectCode(validation.data.name, existingCodes);
+      } else {
+        // If no name, try to generate from existing code pattern
+        const baseCode = projectCode.split('-')[0];
+        const pattern = new RegExp(`^${baseCode}-(\\d+)$`);
+        let maxNumber = 0;
+
+        for (const code of existingCodes) {
+          const match = code.match(pattern);
+          if (match) {
+            const number = parseInt(match[1], 10);
+            if (number > maxNumber) {
+              maxNumber = number;
+            }
+          }
+        }
+
+        const nextNumber = maxNumber + 1;
+        projectCode = `${baseCode}-${nextNumber.toString().padStart(3, "0")}`;
+      }
     }
 
     // Convert hourly_rate to hourly_rate_cents and fixed_fee to budget_cents
     const projectData = {
       ...validation.data,
+      code: projectCode, // Use the generated unique code
       workspace_id: workspaceId,
       client_id: validation.data.client_id || null,
       hourly_rate_cents: validation.data.hourly_rate ? Math.round(validation.data.hourly_rate * 100) : null,

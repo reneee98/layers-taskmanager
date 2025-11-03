@@ -63,7 +63,59 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Check if project should be reactivated (has tasks that are not all invoiced)
+      const { data: allProjectTasks, error: allTasksError } = await supabase
+        .from("tasks")
+        .select("id, status")
+        .eq("project_id", id)
+        .eq("workspace_id", workspaceId);
+
+      if (!allTasksError && allProjectTasks) {
+        const hasNonInvoicedTasks = allProjectTasks.some(
+          task => task.status !== "invoiced" && task.status !== "cancelled"
+        );
+
+        // If project has non-invoiced tasks, reactivate it
+        if (hasNonInvoicedTasks) {
+          const { data: project } = await supabase
+            .from("projects")
+            .select("status")
+            .eq("id", id)
+            .eq("workspace_id", workspaceId)
+            .single();
+
+          // Only reactivate if project is currently completed
+          if (project && project.status === "completed") {
+            const { error: projectUpdateError } = await supabase
+              .from("projects")
+              .update({ status: "active" })
+              .eq("id", id)
+              .eq("workspace_id", workspaceId);
+
+            if (projectUpdateError) {
+              console.error("Error reactivating project:", projectUpdateError);
+              // Don't fail the request if project update fails
+            }
+          }
+        }
+      }
+
     } else if (type === 'task') {
+      // Get the task to find its project_id
+      const { data: task, error: taskFetchError } = await supabase
+        .from("tasks")
+        .select("project_id")
+        .eq("id", id)
+        .eq("workspace_id", workspaceId)
+        .single();
+
+      if (taskFetchError || !task) {
+        return NextResponse.json(
+          { success: false, error: "Úloha nebola nájdená" },
+          { status: 404 }
+        );
+      }
+
       // Restore single task back to done (filtered by workspace)
       const { error: updateError } = await supabase
         .from("tasks")
@@ -80,6 +132,45 @@ export async function POST(request: NextRequest) {
           { success: false, error: updateError.message },
           { status: 500 }
         );
+      }
+
+      // If task belongs to a project, check if project should be reactivated
+      if (task.project_id) {
+        const { data: allProjectTasks, error: allTasksError } = await supabase
+          .from("tasks")
+          .select("id, status")
+          .eq("project_id", task.project_id)
+          .eq("workspace_id", workspaceId);
+
+        if (!allTasksError && allProjectTasks) {
+          const hasNonInvoicedTasks = allProjectTasks.some(
+            t => t.status !== "invoiced" && t.status !== "cancelled"
+          );
+
+          // If project has non-invoiced tasks, reactivate it
+          if (hasNonInvoicedTasks) {
+            const { data: project } = await supabase
+              .from("projects")
+              .select("status")
+              .eq("id", task.project_id)
+              .eq("workspace_id", workspaceId)
+              .single();
+
+            // Only reactivate if project is currently completed
+            if (project && project.status === "completed") {
+              const { error: projectUpdateError } = await supabase
+                .from("projects")
+                .update({ status: "active" })
+                .eq("id", task.project_id)
+                .eq("workspace_id", workspaceId);
+
+              if (projectUpdateError) {
+                console.error("Error reactivating project:", projectUpdateError);
+                // Don't fail the request if project update fails
+              }
+            }
+          }
+        }
       }
 
     } else {

@@ -341,6 +341,34 @@ export default function DashboardPage() {
     }
   }, [showAllActivities]);
 
+  // Ensure calendar events are visible - especially important for Vercel SSR
+  useEffect(() => {
+    if (calendarView === "month") {
+      const ensureEventsVisible = () => {
+        const events = document.querySelectorAll('.rbc-event');
+        events.forEach((event: any) => {
+          if (event) {
+            event.style.display = 'block';
+            event.style.visibility = 'visible';
+            event.style.opacity = '1';
+            event.style.height = 'auto';
+            event.style.minHeight = '20px';
+          }
+        });
+      };
+
+      // Run immediately and after a delay to catch SSR hydration
+      ensureEventsVisible();
+      const timeout = setTimeout(ensureEventsVisible, 100);
+      const interval = setInterval(ensureEventsVisible, 500);
+
+      return () => {
+        clearTimeout(timeout);
+        clearInterval(interval);
+      };
+    }
+  }, [calendarView, calendarMonth, calendarYear, calendarTasks.length]);
+
   // Style "+XY more" buttons in calendar
   useEffect(() => {
     if (calendarView === "month") {
@@ -1440,28 +1468,47 @@ export default function DashboardPage() {
                       justify-content: center;
                       border-radius: 50%;
                     }
-                    .rbc-event,
+                    .rbc-event {
+                      border: none !important;
+                      border-radius: 6px !important;
+                      padding: 2px 8px !important;
+                      font-size: 13px !important;
+                      font-weight: 500 !important;
+                      margin: 2px 1px !important;
+                      margin-top: 2px !important;
+                      cursor: pointer !important;
+                      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                      overflow: hidden !important;
+                      text-overflow: ellipsis !important;
+                      white-space: nowrap !important;
+                      line-height: 1.4 !important;
+                      height: auto !important;
+                      min-height: 20px !important;
+                      display: block !important;
+                      visibility: visible !important;
+                      opacity: 1 !important;
+                      position: relative !important;
+                    }
                     .rbc-event-content,
                     .rbc-event-label {
-                      border: none;
-                      border-radius: 2px;
-                      padding: 0 2px !important;
-                      font-size: 9px !important;
-                      font-weight: 500;
-                      margin: 1px;
-                      margin-top: 2px;
-                      cursor: pointer;
-                      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                      white-space: nowrap;
-                      line-height: 1.2;
-                      height: 13px;
-                      position: relative;
-                      top: -2px;
+                      border: none !important;
+                      border-radius: 2px !important;
+                      padding: 0 !important;
+                      font-size: 13px !important;
+                      font-weight: 500 !important;
+                      margin: 0 !important;
+                      cursor: pointer !important;
+                      overflow: hidden !important;
+                      text-overflow: ellipsis !important;
+                      white-space: nowrap !important;
+                      line-height: 1.4 !important;
+                      height: auto !important;
+                      display: block !important;
+                      visibility: visible !important;
+                      opacity: 1 !important;
                     }
                     .rbc-event:hover {
-                      opacity: 0.85;
+                      opacity: 0.85 !important;
                       transform: translateY(-1px);
                       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
                     }
@@ -1668,18 +1715,6 @@ export default function DashboardPage() {
                     }
                     .rbc-week-view .rbc-day-bg {
                       min-height: 120px;
-                    }
-                    .rbc-event {
-                      font-size: 12px !important;
-                      padding: 4px 8px !important;
-                      height: auto !important;
-                      line-height: 1.4 !important;
-                    }
-                    .rbc-event-label {
-                      font-size: 12px !important;
-                    }
-                    .rbc-event-content {
-                      font-size: 12px !important;
                     }
                   `}</style>
                   <div id="calendar-container" className="h-full">

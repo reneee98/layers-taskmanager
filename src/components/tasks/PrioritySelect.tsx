@@ -72,11 +72,16 @@ export function PrioritySelect({ priority, onPriorityChange, disabled = false }:
           )}
           disabled={disabled}
         >
-          <Badge className={cn("cursor-pointer flex items-center gap-2 px-3 py-1.5 transition-all duration-200", currentPriority.color)}>
+          <div className={cn(
+            "cursor-pointer flex items-center gap-2 px-3 py-2 h-[2.5rem] rounded-md border transition-all duration-200",
+            "text-sm font-medium",
+            currentPriority.color,
+            "hover:opacity-80"
+          )}>
             <IconComponent className={cn("h-4 w-4", currentPriority.iconColor, priority === "urgent" && "animate-pulse")} />
-            <span className="font-medium">{currentPriority.label}</span>
-            <ChevronDown className="h-3 w-3" />
-          </Badge>
+            <span>{currentPriority.label}</span>
+            <ChevronDown className="h-3 w-3 opacity-70" />
+          </div>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48 p-2">

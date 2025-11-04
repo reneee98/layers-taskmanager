@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Bug, CheckCircle2, Circle, Search, Filter, X } from "lucide-react";
+import { Bug, CheckCircle2, Circle, Search, Filter, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -34,6 +34,7 @@ interface BugReport {
     display_name?: string;
     first_name?: string;
     last_name?: string;
+    role?: "owner" | "member" | null;
   };
 }
 
@@ -159,6 +160,39 @@ export default function BugsPage() {
     }
   };
 
+  const handleDelete = async (bugId: string) => {
+    if (!confirm("Naozaj chcete vymazať tento bug report?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/bugs/${bugId}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Nepodarilo sa vymazať bug report");
+      }
+
+      toast({
+        title: "Úspech",
+        description: "Bug report bol vymazaný",
+      });
+
+      // Remove from local state
+      setBugs(bugs.filter(bug => bug.id !== bugId));
+    } catch (error) {
+      console.error("Error deleting bug:", error);
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa vymazať bug report",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getUserDisplayName = (bug: BugReport) => {
     if (bug.user) {
       if (bug.user.first_name || bug.user.last_name) {
@@ -236,23 +270,24 @@ export default function BugsPage() {
           <TableHeader>
             <TableRow className="bg-muted">
               <TableHead className="w-[50px]"></TableHead>
+              <TableHead className="w-[100px] text-muted-foreground font-semibold">Status</TableHead>
               <TableHead className="text-muted-foreground font-semibold">Popis</TableHead>
               <TableHead className="text-muted-foreground font-semibold">URL</TableHead>
               <TableHead className="text-muted-foreground font-semibold">Používateľ</TableHead>
               <TableHead className="text-muted-foreground font-semibold">Dátum</TableHead>
-              <TableHead className="w-[100px] text-muted-foreground font-semibold">Status</TableHead>
+              <TableHead className="w-[100px] text-muted-foreground font-semibold">Akcie</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                   Načítavam...
                 </TableCell>
               </TableRow>
             ) : filteredBugs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
                     <Bug className="h-12 w-12 opacity-50" />
                     <p className="text-lg font-medium">Žiadne bug reporty</p>
@@ -288,6 +323,18 @@ export default function BugsPage() {
                       )}
                     </Button>
                   </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={bug.is_resolved ? "default" : "secondary"}
+                      className={cn(
+                        bug.is_resolved
+                          ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                          : "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
+                      )}
+                    >
+                      {bug.is_resolved ? "Vyriešený" : "Nevyriešený"}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="max-w-md">
                     <p className="text-sm font-medium text-foreground line-clamp-2">
                       {bug.description}
@@ -305,9 +352,16 @@ export default function BugsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      <p className="font-medium text-foreground">{getUserDisplayName(bug)}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-foreground">{getUserDisplayName(bug)}</p>
+                        {bug.user?.role && (
+                          <Badge variant="outline" className="text-xs">
+                            {bug.user.role === "owner" ? "Majiteľ" : "Člen"}
+                          </Badge>
+                        )}
+                      </div>
                       {bug.user?.email && (
-                        <p className="text-xs text-muted-foreground">{bug.user.email}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{bug.user.email}</p>
                       )}
                     </div>
                   </TableCell>
@@ -315,16 +369,15 @@ export default function BugsPage() {
                     {format(new Date(bug.created_at), "PPp", { locale: sk })}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={bug.is_resolved ? "default" : "secondary"}
-                      className={cn(
-                        bug.is_resolved
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-                          : "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
-                      )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(bug.id)}
+                      className="h-8 w-8 hover:bg-red-50"
+                      title="Vymazať bug report"
                     >
-                      {bug.is_resolved ? "Vyriešený" : "Nevyriešený"}
-                    </Badge>
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))

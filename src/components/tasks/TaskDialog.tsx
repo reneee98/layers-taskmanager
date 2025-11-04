@@ -23,6 +23,8 @@ import { toast } from "@/hooks/use-toast";
 import type { Task, Project } from "@/types/database";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { StatusSelect } from "@/components/tasks/StatusSelect";
+import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { X } from "lucide-react";
 
 interface TaskDialogProps {
@@ -52,6 +54,7 @@ export function TaskDialog({
   const [projects, setProjects] = useState<Project[]>([]);
   const [workspaceUsers, setWorkspaceUsers] = useState<Array<{ id: string; display_name: string; email: string; role: string }>>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+  const [isBudgetAutoCalculated, setIsBudgetAutoCalculated] = useState(false);
 
   useEffect(() => {
     if (task) {
@@ -64,6 +67,8 @@ export function TaskDialog({
       setBudgetAmount(task.budget_cents ? (task.budget_cents / 100).toString() : "");
       setDueDate(task.due_date || "");
       setSelectedProjectId(task.project_id);
+      // Budget was loaded from task, not auto-calculated
+      setIsBudgetAutoCalculated(false);
     } else {
       resetForm();
     }
@@ -101,6 +106,42 @@ export function TaskDialog({
     }
   }, [open]);
 
+  // Auto-calculate budget when estimated_hours or project changes
+  useEffect(() => {
+    if (estimatedHours && estimatedHours.trim() !== "" && selectedProjectId) {
+      const hours = parseFloat(estimatedHours);
+      if (hours > 0 && !isNaN(hours)) {
+        const project = projects.find(p => p.id === selectedProjectId);
+        if (project?.hourly_rate_cents) {
+          const hourlyRate = project.hourly_rate_cents / 100;
+          const calculatedBudget = hours * hourlyRate;
+          
+          // Only auto-calculate if:
+          // 1. It's a new task (no task), OR
+          // 2. It's an existing task but budget was previously auto-calculated
+          if (!task || isBudgetAutoCalculated) {
+            setBudgetAmount(calculatedBudget.toFixed(2));
+            setIsBudgetAutoCalculated(true);
+          }
+        }
+      } else {
+        if (isBudgetAutoCalculated) {
+          setBudgetAmount("");
+          setIsBudgetAutoCalculated(false);
+        }
+      }
+    } else {
+      // If estimated hours is cleared or project is not selected, clear budget
+      if (!estimatedHours || estimatedHours.trim() === "" || !selectedProjectId) {
+        // Only clear if it was auto-calculated
+        if (isBudgetAutoCalculated) {
+          setBudgetAmount("");
+          setIsBudgetAutoCalculated(false);
+        }
+      }
+    }
+  }, [estimatedHours, selectedProjectId, projects, task, isBudgetAutoCalculated]);
+
   const resetForm = () => {
     setTitle("");
     setDescription("");
@@ -111,6 +152,7 @@ export function TaskDialog({
     setDueDate("");
     setSelectedProjectId(projectId || null);
     setSelectedAssignees([]);
+    setIsBudgetAutoCalculated(false);
   };
   
   const getInitials = (name: string) => {
@@ -158,11 +200,13 @@ export function TaskDialog({
         payload.estimated_hours = parseFloat(estimatedHours);
       }
 
-      // Only include budget_cents if it has a value (individual task budget in cents)
-      if (budgetAmount && budgetAmount.trim() !== "") {
+      // Only include budget_cents if it was manually set (not auto-calculated)
+      // If budget was auto-calculated, don't send it - let API calculate it from estimated_hours
+      if (budgetAmount && budgetAmount.trim() !== "" && !isBudgetAutoCalculated) {
         const budgetValue = parseFloat(budgetAmount);
         payload.budget_cents = Math.round(budgetValue * 100);
       }
+      // If budget was auto-calculated, don't send budget_cents - API will calculate it automatically
 
       const method = task ? "PATCH" : "POST";
       const url = task ? `/api/tasks/${task.id}` : `/api/tasks`;
@@ -278,33 +322,18 @@ export function TaskDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select value={status} onValueChange={(val) => setStatus(val as Task["status"])}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todo">To Do</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="review">Review</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
+                <StatusSelect 
+                  status={status} 
+                  onStatusChange={(val) => setStatus(val as Task["status"])}
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="priority">Priorita</Label>
-                <Select value={priority} onValueChange={(val) => setPriority(val as Task["priority"])}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
+                <PrioritySelect 
+                  priority={priority} 
+                  onPriorityChange={(val) => setPriority(val as Task["priority"])}
+                />
               </div>
             </div>
 
@@ -330,11 +359,14 @@ export function TaskDialog({
                   step="0.01"
                   min="0"
                   value={budgetAmount}
-                  onChange={(e) => setBudgetAmount(e.target.value)}
+                  onChange={(e) => {
+                    setBudgetAmount(e.target.value);
+                    setIsBudgetAutoCalculated(false); // Manual entry, not auto-calculated
+                  }}
                   placeholder="Napr. 5000"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Nechajte prázdne pre kalkuláciu z hodín
+                  {isBudgetAutoCalculated ? "Automaticky vypočítané z odhadu hodín" : "Nechajte prázdne pre kalkuláciu z hodín"}
                 </p>
               </div>
             </div>

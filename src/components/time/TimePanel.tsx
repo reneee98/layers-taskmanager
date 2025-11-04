@@ -6,21 +6,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Play, Square, Clock, Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Play, Square, Clock, Trash2, Calendar, User, Timer, Euro, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useTimer } from "@/contexts/TimerContext";
 import { formatHours, formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface TimeEntry {
   id: string;
@@ -66,6 +72,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
   const [hourlyRate, setHourlyRate] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
+  const [isManualEntryOpen, setIsManualEntryOpen] = useState(false);
   
   // Use global timer
   const { activeTimer, currentDuration, startTimer, stopTimer } = useTimer();
@@ -92,14 +99,12 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         const response = await fetch(`/api/tasks/${taskId}/time`);
         const result = await response.json();
         if (result.success && result.data) {
-          console.log("Time entries for task", taskId, ":", result.data);
           allEntries.push(...result.data);
         }
       }
 
       // Sort by created_at descending (newest first)
       allEntries.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      console.log("All time entries:", allEntries);
       setTimeEntries(allEntries);
     } catch (error) {
       console.error("Failed to fetch time entries:", error);
@@ -115,8 +120,6 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
 
 
   const handleStartTimer = async () => {
-    console.log("TimePanel: handleStartTimer called", { selectedTaskId, tasks });
-    
     if (!selectedTaskId) {
       toast({
         title: "Chyba",
@@ -127,9 +130,6 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
     }
     
     const selectedTask = tasks.find(t => t.id === selectedTaskId);
-    console.log("TimePanel: selectedTask found", selectedTask);
-    console.log("TimePanel: project_name", selectedTask?.project_name);
-    console.log("TimePanel: project_id", selectedTask?.project_id);
     
     if (selectedTask) {
       // If there's an active timer for a different task, save it first
@@ -176,8 +176,6 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
               if (onTimeEntryAdded) {
                 onTimeEntryAdded();
               }
-            } else {
-              console.error("Failed to save previous timer:", result.error);
             }
           } catch (error) {
             console.error("Error saving previous timer:", error);
@@ -193,7 +191,6 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         await stopTimer();
       }
       
-      console.log("TimePanel: Calling startTimer", { selectedTaskId, title: selectedTask.title, projectId: selectedTask.project_id || projectId });
       await startTimer(selectedTaskId, selectedTask.title, selectedTask.project_id || projectId, selectedTask.project_name || "Neznámy projekt");
       toast({
         title: "Časovač spustený",
@@ -208,22 +205,18 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
     const trackedHours = Number((currentDuration / 3600).toFixed(3));
 
     if (trackedHours > 0) {
-      // Vypočítaj start a end time pre časovač - rovnaká logika ako v GlobalTimer
       const now = new Date();
-      const endTime = now.toTimeString().slice(0, 8); // HH:mm:ss format
-      const startTime = new Date(now.getTime() - (currentDuration * 1000)).toTimeString().slice(0, 8); // HH:mm:ss format
+      const endTime = now.toTimeString().slice(0, 8);
+      const startTime = new Date(now.getTime() - (currentDuration * 1000)).toTimeString().slice(0, 8);
       
       try {
-        // Automaticky zapísať čas do úlohy - rovnaká logika ako v GlobalTimer
         const payload = {
           hours: trackedHours,
           date: now.toISOString().split("T")[0],
-          description: "", // Prázdna poznámka - používateľ si ju dopíše sám
+          description: "",
           start_time: startTime,
           end_time: endTime,
         };
-
-        console.log("TimePanel: Sending time entry data:", payload);
 
         const response = await fetch(`/api/tasks/${activeTimer.task_id}/time`, {
           method: "POST",
@@ -232,7 +225,6 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         });
 
         const result = await response.json();
-        console.log("TimePanel: API response:", result);
 
         if (result.success) {
           toast({
@@ -240,10 +232,8 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
             description: `Zapísaných ${formatTime(currentDuration)} do úlohy.`,
           });
 
-          // Refresh entries
           fetchTimeEntries();
           
-          // Notify parent component
           if (onTimeEntryAdded) {
             onTimeEntryAdded();
           }
@@ -251,7 +241,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
           throw new Error(result.error);
         }
       } catch (error) {
-        console.error("TimePanel: Error saving time entry:", error);
+        console.error("Error saving time entry:", error);
         toast({
           title: "Chyba",
           description: error instanceof Error ? error.message : "Nepodarilo sa uložiť čas do úlohy",
@@ -320,6 +310,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         setHours("");
         setDescription("");
         setHourlyRate("");
+        setIsManualEntryOpen(false);
 
         // Refresh entries
         fetchTimeEntries();
@@ -341,7 +332,6 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
       setIsLoading(false);
     }
   };
-
 
   const handleDeleteEntry = async (id: string) => {
     if (!confirm("Naozaj chcete vymazať tento záznam?")) return;
@@ -391,10 +381,8 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
       const result = await response.json();
 
       if (result.success) {
-        // Refresh entries to get updated data
         fetchTimeEntries();
         
-        // Notify parent component
         if (onTimeEntryAdded) {
           onTimeEntryAdded();
         }
@@ -422,81 +410,90 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
     return tasks.find((t) => t.id === taskId)?.title || "—";
   };
 
+  const formatTimeRange = (entry: TimeEntry) => {
+    if (entry.start_time && entry.end_time) {
+      if (typeof entry.start_time === 'string' && typeof entry.end_time === 'string') {
+        if (entry.start_time.includes(':') && entry.end_time.includes(':')) {
+          const startTime = entry.start_time.split('.')[0];
+          const endTime = entry.end_time.split('.')[0];
+          return `${startTime} - ${endTime}`;
+        }
+      }
+      
+      try {
+        const startDate = new Date(entry.start_time);
+        const endDate = new Date(entry.end_time);
+        if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+          return `${format(startDate, "HH:mm")} - ${format(endDate, "HH:mm")}`;
+        }
+      } catch (error) {
+        console.error("Error formatting times:", error);
+      }
+    }
+    return format(new Date(entry.created_at), "HH:mm");
+  };
+
   const totalHours = timeEntries.reduce((sum, entry) => sum + entry.hours, 0);
   const totalAmount = timeEntries.reduce((sum, entry) => sum + entry.amount, 0);
 
   return (
     <div className="space-y-6">
-      {/* Time Entry Form */}
-      <div className="grid gap-6 md:grid-cols-2">
         {/* Timer Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Timer
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="timer-task">Úloha</Label>
-              <select
-                id="timer-task"
-                value={selectedTaskId}
-                onChange={(e) => setSelectedTaskId(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!!activeTimer && activeTimer.task_id !== selectedTaskId}
-              >
-                {tasks.map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="text-3xl font-mono font-bold">
+      <Card className="bg-card border border-border shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-4">
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Timer className="h-4 w-4" />
+                Časovač
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-4">
+                <div className="text-3xl font-semibold text-foreground tabular-nums">
                 {activeTimer && activeTimer.task_id === selectedTaskId ? formatTimerDisplay(currentDuration) : "00:00:00"}
               </div>
               {activeTimer && activeTimer.task_id === selectedTaskId ? (
-                <Button onClick={handleStopTimer} variant="destructive">
-                  <Square className="h-4 w-4 mr-2" />
-                  Stop
+                  <Button onClick={handleStopTimer} variant="destructive" size="sm" className="gap-2">
+                    <Square className="h-4 w-4" />
+                    Zastaviť
                 </Button>
               ) : (
-                <Button onClick={handleStartTimer}>
-                  <Play className="h-4 w-4 mr-2" />
-                  Start
+                  <Button onClick={handleStartTimer} size="sm" className="gap-2">
+                    <Play className="h-4 w-4" />
+                    Spustiť
                 </Button>
               )}
             </div>
 
             {activeTimer && activeTimer.task_id === selectedTaskId && (
-              <p className="text-sm text-muted-foreground">
-                Časovač beží • {formatHours(currentDuration / 3600)} • Zobrazený v headeri
+                <p className="text-xs text-muted-foreground">
+                  Časovač beží • {formatHours(currentDuration / 3600)}
               </p>
             )}
 
             {activeTimer && activeTimer.task_id !== selectedTaskId && (
-              <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                 Aktívny časovač v inej úlohe: "{activeTimer.task_name}"
               </p>
             )}
-          </CardContent>
-        </Card>
+            </div>
 
-        {/* Manual Entry Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Manuálny zápis</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            {/* Manual Entry Button */}
+            <Dialog open={isManualEntryOpen} onOpenChange={setIsManualEntryOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="h-[calc(2.25rem+2rem+2px)] w-[calc(2.25rem+2rem+2px)] p-0 flex-shrink-0 self-start mt-9">
+                  <Plus className="h-5 w-5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Manuálny zápis času</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="hours">Hodiny *</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="modal-hours" className="text-sm font-medium text-muted-foreground">Hodiny *</Label>
                 <Input
-                  id="hours"
+                        id="modal-hours"
                   type="number"
                   step="0.25"
                   min="0"
@@ -504,26 +501,28 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
                   value={hours}
                   onChange={(e) => setHours(e.target.value)}
                   disabled={isLoading}
+                        className="h-[2.5rem]"
                 />
               </div>
-              <div>
-                <Label htmlFor="date">Dátum *</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="modal-date" className="text-sm font-medium text-muted-foreground">Dátum *</Label>
                 <Input
-                  id="date"
+                        id="modal-date"
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   disabled={isLoading}
+                        className="h-[2.5rem]"
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="manual-hourly-rate">
-                Hodinová sadzba (€) <span className="text-muted-foreground text-xs">- nepovinné</span>
+                  <div className="space-y-2">
+                    <Label htmlFor="modal-hourly-rate" className="text-sm font-medium text-muted-foreground">
+                      Hodinová sadzba (€) <span className="text-muted-foreground text-xs font-normal">- nepovinné</span>
               </Label>
               <Input
-                id="manual-hourly-rate"
+                      id="modal-hourly-rate"
                 type="number"
                 step="0.01"
                 min="0"
@@ -531,159 +530,141 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
                 value={hourlyRate}
                 onChange={(e) => setHourlyRate(e.target.value)}
                 disabled={isLoading}
+                      className="h-[2.5rem]"
               />
             </div>
 
-            <div>
-              <Label htmlFor="description">Poznámka</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="modal-description" className="text-sm font-medium text-muted-foreground">Poznámka</Label>
               <Textarea
-                id="description"
+                      id="modal-description"
                 placeholder="Čo ste robili..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={isLoading}
                 rows={3}
+                      className="resize-none"
               />
             </div>
 
+                  <div className="flex justify-end gap-3 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsManualEntryOpen(false)}
+                      disabled={isLoading}
+                    >
+                      Zrušiť
+                    </Button>
             <Button
               onClick={handleManualEntry}
               disabled={isLoading || !hours}
-              className="w-full"
             >
               {isLoading ? "Ukladám..." : "Pridať záznam"}
             </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
           </CardContent>
         </Card>
-      </div>
 
       {/* Time Entries List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Záznamy času</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Dátum</TableHead>
-                  <TableHead>Čas</TableHead>
-                  <TableHead>Úloha</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead className="text-right">Trvanie</TableHead>
-                  <TableHead className="text-right">Sadzba</TableHead>
-                  <TableHead className="text-right">Subtotal</TableHead>
-                  <TableHead>Poznámka</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {timeEntries.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                      Žiadne záznamy
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  timeEntries.map((entry) => (
-                    <TableRow key={entry.id} className="group">
-                      <TableCell>{format(new Date(entry.date), "dd.MM.yyyy")}</TableCell>
-                      <TableCell className="text-sm font-mono">
-                        {(() => {
-                          // Kontrola či existujú časy
-                          if (entry.start_time && entry.end_time) {
-                            // Zobraz časy priamo ak sú v správnom formáte
-                            if (typeof entry.start_time === 'string' && typeof entry.end_time === 'string') {
-                              // Ak sú časy v formáte HH:mm:ss alebo HH:mm:ss.xxx
-                              if (entry.start_time.includes(':') && entry.end_time.includes(':')) {
-                                const startTime = entry.start_time.split('.')[0]; // Odstráň milisekundy ak existujú
-                                const endTime = entry.end_time.split('.')[0]; // Odstráň milisekundy ak existujú
-                                return `${startTime} - ${endTime}`;
-                              }
-                            }
-                            
-                            // Fallback - skús formátovať ako dátumy
-                            try {
-                              const startDate = new Date(entry.start_time);
-                              const endDate = new Date(entry.end_time);
-                              if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-                                return "—";
-                              }
-                              return `${format(startDate, "HH:mm:ss")} - ${format(endDate, "HH:mm:ss")}`;
-                            } catch (error) {
-                              console.error("Error formatting times:", error);
-                              return "—";
-                            }
-                          } else {
-                            return format(new Date(entry.created_at), "HH:mm:ss");
-                          }
-                        })()}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {getTaskTitle(entry.task_id)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-xs">
-                              {entry.user?.name ? entry.user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm">{entry.user?.name || 'Neznámy'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatHours(entry.hours)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCurrency(entry.hourly_rate)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-medium">
-                        {formatCurrency(entry.amount)}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+      {timeEntries.length > 0 ? (
+        <Card className="bg-card border border-border shadow-sm">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Dátum</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Čas</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Poznámka</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Používateľ</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Trvanie</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Sadzba</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Suma</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground w-[50px]"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {timeEntries.map((entry) => (
+                    <tr key={entry.id} className="border-b border-border hover:bg-muted/50 transition-colors group">
+                      <td className="px-4 py-3 text-sm text-foreground">
+                        {format(new Date(entry.date), "dd.MM.yyyy")}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        {formatTimeRange(entry)}
+                      </td>
+                      <td className="px-4 py-3">
                         <Input
                           value={editingDescriptions[entry.id] !== undefined ? editingDescriptions[entry.id] : (entry.description || "")}
                           onChange={(e) => handleDescriptionChange(entry.id, e.target.value)}
                           onBlur={() => handleDescriptionBlur(entry.id)}
                           placeholder="Poznámka..."
-                          className="text-xs"
+                          className="h-[2rem] text-xs w-full min-w-[150px]"
                         />
-                      </TableCell>
-                      <TableCell>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5">
+                            <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
+                              {entry.user?.name ? entry.user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-foreground">{entry.user?.name || 'Neznámy'}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
+                        {formatHours(entry.hours)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm text-foreground">
+                        {formatCurrency(entry.hourly_rate)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
+                        {formatCurrency(entry.amount)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteEntry(entry.id)}
-                          className="h-8 w-8 p-0"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Summary */}
-          {timeEntries.length > 0 && (
-            <div className="mt-4 flex justify-end gap-8 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">Celkom hodín:</span>
-                <span className="font-mono font-semibold">{formatHours(totalHours)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">Labor cost:</span>
-                <span className="font-mono font-semibold">{formatCurrency(totalAmount)}</span>
-              </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-border bg-muted/30">
+                    <td colSpan={3} className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+                      Celkom:
+                    </td>
+                    <td className="px-4 py-3"></td>
+                    <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
+                      {formatHours(totalHours)}
+                    </td>
+                    <td className="px-4 py-3"></td>
+                    <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
+                      {formatCurrency(totalAmount)}
+                    </td>
+                    <td className="px-4 py-3"></td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
-          )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-card border border-border shadow-sm">
+          <CardContent className="p-12 text-center">
+            <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">Žiadne časové záznamy</p>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }
-

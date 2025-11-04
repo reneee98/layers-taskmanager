@@ -104,13 +104,13 @@ export const InlineDateEdit = ({
   return (
     <div 
       className={cn(
-        "flex items-center gap-2 cursor-pointer hover:bg-accent rounded-md px-2 py-1 transition-colors group",
+        "flex items-center gap-2 cursor-pointer hover:bg-muted/80 bg-muted rounded-md px-3 py-2 transition-colors group border border-border",
         className
       )}
       onClick={handleStartEdit}
     >
       <Icon className="h-4 w-4 text-muted-foreground" />
-      <span className="text-sm text-muted-foreground group-hover:text-foreground">
+      <span className="text-sm font-medium text-foreground">
         {value ? value : placeholder}
       </span>
       <EditIcon className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />

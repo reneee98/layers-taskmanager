@@ -83,44 +83,39 @@ export function GlobalTimer() {
   };
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-red-50 border border-red-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+    <div className="flex items-center gap-2 h-12 px-3 bg-muted rounded-md border border-border shadow-sm hover:bg-muted/80 hover:shadow-md transition-all">
       {/* Timer Display */}
       <div className="flex items-center gap-2">
-        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-        <span className="text-sm font-mono font-bold text-red-700">
+        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+        <span className="text-sm font-semibold text-foreground tabular-nums">
           {formatTime(currentDuration)}
         </span>
       </div>
       
       {/* Task Info - Clickable */}
       <div 
-        className="flex items-center gap-2 cursor-pointer hover:bg-accent/50 rounded-lg px-3 py-1.5 transition-all duration-200 group"
+        className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity group"
         onClick={handleClick}
       >
-        <Badge 
-          variant="outline" 
-          className="text-xs bg-background border-red-200 text-red-700 font-medium"
-        >
+        <span className="text-xs text-muted-foreground font-medium">
           {activeTimer.project_name}
-        </Badge>
-        <span className="text-sm text-red-600 group-hover:text-red-700">•</span>
-        <span className="text-sm font-semibold text-red-800 truncate max-w-32 group-hover:text-red-900">
+        </span>
+        <span className="text-xs text-muted-foreground">•</span>
+        <span className="text-xs font-medium text-foreground truncate max-w-[120px]">
           {activeTimer.task_name}
         </span>
       </div>
 
       {/* Action Button */}
-      <div className="flex items-center gap-1">
         <Button
           size="sm"
           variant="ghost"
           onClick={handleStop}
-          className="h-8 w-8 p-0 hover:bg-red-100 text-red-600 hover:text-red-700 dark:hover:bg-red-900/20 dark:text-red-400 dark:hover:text-red-300 transition-all duration-200 rounded-full"
+        className="h-6 w-6 p-0 hover:bg-destructive/10 text-destructive hover:text-destructive rounded-md"
           title="Zastaviť časovač"
         >
-          <Square className="h-4 w-4" />
+        <Square className="h-3.5 w-3.5" />
         </Button>
-      </div>
     </div>
   );
 }

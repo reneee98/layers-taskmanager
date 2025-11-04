@@ -160,7 +160,8 @@ function ProjectsPageContent() {
     const project = projects.find(p => p.id === projectId) || archivedProjects.find(p => p.id === projectId);
     const isPersonalProject = project && (
       project.name === "Osobné úlohy" || 
-      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")))
+      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
+      !project.code
     );
     
     if (isPersonalProject) {
@@ -213,7 +214,8 @@ function ProjectsPageContent() {
     const project = projects.find(p => p.id === projectId);
     const isPersonalProject = project && (
       project.name === "Osobné úlohy" || 
-      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")))
+      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
+      !project.code
     );
     
     if (isPersonalProject) {
@@ -258,7 +260,8 @@ function ProjectsPageContent() {
     const project = archivedProjects.find(p => p.id === projectId) || projects.find(p => p.id === projectId);
     const isPersonalProject = project && (
       project.name === "Osobné úlohy" || 
-      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")))
+      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
+      !project.code
     );
     
     if (isPersonalProject) {
@@ -423,15 +426,29 @@ function ProjectsPageContent() {
                 </TableCell>
               </TableRow>
             ) : (
-              (showArchived ? archivedProjects : projects).map((project) => (
+              (showArchived ? archivedProjects : projects).map((project) => {
+                const isPersonalProject = project.name === "Osobné úlohy" || 
+                  (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
+                  !project.code;
+                
+                return (
                 <TableRow
                   key={project.id}
                   className="cursor-pointer group hover:bg-muted/50 transition-colors"
                   onClick={() => router.push(`/projects/${project.id}`)}
                 >
+                    {!isPersonalProject ? (
                   <TableCell className="font-mono text-foreground">{project.code}</TableCell>
+                    ) : (
+                      <TableCell className="text-muted-foreground italic">—</TableCell>
+                    )}
                   <TableCell className="font-medium text-foreground">{project.name}</TableCell>
+                    {!isPersonalProject ? (
                   <TableCell className="text-muted-foreground">{project.client?.name || 'Neznámy klient'}</TableCell>
+                    ) : (
+                      <TableCell className="text-muted-foreground italic">—</TableCell>
+                    )}
+                    {!isPersonalProject ? (
                   <TableCell className="p-3">
                     {(() => {
                       const config = statusConfig[project.status] || statusConfig.draft;
@@ -444,6 +461,9 @@ function ProjectsPageContent() {
                       );
                     })()}
                   </TableCell>
+                    ) : (
+                      <TableCell className="text-muted-foreground italic">—</TableCell>
+                    )}
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -456,12 +476,7 @@ function ProjectsPageContent() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        {(() => {
-                          const isPersonalProject = project.name === "Osobné úlohy" || 
-                            (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
-                          
-                          if (!isPersonalProject) {
-                            return (
+                        {!isPersonalProject && (
                               <>
                                 {!showArchived && project.status !== 'completed' && (
                                   <DropdownMenuItem 
@@ -488,10 +503,7 @@ function ProjectsPageContent() {
                                   </DropdownMenuItem>
                                 )}
                               </>
-                            );
-                          }
-                          return null;
-                        })()}
+                        )}
                         <DropdownMenuItem 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -502,11 +514,7 @@ function ProjectsPageContent() {
                           <Pencil className="h-4 w-4 mr-2" />
                           Upraviť
                         </DropdownMenuItem>
-                        {(() => {
-                          const isPersonalProject = project.name === "Osobné úlohy" || 
-                            (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
-                          if (!isPersonalProject) {
-                            return (
+                        {!isPersonalProject && (
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
@@ -520,15 +528,13 @@ function ProjectsPageContent() {
                                   Vymazať
                                 </DropdownMenuItem>
                               </>
-                            );
-                          }
-                          return null;
-                        })()}
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>

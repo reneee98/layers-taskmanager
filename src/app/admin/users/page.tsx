@@ -12,10 +12,11 @@ export default async function AdminUsersPage() {
   }
 
   return (
-    <div className="w-full py-6 space-y-6">
+    <div className="w-full space-y-8">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Správa používateľov</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold text-foreground">Správa používateľov</h1>
+        <p className="text-muted-foreground mt-1">
           Spravujte používateľov a ich oprávnenia v systéme
         </p>
       </div>

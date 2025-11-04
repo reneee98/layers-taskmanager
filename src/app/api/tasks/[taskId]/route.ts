@@ -39,6 +39,68 @@ export async function GET(
       return NextResponse.json({ success: false, error: error.message }, { status: 404 });
     }
 
+    // Fetch assignees for this task
+    let assigneesWithUsers: any[] = [];
+    if (workspaceId) {
+      // Get workspace owner ID for filtering assignees
+      const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('owner_id')
+        .eq('id', workspaceId)
+        .single();
+      
+      const workspaceOwnerId = workspace?.owner_id;
+
+      const { data: assignees } = await supabase
+        .from("task_assignees")
+        .select("*")
+        .eq("task_id", taskId)
+        .eq("workspace_id", workspaceId)
+        .order("assigned_at", { ascending: false });
+
+      if (assignees && assignees.length > 0) {
+        const userIds = assignees.map(a => a.user_id);
+        
+        // Check which users are workspace members
+        const { data: workspaceMembers } = await supabase
+          .from("workspace_members")
+          .select("user_id")
+          .eq("workspace_id", workspaceId)
+          .in("user_id", userIds);
+        
+        const memberUserIds = new Set(workspaceMembers?.map(m => m.user_id) || []);
+        // Add workspace owner if exists
+        if (workspaceOwnerId) {
+          memberUserIds.add(workspaceOwnerId);
+        }
+        
+        // Filter assignees to only workspace members
+        const validAssignees = assignees.filter(a => memberUserIds.has(a.user_id));
+        
+        if (validAssignees.length > 0) {
+          const validUserIds = validAssignees.map(a => a.user_id);
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, display_name, email, role")
+            .in("id", validUserIds);
+          
+          assigneesWithUsers = validAssignees.map(assignee => {
+            const profile = profiles?.find(p => p.id === assignee.user_id);
+            return {
+              ...assignee,
+              user: profile ? {
+                id: profile.id,
+                display_name: profile.display_name,
+                email: profile.email,
+                role: profile.role,
+                name: profile.display_name || profile.email?.split('@')[0] || 'Neznámy'
+              } : null
+            };
+          });
+        }
+      }
+    }
+
     // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
     const taskWithHourlyRate = {
       ...task,
@@ -46,7 +108,8 @@ export async function GET(
         ...task.project,
         hourly_rate: task.project.hourly_rate_cents ? task.project.hourly_rate_cents / 100 : null,
         fixed_fee: task.project.budget_cents ? task.project.budget_cents / 100 : null
-      } : null
+      } : null,
+      assignees: assigneesWithUsers
     };
 
     return NextResponse.json({ success: true, data: taskWithHourlyRate });
@@ -95,6 +158,28 @@ export async function PATCH(
 
     if (currentTaskError || !currentTask) {
       return NextResponse.json({ success: false, error: "Úloha nebola nájdená" }, { status: 404 });
+    }
+
+    // If estimated_hours is set, automatically calculate budget = estimated_hours * hourly_rate
+    // Budget is always recalculated when estimated_hours changes (unless budget_cents is explicitly set to override)
+    if (validation.data.estimated_hours !== undefined && validation.data.estimated_hours !== null && validation.data.estimated_hours > 0) {
+      // Only calculate budget if budget_cents is not explicitly set in the request
+      // This allows manual override if needed
+      if (validation.data.budget_cents === undefined) {
+        // Get project to get hourly_rate_cents
+        const { data: project } = await supabase
+          .from("projects")
+          .select("hourly_rate_cents")
+          .eq("id", currentTask.project_id)
+          .single();
+
+        if (project?.hourly_rate_cents) {
+          // Calculate budget: estimated_hours * hourly_rate (convert from cents to euros, then back to cents)
+          const hourlyRate = project.hourly_rate_cents / 100; // Convert cents to euros
+          const budgetInEuros = validation.data.estimated_hours * hourlyRate;
+          validation.data.budget_cents = Math.round(budgetInEuros * 100); // Convert back to cents
+        }
+      }
     }
 
     const { data: task, error } = await supabase

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter } from "lucide-react";
+import type { Project } from "@/types/database";
 
 interface TaskTableProps {
   tasks: Task[];
@@ -28,6 +29,7 @@ interface TaskTableProps {
   onEdit?: (task: Task) => void;
   onReorder?: (taskId: string, newIndex: number) => Promise<void>;
   projectId: string;
+  project?: Project | null; // Optional project data to check if archived
   onTaskUpdated?: () => void;
 }
 
@@ -38,6 +40,7 @@ export function TaskTable({
   onEdit,
   onReorder,
   projectId,
+  project,
   onTaskUpdated,
 }: TaskTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -208,6 +211,7 @@ export function TaskTable({
                   onDelete={onDelete}
                   onEdit={onEdit}
                   projectId={projectId}
+                  project={project}
                   isDragging={draggedTaskId === task.id}
                   onDragStart={() => handleDragStart(task.id)}
                   onDragOver={handleDragOver}

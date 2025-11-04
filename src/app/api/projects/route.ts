@@ -211,8 +211,16 @@ export async function POST(request: NextRequest) {
 
     const existingCodes = (existingProjects || []).map(p => p.code).filter(Boolean) as string[];
 
-    // Check if provided code already exists
-    let projectCode: string | undefined = validation.data.code;
+    // Check if this is a personal project (name is "Osobné úlohy" or code is explicitly null/empty)
+    const isPersonalProject = validation.data.name === "Osobné úlohy" || 
+                              (validation.data.code === null || validation.data.code === "" || 
+                               (typeof validation.data.code === 'string' && validation.data.code.trim() === ""));
+    
+    let projectCode: string | null = null;
+    
+    // For personal projects, code is null
+    if (!isPersonalProject) {
+      projectCode = validation.data.code;
     
     // If no code provided, generate one from name
     if (!projectCode) {
@@ -257,15 +265,17 @@ export async function POST(request: NextRequest) {
 
         const nextNumber = maxNumber + 1;
         projectCode = `${baseCode}-${nextNumber.toString().padStart(3, "0")}`;
+        }
       }
     }
 
     // Convert hourly_rate to hourly_rate_cents and fixed_fee to budget_cents
     const projectData = {
       ...validation.data,
-      code: projectCode, // Use the generated unique code
+      code: projectCode, // null for personal projects, generated code for others
       workspace_id: workspaceId,
-      client_id: validation.data.client_id || null,
+      client_id: isPersonalProject ? null : (validation.data.client_id || null),
+      status: isPersonalProject ? "active" : validation.data.status,
       hourly_rate_cents: validation.data.hourly_rate ? Math.round(validation.data.hourly_rate * 100) : null,
       budget_cents: validation.data.fixed_fee ? Math.round(validation.data.fixed_fee * 100) : null
     };

@@ -11,8 +11,6 @@ import {
   UserCog, 
   Settings,
   Home,
-  BarChart3,
-  Clock,
   Star,
   TrendingUp,
   Calendar,
@@ -94,66 +92,12 @@ const toolsNavItems: Array<{
   },
 ];
 
-interface WorkspaceStats {
-  activeProjects: number;
-  completedProjects: number;
-  todayTrackedHours: number;
-}
 
 export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }: SideNavProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const { user, profile, signOut } = useAuth();
   const { workspace } = useWorkspace();
-  const [stats, setStats] = useState<WorkspaceStats>({ activeProjects: 0, completedProjects: 0, todayTrackedHours: 0 });
-  const [statsLoading, setStatsLoading] = useState(true);
-
-  // Fetch workspace stats
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await fetch('/api/workspace-stats');
-        const result = await response.json();
-        
-        if (result.success) {
-          setStats(result.data);
-        } else {
-          console.error('Failed to fetch workspace stats:', result.error);
-        }
-      } catch (error) {
-        console.error('Failed to fetch workspace stats:', error);
-      } finally {
-        setStatsLoading(false);
-      }
-    };
-
-    if (workspace) {
-      fetchStats();
-    }
-  }, [workspace]);
-
-  // Refresh stats when time entry is added
-  useEffect(() => {
-    const handleTimeEntryAdded = () => {
-      const fetchStats = async () => {
-        try {
-          const response = await fetch('/api/workspace-stats');
-          const result = await response.json();
-          
-          if (result.success) {
-            setStats(result.data);
-          }
-        } catch (error) {
-          console.error('Failed to fetch workspace stats:', error);
-        }
-      };
-
-      fetchStats();
-    };
-
-    window.addEventListener('timeEntryAdded', handleTimeEntryAdded);
-    return () => window.removeEventListener('timeEntryAdded', handleTimeEntryAdded);
-  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -345,27 +289,6 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
               </div>
             </div>
 
-            {/* Quick Stats */}
-            {!isCollapsed && (
-              <div className="space-y-1">
-                <div className="px-3 py-2">
-                  <h2 className="text-xs font-semibold text-muted-foreground tracking-wider">
-                    Štatistiky
-                  </h2>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Dnes trackované</span>
-                    </div>
-                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-800/30 dark:text-blue-300 dark:border-blue-700">
-                      {statsLoading ? "..." : `${stats.todayTrackedHours}h`}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
           
           {/* Bottom section - User info and theme */}
@@ -410,15 +333,6 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                     
                     {/* User actions */}
                     <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => router.push("/settings")}
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full"
-                        title="Nastavenia"
-                      >
-                        <Settings className="h-4 w-4" />
-                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"

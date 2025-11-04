@@ -16,8 +16,28 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get recent activities from the activities table
-    const { data: activities, error: activitiesError } = await supabase
+    // Get query params
+    const onlyToday = searchParams.get('only_today') === 'true';
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const offset = (page - 1) * limit;
+    
+    // Calculate date range for today
+    let dateFilter = {};
+    if (onlyToday) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      dateFilter = {
+        gte: today.toISOString(),
+        lt: tomorrow.toISOString()
+      };
+    }
+
+    // Build query
+    let query = supabase
       .from("activities")
       .select(`
         id,
@@ -30,9 +50,18 @@ export async function GET(req: NextRequest) {
         task_id,
         user_id
       `)
-      .eq("workspace_id", workspaceId)
+      .eq("workspace_id", workspaceId);
+
+    // Apply date filter if only_today is true
+    if (onlyToday) {
+      query = query
+        .gte("created_at", dateFilter.gte)
+        .lt("created_at", dateFilter.lt);
+    }
+
+    const { data: activities, error: activitiesError } = await query
       .order("created_at", { ascending: false })
-      .limit(50);
+      .range(offset, offset + limit - 1);
 
     if (activitiesError) {
       console.error("Error fetching activities:", activitiesError);
@@ -75,7 +104,7 @@ export async function GET(req: NextRequest) {
     if (userIds.length > 0) {
       const { data: usersData } = await supabase
         .from("profiles")
-        .select("id, display_name, email")
+        .select("id, display_name, email, avatar_url")
         .in("id", userIds);
       
       users = usersData || [];
@@ -100,6 +129,7 @@ export async function GET(req: NextRequest) {
         user: user?.display_name || "Neznámy používateľ",
         user_email: user?.email,
         user_name: user?.display_name,
+        user_avatar_url: user?.avatar_url,
         created_at: activity.created_at,
         metadata: activity.metadata
       };

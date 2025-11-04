@@ -233,11 +233,14 @@ export default function ProjectReportPage() {
                   {/* Left side - Project name and code */}
                   <div>
                     <h1 className="text-3xl font-bold print:text-2xl print:mb-0 text-foreground">{project.name}</h1>
+                    {project.code && (
                     <p className="mt-1 text-sm text-muted-foreground print:text-xs print:mt-0 print:text-gray-500">{project.code}</p>
+                    )}
                   </div>
                   
                   {/* Right side - Client and Date */}
                   <div className="flex gap-6 text-sm print:gap-4">
+                    {project.client && (
                     <div className="flex flex-col items-end text-muted-foreground print:items-end">
                       <div className="p-2 bg-muted/50 rounded-lg print:hidden">
                         <Users className="h-5 w-5" />
@@ -247,6 +250,7 @@ export default function ProjectReportPage() {
                         <p className="font-medium text-foreground mt-0.5">{project.client?.name || 'N/A'}</p>
                       </div>
                     </div>
+                    )}
                     <div className="flex flex-col items-end text-muted-foreground print:items-end">
                       <div className="p-2 bg-muted/50 rounded-lg print:hidden">
                         <Calendar className="h-5 w-5" />

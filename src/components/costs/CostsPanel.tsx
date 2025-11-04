@@ -85,7 +85,12 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
 
   const fetchCostItems = async () => {
     try {
-      const response = await fetch(`/api/costs?project_id=${projectId}`);
+      let url = `/api/costs?project_id=${projectId}`;
+      // If defaultTaskId is set, filter by task_id to show only costs for this task
+      if (defaultTaskId) {
+        url += `&task_id=${defaultTaskId}`;
+      }
+      const response = await fetch(url);
       const result = await response.json();
 
       if (result.success) {
@@ -98,7 +103,7 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
 
   useEffect(() => {
     fetchCostItems();
-  }, [projectId]);
+  }, [projectId, defaultTaskId]);
 
   const resetForm = () => {
     setName("");
@@ -106,7 +111,8 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
     setCategory("Other");
     setAmount("");
     setDate(new Date().toISOString().split("T")[0]);
-    setTaskId("");
+    // Reset to defaultTaskId if available, otherwise empty
+    setTaskId(defaultTaskId || "");
   };
 
   const handleSubmit = async () => {
@@ -124,7 +130,8 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
     try {
       const payload = {
         project_id: projectId,
-        task_id: taskId || null,
+        // If defaultTaskId is set, always use it; otherwise use taskId from form
+        task_id: defaultTaskId || taskId || null,
         name,
         description: description || null,
         category,
@@ -200,7 +207,7 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Náklady projektu</CardTitle>
+          <CardTitle>{defaultTaskId ? "Náklady úlohy" : "Náklady projektu"}</CardTitle>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -275,22 +282,32 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="task">Úloha (voliteľné)</Label>
-                    <Select value={taskId || "none"} onValueChange={(val) => setTaskId(val === "none" ? "" : val)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Žiadna úloha" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Žiadna úloha</SelectItem>
-                        {tasks.map((task) => (
-                          <SelectItem key={task.id} value={task.id}>
-                            {task.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {!defaultTaskId && (
+                    <div className="space-y-2">
+                      <Label htmlFor="task">Úloha (voliteľné)</Label>
+                      <Select value={taskId || "none"} onValueChange={(val) => setTaskId(val === "none" ? "" : val)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Žiadna úloha" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Žiadna úloha</SelectItem>
+                          {tasks.map((task) => (
+                            <SelectItem key={task.id} value={task.id}>
+                              {task.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {defaultTaskId && (
+                    <div className="space-y-2">
+                      <Label htmlFor="task">Úloha</Label>
+                      <div className="px-3 py-2 bg-muted rounded-md text-sm text-foreground">
+                        {tasks.find(t => t.id === defaultTaskId)?.title || "Neznáma úloha"}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-2">

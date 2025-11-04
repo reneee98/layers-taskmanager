@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
     const supabase = createClient();
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("project_id");
+    const taskId = searchParams.get("task_id");
 
     let query = supabase
       .from("cost_items")
@@ -23,6 +24,10 @@ export async function GET(req: NextRequest) {
 
     if (projectId) {
       query = query.eq("project_id", projectId);
+    }
+    
+    if (taskId) {
+      query = query.eq("task_id", taskId);
     }
 
     const { data, error } = await query;

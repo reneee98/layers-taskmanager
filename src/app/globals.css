@@ -309,3 +309,203 @@
   }
 }
 
+/* Theme switcher button height override */
+.theme-switcher-btn {
+  height: 2.5rem !important;
+  width: 2.5rem !important;
+}
+
+/* Login page animations */
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
+  50% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  75% {
+    transform: translate(20px, 30px) scale(1.05);
+  }
+}
+
+@keyframes wave {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateX(0) scaleY(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translateX(-50px) scaleY(1.2);
+  }
+}
+
+@keyframes grid {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 14px 24px;
+  }
+}
+
+@keyframes particle {
+  0% {
+    transform: translateY(0) translateX(0) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(50px) scale(0);
+    opacity: 0;
+  }
+}
+
+.animate-float {
+  animation: float 20s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: float 25s ease-in-out infinite reverse;
+}
+
+.animate-wave {
+  animation: wave 8s ease-in-out infinite;
+}
+
+.animate-grid {
+  animation: grid 20s linear infinite;
+}
+
+.animate-particle {
+  animation: particle 20s linear infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+    opacity: 1;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.8;
+  }
+}
+
+@keyframes gradient-shift-reverse {
+  0%, 100% {
+    background-position: 100% 50%;
+    opacity: 0.8;
+  }
+  50% {
+    background-position: 0% 50%;
+    opacity: 1;
+  }
+}
+
+@keyframes color-shift {
+  0% {
+    background-color: rgba(168, 85, 247, 0.3);
+  }
+  25% {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    background-color: rgba(139, 92, 246, 0.3);
+  }
+  75% {
+    background-color: rgba(236, 72, 153, 0.3);
+  }
+  100% {
+    background-color: rgba(168, 85, 247, 0.3);
+  }
+}
+
+@keyframes color-shift-reverse {
+  0% {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+  25% {
+    background-color: rgba(236, 72, 153, 0.3);
+  }
+  50% {
+    background-color: rgba(168, 85, 247, 0.3);
+  }
+  75% {
+    background-color: rgba(139, 92, 246, 0.3);
+  }
+  100% {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+}
+
+@keyframes color-shift-dark {
+  0% {
+    background-color: rgba(147, 51, 234, 0.15);
+  }
+  25% {
+    background-color: rgba(37, 99, 235, 0.15);
+  }
+  50% {
+    background-color: rgba(99, 102, 241, 0.15);
+  }
+  75% {
+    background-color: rgba(219, 39, 119, 0.12);
+  }
+  100% {
+    background-color: rgba(147, 51, 234, 0.15);
+  }
+}
+
+@keyframes color-shift-dark-reverse {
+  0% {
+    background-color: rgba(37, 99, 235, 0.15);
+  }
+  25% {
+    background-color: rgba(219, 39, 119, 0.12);
+  }
+  50% {
+    background-color: rgba(147, 51, 234, 0.15);
+  }
+  75% {
+    background-color: rgba(99, 102, 241, 0.15);
+  }
+  100% {
+    background-color: rgba(37, 99, 235, 0.15);
+  }
+}
+
+.animate-gradient-shift {
+  animation: gradient-shift 15s ease-in-out infinite;
+  background-size: 200% 200%;
+}
+
+.animate-gradient-shift-reverse {
+  animation: gradient-shift-reverse 20s ease-in-out infinite;
+  background-size: 200% 200%;
+}
+
+.animate-color-shift {
+  animation: color-shift 10s ease-in-out infinite;
+}
+
+.animate-color-shift-reverse {
+  animation: color-shift-reverse 12s ease-in-out infinite;
+}
+
+.animate-color-shift-dark {
+  animation: color-shift-dark 10s ease-in-out infinite;
+}
+
+.animate-color-shift-dark-reverse {
+  animation: color-shift-dark-reverse 12s ease-in-out infinite;
+}
+

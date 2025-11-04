@@ -67,7 +67,8 @@ export async function PATCH(
     }
 
     const isPersonalProject = existingProject.name === "Osobné úlohy" || 
-                              (existingProject.code && (existingProject.code === "PERSONAL" || existingProject.code.startsWith("PERSONAL-")));
+                              (existingProject.code && (existingProject.code === "PERSONAL" || existingProject.code.startsWith("PERSONAL-"))) ||
+                              !existingProject.code;
 
     // Prevent status change for personal project
     if (isPersonalProject && validation.data.status !== undefined) {
@@ -161,7 +162,8 @@ export async function DELETE(
     }
 
     const isPersonalProject = project.name === "Osobné úlohy" || 
-                              (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
+                              (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
+                              !project.code;
 
     // Prevent deletion of personal project
     if (isPersonalProject) {

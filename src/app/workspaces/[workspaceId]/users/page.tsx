@@ -503,17 +503,18 @@ export default function WorkspaceUsersPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="w-full space-y-8">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Správa používateľov</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold text-foreground">Správa používateľov</h1>
+          <p className="text-muted-foreground mt-1">
             Spravujte používateľov a ich roly v workspace
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-gray-900 text-white hover:bg-gray-800">
               <Plus className="h-4 w-4 mr-2" />
               Pridať používateľa
             </Button>
@@ -571,9 +572,6 @@ export default function WorkspaceUsersPage() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Používatelia workspace-u</CardTitle>
-        </CardHeader>
         <CardContent>
           {users.length === 0 ? (
             <div className="text-center py-8">

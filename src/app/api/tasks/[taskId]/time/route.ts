@@ -26,10 +26,10 @@ export async function POST(
       task_id: taskId,
     });
 
-    // Get task to find project_id (filtered by workspace)
+    // Get task to find project_id and estimated_hours (filtered by workspace)
     const { data: task, error: taskError } = await supabase
       .from("tasks")
-      .select("project_id")
+      .select("project_id, estimated_hours, actual_hours")
       .eq("id", taskId)
       .eq("workspace_id", workspaceId)
       .single();
@@ -63,8 +63,23 @@ export async function POST(
       rateSource = resolved.source;
     }
 
-    // Calculate amount
-    const amount = validatedData.hours * (hourlyRate || 0);
+    // Calculate amount - only bill hours that exceed estimated_hours
+    let billableHours = validatedData.hours;
+    const estimatedHours = task.estimated_hours || 0;
+    const currentActualHours = task.actual_hours || 0;
+    
+    // Calculate how many hours from the estimated are already "used"
+    const hoursWithinEstimate = Math.max(0, Math.min(currentActualHours, estimatedHours));
+    
+    // Calculate how many hours from the new entry are within the estimate
+    const remainingEstimateHours = Math.max(0, estimatedHours - hoursWithinEstimate);
+    const newHoursWithinEstimate = Math.min(validatedData.hours, remainingEstimateHours);
+    
+    // Only bill hours that exceed the estimate
+    billableHours = Math.max(0, validatedData.hours - newHoursWithinEstimate);
+    
+    // Calculate amount only for billable hours (those exceeding estimate)
+    const amount = billableHours * (hourlyRate || 0);
 
 
     // Insert time entry

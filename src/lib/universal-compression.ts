@@ -52,23 +52,30 @@ async function compressImage(file: File): Promise<CompressionResult> {
       const maxWidth = 1920;
       const maxHeight = 1080;
       
-      // Calculate scaling factors for both dimensions
-      const widthScale = maxWidth / width;
-      const heightScale = maxHeight / height;
-      
-      // Use the smaller scaling factor to ensure both dimensions fit within limits
-      const scale = Math.min(widthScale, heightScale, 1); // Don't upscale
-      
-      if (scale < 1) {
+      // If image is smaller than 1920x1080, don't resize it at all
+      if (width <= maxWidth && height <= maxHeight) {
+        // Use original dimensions, just compress quality
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+      } else {
+        // Image is larger than 1920x1080, resize it down
+        // Calculate scaling factors for both dimensions
+        const widthScale = maxWidth / width;
+        const heightScale = maxHeight / height;
+        
+        // Use the smaller scaling factor to ensure both dimensions fit within limits
+        const scale = Math.min(widthScale, heightScale);
+        
         width = Math.round(width * scale);
         height = Math.round(height * scale);
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw and compress
+        ctx?.drawImage(img, 0, 0, width, height);
       }
-
-      canvas.width = width;
-      canvas.height = height;
-
-      // Draw and compress
-      ctx?.drawImage(img, 0, 0, width, height);
       
       canvas.toBlob(
         (blob) => {

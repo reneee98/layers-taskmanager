@@ -51,10 +51,10 @@ export async function PATCH(
     // Validate input
     const validatedData = timeEntryUpdateSchema.parse(body);
 
-    // Get existing time entry
+    // Get existing time entry with task info
     const { data: existing, error: fetchError } = await supabase
       .from("time_entries")
-      .select("*, tasks(project_id)")
+      .select("*, tasks(project_id, estimated_hours)")
       .eq("id", id)
       .single();
 
@@ -64,6 +64,9 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    const task = (existing as any).tasks;
+    const taskId = existing.task_id;
 
     // Prepare update data
     const updateData: any = {};
@@ -93,11 +96,35 @@ export async function PATCH(
       recalculateAmount = true;
     }
 
-    // Recalculate amount if needed
+    // Recalculate amount if needed - only bill hours that exceed estimated_hours
     if (recalculateAmount) {
       const hours = updateData.hours ?? existing.hours;
       const rate = updateData.hourly_rate ?? existing.hourly_rate ?? 0;
-      updateData.amount = hours * rate;
+      
+      // Get estimated_hours from task
+      const estimatedHours = task?.estimated_hours || 0;
+      
+      // Get sum of all other time entries for this task (excluding current one)
+      const { data: otherTimeEntries } = await supabase
+        .from("time_entries")
+        .select("hours")
+        .eq("task_id", taskId)
+        .neq("id", id);
+      
+      const otherHoursSum = (otherTimeEntries || []).reduce((sum, te) => sum + (te.hours || 0), 0);
+      
+      // Calculate how many hours from the estimated are already "used" by other entries
+      const hoursWithinEstimate = Math.max(0, Math.min(otherHoursSum, estimatedHours));
+      
+      // Calculate how many hours from the updated entry are within the estimate
+      const remainingEstimateHours = Math.max(0, estimatedHours - hoursWithinEstimate);
+      const newHoursWithinEstimate = Math.min(hours, remainingEstimateHours);
+      
+      // Only bill hours that exceed the estimate
+      const billableHours = Math.max(0, hours - newHoursWithinEstimate);
+      
+      // Calculate amount only for billable hours (those exceeding estimate)
+      updateData.amount = billableHours * rate;
     }
 
     // Update time entry
@@ -126,7 +153,7 @@ export async function PATCH(
     }
 
     // Get updated project finance snapshot
-    const projectId = (existing as any).tasks?.project_id;
+    const projectId = task?.project_id;
     let financeSnapshot = null;
 
     if (projectId) {

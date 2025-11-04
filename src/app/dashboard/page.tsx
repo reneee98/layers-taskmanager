@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -50,6 +50,23 @@ import {
   ArrowLeft,
   Flame,
   List,
+  Trash2,
+  Flag,
+  UserMinus,
+  Square,
+  MessageSquareMore,
+  MessageSquareX,
+  FolderX,
+  Building,
+  BuildingX,
+  UserCog,
+  Upload,
+  Download,
+  FileX,
+  FileEdit,
+  Euro,
+  Settings,
+  Settings2,
 } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/format";
 import { format, isAfter, isBefore, addDays, isToday, parse, startOfWeek, getDay } from "date-fns";
@@ -131,6 +148,8 @@ interface Activity {
   details: string;
   user: string;
   user_name?: string;
+  user_email?: string;
+  user_avatar_url?: string;
   created_at: string;
   project?: string;
   project_id?: string;
@@ -485,7 +504,7 @@ export default function DashboardPage() {
           fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=false`),
           fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=true`),
           fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=true`),
-          fetch(`/api/dashboard/activity?workspace_id=${workspace.id}`),
+          fetch(`/api/dashboard/activity?workspace_id=${workspace.id}&only_today=true`),
           fetch(`/api/projects`),
           fetch(`/api/workspace-users?workspace_id=${workspace.id}`)
         ]);
@@ -714,27 +733,117 @@ export default function DashboardPage() {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'time_entry':
-        return Timer;
-      case 'task_update':
-        return Edit;
+      // Task activities
       case 'task_created':
         return Plus;
+      case 'task_updated':
+      case 'task_title_changed':
+      case 'task_description_changed':
+      case 'task_due_date_changed':
+      case 'task_estimated_hours_changed':
+      case 'task_budget_changed':
+        return Edit;
       case 'task_completed':
+      case 'task_done':
         return CheckCircle2;
+      case 'task_deleted':
+        return Trash2;
+      case 'task_status_changed':
+        return ArrowRight;
+      case 'task_priority_changed':
+        return Flag;
+      case 'task_assigned':
+        return UserPlus;
+      case 'task_unassigned':
+        return UserMinus;
+      
+      // Time activities
+      case 'time_entry':
+      case 'time_added':
+      case 'timer_started':
+        return Timer;
+      case 'time_updated':
+        return Clock;
+      case 'time_deleted':
+        return Trash2;
+      case 'timer_stopped':
+      case 'timer_paused':
+        return Square;
+      case 'timer_resumed':
+        return Play;
+      
+      // Comment activities
       case 'comment':
+      case 'comment_added':
         return MessageSquare;
+      case 'comment_updated':
+        return MessageSquareMore;
+      case 'comment_deleted':
+        return MessageSquareX;
+      
+      // Project activities
       case 'project_created':
         return FolderPlus;
       case 'project_updated':
+      case 'project_budget_changed':
+      case 'project_rate_changed':
         return FolderOpen;
+      case 'project_deleted':
+        return FolderX;
+      case 'project_status_changed':
+        return FolderKanban;
+      
+      // Client activities
       case 'client_created':
-      case 'client_updated':
         return Building2;
+      case 'client_updated':
+        return Building;
+      case 'client_deleted':
+        return BuildingX;
+      
+      // User activities
       case 'member_added':
+      case 'user_joined':
         return UserPlus;
+      case 'user_left':
+        return UserMinus;
+      case 'user_role_changed':
+        return UserCog;
+      
+      // File activities
       case 'file_upload':
+        return Upload;
+      case 'file_download':
+        return Download;
+      case 'file_deleted':
+        return FileX;
+      
+      // Invoice activities
+      case 'invoice_created':
         return FileText;
+      case 'invoice_sent':
+        return Send;
+      case 'invoice_paid':
+        return CheckCircle;
+      case 'invoice_updated':
+        return FileEdit;
+      case 'invoice_deleted':
+        return FileX;
+      
+      // Cost activities
+      case 'cost_added':
+        return Euro;
+      case 'cost_updated':
+        return TrendingUp;
+      case 'cost_deleted':
+        return Trash2;
+      
+      // Workspace activities
+      case 'workspace_created':
+        return Settings;
+      case 'workspace_updated':
+        return Settings2;
+      
       default:
         return Activity;
     }
@@ -1141,7 +1250,12 @@ export default function DashboardPage() {
                             <div className="min-w-0 space-y-1">
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 flex-shrink-0">
-                                  {deadlineStatus && task.status !== "done" && task.status !== "cancelled" && (
+                                  {deadlineStatus && 
+                                   task.status !== "done" && 
+                                   task.status !== "cancelled" && 
+                                   task.project &&
+                                   task.project.status !== "completed" &&
+                                   task.project.status !== "cancelled" && (
                                     <div className={getDeadlineDotClass(deadlineStatus)}></div>
                                   )}
                                 </div>
@@ -1163,13 +1277,10 @@ export default function DashboardPage() {
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2">
                             <div>
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs flex items-center gap-1.5 px-2 py-1 rounded-full border w-fit whitespace-nowrap ${statusInfo.color}`}
-                              >
-                                <StatusIcon className={`h-3 w-3 flex-shrink-0 ${statusInfo.iconColor}`} />
-                                <span className="flex-shrink-0">{statusInfo.label}</span>
-                              </Badge>
+                              <div className={`flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200 text-xs font-medium w-fit whitespace-nowrap ${statusInfo.color} hover:opacity-80`}>
+                                <StatusIcon className={`h-3.5 w-3.5 ${statusInfo.iconColor} ${task.status === "in_progress" && "animate-pulse"}`} />
+                                <span>{statusInfo.label}</span>
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2">
@@ -1220,33 +1331,66 @@ export default function DashboardPage() {
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2">
                             <div>
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs flex items-center gap-1.5 px-2 py-1 rounded-full border w-fit whitespace-nowrap ${priorityInfo.color}`}
-                              >
-                                <PriorityIcon className={`h-3 w-3 flex-shrink-0 ${priorityInfo.iconColor}`} />
-                                <span className="flex-shrink-0">{priorityInfo.label}</span>
-                              </Badge>
+                              <div className={`flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200 text-xs font-medium w-fit whitespace-nowrap ${priorityInfo.color} hover:opacity-80`}>
+                                <PriorityIcon className={`h-3.5 w-3.5 ${priorityInfo.iconColor} ${task.priority === "urgent" && "animate-pulse"}`} />
+                                <span>{priorityInfo.label}</span>
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2 w-fit">
-                            <div className="space-y-1">
-                              {task.estimated_hours && task.estimated_hours > 0 && (
-                                <div className="text-xs flex items-center gap-1 text-muted-foreground whitespace-nowrap">
-                                  <Clock className="h-3 w-3 text-muted-foreground" />
-                                  <span>{formatHours(task.estimated_hours)}</span>
+                            {(() => {
+                              const actualHours = task.actual_hours || 0;
+                              const estimatedHours = task.estimated_hours || 0;
+                              const isOverBudget = estimatedHours > 0 && actualHours > estimatedHours;
+                              
+                              // If both are 0, show nothing
+                              if (actualHours === 0 && estimatedHours === 0) {
+                                return <span className="text-xs text-muted-foreground italic">—</span>;
+                              }
+                              
+                              return (
+                                <div className="flex items-center gap-1.5 text-xs">
+                                  {/* Estimated Hours (nabudgetovaný) - only show if > 0 */}
+                                  {estimatedHours > 0 && (
+                                    <>
+                                      <div className="flex items-center gap-1">
+                                        <Euro className={cn(
+                                          "h-3.5 w-3.5",
+                                          isOverBudget ? "text-red-500" : "text-muted-foreground"
+                                        )} />
+                                        <span className={cn(
+                                          isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
+                                        )}>
+                                          {formatHours(estimatedHours)}
+                                        </span>
                                 </div>
-                              )}
-                              {task.actual_hours && task.actual_hours > 0 && (
-                                <div className="text-xs flex items-center gap-1 text-muted-foreground whitespace-nowrap">
-                                  <CheckCircle className="h-3 w-3 text-green-500" />
-                                  <span>{formatHours(task.actual_hours)}</span>
+                                      
+                                      {/* Separator - only show if both values exist */}
+                                      {actualHours > 0 && (
+                                        <span className={cn(
+                                          isOverBudget ? "text-red-500" : "text-muted-foreground"
+                                        )}>/</span>
+                                      )}
+                                    </>
+                                  )}
+                                  
+                                  {/* Actual Hours (natrackovaný) - always show if > 0 */}
+                                  {actualHours > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <Timer className={cn(
+                                        "h-3.5 w-3.5",
+                                        isOverBudget ? "text-red-500" : "text-muted-foreground"
+                                      )} />
+                                      <span className={cn(
+                                        isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
+                                      )}>
+                                        {formatHours(actualHours)}
+                                      </span>
                                 </div>
-                              )}
-                              {(!task.estimated_hours || task.estimated_hours === 0) && (!task.actual_hours || task.actual_hours === 0) && (
-                                <span className="text-xs text-muted-foreground italic">—</span>
                               )}
                             </div>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2 w-fit">
                             <div>
@@ -1896,21 +2040,31 @@ export default function DashboardPage() {
                 {/* Activity Section */}
                 <div className="h-full flex flex-col">
                   <div className="px-6 py-4 bg-muted/50 border-b border-border/50">
-                    <div className="flex items-center gap-3 text-lg font-semibold text-foreground">
-                      <div className="p-2 bg-gray-900 rounded-lg">
-                        <Activity className="h-5 w-5 text-white" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 text-lg font-semibold text-foreground">
+                        <div className="p-2 bg-gray-900 rounded-lg">
+                          <Activity className="h-5 w-5 text-white" />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span>Posledná aktivita</span>
+                          {activities.length > 0 && (
+                            <Badge variant="outline" className="px-3 py-1 text-sm font-medium bg-card border-border text-foreground">
+                              {activities.length}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span>Posledná aktivita</span>
-                        {activities.length > 0 && (
-                          <Badge variant="outline" className="px-3 py-1 text-sm font-medium bg-card border-border text-foreground">
-                            {activities.length}
-                          </Badge>
-                        )}
-                      </div>
+                      <Link
+                        href="/activity"
+                        className="text-sm text-primary hover:underline flex items-center gap-1"
+                      >
+                        Zobraziť celú aktivitu
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
                     </div>
                   </div>
-                  <div className="p-6 flex-1 overflow-y-auto">
+                  <div className="flex-1 overflow-y-auto max-h-[600px]">
+                    <div className="p-6">
               {activities.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Zap className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -1919,7 +2073,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {(showAllActivities ? activities : activities.slice(0, 6)).map((activity) => {
+                  {activities.map((activity) => {
                     const Icon = getActivityIcon(activity.type);
                     const handleActivityClick = () => {
                       // Ak má aktivita task_id a project_id, presmeruj na detail úlohy
@@ -1928,38 +2082,69 @@ export default function DashboardPage() {
                       }
                     };
                     
+                    const getInitials = (name?: string, email?: string) => {
+                      if (name) {
+                        return name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2);
+                      }
+                      if (email) {
+                        return email[0].toUpperCase();
+                      }
+                      return "U";
+                    };
+
                     return (
                       <div 
                         key={activity.id} 
                         onClick={handleActivityClick}
                         className={cn(
-                          "flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors",
+                          "flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border",
                           activity.task_id && activity.project_id ? "cursor-pointer" : ""
                         )}
                         title={activity.task_id && activity.project_id ? "Kliknite pre zobrazenie detailu úlohy" : ""}
                       >
-                        <div className={cn("p-2 rounded-full", getActivityColor(activity.type))}>
-                          <Icon className="h-4 w-4" />
+                        <div className="relative flex-shrink-0">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={activity.user_avatar_url || undefined} alt={activity.user} />
+                            <AvatarFallback className="text-base font-semibold bg-muted">
+                              {getInitials(activity.user_name || activity.user, activity.user_email)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className={cn(
+                            "absolute -bottom-1 -right-1 p-1 rounded-full border-2 border-background bg-black"
+                          )}>
+                            <Icon className="h-2.5 w-2.5 text-white" />
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-foreground">
-                              {activity.user || 'Neznámy používateľ'}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1 gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-sm font-medium text-foreground truncate">
+                                {activity.user || 'Neznámy používateľ'}
+                              </span>
+                            </div>
+                            <span className="text-xs text-muted-foreground flex-shrink-0">
                               {format(new Date(activity.created_at), 'dd.MM.yyyy HH:mm', { locale: sk })}
                             </span>
                           </div>
-                          <p className="text-sm text-foreground mb-1">
-                            <span className="font-medium">{activity.action}</span> {activity.details}
+                          <p className="text-sm text-foreground mb-1 break-words">
+                            <span className="font-medium">{activity.action}</span>
+                            {activity.details && <span className="ml-1">{activity.details}</span>}
                           </p>
                           {activity.project && (
-                            <p className="text-xs text-muted-foreground">
-                              {activity.project} ({activity.project_code})
-                            </p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <FolderKanban className="h-3 w-3" />
+                              <span className="truncate">
+                                {activity.project} {activity.project_code && `(${activity.project_code})`}
+                              </span>
+                            </div>
                           )}
                           {activity.description && (
-                            <p className="text-xs text-muted-foreground mt-1 italic">
+                            <p className="text-xs text-muted-foreground mt-1 italic line-clamp-2">
                               "{activity.description}"
                             </p>
                           )}
@@ -1967,34 +2152,9 @@ export default function DashboardPage() {
                       </div>
                     );
                   })}
-                  
-                  {activities.length > 6 && (
-                    <div className="pt-4 border-t border-border">
-                      {showAllActivities ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowAllActivities(false)}
-                          className="w-full"
-                        >
-                          Zobraziť menej
-                        </Button>
-                      ) : (
-                        showLoadMore && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleShowMoreActivities}
-                            className="w-full"
-                          >
-                            Zobraziť viac ({activities.length - 6} ďalších)
-                          </Button>
-                        )
-                      )}
-                    </div>
-                  )}
                 </div>
               )}
+                    </div>
                   </div>
                 </div>
           </div>

@@ -2,17 +2,18 @@
 -- Purpose: Allow superadmin to update bug reports (mark as resolved)
 
 -- Policy: Only superadmin can update bugs
+-- Superadmin is identified by email (René Moravec)
 CREATE POLICY "Superadmin can update bugs"
 ON bugs
 FOR UPDATE
 TO authenticated
 USING (
-  (auth.jwt() ->> 'app_role')::text = 'superadmin' OR
-  is_superadmin(auth.uid())
+  auth.email() = 'design@renemoravec.sk' OR
+  auth.email() = 'rene@renemoravec.sk'
 )
 WITH CHECK (
-  (auth.jwt() ->> 'app_role')::text = 'superadmin' OR
-  is_superadmin(auth.uid())
+  auth.email() = 'design@renemoravec.sk' OR
+  auth.email() = 'rene@renemoravec.sk'
 );
 
 -- Grant UPDATE permission

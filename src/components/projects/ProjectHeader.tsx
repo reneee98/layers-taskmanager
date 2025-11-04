@@ -11,13 +11,19 @@ interface ProjectHeaderProps {
 }
 
 export const ProjectHeader = ({ project, tasks, onUpdate }: ProjectHeaderProps) => {
+  const isPersonalProject = project.name === "Osobné úlohy" || 
+    (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
+    !project.code;
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold">{project.name}</h1>
+            {!isPersonalProject && project.code && (
             <span className="font-mono text-sm text-muted-foreground">{project.code}</span>
+            )}
           </div>
           {project.description && (
             <p className="mt-2 text-muted-foreground">{project.description}</p>
@@ -28,12 +34,14 @@ export const ProjectHeader = ({ project, tasks, onUpdate }: ProjectHeaderProps) 
         </div>
       </div>
 
+      {!isPersonalProject && (
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Klient:</span>
           <span className="font-medium">{project.client?.name || 'Bez klienta'}</span>
         </div>
       </div>
+      )}
 
           {/* Project Summary */}
           <ProjectSummary projectId={project.id} onUpdate={onUpdate} />

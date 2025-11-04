@@ -238,6 +238,7 @@ export default function ProjectDetailPage() {
             }}
             onReorder={handleReorderTasks}
             projectId={projectId}
+            project={project}
             onTaskUpdated={() => {
               // Refresh project data when task is updated
               fetchProject();

@@ -104,3 +104,90 @@ export async function PATCH(
   }
 }
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { bugId: string } }
+) {
+  try {
+    // Check authentication
+    const user = await getServerUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Nie ste prihlásený" },
+        { status: 401 }
+      );
+    }
+
+    // Create Supabase client with request cookies
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            // Cookies are handled by middleware
+          },
+        },
+      }
+    );
+
+    // Verify user is authenticated via Supabase
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !authUser) {
+      console.error("Auth error in bug delete:", authError);
+      return NextResponse.json(
+        { success: false, error: "Authentication failed" },
+        { status: 401 }
+      );
+    }
+
+    // Check if user is superadmin
+    const appRole = authUser.app_metadata?.app_role;
+    const isSuperadmin = appRole === "superadmin" || 
+                        authUser.email === "design@renemoravec.sk" || 
+                        authUser.email === "rene@renemoravec.sk";
+
+    if (!isSuperadmin) {
+      return NextResponse.json(
+        { success: false, error: "Iba superadmin môže mazať bug reporty" },
+        { status: 403 }
+      );
+    }
+
+    const { bugId } = params;
+
+    // Use service client to bypass RLS for superadmin
+    const serviceClient = createServiceClient();
+    const clientToUse = serviceClient || supabase;
+
+    // Delete bug report
+    const { error } = await clientToUse
+      .from("bugs")
+      .delete()
+      .eq("id", bugId);
+
+    if (error) {
+      console.error("Error deleting bug report:", error);
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: true },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error in bug report DELETE endpoint:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+

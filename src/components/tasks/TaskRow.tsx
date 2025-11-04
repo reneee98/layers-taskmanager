@@ -35,12 +35,16 @@ import {
   Send,
   ChevronDown,
   Check,
+  Timer,
+  Euro,
 } from "lucide-react";
 import { formatHours, formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getTextPreview } from "@/lib/utils/html";
 import { getDeadlineStatus, getDeadlineDotClass } from "@/lib/deadline-utils";
+import { isProjectArchived } from "@/lib/project-utils";
+import type { Project } from "@/types/database";
 
 interface TaskRowProps {
   task: Task;
@@ -48,6 +52,7 @@ interface TaskRowProps {
   onDelete: (taskId: string) => Promise<void>;
   onEdit?: (task: Task) => void;
   projectId: string;
+  project?: Project | null; // Optional project data to check if archived
   isDragging?: boolean;
   onDragStart: () => void;
   onDragOver: (e: React.DragEvent) => void;
@@ -128,6 +133,7 @@ export function TaskRow({
   onDelete,
   onEdit,
   projectId,
+  project,
   isDragging,
   onDragStart,
   onDragOver,
@@ -189,10 +195,14 @@ export function TaskRow({
   };
 
   // Get deadline status and dot class
-  // Don't show deadline dot for done or cancelled tasks
+  // Don't show deadline dot for done/cancelled tasks or tasks in archived projects
   const deadlineStatus = getDeadlineStatus(task.due_date);
   const deadlineDotClass = getDeadlineDotClass(deadlineStatus);
-  const showDeadlineDot = !!deadlineDotClass && task.status !== "done" && task.status !== "cancelled";
+  const isTaskInArchivedProject = isProjectArchived(project);
+  const showDeadlineDot = !!deadlineDotClass && 
+                          task.status !== "done" && 
+                          task.status !== "cancelled" && 
+                          !isTaskInArchivedProject;
 
   return (
     <TableRow
@@ -252,17 +262,16 @@ export function TaskRow({
                 const config = statusConfig[task.status] || statusConfig.todo;
                 const IconComponent = config.icon;
                 return (
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-xs flex items-center gap-1.5 px-2 py-1 rounded-full border w-fit whitespace-nowrap cursor-pointer",
-                      config.color
-                    )}
-                  >
-                    <IconComponent className={cn("h-3 w-3 flex-shrink-0", config.iconColor)} />
-                    <span className="flex-shrink-0 font-medium">{config.label}</span>
-                    <ChevronDown className="h-3 w-3" />
-                  </Badge>
+                  <div className={cn(
+                    "cursor-pointer flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200",
+                    "text-xs font-medium",
+                    config.color,
+                    "hover:opacity-80"
+                  )}>
+                    <IconComponent className={cn("h-3.5 w-3.5", config.iconColor, task.status === "in_progress" && "animate-pulse")} />
+                    <span>{config.label}</span>
+                    <ChevronDown className="h-3 w-3 opacity-70" />
+                  </div>
                 );
               })()}
             </Button>
@@ -312,32 +321,104 @@ export function TaskRow({
         </div>
       </TableCell>
 
-      {/* Time - Combined estimated and actual hours */}
+      {/* Time - Actual / Estimated hours */}
       <TableCell className="py-4 pl-6 pr-2 w-fit">
-        <div className="space-y-1">
-          {task.estimated_hours && task.estimated_hours > 0 && (
-            <div className="text-xs flex items-center gap-1 text-muted-foreground whitespace-nowrap">
-              <Clock className="h-3 w-3 text-muted-foreground" />
-              <span>{formatHours(task.estimated_hours)}</span>
+        {(() => {
+          const actualHours = task.actual_hours || 0;
+          const estimatedHours = task.estimated_hours || 0;
+          const isOverBudget = estimatedHours > 0 && actualHours > estimatedHours;
+          
+          // If both are 0, show nothing
+          if (actualHours === 0 && estimatedHours === 0) {
+            return <span className="text-xs text-muted-foreground italic">—</span>;
+          }
+          
+          return (
+            <div className="flex items-center gap-1.5 text-xs">
+              {/* Estimated Hours (nabudgetovaný) - only show if > 0 */}
+              {estimatedHours > 0 && (
+                <>
+              <div className="flex items-center gap-1">
+                <Euro className={cn(
+                  "h-3.5 w-3.5",
+                  isOverBudget ? "text-red-500" : "text-muted-foreground"
+                )} />
+                <span className={cn(
+                  isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
+                )}>
+                  {formatHours(estimatedHours)}
+                </span>
+              </div>
+              
+                  {/* Separator - only show if both values exist */}
+                  {actualHours > 0 && (
+              <span className={cn(
+                isOverBudget ? "text-red-500" : "text-muted-foreground"
+              )}>/</span>
+                  )}
+                </>
+              )}
+              
+              {/* Actual Hours (natrackovaný) - always show if > 0 */}
+              {actualHours > 0 && (
+              <div className="flex items-center gap-1">
+                <Timer className={cn(
+                  "h-3.5 w-3.5",
+                  isOverBudget ? "text-red-500" : "text-muted-foreground"
+                )} />
+                <span className={cn(
+                  isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
+                )}>
+                  {formatHours(actualHours)}
+                </span>
+              </div>
+              )}
             </div>
-          )}
-          {task.actual_hours && task.actual_hours > 0 && (
-            <div className="text-xs flex items-center gap-1 text-muted-foreground whitespace-nowrap">
-              <Clock className="h-3 w-3 text-green-500" />
-              <span>{formatHours(task.actual_hours)}</span>
-            </div>
-          )}
-          {(!task.estimated_hours || task.estimated_hours === 0) && (!task.actual_hours || task.actual_hours === 0) && (
-            <span className="text-xs text-muted-foreground italic">—</span>
-          )}
-        </div>
+          );
+        })()}
       </TableCell>
 
       {/* Price - Fixed or Calculated */}
       <TableCell className="py-4 pl-6 pr-2 w-fit">
         {(() => {
-          // If there's a fixed budget amount, show it
-          if (task.budget_cents && task.budget_cents > 0) {
+          // Use project from props or from task.project
+          const projectData = project || task.project;
+          
+          // Priority 1: Check if budget matches estimated_hours * hourly_rate (auto-calculated)
+          const hasEstimatedHours = task.estimated_hours && task.estimated_hours > 0;
+          const hasProjectRate = projectData?.hourly_rate_cents || projectData?.hourly_rate;
+          const hasBudget = task.budget_cents && task.budget_cents > 0;
+          
+          if (hasEstimatedHours && hasProjectRate && hasBudget) {
+            // Try hourly_rate_cents first, then hourly_rate as fallback
+            const hourlyRateCents = projectData.hourly_rate_cents || 
+                                   (projectData.hourly_rate ? projectData.hourly_rate * 100 : 0);
+            const hourlyRate = hourlyRateCents / 100;
+            const calculatedBudget = (task.estimated_hours || 0) * hourlyRate * 100; // Convert to cents
+            // Allow small rounding differences (within 1 cent)
+            const isMatch = Math.abs(calculatedBudget - (task.budget_cents || 0)) <= 1;
+            
+            if (isMatch) {
+              // Budget is auto-calculated from estimated hours - show it with calculation detail
+              const hourlyRateFormatted = hourlyRate.toFixed(2);
+              return (
+                <div className="flex flex-col items-end gap-0.5 text-xs">
+                  <div className="flex items-center gap-1 font-medium">
+                    <span className="text-green-600">
+                      {formatCurrency(task.budget_cents / 100)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Euro className="h-2.5 w-2.5" />
+                    <span>{task.estimated_hours}h × {hourlyRateFormatted}€</span>
+                  </div>
+                </div>
+              );
+            }
+          }
+
+          // Priority 2: If there's a fixed budget amount (manually set), show it
+          if (hasBudget) {
             return (
               <div className="flex items-center justify-end gap-1 text-xs font-medium">
                 <span className="text-green-600">
@@ -348,7 +429,7 @@ export function TaskRow({
             );
           }
           
-          // If there's calculated price from time entries, show it
+          // Priority 3: If there's calculated price from time entries, show it
           if (task.calculated_price && task.calculated_price > 0) {
             return (
               <div className="flex items-center justify-end gap-1 text-xs">
@@ -395,17 +476,16 @@ export function TaskRow({
                 const config = priorityConfig[task.priority] || priorityConfig.low;
                 const IconComponent = config.icon;
                 return (
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-xs flex items-center gap-1.5 px-2 py-1 rounded-full border w-fit whitespace-nowrap cursor-pointer",
-                      config.color
-                    )}
-                  >
-                    <IconComponent className={cn("h-3 w-3 flex-shrink-0", config.iconColor)} />
-                    <span className="flex-shrink-0 font-medium">{config.label}</span>
-                    <ChevronDown className="h-3 w-3" />
-                  </Badge>
+                  <div className={cn(
+                    "cursor-pointer flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200",
+                    "text-xs font-medium",
+                    config.color,
+                    "hover:opacity-80"
+                  )}>
+                    <IconComponent className={cn("h-3.5 w-3.5", config.iconColor, task.priority === "urgent" && "animate-pulse")} />
+                    <span>{config.label}</span>
+                    <ChevronDown className="h-3 w-3 opacity-70" />
+                  </div>
                 );
               })()}
             </Button>

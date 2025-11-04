@@ -12,8 +12,8 @@ export const projectStatusEnum = z.enum([
 export const projectSchema = z.object({
   client_id: z.string().uuid("Neplatné ID klienta").optional().nullable(),
   name: z.string().min(1, "Názov je povinný").max(255, "Názov je príliš dlhý"),
-  status: projectStatusEnum,
-  code: z.string().optional().or(z.literal("")),
+  status: projectStatusEnum.optional(), // Optional for personal projects
+  code: z.string().optional().or(z.literal("")).nullable(), // Can be null for personal projects
   description: z.string().nullable().optional(),
   currency: z.string().length(3, "Mena musí mať 3 znaky").default("EUR").optional().or(z.literal("")),
   start_date: z.string().nullable().optional(),

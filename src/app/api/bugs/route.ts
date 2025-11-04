@@ -228,11 +228,78 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Combine bugs with profiles
-    const bugsWithProfiles = bugs?.map(bug => ({
-      ...bug,
-      user: profilesMap.get(bug.user_id) || null,
-    })) || [];
+    // Get all workspaces to check user roles
+    const { data: workspaces, error: workspacesError } = await clientToUse
+      .from("workspaces")
+      .select("id, owner_id");
+
+    if (workspacesError) {
+      console.error("Error fetching workspaces:", workspacesError);
+    }
+
+    // Get workspace members for all workspaces
+    const { data: workspaceMembers, error: membersError } = await clientToUse
+      .from("workspace_members")
+      .select("workspace_id, user_id, role");
+
+    if (membersError) {
+      console.error("Error fetching workspace members:", membersError);
+    }
+
+    // Create maps for quick lookup
+    const ownerMap = new Map<string, Set<string>>(); // workspace_id -> Set of user_ids
+    const memberMap = new Map<string, Map<string, string>>(); // workspace_id -> Map(user_id -> role)
+
+    workspaces?.forEach(ws => {
+      if (!ownerMap.has(ws.id)) {
+        ownerMap.set(ws.id, new Set());
+      }
+      ownerMap.get(ws.id)!.add(ws.owner_id);
+    });
+
+    workspaceMembers?.forEach(member => {
+      if (!memberMap.has(member.workspace_id)) {
+        memberMap.set(member.workspace_id, new Map());
+      }
+      memberMap.get(member.workspace_id)!.set(member.user_id, member.role);
+    });
+
+    // Determine user role (owner or member) - check all workspaces
+    const getUserRole = (userId: string): "owner" | "member" | null => {
+      // Check if user is owner of any workspace
+      for (const [workspaceId, ownerIds] of ownerMap.entries()) {
+        if (ownerIds.has(userId)) {
+          return "owner";
+        }
+      }
+      
+      // Check if user is member of any workspace
+      for (const [workspaceId, members] of memberMap.entries()) {
+        if (members.has(userId)) {
+          const role = members.get(userId);
+          if (role === "owner") {
+            return "owner";
+          }
+          return "member";
+        }
+      }
+      
+      return null;
+    };
+
+    // Combine bugs with profiles and user roles
+    const bugsWithProfiles = bugs?.map(bug => {
+      const profile = profilesMap.get(bug.user_id) || null;
+      const userRole = getUserRole(bug.user_id);
+      
+      return {
+        ...bug,
+        user: profile ? {
+          ...profile,
+          role: userRole,
+        } : null,
+      };
+    }) || [];
 
     return NextResponse.json(
       { success: true, data: bugsWithProfiles },

@@ -10,8 +10,8 @@ export default function SettingsPage() {
     <div className="w-full space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Nastavenia</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-2xl font-bold text-foreground">Nastavenia</h1>
+        <p className="text-muted-foreground mt-1">
           Spravujte svoje nastavenia a preferencie aplikácie
         </p>
       </div>

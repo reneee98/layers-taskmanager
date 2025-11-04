@@ -2,17 +2,24 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { ActiveTimer, TimerContextType } from "@/types/timer";
+import { useAuth } from "@/contexts/AuthContext";
 
 const TimerContext = createContext<TimerContextType | undefined>(undefined);
 
 export function TimerProvider({ children }: { children: ReactNode }) {
   const [activeTimer, setActiveTimer] = useState<ActiveTimer | null>(null);
   const [currentDuration, setCurrentDuration] = useState(0);
+  const { user } = useAuth();
 
-  // Check for active timer on mount
+  // Check for active timer on mount (only if user is logged in)
   useEffect(() => {
-    refreshTimer();
-  }, []);
+    if (user) {
+      refreshTimer();
+    } else {
+      setActiveTimer(null);
+      setCurrentDuration(0);
+    }
+  }, [user]);
 
   // Update duration every second when there's an active timer
   useEffect(() => {
@@ -30,6 +37,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }, [activeTimer]);
 
   const refreshTimer = async () => {
+    if (!user) {
+      setActiveTimer(null);
+      return;
+    }
+
     try {
       const response = await fetch("/api/timers/active");
       if (response.ok) {
@@ -39,11 +51,17 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         } else {
           setActiveTimer(null);
         }
+      } else if (response.status === 401) {
+        // User not authenticated, silently ignore
+        setActiveTimer(null);
       } else {
         setActiveTimer(null);
       }
     } catch (error) {
-      console.error("Error refreshing timer:", error);
+      // Silently ignore errors when user is not authenticated
+      if (user) {
+        console.error("Error refreshing timer:", error);
+      }
       setActiveTimer(null);
     }
   };

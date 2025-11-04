@@ -187,6 +187,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Nie ste prihlásený" }, { status: 401 });
     }
 
+    // If estimated_hours is set and budget_cents is not explicitly provided, calculate budget automatically
+    if (validation.data.estimated_hours !== undefined && validation.data.estimated_hours !== null && validation.data.estimated_hours > 0 && validation.data.project_id) {
+      // Only calculate budget if budget_cents is not explicitly set in the request
+      if (validation.data.budget_cents === undefined) {
+        // Get project to get hourly_rate_cents
+        const { data: project } = await supabase
+          .from("projects")
+          .select("hourly_rate_cents")
+          .eq("id", validation.data.project_id)
+          .single();
+
+        if (project?.hourly_rate_cents) {
+          // Calculate budget: estimated_hours * hourly_rate (convert from cents to euros, then back to cents)
+          const hourlyRate = project.hourly_rate_cents / 100; // Convert cents to euros
+          const budgetInEuros = validation.data.estimated_hours * hourlyRate;
+          validation.data.budget_cents = Math.round(budgetInEuros * 100); // Convert back to cents
+        }
+      }
+    }
+
     // Get the max order_index for this project within workspace
     const { data: maxOrderTask } = await supabase
       .from("tasks")

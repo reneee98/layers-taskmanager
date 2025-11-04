@@ -22,8 +22,6 @@ import {
   Loader2,
   MoreHorizontal,
   Copy,
-  Share2,
-  Archive,
   Trash2,
   Flag,
   Target,
@@ -36,7 +34,10 @@ import {
   ExternalLink,
   Settings,
   Save,
-  X
+  X,
+  Timer,
+  Square,
+  Flame
 } from "lucide-react";
 import { TimePanel } from "@/components/time/TimePanel";
 import { CostsPanel } from "@/components/costs/CostsPanel";
@@ -46,7 +47,7 @@ import { QuillEditor } from "@/components/ui/quill-editor";
 import { MultiAssigneeSelect } from "@/components/tasks/MultiAssigneeSelect";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { PrioritySelect } from "@/components/tasks/PrioritySelect";
-import { InlineDateEdit } from "@/components/ui/inline-date-edit";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { GoogleDriveLinks } from "@/components/tasks/GoogleDriveLinks";
 import { TaskChecklist } from "@/components/tasks/TaskChecklist";
 import { TaskFiles } from "@/components/tasks/TaskFiles";
@@ -58,6 +59,7 @@ import { sk } from "date-fns/locale";
 import type { Task, TaskAssignee } from "@/types/database";
 import { cn } from "@/lib/utils";
 import { getDeadlineStatus, getDeadlineBadge } from "@/lib/deadline-utils";
+import { useTimer } from "@/contexts/TimerContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,11 +74,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
 import type { Project } from "@/types/database";
 
 export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { activeTimer, startTimer, stopTimer } = useTimer();
   const [task, setTask] = useState<Task | null>(null);
   const [assignees, setAssignees] = useState<TaskAssignee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -91,6 +108,9 @@ export default function TaskDetailPage() {
   const [commentsCount, setCommentsCount] = useState(0);
   const [linksCount, setLinksCount] = useState(0);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isStartingTimer, setIsStartingTimer] = useState(false);
+  const prevActiveTimerRef = useRef<typeof activeTimer>(null);
+  const [projectSelectOpen, setProjectSelectOpen] = useState(false);
 
   const fetchTask = async () => {
     try {
@@ -130,7 +150,7 @@ export default function TaskDetailPage() {
         setAssignees(result.data);
       }
     } catch (error) {
-      console.error("Failed to fetch assignees:", error);
+      // Silently fail - assignees are already loaded from task data
     }
   };
 
@@ -143,7 +163,7 @@ export default function TaskDetailPage() {
         setProjects(result.data);
       }
     } catch (error) {
-      console.error("Failed to fetch projects:", error);
+      // Silently fail - projects are not critical for initial render
     }
   };
 
@@ -155,7 +175,7 @@ export default function TaskDetailPage() {
         setCommentsCount(result.data?.length || 0);
       }
     } catch (error) {
-      console.error("Failed to fetch comments count:", error);
+      // Silently fail - comments count is not critical
     }
   };
 
@@ -170,24 +190,59 @@ export default function TaskDetailPage() {
         setLinksCount(0);
       }
     } catch (error) {
-      console.error("Failed to fetch links count:", error);
       setLinksCount(0);
     }
   };
 
   useEffect(() => {
-    fetchTask();
-    fetchAssignees();
-    fetchProjects();
-    fetchCommentsCount();
-    fetchLinksCount();
+    // Load critical data first (task), then load other non-critical data in parallel
+    const loadData = async () => {
+      await fetchTask();
+      // Load non-critical data after task is loaded
+      Promise.all([
+        fetchAssignees(),
+        fetchProjects(),
+        fetchCommentsCount(),
+        fetchLinksCount(),
+      ]).catch(() => {
+        // Silently fail - non-critical data
+      });
+    };
+    loadData();
   }, [params.taskId]);
+
+  // Refresh task when timer stops (to update actual_hours)
+  useEffect(() => {
+    // Only refresh if timer was active and is now stopped
+    if (prevActiveTimerRef.current && !activeTimer && task) {
+      // Small delay to ensure backend has updated the task
+      const timeout = setTimeout(() => {
+        fetchTask();
+      }, 500);
+      prevActiveTimerRef.current = activeTimer;
+      return () => clearTimeout(timeout);
+    }
+    prevActiveTimerRef.current = activeTimer;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTimer]);
 
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
+    };
+  }, []);
+
+  // Listen for time entry added events to refresh task
+  useEffect(() => {
+    const handleTimeEntryAdded = () => {
+      fetchTask();
+    };
+
+    window.addEventListener('timeEntryAdded', handleTimeEntryAdded);
+    return () => {
+      window.removeEventListener('timeEntryAdded', handleTimeEntryAdded);
     };
   }, []);
 
@@ -211,6 +266,166 @@ export default function TaskDetailPage() {
       saveTimeoutRef.current = setTimeout(() => {
         handleSaveDescriptionWithContent(html);
       }, 500);
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!task) return;
+
+    try {
+      setIsSaving(true);
+      
+      // Prepare task data for duplication (exclude id, created_at, updated_at)
+      const {
+        id,
+        created_at,
+        updated_at,
+        assignees,
+        actual_hours,
+        order_index,
+        ...taskData
+      } = task;
+
+      // Add " (Kópia)" to title
+      const duplicatedTaskData = {
+        ...taskData,
+        title: `${task.title} (Kópia)`,
+        status: "todo", // Reset status to todo
+        start_date: null, // Reset dates
+        due_date: null,
+        actual_hours: 0, // Reset actual hours
+      };
+
+      // Create duplicated task
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(duplicatedTaskData),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Nepodarilo sa duplikovať úlohu");
+      }
+
+      const newTaskId = result.data.id;
+
+      // Copy assignees if they exist
+      if (assignees && assignees.length > 0) {
+        const assigneeIds = assignees.map((a: TaskAssignee) => a.user_id);
+        await fetch(`/api/tasks/${newTaskId}/assignees`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ user_ids: assigneeIds }),
+        });
+      }
+
+      // Copy checklist items
+      try {
+        const checklistResponse = await fetch(`/api/tasks/${task.id}/checklist`);
+        const checklistResult = await checklistResponse.json();
+        // API returns { data: [...] } not { success: true, data: [...] }
+        if (checklistResponse.ok && checklistResult.data && Array.isArray(checklistResult.data)) {
+          for (const item of checklistResult.data) {
+            await fetch(`/api/tasks/${newTaskId}/checklist`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                text: item.text,
+              }),
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error copying checklist:", error);
+        // Continue even if checklist copy fails
+      }
+
+      // Copy drive links
+      try {
+        const linksResponse = await fetch(`/api/tasks/${task.id}/drive-links`);
+        const linksResult = await linksResponse.json();
+        if (linksResult.data && Array.isArray(linksResult.data)) {
+          for (const link of linksResult.data) {
+            await fetch(`/api/tasks/${newTaskId}/drive-links`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                url: link.url,
+                description: link.description,
+              }),
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error copying drive links:", error);
+        // Continue even if links copy fails
+      }
+
+      toast({
+        title: "Úspech",
+        description: "Úloha bola duplikovaná",
+      });
+
+      // Navigate to new task
+      router.push(`/projects/${task.project_id}/tasks/${newTaskId}`);
+    } catch (error) {
+      console.error("Error duplicating task:", error);
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa duplikovať úlohu",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!task) return;
+
+    if (!confirm("Naozaj chcete vymazať túto úlohu?")) {
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Nepodarilo sa vymazať úlohu");
+      }
+
+      toast({
+        title: "Úspech",
+        description: "Úloha bola vymazaná",
+      });
+
+      // Navigate back to project
+      router.push(`/projects/${task.project_id}`);
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa vymazať úlohu",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -522,11 +737,6 @@ export default function TaskDetailPage() {
   const handleDueDateChange = async (newDueDate: string | null) => {
     if (!task) return;
     
-    console.log('[Frontend] handleDueDateChange called:', {
-      taskId: params.taskId,
-      oldDueDate: task.due_date,
-      newDueDate: newDueDate
-    });
     
     try {
       const response = await fetch(`/api/tasks/${params.taskId}`, {
@@ -540,21 +750,10 @@ export default function TaskDetailPage() {
       });
 
       const result = await response.json();
-      console.log('[Frontend] API response:', {
-        success: result.success,
-        data: result.data,
-        error: result.error,
-        returnedStartDate: result.data?.start_date,
-        oldStartDate: task.start_date
-      });
 
       if (result.success) {
         // Update task with returned data (includes updated start_date if it was auto-set)
         const updatedTask = { ...task, due_date: newDueDate, start_date: result.data?.start_date || task.start_date };
-        console.log('[Frontend] Updating task with:', {
-          due_date: updatedTask.due_date,
-          start_date: updatedTask.start_date
-        });
         setTask(updatedTask);
         toast({
           title: "Úspech",
@@ -572,16 +771,61 @@ export default function TaskDetailPage() {
         });
       }
     } catch (error) {
-      console.error("[Frontend] Error updating due date:", error);
-      console.error("[Frontend] Error details:", {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      });
       toast({
         title: "Chyba",
         description: "Nepodarilo sa aktualizovať deadline",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleTimerToggle = async () => {
+    if (!task) return;
+
+    // If this task is currently being tracked, stop it
+    if (activeTimer && activeTimer.task_id === task.id) {
+      try {
+        await stopTimer();
+        toast({
+          title: "Časovač zastavený",
+          description: "Trackovanie času bolo zastavené",
+        });
+      } catch (error) {
+        toast({
+          title: "Chyba",
+          description: "Nepodarilo sa zastaviť časovač",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    // If another task is being tracked, stop it first
+    if (activeTimer) {
+      await stopTimer();
+    }
+
+    // Start tracking this task
+    try {
+      setIsStartingTimer(true);
+      await startTimer(
+        task.id,
+        task.title,
+        task.project_id,
+        task.project?.name || "Neznámy projekt"
+      );
+      toast({
+        title: "Časovač spustený",
+        description: `Začal som trackovať čas pre úlohu "${task.title}"`,
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa spustiť časovač",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStartingTimer(false);
     }
   };
 
@@ -692,32 +936,56 @@ export default function TaskDetailPage() {
             Späť
           </Button>
           <div className="h-4 w-px bg-border" />
-          <Select
-            value={task.project_id}
-            onValueChange={handleProjectChange}
-          >
-            <SelectTrigger className="w-auto h-auto border-none shadow-none hover:bg-accent px-2 py-1 data-[state=open]:bg-accent">
-              <SelectValue>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+          {/* Project Select */}
+          <Popover open={projectSelectOpen} onOpenChange={setProjectSelectOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                role="combobox"
+                className="w-auto h-auto border-none shadow-none hover:bg-accent px-2 py-1 justify-between"
+              >
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span className="font-medium">{task.project?.name}</span>
                   <span>•</span>
                   <span className="font-mono text-xs">{task.project?.code}</span>
                 </div>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[400px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Hľadať projekt..." />
+                <CommandList>
+                  <CommandEmpty>Žiadny projekt sa nenašiel.</CommandEmpty>
+                  <CommandGroup>
               {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
+                      <CommandItem
+                        key={project.id}
+                        value={`${project.name} ${project.code}`}
+                        onSelect={() => {
+                          handleProjectChange(project.id);
+                          setProjectSelectOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            task.project_id === project.id ? "opacity-100" : "opacity-0"
+                          )}
+                        />
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{project.name}</span>
                     <span className="text-xs text-muted-foreground font-mono">
                       ({project.code})
                     </span>
                   </div>
-                </SelectItem>
+                      </CommandItem>
               ))}
-            </SelectContent>
-          </Select>
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
         
         <DropdownMenu>
@@ -727,20 +995,11 @@ export default function TaskDetailPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDuplicate}>
               <Copy className="h-4 w-4 mr-2" />
               Duplikovať
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Share2 className="h-4 w-4 mr-2" />
-              Zdieľať
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Archive className="h-4 w-4 mr-2" />
-              Archivovať
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">
+            <DropdownMenuItem onClick={handleDelete} className="text-red-600">
               <Trash2 className="h-4 w-4 mr-2" />
               Vymazať
             </DropdownMenuItem>
@@ -756,52 +1015,17 @@ export default function TaskDetailPage() {
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-2xl font-bold text-foreground truncate">{task.title}</h1>
-                  {deadlineBadge && task.status !== "done" && task.status !== "cancelled" && (
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <div className={`w-5 h-5 ${deadlineBadge.color} rounded-full flex items-center justify-center ${
-                        deadlineBadge.animate ? 'animate-pulse' : ''
-                      }`}>
-                        <span className="text-white text-xs font-bold">
-                          {deadlineBadge.icon}
-                        </span>
-                      </div>
-                      <span className={`text-xs font-medium ${deadlineStatus?.color} ${
-                        deadlineBadge.animate ? 'animate-pulse' : ''
-                      }`}>
-                        {deadlineBadge.text}
-                      </span>
-                    </div>
+                  {deadlineBadge && 
+                   deadlineStatus?.type === 'today' &&
+                   task.status !== "done" && 
+                   task.status !== "cancelled" && 
+                   task.project &&
+                   task.project.status !== "completed" &&
+                   task.project.status !== "cancelled" && (
+                    <Flame className="h-5 w-5 text-red-500 flex-shrink-0" />
                   )}
+                  <h1 className="text-2xl font-bold text-foreground truncate">{task.title}</h1>
                 </div>
-                
-                {/* Project Select */}
-                <Select
-                  value={task.project_id}
-                  onValueChange={handleProjectChange}
-                >
-                  <SelectTrigger className="w-auto h-auto border-none shadow-none hover:bg-accent px-2 py-1 data-[state=open]:bg-accent">
-                    <SelectValue>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                        <span className="font-medium">{task.project?.name}</span>
-                        <span>•</span>
-                        <span className="font-mono text-xs">{task.project?.code}</span>
-                      </div>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{project.name}</span>
-                          <span className="text-xs text-muted-foreground font-mono">
-                            ({project.code})
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 
@@ -832,79 +1056,22 @@ export default function TaskDetailPage() {
                   />
                 </div>
 
-                {/* Start Date */}
+                {/* Date Range (Start Date - Deadline) */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                      <Play className="h-4 w-4" />
-                      Začiatok
+                    <Calendar className="h-4 w-4" />
+                    Dátum
                     </div>
-                    {task.start_date && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleStartDateChange(null)}
-                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                        title="Zrušiť dátum"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                  <InlineDateEdit
-                    value={task.start_date ? format(new Date(task.start_date), 'dd.MM.yyyy', { locale: sk }) : null}
+                  <DateRangePicker
+                    startDate={task.start_date}
+                    endDate={task.due_date}
+                    onSave={async (startDate, endDate) => {
+                      await Promise.all([
+                        handleStartDateChange(startDate),
+                        handleDueDateChange(endDate),
+                      ]);
+                    }}
                     placeholder="Nastaviť dátum"
-                    onSave={async (value) => {
-                      const isoDate = value ? new Date(value).toISOString().split('T')[0] : null;
-                      await handleStartDateChange(isoDate);
-                    }}
-                    icon={Calendar}
-                  />
-                </div>
-                
-                {/* Due Date */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                      <Flag className="h-4 w-4" />
-                      Deadline
-                    </div>
-                    {task.due_date && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDueDateChange(null)}
-                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                        title="Zrušiť deadline"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                  <InlineDateEdit
-                    value={task.due_date ? format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk }) : null}
-                    placeholder="Nastaviť deadline"
-                    onSave={async (value) => {
-                      // InlineDateEdit with type="date" returns value in YYYY-MM-DD format
-                      // If value is already in ISO format, use it directly
-                      // Otherwise try to parse it
-                      let isoDate: string | null = null;
-                      if (value) {
-                        // Check if value is already in YYYY-MM-DD format
-                        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-                          isoDate = value;
-                        } else {
-                          // Try to parse other formats
-                          const parsed = new Date(value);
-                          if (!isNaN(parsed.getTime())) {
-                            isoDate = parsed.toISOString().split('T')[0];
-                          }
-                        }
-                      }
-                      console.log('[Frontend] Parsing due_date:', { value, isoDate });
-                      await handleDueDateChange(isoDate);
-                    }}
-                    icon={Calendar}
                   />
                 </div>
 
@@ -919,6 +1086,90 @@ export default function TaskDetailPage() {
                     currentAssignees={assignees}
                     onAssigneesChange={handleAssigneesChange}
                   />
+                </div>
+
+                {/* Tracked Time */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Timer className="h-4 w-4" />
+                    Natrackovaný čas
+              </div>
+                  <div className="flex items-stretch gap-2">
+                    <div className="flex items-center gap-1.5 px-3 py-2 h-[2.5rem] bg-muted rounded-md text-sm border border-border">
+                      {(() => {
+                        const actualHours = task.actual_hours || 0;
+                        const estimatedHours = task.estimated_hours || 0;
+                        const isOverBudget = estimatedHours > 0 && actualHours > estimatedHours;
+                        
+                        // If both are 0, show nothing
+                        if (actualHours === 0 && estimatedHours === 0) {
+                          return <span className="text-muted-foreground italic">—</span>;
+                        }
+                        
+                        return (
+                          <>
+                            {/* Estimated Hours (nabudgetovaný) - only show if > 0 */}
+                            {estimatedHours > 0 && (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <Euro className={cn(
+                                    "h-3.5 w-3.5",
+                                    isOverBudget ? "text-red-500" : "text-muted-foreground"
+                                  )} />
+                                  <span className={cn(
+                                    isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
+                                  )}>
+                                    {formatHours(estimatedHours)}
+                                  </span>
+                                </div>
+                                
+                                {/* Separator - only show if both values exist */}
+                                {actualHours > 0 && (
+                                  <span className={cn(
+                                    isOverBudget ? "text-red-500" : "text-muted-foreground"
+                                  )}>/</span>
+                                )}
+                              </>
+                            )}
+                            
+                            {/* Actual Hours (natrackovaný) - always show if > 0 */}
+                            {actualHours > 0 && (
+                              <div className="flex items-center gap-1">
+                                <Timer className={cn(
+                                  "h-3.5 w-3.5",
+                                  isOverBudget ? "text-red-500" : "text-muted-foreground"
+                                )} />
+                                <span className={cn(
+                                  isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
+                                )}>
+                                  {formatHours(actualHours)}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleTimerToggle}
+                      disabled={isStartingTimer}
+                      className={cn(
+                        "flex items-center justify-center w-10 h-[2.5rem] rounded-full bg-black text-white cursor-pointer hover:bg-black/80 transition-colors",
+                        activeTimer && activeTimer.task_id === task.id && "bg-red-600 hover:bg-red-700",
+                        isStartingTimer && "opacity-50 cursor-not-allowed"
+                      )}
+                      title={activeTimer && activeTimer.task_id === task.id ? "Zastaviť trackovanie" : "Začať trackovať"}
+                    >
+                      {isStartingTimer ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                      ) : activeTimer && activeTimer.task_id === task.id ? (
+                        <Square className="h-4 w-4 text-white" />
+                      ) : (
+                        <Play className="h-4 w-4 text-white" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -56,26 +56,17 @@ export function MultiAssigneeSelect({
   }, []);
 
   const handleAddAssignee = async (userId: string) => {
-    console.log("handleAddAssignee called with userId:", userId);
-    console.log("Available users:", users);
-    
     if (userId === "none") return;
 
     const user = users.find(u => u.id === userId);
     if (!user) {
-      console.log("User not found:", userId);
       return;
     }
 
     // Check if user is already assigned
     if (currentAssignees.some(assignee => assignee.user_id === userId)) {
-      console.log("User already assigned");
       return;
     }
-
-    console.log("Adding assignee:", user.display_name || user.email, "to task:", taskId);
-    console.log("User ID being sent:", userId);
-    console.log("User object:", user);
 
     try {
       const response = await fetch(`/api/tasks/${taskId}/assignees`, {
@@ -89,27 +80,17 @@ export function MultiAssigneeSelect({
       });
 
       const result = await response.json();
-      console.log("API response:", result);
 
       if (result.success) {
-        console.log("Assignment successful, refreshing assignees...");
         // Refresh assignees
         const assigneesResponse = await fetch(`/api/tasks/${taskId}/assignees`);
         const assigneesResult = await assigneesResponse.json();
-        console.log("Refreshed assignees:", assigneesResult);
         if (assigneesResult.success) {
-          console.log("Calling onAssigneesChange with:", assigneesResult.data);
-          console.log("First assignee details:", assigneesResult.data[0]);
-          console.log("User in assignee:", assigneesResult.data[0]?.user);
           onAssigneesChange(assigneesResult.data);
-        } else {
-          console.error("Failed to refresh assignees:", assigneesResult.error);
         }
-      } else {
-        console.error("Failed to add assignee:", result.error);
       }
     } catch (error) {
-      console.error("Failed to add assignee:", error);
+      // Silently fail - user can try again
     }
   };
 
@@ -155,14 +136,14 @@ export function MultiAssigneeSelect({
       {currentAssignees.map((assignee) => (
         <div
           key={assignee.id}
-          className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded-md border border-border/50 hover:bg-muted/70 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 h-[2.5rem] bg-muted rounded-md border border-border hover:bg-muted/80 transition-colors"
         >
           <Avatar className="h-5 w-5">
-            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+            <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
               {getInitials(assignee.user?.name || assignee.user?.email || "")}
             </AvatarFallback>
           </Avatar>
-          <span className="text-xs font-medium">
+          <span className="text-sm font-medium">
             {assignee.user?.name || assignee.user?.email || "Neznámy"}
           </span>
           <Button
@@ -179,26 +160,26 @@ export function MultiAssigneeSelect({
 
       {/* Add assignee select */}
       <Select onValueChange={handleAddAssignee}>
-        <SelectTrigger className="h-8 px-2 py-1 text-xs border-dashed hover:border-solid transition-colors w-auto min-w-[100px]">
+        <SelectTrigger className="h-[2.5rem] px-3 py-2 text-sm bg-muted rounded-md border border-border hover:bg-muted/80 transition-colors w-auto min-w-[100px]">
           <SelectValue placeholder="+ Priradiť">
-            <div className="flex items-center gap-1 text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-foreground">
               <Plus className="h-3 w-3" />
-              <span className="text-xs">Priradiť</span>
+              <span className="text-sm font-medium">Priradiť</span>
             </div>
           </SelectValue>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="py-2">
           {users
             .filter(user => !currentAssignees.some(assignee => assignee.user_id === user.id))
             .map((user) => (
-              <SelectItem key={user.id} value={user.id}>
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-4 w-4">
+              <SelectItem key={user.id} value={user.id} className="py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <Avatar className="h-6 w-6">
                     <AvatarFallback className="text-xs bg-primary text-primary-foreground">
                       {getInitials(user.display_name || user.email)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-xs">{user.display_name || user.email || "Neznámy"}</span>
+                  <span className="text-sm">{user.display_name || user.email || "Neznámy"}</span>
                 </div>
               </SelectItem>
             ))}

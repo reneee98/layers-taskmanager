@@ -15,7 +15,13 @@ BEGIN
   VALUES (
     NEW.id,
     COALESCE(NEW.email, ''),
-    COALESCE(NEW.raw_user_meta_data->>'display_name', SPLIT_PART(COALESCE(NEW.email, ''), '@', 1), 'User'),
+    COALESCE(
+      NEW.raw_user_meta_data->>'display_name',
+      CASE 
+        WHEN NEW.email IS NOT NULL THEN SPLIT_PART(NEW.email, '@', 1)
+        ELSE 'User'
+      END
+    ),
     CASE 
       WHEN NEW.email = 'design@renemoravec.sk' THEN 'admin'
       ELSE 'user'

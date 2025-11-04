@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
     
     // For personal projects, code is null
     if (!isPersonalProject) {
-      projectCode = validation.data.code;
+      projectCode = validation.data.code ?? null;
     
     // If no code provided, generate one from name
     if (!projectCode) {

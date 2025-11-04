@@ -58,7 +58,6 @@ import {
   MessageSquareX,
   FolderX,
   Building,
-  BuildingX,
   UserCog,
   Upload,
   Download,
@@ -134,6 +133,7 @@ interface AssignedTask {
     id: string;
     name: string;
     code: string;
+    status?: string;
     client?: {
       id: string;
       name: string;
@@ -799,7 +799,7 @@ export default function DashboardPage() {
       case 'client_updated':
         return Building;
       case 'client_deleted':
-        return BuildingX;
+        return Building;
       
       // User activities
       case 'member_added':
@@ -1254,8 +1254,8 @@ export default function DashboardPage() {
                                    task.status !== "done" && 
                                    task.status !== "cancelled" && 
                                    task.project &&
-                                   task.project.status !== "completed" &&
-                                   task.project.status !== "cancelled" && (
+                                   (task.project as any).status !== "completed" &&
+                                   (task.project as any).status !== "cancelled" && (
                                     <div className={getDeadlineDotClass(deadlineStatus)}></div>
                                   )}
                                 </div>

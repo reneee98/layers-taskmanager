@@ -7,6 +7,7 @@ import { Calendar as CalendarIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import type { DateRange } from "react-day-picker";
 import {
   Popover,
   PopoverContent,
@@ -49,9 +50,12 @@ export const DateRangePicker = ({
     });
   }, [startDate, endDate]);
 
-  const handleSelect = (range: { from: Date | undefined; to: Date | undefined } | undefined) => {
+  const handleSelect = (range: DateRange | undefined) => {
     if (range) {
-      setSelectedRange(range);
+      setSelectedRange({
+        from: range.from,
+        to: range.to,
+      });
       
       // Ak sú oba dátumy vybrané, automaticky uložíme
       if (range.from && range.to) {

@@ -22,20 +22,6 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = (page - 1) * limit;
     
-    // Calculate date range for today
-    let dateFilter = {};
-    if (onlyToday) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      dateFilter = {
-        gte: today.toISOString(),
-        lt: tomorrow.toISOString()
-      };
-    }
-
     // Build query
     let query = supabase
       .from("activities")
@@ -54,9 +40,14 @@ export async function GET(req: NextRequest) {
 
     // Apply date filter if only_today is true
     if (onlyToday) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
       query = query
-        .gte("created_at", dateFilter.gte)
-        .lt("created_at", dateFilter.lt);
+        .gte("created_at", today.toISOString())
+        .lt("created_at", tomorrow.toISOString());
     }
 
     const { data: activities, error: activitiesError } = await query

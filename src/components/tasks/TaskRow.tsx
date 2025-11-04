@@ -386,12 +386,12 @@ export function TaskRow({
           
           // Priority 1: Check if budget matches estimated_hours * hourly_rate (auto-calculated)
           const hasEstimatedHours = task.estimated_hours && task.estimated_hours > 0;
-          const hasProjectRate = projectData?.hourly_rate_cents || projectData?.hourly_rate;
+          const hasProjectRate = (projectData as any)?.hourly_rate_cents || projectData?.hourly_rate;
           const hasBudget = task.budget_cents && task.budget_cents > 0;
           
-          if (hasEstimatedHours && hasProjectRate && hasBudget) {
+          if (hasEstimatedHours && hasProjectRate && hasBudget && projectData) {
             // Try hourly_rate_cents first, then hourly_rate as fallback
-            const hourlyRateCents = projectData.hourly_rate_cents || 
+            const hourlyRateCents = (projectData as any).hourly_rate_cents || 
                                    (projectData.hourly_rate ? projectData.hourly_rate * 100 : 0);
             const hourlyRate = hourlyRateCents / 100;
             const calculatedBudget = (task.estimated_hours || 0) * hourlyRate * 100; // Convert to cents
@@ -405,7 +405,7 @@ export function TaskRow({
                 <div className="flex flex-col items-end gap-0.5 text-xs">
                   <div className="flex items-center gap-1 font-medium">
                     <span className="text-green-600">
-                      {formatCurrency(task.budget_cents / 100)}
+                      {formatCurrency((task.budget_cents || 0) / 100)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -422,7 +422,7 @@ export function TaskRow({
             return (
               <div className="flex items-center justify-end gap-1 text-xs font-medium">
                 <span className="text-green-600">
-                  {formatCurrency(task.budget_cents / 100)}
+                  {formatCurrency((task.budget_cents || 0) / 100)}
                 </span>
                 <span className="text-xs text-muted-foreground">(fixná)</span>
               </div>

@@ -147,8 +147,8 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
         } catch (error) {
           console.error("Failed to fetch project:", error);
           // Fallback to provided project if fetch fails
-          const isPersonal = project.name === "Osobné úlohy" || 
-            (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
+          const isPersonal = !!project.name && project.name === "Osobné úlohy" ||
+            !!(project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
           setIsPersonalProject(isPersonal);
           
           reset({

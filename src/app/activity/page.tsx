@@ -209,7 +209,8 @@ function ActivityPageContent() {
     setCustomDate(undefined);
   };
 
-  const hasActiveFilters = searchTerm.trim() !== "" || dateFilter !== "all" || (dateFilter === "custom" && customDate);
+  const hasActiveFilters = searchTerm.trim() !== "" || 
+    (dateFilter !== "all" && (dateFilter !== "custom" || customDate !== undefined));
 
   const handleDateFilterChange = (value: DateFilter) => {
     setDateFilter(value);

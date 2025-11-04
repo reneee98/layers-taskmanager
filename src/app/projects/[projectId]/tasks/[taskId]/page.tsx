@@ -282,7 +282,6 @@ export default function TaskDetailPage() {
         updated_at,
         assignees,
         actual_hours,
-        order_index,
         ...taskData
       } = task;
 
@@ -315,7 +314,7 @@ export default function TaskDetailPage() {
 
       // Copy assignees if they exist
       if (assignees && assignees.length > 0) {
-        const assigneeIds = assignees.map((a: TaskAssignee) => a.user_id);
+        const assigneeIds = assignees.map((a: any) => a.user_id);
         await fetch(`/api/tasks/${newTaskId}/assignees`, {
           method: "POST",
           headers: {
@@ -1018,10 +1017,10 @@ export default function TaskDetailPage() {
                   {deadlineBadge && 
                    deadlineStatus?.type === 'today' &&
                    task.status !== "done" && 
-                   task.status !== "cancelled" && 
-                   task.project &&
-                   task.project.status !== "completed" &&
-                   task.project.status !== "cancelled" && (
+                    task.status !== "cancelled" &&
+                    task.project &&
+                    (task.project as any).status !== "completed" &&
+                    (task.project as any).status !== "cancelled" && (
                     <Flame className="h-5 w-5 text-red-500 flex-shrink-0" />
                   )}
                   <h1 className="text-2xl font-bold text-foreground truncate">{task.title}</h1>

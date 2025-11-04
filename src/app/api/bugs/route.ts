@@ -267,14 +267,14 @@ export async function GET(request: NextRequest) {
     // Determine user role (owner or member) - check all workspaces
     const getUserRole = (userId: string): "owner" | "member" | null => {
       // Check if user is owner of any workspace
-      for (const [workspaceId, ownerIds] of ownerMap.entries()) {
+      for (const [workspaceId, ownerIds] of Array.from(ownerMap.entries())) {
         if (ownerIds.has(userId)) {
           return "owner";
         }
       }
       
       // Check if user is member of any workspace
-      for (const [workspaceId, members] of memberMap.entries()) {
+      for (const [workspaceId, members] of Array.from(memberMap.entries())) {
         if (members.has(userId)) {
           const role = members.get(userId);
           if (role === "owner") {

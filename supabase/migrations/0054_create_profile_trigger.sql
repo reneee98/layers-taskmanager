@@ -7,39 +7,63 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 
 -- Create function to handle new user creation
+-- This function MUST use SECURITY DEFINER to bypass RLS when creating profiles
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_display_name TEXT;
+  v_email TEXT;
 BEGIN
-  -- Insert profile with SECURITY DEFINER to bypass RLS
-  INSERT INTO public.profiles (id, email, display_name, role, created_at, updated_at)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.email, ''),
-    COALESCE(
-      NEW.raw_user_meta_data->>'display_name',
-      CASE 
-        WHEN NEW.email IS NOT NULL THEN SPLIT_PART(NEW.email, '@', 1)
-        ELSE 'User'
-      END
-    ),
+  -- Get email safely
+  v_email := COALESCE(NEW.email, '');
+  
+  -- Get display_name from metadata or email
+  v_display_name := COALESCE(
+    NEW.raw_user_meta_data->>'display_name',
     CASE 
-      WHEN NEW.email = 'design@renemoravec.sk' THEN 'admin'
-      ELSE 'user'
-    END,
-    NOW(),
-    NOW()
-  )
-  ON CONFLICT (id) DO NOTHING;
+      WHEN v_email != '' AND POSITION('@' IN v_email) > 0 THEN SPLIT_PART(v_email, '@', 1)
+      ELSE 'User'
+    END
+  );
+  
+  -- Insert profile - SECURITY DEFINER bypasses RLS automatically
+  -- Use ON CONFLICT to prevent errors if profile already exists
+  BEGIN
+    INSERT INTO public.profiles (id, email, display_name, role, created_at, updated_at)
+    VALUES (
+      NEW.id,
+      v_email,
+      v_display_name,
+      CASE 
+        WHEN v_email = 'design@renemoravec.sk' THEN 'admin'
+        ELSE 'user'
+      END,
+      NOW(),
+      NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      email = EXCLUDED.email,
+      updated_at = NOW();
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- Log error but don't fail
+      RAISE WARNING 'Error inserting profile for user %: %', NEW.id, SQLERRM;
+  END;
   
   RETURN NEW;
 EXCEPTION
   WHEN OTHERS THEN
-    -- Log error but don't fail the user creation
-    RAISE WARNING 'Error creating profile for user %: %', NEW.id, SQLERRM;
+    -- CRITICAL: Never fail user creation, just log the error
+    -- This ensures registration always succeeds even if profile creation fails
+    RAISE WARNING 'Error in handle_new_user for user %: %', NEW.id, SQLERRM;
+    -- Always return NEW to allow user creation to proceed
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public;
+$$;
 
 -- Set function owner to postgres (has all permissions)
 ALTER FUNCTION public.handle_new_user() OWNER TO postgres;

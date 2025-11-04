@@ -34,7 +34,7 @@ export function RegisterForm() {
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
@@ -44,8 +44,27 @@ export function RegisterForm() {
         },
       });
 
-      if (error) {
-        throw error;
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      // Create profile via API endpoint after successful registration
+      // This ensures display_name from registration form is saved
+      if (signUpData.user) {
+        // Create profile asynchronously - don't wait for it to complete
+        fetch("/api/auth/create-profile", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: signUpData.user.id,
+            email: data.email,
+            display_name: data.display_name, // Pass display_name from form
+          }),
+        }).catch((error) => {
+          console.warn("Profile creation error (non-blocking):", error);
+        });
       }
 
       setIsSuccess(true);

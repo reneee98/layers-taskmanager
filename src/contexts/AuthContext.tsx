@@ -53,12 +53,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error && error.code === 'PGRST116') {
         // Profile doesn't exist, create it
+        // Get display_name from user metadata (from registration form) if available
+        let displayName = user.user_metadata?.display_name || 
+                          user.email?.split('@')[0] || 
+                          'User';
+        
         const { data: newProfile, error: createError } = await supabase
           .from("profiles")
           .insert({
             id: user.id,
             email: user.email || '',
-            display_name: user.email?.split('@')[0] || 'User',
+            display_name: displayName,
             role: user.email === 'design@renemoravec.sk' ? 'admin' : 'user'
           })
           .select()

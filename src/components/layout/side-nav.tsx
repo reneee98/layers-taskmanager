@@ -225,7 +225,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
       }
       
       // Skip superadmin-only items if user is not superadmin
-      if (item.superadminOnly && !isSuperadmin) {
+      if ('superadminOnly' in item && item.superadminOnly && !isSuperadmin) {
         return null;
       }
       

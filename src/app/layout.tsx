@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TimerProvider } from "@/contexts/TimerContext";
 import { Toaster } from "@/components/ui/toaster";
+import { BugReporter } from "@/components/bug-reporter/BugReporter";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -35,6 +36,7 @@ export default function RootLayout({
           </AuthProvider>
         </ThemeProvider>
         <Toaster />
+        <BugReporter />
       </body>
     </html>
   );

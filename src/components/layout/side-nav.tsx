@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Calendar,
   HelpCircle,
-  Euro
+  Euro,
+  Bug
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -72,12 +73,19 @@ const toolsNavItems: Array<{
   href: string | ((workspaceId: string) => string);
   icon: any;
   adminOnly?: boolean;
+  superadminOnly?: boolean;
 }> = [
   {
     title: "Správa používateľov",
     href: (workspaceId: string) => `/workspaces/${workspaceId}/users`,
     icon: UserCog,
     adminOnly: true,
+  },
+  {
+    title: "Bug reporty",
+    href: "/admin/bugs",
+    icon: Bug,
+    superadminOnly: true,
   },
   {
     title: "Nastavenia",
@@ -191,6 +199,10 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
   const isOwner = (workspace?.owner_id && profile?.id === workspace.owner_id) ||
     (workspace?.role === 'owner');
 
+  // Check if current user is superadmin
+  const isSuperadmin = user?.email === 'design@renemoravec.sk' || 
+                       user?.email === 'rene@renemoravec.sk';
+
   const getRoleColor = (role: string, isOwner: boolean = false) => {
     if (isOwner) return "text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20";
     switch (role) {
@@ -209,6 +221,11 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
     return items.map((item) => {
       // Skip admin-only items if user is not workspace owner
       if (item.adminOnly && !isOwner) {
+        return null;
+      }
+      
+      // Skip superadmin-only items if user is not superadmin
+      if (item.superadminOnly && !isSuperadmin) {
         return null;
       }
       

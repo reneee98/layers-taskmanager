@@ -116,7 +116,7 @@ interface AssignedTask {
   end_date: string | null;
   created_at: string;
   updated_at: string;
-  project_id: string;
+  project_id: string | null;
   assignee_id: string | null;
   budget_cents: number | null;
   days_until_deadline: number | null;
@@ -138,7 +138,7 @@ interface AssignedTask {
       id: string;
       name: string;
     };
-  };
+  } | null;
 }
 
 interface Activity {
@@ -1248,7 +1248,13 @@ export default function DashboardPage() {
                     <TableRow 
                       key={task.id} 
                       className="hover:bg-accent/50 cursor-pointer group border-b border-border/50 transition-all duration-200"
-                      onClick={() => window.location.href = `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`}
+                      onClick={() => {
+                        if (task.project?.id) {
+                          window.location.href = `/projects/${task.project.id}/tasks/${task.id}`;
+                        } else {
+                          window.location.href = `/tasks/${task.id}`;
+                        }
+                      }}
                     >
                           <TableCell className="py-4 pl-6 pr-2">
                             <div className="min-w-0 space-y-1">
@@ -1880,7 +1886,11 @@ export default function DashboardPage() {
                         date={calendarDate}
                         tasks={calendarTasks.filter(task => task.due_date)}
                         onTaskClick={(task) => {
-                          window.location.href = `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`;
+                          if (task.project?.id) {
+                            window.location.href = `/projects/${task.project.id}/tasks/${task.id}`;
+                          } else {
+                            window.location.href = `/tasks/${task.id}`;
+                          }
                         }}
                       />
                     ) : typeof window !== 'undefined' && localizer ? (
@@ -1935,7 +1945,11 @@ export default function DashboardPage() {
                           setCalendarYear(date.getFullYear());
                         }}
                       onSelectEvent={(event: any) => {
-                        window.location.href = `/projects/${event.resource.project?.id || 'unknown'}/tasks/${event.resource.id}`;
+                        if (event.resource.project?.id) {
+                          window.location.href = `/projects/${event.resource.project.id}/tasks/${event.resource.id}`;
+                        } else {
+                          window.location.href = `/tasks/${event.resource.id}`;
+                        }
                       }}
                       eventPropGetter={(event: any) => {
                         // Check if dark mode is active
@@ -2013,7 +2027,11 @@ export default function DashboardPage() {
                             return (
                               <div
                                 onClick={() => {
-                                  window.location.href = `/projects/${event.resource?.project?.id || 'unknown'}/tasks/${event.resource?.id}`;
+                                  if (event.resource?.project?.id) {
+                                    window.location.href = `/projects/${event.resource.project.id}/tasks/${event.resource.id}`;
+                                  } else {
+                                    window.location.href = `/tasks/${event.resource.id}`;
+                                  }
                                 }}
                                 className="cursor-pointer"
                               >
@@ -2275,7 +2293,7 @@ export default function DashboardPage() {
                     </div>
                     {task.project && (
                       <div className="text-xs opacity-75">
-                        {task.project.code || task.project.name}
+                        {task.project?.code || task.project?.name || 'Bez projektu'}
                       </div>
                     )}
                     {task.description && (

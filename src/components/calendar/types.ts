@@ -11,7 +11,7 @@ export interface AssignedTask {
   end_date: string | null;
   created_at: string;
   updated_at: string;
-  project_id: string;
+  project_id: string | null;
   assignee_id: string | null;
   budget_cents: number | null;
   days_until_deadline: number | null;
@@ -32,6 +32,6 @@ export interface AssignedTask {
       id: string;
       name: string;
     };
-  };
+  } | null;
 }
 

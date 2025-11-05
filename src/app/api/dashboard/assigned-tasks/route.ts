@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
           assigned_to,
           budget_cents,
           workspace_id,
-          project:projects!inner(
+          project:projects(
             id,
             name,
             code,
@@ -164,7 +164,7 @@ export async function GET(req: NextRequest) {
           assigned_to,
           budget_cents,
           workspace_id,
-          project:projects!inner(
+          project:projects(
             id,
             name,
             code,
@@ -227,7 +227,7 @@ export async function GET(req: NextRequest) {
           assigned_to,
           budget_cents,
           workspace_id,
-          project:projects!inner(
+          project:projects(
             id,
             name,
             code,

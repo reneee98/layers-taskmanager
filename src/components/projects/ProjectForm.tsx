@@ -38,7 +38,6 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clients, setClients] = useState<Client[]>(propClients);
   const [existingCodes, setExistingCodes] = useState<string[]>([]);
-  const [isPersonalProject, setIsPersonalProject] = useState(false);
   const isEditing = !!project;
 
   const {
@@ -125,9 +124,6 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
           
           if (result.success && result.data) {
             const freshProject = result.data;
-            const isPersonal = freshProject.name === "Osobné úlohy" || 
-              (freshProject.code && (freshProject.code === "PERSONAL" || freshProject.code.startsWith("PERSONAL-")));
-            setIsPersonalProject(isPersonal);
             
             reset({
               client_id: freshProject.client_id,
@@ -147,10 +143,6 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
         } catch (error) {
           console.error("Failed to fetch project:", error);
           // Fallback to provided project if fetch fails
-          const isPersonal = !!project.name && project.name === "Osobné úlohy" ||
-            !!(project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
-          setIsPersonalProject(isPersonal);
-          
           reset({
             client_id: project.client_id,
             name: project.name,
@@ -167,7 +159,6 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
           });
         }
       } else {
-        setIsPersonalProject(false);
         reset({
           status: "draft",
           currency: "EUR",
@@ -181,12 +172,8 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
     resetForm();
   }, [project?.id, reset, open]);
 
-  const isPersonalProjectFromData = project && (
-    project.name === "Osobné úlohy" || 
-    (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
-    !project.code
-  );
-  const finalIsPersonalProject = isPersonalProjectFromData || isPersonalProject;
+  // Check if this is an existing personal project (for edit mode) - only by name
+  const isPersonalProject = project && project.name === "Osobné úlohy";
 
   const handleFormSubmit = async (data: ProjectFormData | UpdateProjectData) => {
     setIsSubmitting(true);
@@ -195,21 +182,17 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
       const url = isEditing ? `/api/projects/${project.id}` : "/api/projects";
       const method = isEditing ? "PATCH" : "POST";
       
-      // Prevent status change for personal project
-      if (finalIsPersonalProject && data.status !== undefined) {
-        delete (data as any).status;
-      }
-      
-      // Prevent client assignment for personal project
-      if (finalIsPersonalProject && data.client_id !== undefined) {
-        (data as any).client_id = null;
-      }
-      
-      // For personal projects, set code to null and status to active
-      if (finalIsPersonalProject) {
-        (data as any).code = null;
-        (data as any).status = "active";
-        (data as any).client_id = null;
+      // Prevent changes to personal project fields (only for existing personal projects in edit mode)
+      if (isPersonalProject && isEditing) {
+        if (data.status !== undefined) {
+          delete (data as any).status;
+        }
+        if (data.client_id !== undefined) {
+          (data as any).client_id = null;
+        }
+        if (data.code !== undefined) {
+          (data as any).code = null;
+        }
       }
 
       // Clean up data - convert empty strings to null for optional fields
@@ -305,22 +288,8 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
         </DialogHeader>
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-          {!isEditing && (
-            <div className="flex items-center space-x-2 p-3 bg-muted rounded-md">
-              <input
-                type="checkbox"
-                id="isPersonal"
-                checked={isPersonalProject}
-                onChange={(e) => setIsPersonalProject(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300"
-              />
-              <Label htmlFor="isPersonal" className="text-sm font-medium cursor-pointer">
-                Osobný projekt (bez kódu, klienta a statusu)
-              </Label>
-            </div>
-          )}
           <div className="grid grid-cols-2 gap-4">
-            {!finalIsPersonalProject && (
+            {!isPersonalProject && (
               <div className="col-span-2 space-y-2">
                 <Label htmlFor="client_id">Klient *</Label>
                 <Select
@@ -372,7 +341,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
               {errors.code && <p className="text-sm text-destructive">{errors.code.message}</p>}
             </div>
 
-            {!finalIsPersonalProject ? (
+            {!isPersonalProject ? (
               <div className="space-y-2">
                 <Label htmlFor="status">Status *</Label>
                 <Select value={watch("status") || ""} onValueChange={(value) => setValue("status", value as any)}>

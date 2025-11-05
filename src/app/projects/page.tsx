@@ -156,13 +156,9 @@ function ProjectsPageContent() {
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    // Check if this is a personal project
+    // Check if this is a personal project (only by name, not by missing code)
     const project = projects.find(p => p.id === projectId) || archivedProjects.find(p => p.id === projectId);
-    const isPersonalProject = project && (
-      project.name === "Osobné úlohy" || 
-      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
-      !project.code
-    );
+    const isPersonalProject = project && project.name === "Osobné úlohy";
     
     if (isPersonalProject) {
       toast({
@@ -210,13 +206,9 @@ function ProjectsPageContent() {
   };
 
   const handleCompleteProject = async (projectId: string) => {
-    // Check if this is a personal project
+    // Check if this is a personal project (only by name)
     const project = projects.find(p => p.id === projectId);
-    const isPersonalProject = project && (
-      project.name === "Osobné úlohy" || 
-      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
-      !project.code
-    );
+    const isPersonalProject = project && project.name === "Osobné úlohy";
     
     if (isPersonalProject) {
       toast({
@@ -256,13 +248,9 @@ function ProjectsPageContent() {
   };
 
   const handleReactivateProject = async (projectId: string) => {
-    // Check if this is a personal project
+    // Check if this is a personal project (only by name)
     const project = archivedProjects.find(p => p.id === projectId) || projects.find(p => p.id === projectId);
-    const isPersonalProject = project && (
-      project.name === "Osobné úlohy" || 
-      (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
-      !project.code
-    );
+    const isPersonalProject = project && project.name === "Osobné úlohy";
     
     if (isPersonalProject) {
       toast({

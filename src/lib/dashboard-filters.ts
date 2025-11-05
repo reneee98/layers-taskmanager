@@ -13,7 +13,7 @@ export interface AssignedTask {
   end_date: string | null;
   created_at: string;
   updated_at: string;
-  project_id: string;
+  project_id: string | null;
   assignee_id: string | null;
   budget_cents: number | null;
   days_until_deadline: number | null;
@@ -34,10 +34,10 @@ export interface AssignedTask {
       id: string;
       name: string;
     };
-  };
+  } | null;
 }
 
-export type DashboardTabType = "today" | "sent_to_client" | "in_progress" | "all_active" | "unassigned";
+export type DashboardTabType = "today" | "sent_to_client" | "in_progress" | "all_active" | "unassigned" | "no_project";
 
 export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabType): AssignedTask[] => {
   const now = new Date();
@@ -78,6 +78,14 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
         task.status !== "cancelled"
       );
 
+    case "no_project":
+      // Úlohy bez projektu
+      return tasks.filter(task => 
+        !task.project_id &&
+        task.status !== "done" && 
+        task.status !== "cancelled"
+      );
+
     default:
       return tasks;
   }
@@ -90,5 +98,6 @@ export const getTaskCountsByTab = (tasks: AssignedTask[]): Record<DashboardTabTy
     in_progress: filterTasksByTab(tasks, "in_progress").length,
     all_active: filterTasksByTab(tasks, "all_active").length,
     unassigned: filterTasksByTab(tasks, "unassigned").length,
+    no_project: filterTasksByTab(tasks, "no_project").length,
   };
 };

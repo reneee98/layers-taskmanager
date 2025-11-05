@@ -16,7 +16,9 @@ import {
   Calendar,
   HelpCircle,
   Euro,
-  Bug
+  Bug,
+  ChevronRight,
+  ChevronDown
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -98,6 +100,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
   const router = useRouter();
   const { user, profile, signOut } = useAuth();
   const { workspace } = useWorkspace();
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
   const handleSignOut = async () => {
     try {
@@ -159,6 +162,17 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
       default:
         return "text-muted-foreground bg-muted";
     }
+  };
+
+
+  const handleToggleProject = (projectId: string) => {
+    const newExpanded = new Set(expandedProjects);
+    if (newExpanded.has(projectId)) {
+      newExpanded.delete(projectId);
+    } else {
+      newExpanded.add(projectId);
+    }
+    setExpandedProjects(newExpanded);
   };
 
   const renderNavItems = (items: typeof mainNavItems | typeof toolsNavItems) => {
@@ -271,7 +285,80 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                 </div>
               )}
               <div className="space-y-1">
-                {renderNavItems(mainNavItems)}
+                {mainNavItems.map((item) => {
+                  // Skip admin-only items if user is not workspace owner
+                  if (item.adminOnly && !isOwner) {
+                    return null;
+                  }
+                  
+                  const href = item.href;
+                  const isActive = pathname === href;
+                  
+                  // Special handling for "Projekty" - make it expandable
+                  if (item.title === "Projekty" && !isCollapsed) {
+                    const isProjectsExpanded = expandedProjects.has("projects");
+                    
+                    return (
+                      <div key={href}>
+                        <button
+                          onClick={() => handleToggleProject("projects")}
+                          className={cn(
+                            "group flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-200 px-4 py-3 w-full text-left",
+                            isActive
+                              ? "bg-accent text-accent-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                          )}
+                        >
+                          <item.icon className={cn(
+                            "h-5 w-5 transition-colors flex-shrink-0",
+                            isActive ? "text-accent-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
+                          )} />
+                          <span className="flex-1">{item.title}</span>
+                          {isProjectsExpanded ? (
+                            <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                          )}
+                        </button>
+                        
+                        {isProjectsExpanded && (
+                          <div className="ml-4 space-y-0.5 border-l border-border pl-2 mt-1">
+                            {/* Projekty */}
+                            <Link
+                              href="/projects"
+                              onClick={() => onClose()}
+                              className={cn(
+                                "flex items-center gap-2 rounded-md text-xs font-medium transition-all duration-200 px-3 py-1.5",
+                                pathname === "/projects"
+                                  ? "bg-accent text-accent-foreground"
+                                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                              )}
+                            >
+                              <span>Projekty</span>
+                            </Link>
+                            
+                            {/* Úlohy bez projektu */}
+                            <Link
+                              href="/tasks"
+                              onClick={() => onClose()}
+                              className={cn(
+                                "flex items-center gap-2 rounded-md text-xs font-medium transition-all duration-200 px-3 py-1.5",
+                                pathname === "/tasks" || (pathname.includes("/tasks/") && !pathname.includes("/projects/"))
+                                  ? "bg-accent text-accent-foreground"
+                                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                              )}
+                            >
+                              <span>Úlohy</span>
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  
+                  // Regular nav items
+                  return renderNavItems([item])[0];
+                })}
               </div>
             </div>
 

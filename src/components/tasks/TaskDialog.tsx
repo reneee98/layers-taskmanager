@@ -52,6 +52,13 @@ export function TaskDialog({
   const [dueDate, setDueDate] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId || null);
   const [projects, setProjects] = useState<Project[]>([]);
+  
+  // Reset selectedProjectId when projectId prop changes
+  useEffect(() => {
+    if (open && !task) {
+      setSelectedProjectId(projectId || null);
+    }
+  }, [projectId, open, task]);
   const [workspaceUsers, setWorkspaceUsers] = useState<Array<{ id: string; display_name: string; email: string; role: string }>>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [isBudgetAutoCalculated, setIsBudgetAutoCalculated] = useState(false);
@@ -279,17 +286,17 @@ export function TaskDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Bez projektu</span>
-                    </div>
+                    <span className="text-muted-foreground">Bez projektu</span>
                   </SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{project.name}</span>
-                        <span className="text-xs text-muted-foreground font-mono">
-                          ({project.code})
-                        </span>
+                        {project.code && (
+                          <span className="text-xs text-muted-foreground font-mono">
+                            ({project.code})
+                          </span>
+                        )}
                       </div>
                     </SelectItem>
                   ))}

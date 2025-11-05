@@ -127,71 +127,71 @@ export function LoginForm() {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
+            <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">
                   Email
                 </Label>
                 <div className="relative group">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
+                <Input
+                  id="email"
+                  type="email"
                     placeholder="Váš email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                     className={cn(
                       "pl-10 h-11 bg-background border-border",
                       "focus:border-primary focus:ring-2 focus:ring-primary/20",
                       "transition-all duration-200"
                     )}
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
+                  required
+                  disabled={isLoading}
+                />
               </div>
+            </div>
 
-              <div className="space-y-2">
+            <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium">
                   Heslo
                 </Label>
                 <div className="relative group">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-foreground" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Zadajte heslo"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Zadajte heslo"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                     className={cn(
                       "pl-10 pr-10 h-11 bg-background border-border",
                       "focus:border-primary focus:ring-2 focus:ring-primary/20",
                       "transition-all duration-200"
                     )}
-                    required
-                    disabled={isLoading}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
+                  required
+                  disabled={isLoading}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={isLoading}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
+            </div>
 
-              <Button 
-                type="submit" 
+            <Button 
+              type="submit" 
                 className="w-full h-11 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
-                disabled={isLoading}
-              >
+              disabled={isLoading}
+            >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -200,8 +200,8 @@ export function LoginForm() {
                 ) : (
                   "Prihlásiť sa"
                 )}
-              </Button>
-            </form>
+            </Button>
+          </form>
 
             {/* Footer */}
             <div className="mt-8 text-center space-y-4">
@@ -216,22 +216,22 @@ export function LoginForm() {
                 </div>
               </div>
               
-              <p className="text-sm text-muted-foreground">
-                Nemáte účet?{" "}
-                <Link 
-                  href="/auth/register" 
+            <p className="text-sm text-muted-foreground">
+              Nemáte účet?{" "}
+              <Link 
+                href="/auth/register" 
                   className="font-medium text-foreground hover:text-blue-500 dark:hover:text-blue-400 transition-colors underline underline-offset-4"
-                >
-                  Zaregistrujte sa
-                </Link>
-              </p>
+              >
+                Zaregistrujte sa
+              </Link>
+            </p>
               
               <p className="text-xs text-muted-foreground pt-2">
                 Layers v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0-alpha'}
               </p>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
       </div>
     </div>
   );

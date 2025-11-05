@@ -36,7 +36,13 @@ export async function GET(
 
     if (error) {
       console.error(`Task fetch error for ${taskId}:`, error);
-      return NextResponse.json({ success: false, error: error.message }, { status: 404 });
+      // Return 404 for not found, 400 for bad request (invalid UUID, etc.)
+      const status = error.code === 'PGRST116' ? 404 : 400;
+      return NextResponse.json({ success: false, error: error.message }, { status });
+    }
+
+    if (!task) {
+      return NextResponse.json({ success: false, error: "Úloha nebola nájdená" }, { status: 404 });
     }
 
     // Fetch assignees for this task
@@ -134,9 +140,17 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    
+    // Explicitly handle null for project_id
+    if (body.project_id === null || body.project_id === 'null' || body.project_id === '') {
+      body.project_id = null;
+    }
+    
     const validation = validateSchema(updateTaskSchema, body);
 
     if (!validation.success) {
+      console.error("Validation failed:", validation.error);
+      console.error("Request body:", body);
       return NextResponse.json(validation, { status: 400 });
     }
 
@@ -162,7 +176,15 @@ export async function PATCH(
 
     // If estimated_hours is set, automatically calculate budget = estimated_hours * hourly_rate
     // Budget is always recalculated when estimated_hours changes (unless budget_cents is explicitly set to override)
-    if (validation.data.estimated_hours !== undefined && validation.data.estimated_hours !== null && validation.data.estimated_hours > 0) {
+    // Only calculate budget if task has a project (tasks without project won't have hourly rate)
+    const projectIdForBudget = validation.data.project_id !== undefined 
+      ? validation.data.project_id 
+      : currentTask.project_id;
+    
+    if (validation.data.estimated_hours !== undefined && 
+        validation.data.estimated_hours !== null && 
+        validation.data.estimated_hours > 0 && 
+        projectIdForBudget) {
       // Only calculate budget if budget_cents is not explicitly set in the request
       // This allows manual override if needed
       if (validation.data.budget_cents === undefined) {
@@ -170,7 +192,7 @@ export async function PATCH(
         const { data: project } = await supabase
           .from("projects")
           .select("hourly_rate_cents")
-          .eq("id", currentTask.project_id)
+          .eq("id", projectIdForBudget)
           .single();
 
         if (project?.hourly_rate_cents) {
@@ -182,9 +204,37 @@ export async function PATCH(
       }
     }
 
+    // Prepare update data - explicitly handle null for project_id
+    // IMPORTANT: When only project_id is changed, all other task values (deadline, status, priority, etc.)
+    // are preserved because Supabase UPDATE only changes fields that are explicitly included in updateData.
+    // Fields not included in updateData remain unchanged.
+    const updateData: any = { ...validation.data };
+    
+    // If project_id is explicitly set to null, we need to handle it specially
+    if (validation.data.project_id === null) {
+      // For Supabase, we need to explicitly set the field to null
+      updateData.project_id = null;
+    } else if (validation.data.project_id === undefined) {
+      // If project_id is not in the update, don't include it
+      delete updateData.project_id;
+    }
+    
+    // Log what we're updating to ensure only intended fields are changed
+    console.log('Updating task with data:', JSON.stringify(updateData, null, 2));
+    console.log('Current task values (will be preserved if not in updateData):', {
+      due_date: currentTask.due_date,
+      start_date: currentTask.start_date,
+      end_date: currentTask.end_date,
+      status: currentTask.status,
+      priority: currentTask.priority,
+      estimated_hours: currentTask.estimated_hours,
+      actual_hours: currentTask.actual_hours,
+      assigned_to: currentTask.assigned_to,
+    });
+    
     const { data: task, error } = await supabase
       .from("tasks")
-      .update(validation.data)
+      .update(updateData)
       .eq("id", taskId)
       .eq("workspace_id", workspaceId)
       .select(`
@@ -195,8 +245,23 @@ export async function PATCH(
 
     if (error) {
       console.error('Database error:', error);
+      console.error('Update data:', updateData);
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
+
+    // Verify that all other task values were preserved (especially important when only project_id is changed)
+    const preservedFields = {
+      due_date: task.due_date === currentTask.due_date ? '✅ preserved' : `❌ changed from ${currentTask.due_date} to ${task.due_date}`,
+      start_date: task.start_date === currentTask.start_date ? '✅ preserved' : `❌ changed from ${currentTask.start_date} to ${task.start_date}`,
+      end_date: task.end_date === currentTask.end_date ? '✅ preserved' : `❌ changed from ${currentTask.end_date} to ${task.end_date}`,
+      status: task.status === currentTask.status ? '✅ preserved' : `❌ changed from ${currentTask.status} to ${task.status}`,
+      priority: task.priority === currentTask.priority ? '✅ preserved' : `❌ changed from ${currentTask.priority} to ${task.priority}`,
+      estimated_hours: task.estimated_hours === currentTask.estimated_hours ? '✅ preserved' : `❌ changed from ${currentTask.estimated_hours} to ${task.estimated_hours}`,
+      actual_hours: task.actual_hours === currentTask.actual_hours ? '✅ preserved' : `❌ changed from ${currentTask.actual_hours} to ${task.actual_hours}`,
+      assigned_to: task.assigned_to === currentTask.assigned_to ? '✅ preserved' : `❌ changed from ${currentTask.assigned_to} to ${task.assigned_to}`,
+    };
+    
+    console.log('Task values after update (preservation check):', preservedFields);
 
     // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
     const taskWithHourlyRate = {
@@ -283,27 +348,40 @@ export async function PATCH(
       });
     }
 
-    // Check for project change
-    if (validation.data.project_id && validation.data.project_id !== currentTask.project_id) {
-      const { data: oldProject } = await supabase
-        .from("projects")
-        .select("name, code")
-        .eq("id", currentTask.project_id)
-        .single();
+    // Check for project change (including setting to null)
+    if (validation.data.project_id !== undefined && validation.data.project_id !== currentTask.project_id) {
+      let oldProject = null;
+      let newProject = null;
       
-      const { data: newProject } = await supabase
-        .from("projects")
-        .select("name, code")
-        .eq("id", validation.data.project_id)
-        .single();
+      if (currentTask.project_id) {
+        const { data } = await supabase
+          .from("projects")
+          .select("name, code")
+          .eq("id", currentTask.project_id)
+          .single();
+        oldProject = data;
+      }
+      
+      if (validation.data.project_id) {
+        const { data } = await supabase
+          .from("projects")
+          .select("name, code")
+          .eq("id", validation.data.project_id)
+          .single();
+        newProject = data;
+      }
+
+      const action = validation.data.project_id 
+        ? `Presunul úlohu z projektu "${oldProject?.name || 'Bez projektu'}" do projektu "${newProject?.name || 'Neznámy'}"`
+        : `Odstránil projekt "${oldProject?.name || 'Neznámy'}" z úlohy`;
 
       await logActivity({
         workspaceId,
         userId: user.id,
         type: ActivityTypes.TASK_UPDATED,
-        action: `Presunul úlohu z projektu "${oldProject?.name || 'Neznámy'}" do projektu "${newProject?.name || 'Neznámy'}"`,
+        action: action,
         details: task.title,
-        projectId: task.project_id,
+        projectId: validation.data.project_id || null,
         taskId: task.id,
         metadata: {
           old_project_id: currentTask.project_id,

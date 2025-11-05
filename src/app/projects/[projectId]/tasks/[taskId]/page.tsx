@@ -687,7 +687,7 @@ export default function TaskDetailPage() {
     }
   };
 
-  const handleProjectChange = async (newProjectId: string) => {
+  const handleProjectChange = async (newProjectId: string | null) => {
     if (!task || newProjectId === task.project_id) return;
     
     try {
@@ -697,7 +697,7 @@ export default function TaskDetailPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          project_id: newProjectId,
+          project_id: newProjectId === null ? null : newProjectId,
         }),
       });
 
@@ -708,14 +708,22 @@ export default function TaskDetailPage() {
         await fetchTask();
         toast({
           title: "Úspech",
-          description: "Úloha bola presunutá do iného projektu",
+          description: newProjectId 
+            ? "Úloha bola presunutá do iného projektu"
+            : "Projekt bol odstránený z úlohy",
         });
         // Dispatch event to refresh project summary
         window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
           detail: { taskId: params.taskId, projectId: newProjectId } 
         }));
-        // Redirect to new project's task page
-        router.push(`/projects/${newProjectId}/tasks/${params.taskId}`);
+        // Redirect to new project's task page or stay on current page if no project
+        if (newProjectId) {
+          router.push(`/projects/${newProjectId}/tasks/${params.taskId}`);
+        } else {
+          // If task has no project, redirect to tasks page or stay on dashboard
+          // For now, we'll stay on the current page but update the URL
+          router.push(`/tasks`);
+        }
       } else {
         toast({
           title: "Chyba",
@@ -944,9 +952,15 @@ export default function TaskDetailPage() {
                 className="w-auto h-auto border-none shadow-none hover:bg-accent px-2 py-1 justify-between"
               >
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="font-medium">{task.project?.name}</span>
-                  <span>•</span>
-                  <span className="font-mono text-xs">{task.project?.code}</span>
+                  {task.project ? (
+                    <>
+                      <span className="font-medium">{task.project.name}</span>
+                      <span>•</span>
+                      <span className="font-mono text-xs">{task.project.code}</span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">Bez projektu</span>
+                  )}
                 </div>
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -957,7 +971,22 @@ export default function TaskDetailPage() {
                 <CommandList>
                   <CommandEmpty>Žiadny projekt sa nenašiel.</CommandEmpty>
                   <CommandGroup>
-              {projects.map((project) => (
+                    <CommandItem
+                      value="Bez projektu"
+                      onSelect={() => {
+                        handleProjectChange(null);
+                        setProjectSelectOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          !task.project_id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <span className="text-muted-foreground">Bez projektu</span>
+                    </CommandItem>
+                    {projects.map((project) => (
                       <CommandItem
                         key={project.id}
                         value={`${project.name} ${project.code}`}
@@ -972,14 +1001,16 @@ export default function TaskDetailPage() {
                             task.project_id === project.id ? "opacity-100" : "opacity-0"
                           )}
                         />
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{project.name}</span>
-                    <span className="text-xs text-muted-foreground font-mono">
-                      ({project.code})
-                    </span>
-                  </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{project.name}</span>
+                          {project.code && (
+                            <span className="text-xs text-muted-foreground font-mono">
+                              ({project.code})
+                            </span>
+                          )}
+                        </div>
                       </CommandItem>
-              ))}
+                    ))}
                   </CommandGroup>
                 </CommandList>
               </Command>
@@ -1017,8 +1048,8 @@ export default function TaskDetailPage() {
                   {deadlineBadge && 
                    deadlineStatus?.type === 'today' &&
                    task.status !== "done" && 
-                    task.status !== "cancelled" &&
-                    task.project &&
+                   task.status !== "cancelled" && 
+                   task.project &&
                     (task.project as any).status !== "completed" &&
                     (task.project as any).status !== "cancelled" && (
                     <Flame className="h-5 w-5 text-red-500 flex-shrink-0" />

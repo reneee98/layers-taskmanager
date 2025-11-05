@@ -23,7 +23,8 @@ export const validateSchema = <T>(
     return createResult(validated);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error("Validation errors:", error.errors);
+      console.error("Validation errors:", JSON.stringify(error.errors, null, 2));
+      console.error("Data being validated:", JSON.stringify(data, null, 2));
       return createError(error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(", "));
     }
     return createError("Validation failed");

@@ -66,9 +66,8 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: "Projekt nebol nájdený" }, { status: 404 });
     }
 
-    const isPersonalProject = existingProject.name === "Osobné úlohy" || 
-                              (existingProject.code && (existingProject.code === "PERSONAL" || existingProject.code.startsWith("PERSONAL-"))) ||
-                              !existingProject.code;
+    // Only check by name, not by missing code
+    const isPersonalProject = existingProject.name === "Osobné úlohy";
 
     // Prevent status change for personal project
     if (isPersonalProject && validation.data.status !== undefined) {
@@ -161,9 +160,8 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: "Projekt nebol nájdený" }, { status: 404 });
     }
 
-    const isPersonalProject = project.name === "Osobné úlohy" || 
-                              (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
-                              !project.code;
+    // Only check by name, not by missing code
+    const isPersonalProject = project.name === "Osobné úlohy";
 
     // Prevent deletion of personal project
     if (isPersonalProject) {

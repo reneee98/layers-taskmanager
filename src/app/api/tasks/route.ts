@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
     const priority = searchParams.get("priority");
     const assignedTo = searchParams.get("assigned_to");
     const parentTaskId = searchParams.get("parent_task_id");
+    const noProject = searchParams.get("no_project") === "true"; // Get tasks without project
 
     let query = supabase
       .from("tasks")
@@ -51,6 +52,8 @@ export async function GET(request: NextRequest) {
 
     if (projectId) {
       query = query.eq("project_id", projectId);
+    } else if (noProject) {
+      query = query.is("project_id", null);
     }
 
     if (status) {
@@ -188,7 +191,11 @@ export async function POST(request: NextRequest) {
     }
 
     // If estimated_hours is set and budget_cents is not explicitly provided, calculate budget automatically
-    if (validation.data.estimated_hours !== undefined && validation.data.estimated_hours !== null && validation.data.estimated_hours > 0 && validation.data.project_id) {
+    // Only if project_id is provided (tasks without project won't have hourly rate)
+    if (validation.data.estimated_hours !== undefined && 
+        validation.data.estimated_hours !== null && 
+        validation.data.estimated_hours > 0 && 
+        validation.data.project_id) {
       // Only calculate budget if budget_cents is not explicitly set in the request
       if (validation.data.budget_cents === undefined) {
         // Get project to get hourly_rate_cents
@@ -208,12 +215,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the max order_index for this project within workspace
-    const { data: maxOrderTask } = await supabase
+    // If project_id is null, we need to handle it differently
+    let maxOrderQuery = supabase
       .from("tasks")
       .select("order_index")
-      .eq("project_id", validation.data.project_id)
       .eq("workspace_id", workspaceId)
-      .is("parent_task_id", validation.data.parent_task_id || null)
+      .is("parent_task_id", validation.data.parent_task_id || null);
+    
+    if (validation.data.project_id) {
+      maxOrderQuery = maxOrderQuery.eq("project_id", validation.data.project_id);
+    } else {
+      maxOrderQuery = maxOrderQuery.is("project_id", null);
+    }
+    
+    const { data: maxOrderTask } = await maxOrderQuery
       .order("order_index", { ascending: false })
       .limit(1)
       .single();

@@ -14,7 +14,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   // Check for active timer on mount (only if user is logged in)
   useEffect(() => {
     if (user) {
-      refreshTimer();
+    refreshTimer();
     } else {
       setActiveTimer(null);
       setCurrentDuration(0);
@@ -60,7 +60,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       // Silently ignore errors when user is not authenticated
       if (user) {
-        console.error("Error refreshing timer:", error);
+      console.error("Error refreshing timer:", error);
       }
       setActiveTimer(null);
     }

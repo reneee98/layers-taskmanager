@@ -126,20 +126,20 @@ export function RegisterForm() {
         <div className="relative z-10 w-full max-w-md">
           <Card className="backdrop-blur-xl bg-card/80 dark:bg-card/90 border-border/50 shadow-2xl shadow-black/10">
             <CardContent className="p-8 sm:p-10">
-              <div className="text-center space-y-4">
-                <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-                <h3 className="text-lg font-medium text-foreground">
-                  Registrácia úspešná!
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Skontrolujte svoj e-mail na potvrdenie registrácie.
-                </p>
-                <Button
+      <div className="text-center space-y-4">
+        <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+        <h3 className="text-lg font-medium text-foreground">
+          Registrácia úspešná!
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Skontrolujte svoj e-mail na potvrdenie registrácie.
+        </p>
+        <Button
                   onClick={() => router.push("/login")}
                   className="w-full h-11 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
-                >
-                  Prejsť na prihlásenie
-                </Button>
+        >
+          Prejsť na prihlásenie
+        </Button>
               </div>
             </CardContent>
           </Card>
@@ -206,75 +206,75 @@ export function RegisterForm() {
 
             {/* Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-              <div className="space-y-2">
+      <div className="space-y-2">
                 <Label htmlFor="display_name" className="text-sm font-medium">
                   Meno
                 </Label>
                 <div className="relative group">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-foreground" />
-                  <Input
-                    id="display_name"
-                    type="text"
-                    placeholder="Vaše meno"
-                    {...register("display_name")}
+        <Input
+          id="display_name"
+          type="text"
+          placeholder="Vaše meno"
+          {...register("display_name")}
                     className={cn(
                       "pl-10 h-11 bg-background border-border",
                       "focus:border-primary focus:ring-2 focus:ring-primary/20",
                       "transition-all duration-200",
                       errors.display_name && "border-red-500"
                     )}
-                    disabled={isLoading}
-                  />
+          disabled={isLoading}
+        />
                 </div>
-                {errors.display_name && (
+        {errors.display_name && (
                   <p className="text-sm text-red-500">{errors.display_name.message}</p>
-                )}
-              </div>
+        )}
+      </div>
 
-              <div className="space-y-2">
+      <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">
                   Email
                 </Label>
                 <div className="relative group">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
+        <Input
+          id="email"
+          type="email"
                     placeholder="Váš email"
-                    {...register("email")}
+          {...register("email")}
                     className={cn(
                       "pl-10 h-11 bg-background border-border",
                       "focus:border-primary focus:ring-2 focus:ring-primary/20",
                       "transition-all duration-200",
                       errors.email && "border-red-500"
                     )}
-                    disabled={isLoading}
-                  />
+          disabled={isLoading}
+        />
                 </div>
-                {errors.email && (
+        {errors.email && (
                   <p className="text-sm text-red-500">{errors.email.message}</p>
-                )}
-              </div>
+        )}
+      </div>
 
-              <div className="space-y-2">
+      <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium">
                   Heslo
                 </Label>
                 <div className="relative group">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-foreground" />
-                  <Input
-                    id="password"
+        <Input
+          id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Minimálne 8 znakov"
-                    {...register("password")}
+          placeholder="Minimálne 8 znakov"
+          {...register("password")}
                     className={cn(
                       "pl-10 pr-10 h-11 bg-background border-border",
                       "focus:border-primary focus:ring-2 focus:ring-primary/20",
                       "transition-all duration-200",
                       errors.password && "border-red-500"
                     )}
-                    disabled={isLoading}
-                  />
+          disabled={isLoading}
+        />
                   <Button
                     type="button"
                     variant="ghost"
@@ -290,10 +290,10 @@ export function RegisterForm() {
                     )}
                   </Button>
                 </div>
-                {errors.password && (
+        {errors.password && (
                   <p className="text-sm text-red-500">{errors.password.message}</p>
-                )}
-              </div>
+        )}
+      </div>
 
               <Button 
                 type="submit" 
@@ -308,8 +308,8 @@ export function RegisterForm() {
                 ) : (
                   "Registrovať sa"
                 )}
-              </Button>
-            </form>
+      </Button>
+    </form>
 
             {/* Footer */}
             <div className="mt-8 text-center space-y-4">

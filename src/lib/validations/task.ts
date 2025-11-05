@@ -5,8 +5,14 @@ export const taskStatusEnum = z.enum(["todo", "in_progress", "review", "sent_to_
 export const taskPriorityEnum = z.enum(["low", "medium", "high", "urgent"]);
 
 export const taskSchema = z.object({
-  project_id: z.string().uuid("Neplatné ID projektu").optional().nullable(),
-  parent_task_id: z.string().uuid("Neplatné ID parent task").optional().nullable(),
+  project_id: z.preprocess(
+    (val) => val === null || val === undefined || val === '' ? null : val,
+    z.union([z.string().uuid("Neplatné ID projektu"), z.null()])
+  ).optional(),
+  parent_task_id: z.preprocess(
+    (val) => val === null || val === undefined || val === '' ? null : val,
+    z.union([z.string().uuid("Neplatné ID parent task"), z.null()])
+  ).optional(),
   title: z.string().min(1, "Názov je povinný").max(500, "Názov je príliš dlhý"),
   description: z.string().optional().or(z.literal("")).nullable(),
   status: taskStatusEnum.default("todo").optional(),

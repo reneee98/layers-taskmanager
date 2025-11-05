@@ -375,13 +375,19 @@ export async function PATCH(
         ? `Presunul úlohu z projektu "${oldProject?.name || 'Bez projektu'}" do projektu "${newProject?.name || 'Neznámy'}"`
         : `Odstránil projekt "${oldProject?.name || 'Neznámy'}" z úlohy`;
 
+      // Convert project_id from null to undefined for logActivity
+      const projectIdForLog: string | undefined = 
+        validation.data.project_id === null || validation.data.project_id === undefined
+          ? undefined
+          : (validation.data.project_id as string);
+
       await logActivity({
         workspaceId,
         userId: user.id,
         type: ActivityTypes.TASK_UPDATED,
         action: action,
         details: task.title,
-        projectId: validation.data.project_id || null,
+        projectId: projectIdForLog,
         taskId: task.id,
         metadata: {
           old_project_id: currentTask.project_id,

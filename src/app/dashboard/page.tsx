@@ -328,6 +328,7 @@ export default function DashboardPage() {
     today: filterTasksByTab(tasks, "today").length, // Use tasks (assigned to current user) for accurate count
     sent_to_client: filterTasksByTab(tasks, "sent_to_client").length,
     in_progress: filterTasksByTab(tasks, "in_progress").length,
+    no_project: filterTasksByTab(allActiveTasks, "no_project").length,
   };
 
   const handleShowMoreActivities = () => {
@@ -709,6 +710,7 @@ export default function DashboardPage() {
       'sent_to_client': 'Poslané klientovi',
       'in_progress': 'In progress',
       'unassigned': 'Nepriradené',
+      'no_project': 'Bez projektu',
     };
     return labels[tab] || tab;
   };
@@ -725,6 +727,8 @@ export default function DashboardPage() {
         return Play;
       case 'unassigned':
         return User;
+      case 'no_project':
+        return FolderX;
       default:
         return List;
     }

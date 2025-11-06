@@ -27,15 +27,25 @@ export function GlobalTimer() {
   };
 
   const handleStop = async () => {
-    if (currentDuration === 0) {
+    if (!activeTimer) {
       await stopTimer();
       return;
     }
 
-    const trackedHours = Number((currentDuration / 3600).toFixed(3));
+    // Vypočítať trvanie priamo z activeTimer.started_at namiesto currentDuration
+    // aby sme zabezpečili správnu hodnotu aj keď sa timer už zastavil
+    const startedAt = new Date(activeTimer.started_at);
     const now = new Date();
+    const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+    
+    if (duration <= 0) {
+      await stopTimer();
+      return;
+    }
+
+    const trackedHours = Number((duration / 3600).toFixed(3));
     const endTime = now.toTimeString().slice(0, 8); // HH:mm:ss format
-    const startTime = new Date(now.getTime() - (currentDuration * 1000)).toTimeString().slice(0, 8); // HH:mm:ss format
+    const startTime = startedAt.toTimeString().slice(0, 8); // HH:mm:ss format
     
     try {
       // Automaticky zapísať čas do úlohy
@@ -58,7 +68,7 @@ export function GlobalTimer() {
       if (result.success) {
         toast({
           title: "Časovač zastavený",
-          description: `Zapísaných ${formatTime(currentDuration)} do úlohy "${activeTimer.task_name}".`,
+          description: `Zapísaných ${formatTime(duration)} do úlohy "${activeTimer.task_name}".`,
         });
       } else {
         throw new Error(result.error);

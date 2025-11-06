@@ -833,14 +833,57 @@ export default function TaskDetailPage() {
   const handleTimerToggle = async () => {
     if (!task) return;
 
-    // If this task is currently being tracked, stop it
+    // If this task is currently being tracked, stop it and save time entry
     if (activeTimer && activeTimer.task_id === task.id) {
       try {
+        // Vypočítať trvanie priamo z activeTimer.started_at
+        const startedAt = new Date(activeTimer.started_at);
+        const now = new Date();
+        const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+        
+        if (duration > 0) {
+          const trackedHours = Number((duration / 3600).toFixed(3));
+          const endTime = now.toTimeString().slice(0, 8);
+          const startTime = startedAt.toTimeString().slice(0, 8);
+          
+          try {
+            const payload = {
+              hours: trackedHours,
+              date: now.toISOString().split("T")[0],
+              description: "",
+              start_time: startTime,
+              end_time: endTime,
+            };
+
+            const response = await fetch(`/api/tasks/${activeTimer.task_id}/time`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+              toast({
+                title: "Časovač zastavený",
+                description: `Zapísaných ${formatHours(trackedHours)} do úlohy.`,
+              });
+              // Refresh task to update actual_hours
+              fetchTask();
+            } else {
+              throw new Error(result.error);
+            }
+          } catch (error) {
+            console.error("Error saving time entry:", error);
+            toast({
+              title: "Chyba",
+              description: error instanceof Error ? error.message : "Nepodarilo sa uložiť čas do úlohy",
+              variant: "destructive",
+            });
+          }
+        }
+        
         await stopTimer();
-        toast({
-          title: "Časovač zastavený",
-          description: "Trackovanie času bolo zastavené",
-        });
       } catch (error) {
         toast({
           title: "Chyba",
@@ -851,9 +894,56 @@ export default function TaskDetailPage() {
       return;
     }
 
-    // If another task is being tracked, stop it first
+    // If another task is being tracked, stop it first and save time entry
     if (activeTimer) {
-      await stopTimer();
+      try {
+        // Vypočítať trvanie priamo z activeTimer.started_at
+        const startedAt = new Date(activeTimer.started_at);
+        const now = new Date();
+        const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+        const trackedHours = Number((duration / 3600).toFixed(3));
+        
+        if (trackedHours > 0) {
+          const endTime = now.toTimeString().slice(0, 8);
+          const startTime = startedAt.toTimeString().slice(0, 8);
+          
+          try {
+            const payload = {
+              hours: trackedHours,
+              date: now.toISOString().split("T")[0],
+              description: "",
+              start_time: startTime,
+              end_time: endTime,
+            };
+
+            const response = await fetch(`/api/tasks/${activeTimer.task_id}/time`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+              toast({
+                title: "Predchádzajúci časovač uložený",
+                description: `Zapísaných ${formatHours(trackedHours)} do úlohy "${activeTimer.task_name}".`,
+              });
+            }
+          } catch (error) {
+            console.error("Error saving previous timer:", error);
+            toast({
+              title: "Chyba",
+              description: "Nepodarilo sa uložiť predchádzajúci časovač",
+              variant: "destructive",
+            });
+          }
+        }
+        
+        await stopTimer();
+      } catch (error) {
+        console.error("Error stopping previous timer:", error);
+      }
     }
 
     // Start tracking this task

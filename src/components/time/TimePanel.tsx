@@ -146,7 +146,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         if (trackedHours > 0) {
           // Vypočítaj start a end time pre časovač
           const endTime = now.toTimeString().slice(0, 8); // HH:mm:ss format
-          const startTime = new Date(now.getTime() - (duration * 1000)).toTimeString().slice(0, 8); // HH:mm:ss format
+          const startTime = startedAt.toTimeString().slice(0, 8); // HH:mm:ss format
           
           try {
             // Automaticky zapísať čas do úlohy
@@ -205,12 +205,16 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
   const handleStopTimer = async () => {
     if (!activeTimer || activeTimer.task_id !== selectedTaskId) return;
 
-    const trackedHours = Number((currentDuration / 3600).toFixed(3));
+    // Vypočítať trvanie priamo z activeTimer.started_at namiesto currentDuration
+    // aby sme zabezpečili správnu hodnotu aj keď sa timer už zastavil
+    const startedAt = new Date(activeTimer.started_at);
+    const now = new Date();
+    const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+    const trackedHours = Number((duration / 3600).toFixed(3));
 
     if (trackedHours > 0) {
-      const now = new Date();
       const endTime = now.toTimeString().slice(0, 8);
-      const startTime = new Date(now.getTime() - (currentDuration * 1000)).toTimeString().slice(0, 8);
+      const startTime = startedAt.toTimeString().slice(0, 8);
       
       try {
         const payload = {
@@ -232,7 +236,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         if (result.success) {
           toast({
             title: "Časovač zastavený",
-            description: `Zapísaných ${formatTime(currentDuration)} do úlohy.`,
+            description: `Zapísaných ${formatTime(duration)} do úlohy.`,
           });
 
           fetchTimeEntries();

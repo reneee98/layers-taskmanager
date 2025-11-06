@@ -1,9 +1,9 @@
 {
   "name": "laydo",
-  "version": "1.0.0-alpha.1762462897828",
+  "version": "1.0.0-alpha.1762463178525",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "prebuild": "node scripts/update-version.js",
     "build": "next build",
     "start": "next start",

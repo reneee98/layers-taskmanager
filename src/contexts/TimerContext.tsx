@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { ActiveTimer, TimerContextType } from "@/types/timer";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -10,11 +10,12 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [activeTimer, setActiveTimer] = useState<ActiveTimer | null>(null);
   const [currentDuration, setCurrentDuration] = useState(0);
   const { user } = useAuth();
+  const endpointNotFoundRef = useRef(false); // Track if endpoint doesn't exist
 
   // Check for active timer on mount (only if user is logged in)
   useEffect(() => {
-    if (user) {
-    refreshTimer();
+    if (user && !endpointNotFoundRef.current) {
+      refreshTimer();
     } else {
       setActiveTimer(null);
       setCurrentDuration(0);
@@ -37,7 +38,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }, [activeTimer]);
 
   const refreshTimer = async () => {
-    if (!user) {
+    if (!user || endpointNotFoundRef.current) {
       setActiveTimer(null);
       return;
     }
@@ -54,13 +55,28 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       } else if (response.status === 401) {
         // User not authenticated, silently ignore
         setActiveTimer(null);
+      } else if (response.status === 404) {
+        // Endpoint not found - mark it and stop trying
+        endpointNotFoundRef.current = true;
+        setActiveTimer(null);
+        // Don't log 404 errors - endpoint might not be implemented yet
       } else {
+        // Only log non-404 errors
+        console.error(`Failed to fetch active timer: ${response.status} ${response.statusText}`);
         setActiveTimer(null);
       }
     } catch (error) {
-      // Silently ignore errors when user is not authenticated
+      // Check if it's a 404 error
+      if (error instanceof Error && (error.message.includes('404') || error.message.includes('Not Found'))) {
+        endpointNotFoundRef.current = true;
+        setActiveTimer(null);
+        // Silently ignore 404 errors
+        return;
+      }
+      
+      // Only log non-404 errors
       if (user) {
-      console.error("Error refreshing timer:", error);
+        console.error("Error refreshing timer:", error);
       }
       setActiveTimer(null);
     }

@@ -22,6 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { usePermission } from "@/hooks/usePermissions";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface Project {
   id: string;
@@ -77,8 +78,10 @@ interface Task {
 }
 
 export default function InvoicesPage() {
-  const { hasPermission: canViewInvoices } = usePermission('financial', 'view_invoices');
+  const { hasPermission: canViewInvoices, isLoading: isLoadingInvoices } = usePermission('financial', 'view_invoices');
   const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
+  const { workspaceRole } = useWorkspace();
+  const isOwner = workspaceRole?.role === 'owner';
   const [readyProjects, setReadyProjects] = useState<Project[]>([]);
   const [readyTasks, setReadyTasks] = useState<Task[]>([]);
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
@@ -86,20 +89,28 @@ export default function InvoicesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("projects");
 
-  useEffect(() => {
-    // Load both tabs data on initial load
-    fetchInvoiceData();
-    fetchArchivedData();
-  }, []);
+  // Owners have all permissions automatically
+  const canAccess = isOwner || canViewInvoices;
 
   useEffect(() => {
-    // Load data when tab changes
-    if (activeTab === "projects") {
+    // Only fetch if user has permission (or is owner)
+    if (canAccess && !isLoadingInvoices) {
+      // Load both tabs data on initial load
       fetchInvoiceData();
-    } else if (activeTab === "archived") {
       fetchArchivedData();
     }
-  }, [activeTab]);
+  }, [canAccess, isLoadingInvoices]);
+
+  useEffect(() => {
+    // Load data when tab changes - only if user has access
+    if (canAccess && !isLoadingInvoices) {
+      if (activeTab === "projects") {
+        fetchInvoiceData();
+      } else if (activeTab === "archived") {
+        fetchArchivedData();
+      }
+    }
+  }, [activeTab, canAccess, isLoadingInvoices]);
 
   const fetchInvoiceData = async () => {
     try {
@@ -285,7 +296,7 @@ export default function InvoicesPage() {
     return priorityMap[priority] || priority;
   };
 
-  if (!canViewInvoices) {
+  if (!canAccess) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center space-y-2">

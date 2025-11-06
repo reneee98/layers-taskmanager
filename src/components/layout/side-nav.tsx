@@ -468,11 +468,16 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                       <div className="flex items-center gap-2">
                         <Badge 
                           variant="outline" 
-                          className={cn("text-xs px-2 py-0.5", getRoleColor(workspaceRole?.role || profile?.role || 'member', isOwner))}
+                          className={cn("text-xs px-2 py-0.5", getRoleColor(
+                            isOwner ? 'owner' : (workspaceRole?.role || 'member'), 
+                            isOwner
+                          ))}
                         >
-                          {workspaceRole 
-                            ? getRoleDisplayName(workspaceRole.role)
-                            : getRoleLabel(profile?.role || 'member', isOwner)
+                          {isOwner 
+                            ? 'Majiteľ'
+                            : workspaceRole 
+                              ? getRoleDisplayName(workspaceRole.role)
+                              : 'Člen' // Default while loading
                           }
                         </Badge>
                       </div>

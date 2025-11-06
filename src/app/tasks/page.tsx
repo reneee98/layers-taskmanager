@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useOptimizedFetch } from "@/hooks/useOptimizedFetch";
 import { TaskTable } from "@/components/tasks/TaskTable";
 import { TaskDialog } from "@/components/tasks/TaskDialog";
 import { Button } from "@/components/ui/button";
@@ -25,9 +26,13 @@ import { toast } from "@/hooks/use-toast";
 import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
 import type { Task } from "@/types/database";
 
+interface TasksResponse {
+  success: boolean;
+  data: Task[];
+  error?: string;
+}
+
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   // Custom type for tasks page tabs (without "today")
@@ -35,36 +40,22 @@ export default function TasksPage() {
   
   const [activeTab, setActiveTab] = useState<TasksPageTabType>("all_active");
 
-  const fetchTasks = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/tasks");
-      const result = await response.json();
-
-      if (result.success) {
-        setTasks(result.data || []);
-      } else {
+  const { data: tasksData, loading: isLoading, refetch, clearCache } = useOptimizedFetch<TasksResponse>(
+    "/api/tasks",
+    {
+      cacheKey: "tasks_all",
+      cacheExpiry: 1 * 60 * 1000, // 1 minute (tasks change frequently)
+      onError: (error) => {
         toast({
           title: "Chyba",
           description: "Nepodarilo sa načítať úlohy",
           variant: "destructive",
         });
-      }
-    } catch (error) {
-      console.error("Failed to fetch tasks:", error);
-      toast({
-        title: "Chyba",
-        description: "Nepodarilo sa načítať úlohy",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      },
     }
-  };
+  );
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
+  const tasks = tasksData?.success ? (tasksData.data || []) : [];
 
   // Helper functions for tabs
   const getTabLabel = (tab: TasksPageTabType) => {
@@ -151,7 +142,8 @@ export default function TasksPage() {
   }, [tasksForFiltering]);
 
   const handleCreateTask = async () => {
-    await fetchTasks();
+    clearCache();
+    await refetch();
     setIsTaskDialogOpen(false);
     setEditingTask(null);
   };
@@ -167,7 +159,8 @@ export default function TasksPage() {
       const result = await response.json();
 
       if (result.success) {
-        await fetchTasks();
+        clearCache();
+    await refetch();
         toast({
           title: "Úspech",
           description: "Úloha bola aktualizovaná",
@@ -202,7 +195,8 @@ export default function TasksPage() {
       const result = await response.json();
 
       if (result.success) {
-        await fetchTasks();
+        clearCache();
+    await refetch();
         toast({
           title: "Úspech",
           description: "Úloha bola vymazaná",
@@ -381,8 +375,9 @@ export default function TasksPage() {
               }}
               onReorder={undefined}
               projectId={"" as any}
-              onTaskUpdated={() => {
-                fetchTasks();
+              onTaskUpdated={async () => {
+                clearCache();
+                await refetch();
               }}
             />
           ) : (

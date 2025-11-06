@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getServerUser } from "./admin";
+import { getServerUser, isAdmin } from "./admin";
 
 export async function getUserWorkspaceId(): Promise<string | null> {
   try {
@@ -54,15 +54,23 @@ export async function getUserWorkspaceIdFromRequest(request: NextRequest): Promi
   try {
     const user = await getServerUser();
     if (!user) {
-      console.log(`DEBUG: No user found, returning null`);
       return null;
+    }
+
+    // Check if user is admin (admins have access to all workspaces)
+    let userIsAdmin = false;
+    try {
+      userIsAdmin = await isAdmin(user.id);
+    } catch (adminError) {
+      console.error(`Error checking admin status for ${user.email}:`, adminError);
+      // Continue without admin check - assume not admin
+      userIsAdmin = false;
     }
 
     const { searchParams } = new URL(request.url);
     const workspaceId = searchParams.get('workspace_id');
     
     if (workspaceId) {
-      console.log(`DEBUG: Using workspace_id from query params: ${workspaceId}`);
       // Verify user has access to this workspace
       const supabase = createClient();
       const { data: workspace } = await supabase
@@ -72,6 +80,11 @@ export async function getUserWorkspaceIdFromRequest(request: NextRequest): Promi
         .single();
       
       if (workspace) {
+        // Admins have access to all workspaces
+        if (userIsAdmin) {
+          return workspaceId;
+        }
+        
         const isOwner = workspace.owner_id === user.id;
         const { data: member } = await supabase
           .from('workspace_members')
@@ -92,7 +105,6 @@ export async function getUserWorkspaceIdFromRequest(request: NextRequest): Promi
     // Try to get from cookie
     const cookieWorkspaceId = request.cookies.get('currentWorkspaceId')?.value;
     if (cookieWorkspaceId) {
-      console.log(`DEBUG: Using workspace_id from cookie: ${cookieWorkspaceId}`);
       // Verify user has access to this workspace
       const supabase = createClient();
       const { data: workspace } = await supabase
@@ -102,6 +114,11 @@ export async function getUserWorkspaceIdFromRequest(request: NextRequest): Promi
         .single();
       
       if (workspace) {
+        // Admins have access to all workspaces
+        if (userIsAdmin) {
+          return cookieWorkspaceId;
+        }
+        
         const isOwner = workspace.owner_id === user.id;
         const { data: member } = await supabase
           .from('workspace_members')
@@ -119,9 +136,23 @@ export async function getUserWorkspaceIdFromRequest(request: NextRequest): Promi
       }
     }
     
+    // For admins, if no workspace ID found, try to get any workspace
+    if (userIsAdmin) {
+      const supabase = createClient();
+      const { data: anyWorkspace } = await supabase
+        .from('workspaces')
+        .select('id')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (anyWorkspace) {
+        return anyWorkspace.id;
+      }
+    }
+    
     // Fallback to user's default workspace
     const userWorkspaceId = await getUserWorkspaceId();
-    console.log(`DEBUG: Using user's default workspace: ${userWorkspaceId}`);
     return userWorkspaceId;
   } catch (error) {
     console.error("Error in getUserWorkspaceIdFromRequest:", error);

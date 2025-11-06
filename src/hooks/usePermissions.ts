@@ -1,48 +1,90 @@
 "use client";
 
-import { useState, useEffect, useContext } from "react";
+import { useContext, useState, useEffect } from "react";
 import { WorkspaceContext } from "@/contexts/WorkspaceContext";
+import { PermissionContext } from "@/contexts/PermissionContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { checkPermission } from "@/lib/auth/permissions-client";
 
 /**
  * Hook to check if current user has a specific permission
+ * Uses PermissionContext if available, otherwise falls back to individual API call
  */
 export function usePermission(resource: string, action: string) {
-  // Safely get workspace - use useContext directly to avoid throwing error
+  // Try to use PermissionContext first (optimized path)
+  const permissionContext = useContext(PermissionContext);
   const workspaceContext = useContext(WorkspaceContext);
+  const { profile } = useAuth();
   const workspace = workspaceContext?.workspace || null;
   
-  const [hasPermission, setHasPermission] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState(true);
+  // Always declare hooks in the same order
+  const [fallbackPermission, setFallbackPermission] = useState<boolean>(false);
+  const [fallbackLoading, setFallbackLoading] = useState(true);
 
+  // Fallback: use individual API call only if PermissionContext is not available
   useEffect(() => {
+    // Skip if PermissionContext is available
+    if (permissionContext) {
+      return;
+    }
+    
     const check = async () => {
-      setIsLoading(true);
+      setFallbackLoading(true);
       const result = await checkPermission(resource, action, workspace?.id);
-      setHasPermission(result);
-      setIsLoading(false);
+      setFallbackPermission(result);
+      setFallbackLoading(false);
     };
 
     check();
-  }, [resource, action, workspace?.id]);
+  }, [resource, action, workspace?.id, permissionContext]);
 
-  return { hasPermission, isLoading };
+  // If PermissionContext is available, use it
+  if (permissionContext) {
+    // Check if user is workspace owner or admin - they have all permissions
+    const workspaceRole = workspaceContext?.workspaceRole;
+    const isOwner = workspaceRole?.role === 'owner';
+    
+    // Check if user is admin (admins have all permissions)
+    const isAdmin = profile?.role === 'admin';
+    
+    // If owner or admin, return true immediately (don't wait for permissions to load)
+    if (isOwner || isAdmin) {
+      return {
+        hasPermission: true,
+        isLoading: false,
+      };
+    }
+    
+    return {
+      hasPermission: permissionContext.hasPermission(resource, action),
+      isLoading: permissionContext.loading,
+    };
+  }
+  
+  return { hasPermission: fallbackPermission, isLoading: fallbackLoading };
 }
 
 /**
  * Hook to check multiple permissions at once
+ * Uses PermissionContext if available, otherwise falls back to individual API calls
  */
 export function usePermissions(permissions: Array<{ resource: string; action: string }>) {
-  // Safely get workspace - use useContext directly to avoid throwing error
+  const permissionContext = useContext(PermissionContext);
   const workspaceContext = useContext(WorkspaceContext);
   const workspace = workspaceContext?.workspace || null;
   
-  const [permissionMap, setPermissionMap] = useState<Record<string, boolean>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [fallbackPermissionMap, setFallbackPermissionMap] = useState<Record<string, boolean>>({});
+  const [fallbackLoading, setFallbackLoading] = useState(true);
 
+  // Fallback: use individual API calls only if PermissionContext is not available
   useEffect(() => {
+    // Skip if PermissionContext is available
+    if (permissionContext) {
+      return;
+    }
+    
     const check = async () => {
-      setIsLoading(true);
+      setFallbackLoading(true);
       const results: Record<string, boolean> = {};
       
       for (const perm of permissions) {
@@ -50,18 +92,27 @@ export function usePermissions(permissions: Array<{ resource: string; action: st
         results[key] = await checkPermission(perm.resource, perm.action, workspace?.id);
       }
       
-      setPermissionMap(results);
-      setIsLoading(false);
+      setFallbackPermissionMap(results);
+      setFallbackLoading(false);
     };
 
     check();
-  }, [permissions, workspace?.id]);
+  }, [permissions, workspace?.id, permissionContext]);
+
+  // If PermissionContext is available, use it
+  if (permissionContext) {
+    const hasPermission = (resource: string, action: string) => {
+      return permissionContext.hasPermission(resource, action);
+    };
+    
+    return { hasPermission, isLoading: permissionContext.loading };
+  }
 
   const hasPermission = (resource: string, action: string) => {
     const key = `${resource}.${action}`;
-    return permissionMap[key] === true;
+    return fallbackPermissionMap[key] === true;
   };
 
-  return { hasPermission, isLoading };
+  return { hasPermission, isLoading: fallbackLoading };
 }
 

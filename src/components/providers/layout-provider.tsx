@@ -5,6 +5,7 @@ import { TopNav } from "@/components/layout/top-nav";
 import { SideNav } from "@/components/layout/side-nav";
 import { useAuth } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { PermissionProvider } from "@/contexts/PermissionContext";
 
 interface LayoutProviderProps {
   children: React.ReactNode;
@@ -57,24 +58,26 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
   // If user is authenticated, show full layout
   return (
     <WorkspaceProvider>
-      <div className="relative min-h-screen bg-[#F8F8F8] dark:bg-slate-950">
-        <SideNav 
-          isOpen={isSideNavOpen} 
-          onClose={handleCloseSideNav}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={handleToggleSidebarCollapse}
-        />
-        <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-72'}`}>
-          <TopNav 
-            onMenuClick={handleToggleSideNav}
-            onToggleSidebar={handleToggleSidebarCollapse}
-            isSidebarCollapsed={isSidebarCollapsed}
+      <PermissionProvider>
+        <div className="relative min-h-screen bg-[#F8F8F8] dark:bg-slate-950">
+          <SideNav 
+            isOpen={isSideNavOpen} 
+            onClose={handleCloseSideNav}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={handleToggleSidebarCollapse}
           />
-          <main className="min-h-screen">
-            <div className="w-full px-6 py-6">{children}</div>
-          </main>
+          <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-72'}`}>
+            <TopNav 
+              onMenuClick={handleToggleSideNav}
+              onToggleSidebar={handleToggleSidebarCollapse}
+              isSidebarCollapsed={isSidebarCollapsed}
+            />
+            <main className="min-h-screen">
+              <div className="w-full px-6 py-6">{children}</div>
+            </main>
+          </div>
         </div>
-      </div>
+      </PermissionProvider>
     </WorkspaceProvider>
   );
 };

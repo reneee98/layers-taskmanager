@@ -46,6 +46,8 @@ export function MultiAssigneeSelect({
       const result = await response.json();
       if (result.success) {
         setUsers(result.data);
+      } else {
+        console.error("[MultiAssigneeSelect] API error:", result.error);
       }
     } catch (error) {
       console.error("Failed to fetch workspace users:", error);
@@ -90,10 +92,14 @@ export function MultiAssigneeSelect({
         const assigneesResult = await assigneesResponse.json();
         if (assigneesResult.success) {
           onAssigneesChange(assigneesResult.data);
+        } else {
+          console.error("[MultiAssigneeSelect] Failed to refresh assignees:", assigneesResult.error);
         }
+      } else {
+        console.error("[MultiAssigneeSelect] Failed to add assignee:", result.error);
       }
     } catch (error) {
-      // Silently fail - user can try again
+      console.error("[MultiAssigneeSelect] Error adding assignee:", error);
     }
   };
 
@@ -117,7 +123,11 @@ export function MultiAssigneeSelect({
         const assigneesResult = await assigneesResponse.json();
         if (assigneesResult.success) {
           onAssigneesChange(assigneesResult.data);
+        } else {
+          console.error("[MultiAssigneeSelect] Failed to refresh assignees:", assigneesResult.error);
         }
+      } else {
+        console.error("[MultiAssigneeSelect] Failed to remove assignee:", result.error);
       }
     } catch (error) {
       console.error("Failed to remove assignee:", error);
@@ -178,20 +188,21 @@ export function MultiAssigneeSelect({
             </SelectValue>
           </SelectTrigger>
           <SelectContent className="py-2">
-            {users
-              .filter(user => !currentAssignees.some(assignee => assignee.user_id === user.id))
-              .map((user) => (
+            {(() => {
+              const availableUsers = users.filter(user => !currentAssignees.some(assignee => assignee.user_id === user.id));
+              return availableUsers.map((user) => (
                 <SelectItem key={user.id} value={user.id} className="py-2.5">
                   <div className="flex items-center gap-2.5">
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                        {getInitials(user.display_name || user.email)}
+                        {getInitials(user.name || user.display_name || user.email)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm">{user.display_name || user.email || "Neznámy"}</span>
+                    <span className="text-sm">{user.name || user.display_name || user.email || "Neznámy"}</span>
                   </div>
                 </SelectItem>
-              ))}
+              ));
+            })()}
           </SelectContent>
         </Select>
       )}

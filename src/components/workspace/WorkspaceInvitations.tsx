@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,18 +25,22 @@ interface WorkspaceInvitation {
 export function WorkspaceInvitations() {
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
   const [loading, setLoading] = useState(true);
+  const isFetchingRef = useRef(false);
+  const hasFetchedRef = useRef(false);
 
   const fetchInvitations = async () => {
+    // Prevent duplicate calls
+    if (isFetchingRef.current) {
+      return;
+    }
+
     try {
-      console.log("Fetching workspace invitations...");
+      isFetchingRef.current = true;
       const response = await fetch("/api/workspace-invitations");
       const result = await response.json();
       
-      console.log("Invitations response:", result);
-      
       if (result.success) {
         setInvitations(result.data);
-        console.log("Invitations loaded:", result.data);
       } else {
         console.error("Error fetching invitations:", result.error);
         toast({
@@ -54,6 +58,8 @@ export function WorkspaceInvitations() {
       });
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
+      hasFetchedRef.current = true;
     }
   };
 
@@ -70,7 +76,8 @@ export function WorkspaceInvitations() {
           title: "Úspech",
           description: "Úspešne ste sa pripojili k workspace",
         });
-        fetchInvitations(); // Refresh invitations
+        // Refresh invitations
+        await fetchInvitations();
         // TODO: Refresh workspace switcher
       } else {
         throw new Error(result.error);
@@ -86,7 +93,10 @@ export function WorkspaceInvitations() {
   };
 
   useEffect(() => {
-    fetchInvitations();
+    // Only fetch once - prevent duplicate calls in React Strict Mode
+    if (!hasFetchedRef.current) {
+      fetchInvitations();
+    }
   }, []);
 
   if (loading) {

@@ -31,11 +31,14 @@ export async function GET(
 ) {
   try {
     const { taskId } = await context.params;
-    const supabase = await createClient();
+    const supabase = createClient();
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { 
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const { data, error } = await supabase
@@ -46,13 +49,22 @@ export async function GET(
 
     if (error) {
       console.error("Error fetching links:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    return NextResponse.json({ data: data || [] }, { status: 200 });
+    return NextResponse.json({ data: data || [] }, { 
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
   } catch (error) {
     console.error("Error in GET drive-links:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 
@@ -63,7 +75,7 @@ export async function POST(
 ) {
   try {
     const { taskId } = await context.params;
-    const supabase = await createClient();
+    const supabase = createClient();
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {

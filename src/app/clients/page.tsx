@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { usePermission } from "@/hooks/usePermissions";
+import { useOptimizedFetch } from "@/hooks/useOptimizedFetch";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -19,47 +22,80 @@ import { toast } from "@/hooks/use-toast";
 import type { Client } from "@/types/database";
 import { cn } from "@/lib/utils";
 
+interface ClientsResponse {
+  success: boolean;
+  data: Client[];
+  error?: string;
+}
+
 function ClientsPageContent() {
   const { hasPermission: canViewClients, isLoading: isLoadingPermission } = usePermission('pages', 'view_clients');
-  const [clients, setClients] = useState<Client[]>([]);
-  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { workspaceRole, loading: workspaceLoading } = useWorkspace();
+  const { profile } = useAuth();
+  const isOwner = workspaceRole?.role === 'owner';
+  const isAdmin = profile?.role === 'admin';
+  // Admins and owners have all permissions, so they can fetch immediately
+  const hasFullAccess = isOwner || isAdmin;
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | undefined>();
 
-  const fetchClients = async () => {
-    try {
-      const response = await fetch("/api/clients");
-      const result = await response.json();
-
-      if (result.success) {
-        setClients(result.data);
-        setFilteredClients(result.data);
-      }
-    } catch (error) {
-      toast({
-        title: "Chyba",
-        description: "Nepodarilo sa načítať klientov",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchClients();
+  // Memoize error handler to avoid recreating on every render
+  const handleError = useCallback((error: Error) => {
+    toast({
+      title: "Chyba",
+      description: "Nepodarilo sa načítať klientov",
+      variant: "destructive",
+    });
   }, []);
 
+  // Determine if we should fetch - owners and admins can fetch immediately, others wait for permissions
+  // Also wait for workspace to load to know if user is owner
+  const shouldFetch = !workspaceLoading && (hasFullAccess || (!isLoadingPermission && canViewClients));
+  
+  // Debug logging
   useEffect(() => {
-    const filtered = clients.filter(
+    console.log('[ClientsPage] Debug:', {
+      workspaceLoading,
+      isOwner,
+      isAdmin,
+      hasFullAccess,
+      isLoadingPermission,
+      canViewClients,
+      shouldFetch,
+      workspaceRole: workspaceRole?.role,
+      profileRole: profile?.role,
+    });
+  }, [workspaceLoading, isOwner, isAdmin, hasFullAccess, isLoadingPermission, canViewClients, shouldFetch, workspaceRole, profile]);
+  
+  // Fetch clients - owners and admins have all permissions, so fetch immediately
+  // For non-owners/admins, wait for permission check
+  const fetchUrl = shouldFetch ? "/api/clients" : null;
+  console.log('[ClientsPage] Fetch URL:', fetchUrl, 'shouldFetch:', shouldFetch, 'hasFullAccess:', hasFullAccess);
+  
+  const { data: clientsData, loading: isLoading, refetch, clearCache } = useOptimizedFetch<ClientsResponse>(
+    fetchUrl,
+    {
+      cacheKey: "clients_list",
+      cacheExpiry: 2 * 60 * 1000, // 2 minutes
+      enabled: shouldFetch, // Enable when we should fetch
+      onError: handleError,
+    }
+  );
+
+  // Memoize clients array to avoid recreating on every render
+  const clients = useMemo(() => {
+    return clientsData?.success ? (clientsData.data || []) : [];
+  }, [clientsData]);
+
+  // Memoize filtered clients
+  const filteredClients = useMemo(() => {
+    return clients.filter(
       (client) =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.phone?.includes(searchTerm)
     );
-    setFilteredClients(filtered);
   }, [searchTerm, clients]);
 
   const handleDelete = async (id: string) => {
@@ -71,7 +107,8 @@ function ClientsPageContent() {
 
       if (result.success) {
         toast({ title: "Úspech", description: "Klient bol odstránený" });
-        fetchClients();
+        clearCache(); // Clear cache and refetch
+        await refetch();
       } else {
         toast({
           title: "Chyba",
@@ -98,8 +135,8 @@ function ClientsPageContent() {
     setEditingClient(undefined);
   };
 
-  // Check permission
-  if (isLoadingPermission) {
+  // Check permission - owners and admins have all permissions automatically
+  if (!hasFullAccess && isLoadingPermission) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -110,7 +147,7 @@ function ClientsPageContent() {
     );
   }
 
-  if (!canViewClients) {
+  if (!hasFullAccess && !canViewClients) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="flex flex-col items-center space-y-4 text-center">
@@ -220,8 +257,9 @@ function ClientsPageContent() {
         client={editingClient}
         open={isFormOpen}
         onOpenChange={handleFormClose}
-        onSuccess={() => {
-          fetchClients();
+        onSuccess={async () => {
+          clearCache(); // Clear cache and refetch
+          await refetch();
           handleFormClose();
         }}
       />

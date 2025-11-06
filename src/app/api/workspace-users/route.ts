@@ -7,11 +7,10 @@ export async function GET(request: NextRequest) {
   try {
     // Get user's workspace ID
     const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    
     if (!workspaceId) {
       return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
     }
-    
-    console.log("Workspace-users API called with workspaceId:", workspaceId);
     
     const supabase = createClient();
     
@@ -47,7 +46,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Access denied - not a member of this workspace" }, { status: 403 });
     }
     
-    console.log(`SECURITY: User ${user.email} accessing workspace users - Owner: ${isOwner}, Member: ${!!member}`);
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('q') || '';
     
@@ -57,108 +55,121 @@ export async function GET(request: NextRequest) {
       .select('id, role, user_id')
       .eq('workspace_id', workspaceId);
     
-    console.log("Workspace members:", members);
-    
     if (membersError) {
       console.error("Error fetching workspace members:", membersError);
       return NextResponse.json({ success: false, error: "Failed to fetch workspace members" }, { status: 500 });
     }
     
-    // Get profiles for members
-    let memberProfiles: any[] = [];
-    if (members && members.length > 0) {
-      const userIds = members.map(m => m.user_id);
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, email, display_name, role')
-        .in('id', userIds);
-      
-      if (profilesError) {
-        console.error("Error fetching member profiles:", profilesError);
-        return NextResponse.json({ success: false, error: "Failed to fetch member profiles" }, { status: 500 });
-      }
-      
-      // Map display_name to name for frontend compatibility
-      memberProfiles = (profiles || []).map(profile => ({
-        ...profile,
-        name: profile.display_name || profile.email?.split('@')[0] || 'Neznámy'
-      }));
-    }
-    
-    // SECURITY: Zobrazujeme len používateľov, ktorí SÚ členmi workspace
-    // NEFILTRUJEME podľa task_assignees alebo time_entries, lebo by to zobrazovalo
-    // používateľov, ktorí nie sú členmi workspace - narušenie súkromia!
-    
-    // Vytvoríme zoznam platných používateľov - len owner a members
+    // Get all user IDs that should have access to this workspace
+    // PRIMARY: All workspace_members + owner (these are the users added to workspace)
     const validUserIds = new Set<string>();
     
-    // Pridaj owner
+    // Add owner (always include owner)
     validUserIds.add(workspace.owner_id);
     
-    // Pridaj všetkých členov workspace
+    // Add all workspace members (these are users explicitly added to workspace)
     if (members && members.length > 0) {
       members.forEach(m => validUserIds.add(m.user_id));
     }
     
-    console.log("Valid workspace user IDs (owner + members only):", Array.from(validUserIds));
+    // Get all profiles for valid users (owner + all workspace_members)
+    const userIdsArray = Array.from(validUserIds);
     
-    // Get owner profile (using workspace from earlier)
-    const { data: ownerProfile, error: ownerError } = await supabase
+    if (userIdsArray.length === 0) {
+      return NextResponse.json({ success: true, data: [] });
+    }
+    
+    // Get all profiles for valid users (owner + all workspace_members)
+    // Use service role client to bypass RLS if needed
+    const { data: allProfiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, email, display_name, role')
-      .eq('id', workspace.owner_id)
-      .single();
+      .in('id', userIdsArray);
     
-    console.log("Workspace owner:", ownerProfile);
-    
-    if (ownerError) {
-      console.error("Error fetching owner profile:", ownerError);
-      return NextResponse.json({ success: false, error: "Failed to fetch owner profile" }, { status: 500 });
+    if (profilesError) {
+      console.error("Error fetching profiles:", profilesError);
+      return NextResponse.json({ success: false, error: "Failed to fetch profiles" }, { status: 500 });
     }
     
-    // SECURITY: Combine owner and members ONLY - žiadni task assignees alebo time entries!
-    // Používatelia, ktorí nie sú členmi workspace, NEMÔŽU byť zobrazení
+    // Create a map of user_id -> workspace_member role
+    const memberRoleMap = new Map<string, string>();
+    if (members) {
+      members.forEach(m => memberRoleMap.set(m.user_id, m.role));
+    }
+    
+    // Build the users list
     const allUsers = [];
-    const userIdsCombined = new Set<string>(); // To avoid duplicates
+    const userIdsCombined = new Set<string>();
+    const profilesMap = new Map<string, any>();
     
-    // Add owner (len ak je v validUserIds)
-    if (ownerProfile && validUserIds.has(ownerProfile.id)) {
-      allUsers.push({
-        id: ownerProfile.id,
-        email: ownerProfile.email,
-        name: ownerProfile.display_name || ownerProfile.email.split('@')[0],
-        display_name: ownerProfile.display_name || ownerProfile.email.split('@')[0],
-        avatar_url: null,
-        role: 'owner'
+    // Create a map of profiles for quick lookup
+    if (allProfiles) {
+      allProfiles.forEach(profile => {
+        profilesMap.set(profile.id, profile);
       });
-      userIdsCombined.add(ownerProfile.id);
     }
     
-    // Add members (len členovia workspace, nie task assignees!)
-    if (members && memberProfiles) {
-      members.forEach(member => {
-        // SECURITY CHECK: Skontroluj, či je používateľ skutočne v validUserIds
-        if (!validUserIds.has(member.user_id)) {
-          console.log(`SECURITY: Skipping user ${member.user_id} - not a valid workspace member`);
-          return;
+    // Process all valid user IDs (owner + workspace_members)
+    userIdsArray.forEach(userId => {
+      if (userIdsCombined.has(userId)) return;
+      
+      const profile = profilesMap.get(userId);
+      
+      // Determine role: owner if workspace owner, otherwise member role or 'member' as default
+      let userRole = 'member';
+      if (userId === workspace.owner_id) {
+        userRole = 'owner';
+      } else if (memberRoleMap.has(userId)) {
+        userRole = memberRoleMap.get(userId) || 'member';
+      }
+      
+      // If profile exists, use it; otherwise create a minimal user object from workspace_members
+      if (profile) {
+        // Ensure display_name is always a string, never null or undefined
+        // If display_name is null or undefined, try to get it from email or use fallback
+        let displayName = profile.display_name || null;
+        
+        // If display_name is null, undefined, or empty, try to extract from email
+        if (!displayName || (typeof displayName === 'string' && displayName.trim() === '')) {
+          // Try to get a better name from email
+          const emailParts = profile.email?.split('@')[0] || '';
+          if (emailParts) {
+            // Capitalize first letter
+            displayName = emailParts.charAt(0).toUpperCase() + emailParts.slice(1);
+          }
         }
         
-        const profile = memberProfiles.find(p => p.id === member.user_id);
-        if (profile && !userIdsCombined.has(profile.id)) {
-          allUsers.push({
-            id: profile.id,
-            email: profile.email,
-            name: profile.name,
-            display_name: profile.display_name || profile.email.split('@')[0],
-            avatar_url: null,
-            role: member.role
-          });
-          userIdsCombined.add(profile.id);
+        // Final fallback
+        if (!displayName || (typeof displayName === 'string' && displayName.trim() === '')) {
+          displayName = profile.email || 'Neznámy';
         }
-      });
-    }
-    
-    // SECURITY: NEPRIDÁVAME task assignees ani time entries - len členovia workspace!
+        
+        const email = profile.email || 'unknown@email.com';
+        
+        allUsers.push({
+          id: profile.id,
+          email: email,
+          name: displayName,
+          display_name: displayName,
+          avatar_url: null,
+          role: userRole
+        });
+      } else {
+        // Fallback: user doesn't have a profile, but is in workspace_members
+        // Try to get email from auth.users or use a placeholder
+        const member = members?.find(m => m.user_id === userId);
+        allUsers.push({
+          id: userId,
+          email: `user-${userId.substring(0, 8)}@unknown`,
+          name: 'Neznámy používateľ',
+          display_name: 'Neznámy používateľ',
+          avatar_url: null,
+          role: userRole
+        });
+      }
+      
+      userIdsCombined.add(userId);
+    });
     
     // Apply search filter if provided
     let filteredUsers = allUsers;
@@ -178,8 +189,6 @@ export async function GET(request: NextRequest) {
       avatar_url: user.avatar_url,
       role: user.role
     }));
-
-    console.log("Final users list:", users);
 
     return NextResponse.json({ success: true, data: users });
   } catch (error) {

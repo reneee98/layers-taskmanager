@@ -1,34 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { z } from "zod";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export const dynamic = "force-dynamic";
-
-const assigneesSchema = z.object({
-  assigneeIds: z.array(z.string().uuid()),
-});
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
+  let taskId: string = 'unknown';
   try {
+    taskId = (await params).taskId;
+    
+    const supabase = createClient();
+    
     // Get user's workspace ID
-    const workspaceId = await getUserWorkspaceIdFromRequest(request);
-    if (!workspaceId) {
+    let workspaceId: string | null = null;
+    try {
+      workspaceId = await getUserWorkspaceIdFromRequest(request);
+    } catch (workspaceError) {
+      console.error(`[GET /api/tasks/${taskId}/assignees] Error getting workspace ID:`, workspaceError);
       return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
     }
     
-    const { taskId } = await params;
-    const supabase = createClient();
+    if (!workspaceId) {
+      console.error(`[GET /api/tasks/${taskId}/assignees] Workspace not found`);
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
 
     // Get workspace owner ID pre filtrovanie assignees
     const { data: workspace } = await supabase
       .from('workspaces')
       .select('owner_id')
       .eq('id', workspaceId)
-      .single();
+      .maybeSingle();
     
     const workspaceOwnerId = workspace?.owner_id;
 
@@ -38,7 +43,7 @@ export async function GET(
       .select("id")
       .eq("id", taskId)
       .eq("workspace_id", workspaceId)
-      .single();
+      .maybeSingle();
 
     if (taskError || !task) {
       return NextResponse.json(
@@ -80,12 +85,8 @@ export async function GET(
         memberUserIds.add(workspaceOwnerId);
       }
       
-      console.log(`DEBUG assignees filter: workspaceId=${workspaceId}, ownerId=${workspaceOwnerId}, userIds=${JSON.stringify(userIds)}, memberUserIds=${JSON.stringify(Array.from(memberUserIds))}`);
-      
       // Filtruj userIds len na tých, ktorí sú členmi workspace
       const validUserIds = Array.from(memberUserIds).filter(id => userIds.includes(id));
-      
-      console.log(`DEBUG assignees filter: validUserIds=${JSON.stringify(validUserIds)}, filtered from ${userIds.length} to ${validUserIds.length}`);
       
       if (validUserIds.length > 0) {
         const { data: usersData, error: usersError } = await supabase
@@ -122,14 +123,18 @@ export async function GET(
       };
     }) || [];
 
-    console.log("Final assignees with users:", assigneesWithUsers);
-
-    return NextResponse.json({ success: true, data: assigneesWithUsers });
+    return NextResponse.json({ success: true, data: assigneesWithUsers }, {
+      headers: { 'Content-Type': 'application/json' }
+    });
   } catch (error) {
-    console.error("Error in task assignees API:", error);
+    console.error(`[GET /api/tasks/${taskId}/assignees] Error:`, error);
+    const errorMessage = error instanceof Error ? error.message : "Vnútorná chyba servera";
     return NextResponse.json(
-      { success: false, error: "Vnútorná chyba servera" },
-      { status: 500 }
+      { success: false, error: errorMessage },
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
     );
   }
 }
@@ -139,6 +144,12 @@ export async function POST(
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
+    // Dynamic import to avoid loading validation schema in GET handler
+    const { z } = await import("zod");
+    const assigneesSchema = z.object({
+      assigneeIds: z.array(z.string().uuid()),
+    });
+    
     // Get user's workspace ID
     const workspaceId = await getUserWorkspaceIdFromRequest(request);
     if (!workspaceId) {
@@ -157,7 +168,7 @@ export async function POST(
       .select("id")
       .eq("id", taskId)
       .eq("workspace_id", workspaceId)
-      .single();
+      .maybeSingle();
 
     if (taskError || !task) {
       return NextResponse.json(

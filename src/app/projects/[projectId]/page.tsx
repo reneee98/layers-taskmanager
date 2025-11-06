@@ -9,61 +9,69 @@ import { TaskDialog } from "@/components/tasks/TaskDialog";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useOptimizedFetch } from "@/hooks/useOptimizedFetch";
 import type { Project, Task } from "@/types/database";
+
+interface ProjectResponse {
+  success: boolean;
+  data: Project;
+  error?: string;
+}
+
+interface TasksResponse {
+  success: boolean;
+  data: Task[];
+  error?: string;
+}
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   
-  const [project, setProject] = useState<Project | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const refreshSummaryRef = useRef<(() => Promise<void>) | null>(null);
 
-  const fetchProject = async () => {
-    try {
-      const response = await fetch(`/api/projects/${projectId}`);
-      const result = await response.json();
-
-      if (result.success) {
-        setProject(result.data);
-      } else {
+  // Fetch project and tasks in parallel with cache
+  const { 
+    data: projectData, 
+    loading: projectLoading, 
+    refetch: refetchProject,
+    clearCache: clearProjectCache 
+  } = useOptimizedFetch<ProjectResponse>(
+    projectId ? `/api/projects/${projectId}` : null,
+    {
+      cacheKey: `project_${projectId}`,
+      cacheExpiry: 2 * 60 * 1000, // 2 minutes
+      onError: (error) => {
         toast({
           title: "Chyba",
-          description: "Projekt nebol nájdený",
+          description: "Nepodarilo sa načítať projekt",
           variant: "destructive",
         });
-      }
-    } catch (error) {
-      toast({
-        title: "Chyba",
-        description: "Nepodarilo sa načítať projekt",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      },
     }
-  };
+  );
 
-  const fetchTasks = async () => {
-    try {
-      const response = await fetch(`/api/tasks?project_id=${projectId}`);
-      const result = await response.json();
-
-      if (result.success) {
-        setTasks(result.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch tasks:", error);
+  const { 
+    data: tasksData, 
+    loading: tasksLoading, 
+    refetch: refetchTasks,
+    clearCache: clearTasksCache 
+  } = useOptimizedFetch<TasksResponse>(
+    projectId ? `/api/tasks?project_id=${projectId}` : null,
+    {
+      cacheKey: `tasks_project_${projectId}`,
+      cacheExpiry: 1 * 60 * 1000, // 1 minute (tasks change more frequently)
+      onError: (error) => {
+        console.error("Failed to fetch tasks:", error);
+      },
     }
-  };
+  );
 
-  useEffect(() => {
-    fetchProject();
-    fetchTasks();
-  }, [projectId]);
+  const project = projectData?.success ? projectData.data : null;
+  const tasks = tasksData?.success ? tasksData.data : [];
+  const isLoading = projectLoading || tasksLoading;
 
   // Listen for time entry added events from task detail pages
   useEffect(() => {
@@ -78,7 +86,8 @@ export default function ProjectDetailPage() {
         refreshSummaryRef.current();
       }
       // Also refresh tasks list when status changes
-      fetchTasks();
+      clearTasksCache();
+      refetchTasks();
     };
 
     window.addEventListener('timeEntryAdded', handleTimeEntryAdded);
@@ -87,7 +96,7 @@ export default function ProjectDetailPage() {
       window.removeEventListener('timeEntryAdded', handleTimeEntryAdded);
       window.removeEventListener('taskStatusChanged', handleTaskStatusChanged);
     };
-  }, []);
+  }, [clearTasksCache, refetchTasks]);
 
   const handleUpdateTask = async (taskId: string, data: Partial<Task>) => {
     try {
@@ -100,7 +109,9 @@ export default function ProjectDetailPage() {
 
       if (result.success) {
         toast({ title: "Úspech", description: "Úloha bola aktualizovaná" });
-        fetchTasks();
+        clearTasksCache();
+        clearProjectCache();
+        await Promise.all([refetchTasks(), refetchProject()]);
         // Refresh project summary (zisk, náklady) when task is updated, especially if budget changed
         if (refreshSummaryRef.current && typeof refreshSummaryRef.current === 'function') {
           refreshSummaryRef.current();
@@ -134,7 +145,9 @@ export default function ProjectDetailPage() {
 
       if (result.success) {
         toast({ title: "Úspech", description: "Úloha bola odstránená" });
-        fetchTasks();
+        clearTasksCache();
+        clearProjectCache();
+        await Promise.all([refetchTasks(), refetchProject()]);
         // Refresh project summary (zisk, náklady) when task is deleted
         if (refreshSummaryRef.current && typeof refreshSummaryRef.current === 'function') {
           refreshSummaryRef.current();
@@ -177,7 +190,8 @@ export default function ProjectDetailPage() {
       const result = await response.json();
 
       if (result.success) {
-        fetchTasks();
+        clearTasksCache();
+        await refetchTasks();
       } else {
         throw new Error(result.error);
       }
@@ -239,9 +253,11 @@ export default function ProjectDetailPage() {
             onReorder={handleReorderTasks}
             projectId={projectId}
             project={project}
-            onTaskUpdated={() => {
+            onTaskUpdated={async () => {
               // Refresh project data when task is updated
-              fetchProject();
+              clearProjectCache();
+              clearTasksCache();
+              await Promise.all([refetchProject(), refetchTasks()]);
               // Also refresh summary if available
               if (refreshSummaryRef.current && typeof refreshSummaryRef.current === 'function') {
                 refreshSummaryRef.current();
@@ -270,8 +286,10 @@ export default function ProjectDetailPage() {
         task={editingTask}
         open={isTaskDialogOpen}
         onOpenChange={setIsTaskDialogOpen}
-        onSuccess={() => {
-          fetchTasks();
+        onSuccess={async () => {
+          clearTasksCache();
+          clearProjectCache();
+          await Promise.all([refetchTasks(), refetchProject()]);
           // Refresh project summary (zisk, náklady, atď.) after task is added/updated
           if (refreshSummaryRef.current && typeof refreshSummaryRef.current === 'function') {
             refreshSummaryRef.current();

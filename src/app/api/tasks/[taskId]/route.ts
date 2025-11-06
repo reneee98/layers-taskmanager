@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { updateTaskSchema } from "@/lib/validations/task";
-import { validateSchema } from "@/lib/zod-helpers";
 import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
@@ -13,12 +11,21 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
+  let taskId: string = 'unknown';
   try {
-    const { taskId } = await params;
+    taskId = (await params).taskId;
+    
     const supabase = createClient();
 
     // Get workspace ID for auto-moving overdue tasks
-    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    let workspaceId: string | null = null;
+    try {
+      workspaceId = await getUserWorkspaceIdFromRequest(request);
+    } catch (workspaceError) {
+      console.error(`[GET /api/tasks/${taskId}] Error getting workspace ID:`, workspaceError);
+      // Continue without workspace ID - task query should still work
+    }
+    
     if (workspaceId) {
       // Automatically move overdue tasks to today (non-blocking, don't fail request if this fails)
       autoMoveOverdueTasksToToday(supabase, workspaceId).catch(err => {
@@ -33,7 +40,7 @@ export async function GET(
         project:projects(id, name, code, hourly_rate_cents, budget_cents)
       `)
       .eq("id", taskId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error(`Task fetch error for ${taskId}:`, error);
@@ -129,11 +136,18 @@ export async function GET(
       assignees: assigneesWithUsers
     };
 
-    return NextResponse.json({ success: true, data: taskWithHourlyRate });
+    return NextResponse.json({ success: true, data: taskWithHourlyRate }, {
+      headers: { 'Content-Type': 'application/json' }
+    });
   } catch (error) {
+    console.error(`[GET /api/tasks/${taskId}] Error:`, error);
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
+      { success: false, error: errorMessage },
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
     );
   }
 }
@@ -142,8 +156,13 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
-  const { taskId } = await params;
+  let taskId: string = 'unknown';
   try {
+    taskId = (await params).taskId;
+    // Dynamic import to avoid loading validation schema in GET handler
+    const { updateTaskSchema } = await import("@/lib/validations/task");
+    const { validateSchema } = await import("@/lib/zod-helpers");
+    
     // Get user's workspace ID
     const workspaceId = await getUserWorkspaceIdFromRequest(request);
     if (!workspaceId) {

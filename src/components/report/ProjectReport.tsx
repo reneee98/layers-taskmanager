@@ -39,6 +39,13 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
   }, [projectId, taskId]);
 
   const fetchFinanceData = async () => {
+    // Don't fetch if projectId is invalid
+    if (!projectId || projectId === "unknown" || !projectId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      console.warn("Invalid projectId, skipping fetch:", projectId);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const url = taskId 
@@ -47,11 +54,16 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
       const response = await fetch(url);
       const result = await response.json();
 
-      if (result.success) {
+      if (result.success && result.data) {
+        console.log("Finance data loaded:", result.data);
         setFinance(result.data);
+      } else {
+        console.error("Failed to fetch finance data:", result.error || "Unknown error", result);
+        setFinance(null);
       }
     } catch (error) {
       console.error("Failed to fetch finance data:", error);
+      setFinance(null);
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +80,12 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
   if (!finance) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Žiadne dáta</p>
+        <div className="text-center space-y-2">
+          <p className="text-muted-foreground">Žiadne dáta</p>
+          <p className="text-sm text-muted-foreground">
+            Skontrolujte, či má projekt úlohy so statusom "done" a či majú nastavený rozpočet.
+          </p>
+        </div>
       </div>
     );
   }
@@ -83,7 +100,7 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className={`grid gap-4 ${taskId ? 'md:grid-cols-2 lg:grid-cols-5' : 'md:grid-cols-2 lg:grid-cols-5'}`}>
         {/* Hours Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -92,43 +109,36 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatHours(finance.billableHours)}</div>
-            <p className="text-xs text-muted-foreground">
-              celkovo odpracovaných hodín
-            </p>
           </CardContent>
         </Card>
 
-        {/* Labor Cost Card */}
+        {/* Average Hourly Rate Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pracovné náklady</CardTitle>
+            <CardTitle className="text-sm font-medium">Priemerná hodinovka</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(finance.laborCost)}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatHours(finance.billableHours)} @ priemer{" "}
-              {finance.billableHours > 0
-                ? formatCurrency(finance.laborCost / finance.billableHours)
+            <div className="text-2xl font-bold">
+              {finance.totalHours > 0
+                ? formatCurrency(finance.budgetAmount / finance.totalHours)
                 : formatCurrency(0)}
-              /h
-            </p>
+            </div>
           </CardContent>
         </Card>
 
-        {/* External Costs Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Externé náklady</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(finance.externalCost)}</div>
-            <p className="text-xs text-muted-foreground">
-              Softvér, licence, grafika, atď.
-            </p>
-          </CardContent>
-        </Card>
+        {/* External Costs Card - only shown in project view, not in task detail */}
+        {!taskId && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Externé náklady</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(finance.externalCost)}</div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Total Cost Card */}
         <Card>
@@ -138,14 +148,21 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(finance.totalCost)}</div>
-            <p className="text-xs text-muted-foreground">
-              Labor + External
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              = {formatCurrency(finance.laborCost)} + {formatCurrency(finance.externalCost)}
-            </p>
           </CardContent>
         </Card>
+
+        {/* Invoice Price Card - only shown in task detail */}
+        {taskId && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Spolu k fakturácií</CardTitle>
+              <Euro className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(finance.budgetAmount)}</div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Profit/Loss Card */}
         <Card>
@@ -156,14 +173,13 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
           <CardContent>
             <div className="flex items-baseline gap-2">
               <div className="text-2xl font-bold">{formatCurrency(finance.profit)}</div>
-              <Badge className={getProfitColor(finance.profitPct)}>
-                {finance.profitPct >= 0 ? "+" : ""}
-                {finance.profitPct.toFixed(1)}%
-              </Badge>
+              {(finance.laborCost + finance.budgetAmount) > 0 && (
+                <Badge className={getProfitColor(finance.profitPct)}>
+                  {finance.profitPct >= 0 ? "+" : ""}
+                  {finance.profitPct.toFixed(1)}%
+                </Badge>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Rozpočet: {formatCurrency(finance.budgetAmount)}
-            </p>
           </CardContent>
         </Card>
       </div>

@@ -41,19 +41,23 @@ export async function GET(
 
     const totalTasks = tasks.length;
     const completedTasks = tasks.filter(task => task.status === "done").length;
-    // Convert budget_cents to euros for calculation
-    const totalBudget = tasks.reduce((sum, task) => sum + ((task.budget_cents || 0) / 100), 0);
+    
+    // Filter only done tasks for profit/loss calculation
+    const doneTasks = tasks.filter(task => task.status === "done");
+    const doneTaskIds = doneTasks.map(task => task.id);
+    
+    // Convert budget_cents to euros for calculation - only for done tasks
+    const totalBudget = doneTasks.reduce((sum, task) => sum + ((task.budget_cents || 0) / 100), 0);
 
-    // Get time entries (labor cost) - get task IDs first
-    const taskIds = tasks.map(task => task.id);
+    // Get time entries (labor cost) - only for done tasks
     let laborCost = 0;
     
-    if (taskIds.length > 0) {
+    if (doneTaskIds.length > 0) {
       try {
         const { data: timeEntries, error: timeError } = await supabase
           .from("time_entries")
           .select("amount")
-          .in("task_id", taskIds);
+          .in("task_id", doneTaskIds);
 
         if (!timeError && timeEntries) {
           laborCost = timeEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
@@ -64,13 +68,13 @@ export async function GET(
       }
     }
 
-    // Get cost items (external cost) - optional, table might not exist
+    // Get cost items (external cost) - only for done tasks
     let externalCost = 0;
     try {
       const { data: costItems, error: costError } = await supabase
         .from("cost_items")
         .select("amount")
-        .in("task_id", taskIds);
+        .in("task_id", doneTaskIds);
 
       if (!costError && costItems) {
         externalCost = costItems.reduce((sum, item) => sum + (item.amount || 0), 0);
@@ -80,7 +84,8 @@ export async function GET(
       externalCost = 0;
     }
 
-    // Get total hours - get task IDs first
+    // Get total hours - get task IDs first (all tasks for hours display)
+    const taskIds = tasks.map(task => task.id);
     let totalHours = 0;
     
     if (taskIds.length > 0) {
@@ -99,7 +104,7 @@ export async function GET(
       }
     }
 
-    // Calculate totals - labor + budget is profit, external costs are losses
+    // Calculate totals - labor + budget is profit, external costs are losses (only for done tasks)
     const totalCost = externalCost; // Only external costs count as costs
     const totalRevenue = laborCost + totalBudget; // Labor + budget is revenue/profit
     const profit = totalRevenue - totalCost; // Revenue minus costs

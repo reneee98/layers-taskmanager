@@ -190,27 +190,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Nie ste prihlásený" }, { status: 401 });
     }
 
+    // Get project hourly rate if available
+    let projectHourlyRateCents: number | null = null;
+    if (validation.data.project_id) {
+      const { data: project } = await supabase
+        .from("projects")
+        .select("hourly_rate_cents")
+        .eq("id", validation.data.project_id)
+        .single();
+      
+      projectHourlyRateCents = project?.hourly_rate_cents || null;
+    }
+
+    // If budget_cents is set, automatically calculate estimated_hours = budget_cents / hourly_rate
+    // Only if estimated_hours is not explicitly set (allows manual override)
+    if (validation.data.budget_cents !== undefined && 
+        validation.data.budget_cents !== null && 
+        validation.data.budget_cents > 0 && 
+        projectHourlyRateCents &&
+        (validation.data.estimated_hours === undefined || validation.data.estimated_hours === null)) {
+      // Calculate estimated_hours from budget
+      const hourlyRate = projectHourlyRateCents / 100; // Convert cents to euros
+      const budgetInEuros = validation.data.budget_cents / 100; // Convert cents to euros
+      const calculatedHours = budgetInEuros / hourlyRate;
+      validation.data.estimated_hours = Math.round(calculatedHours * 100) / 100; // Round to 2 decimal places
+      console.log(`Auto-calculated estimated_hours from budget: ${validation.data.estimated_hours}h (budget: ${budgetInEuros}€, rate: ${hourlyRate}€/h)`);
+    }
+
     // If estimated_hours is set and budget_cents is not explicitly provided, calculate budget automatically
     // Only if project_id is provided (tasks without project won't have hourly rate)
     if (validation.data.estimated_hours !== undefined && 
         validation.data.estimated_hours !== null && 
         validation.data.estimated_hours > 0 && 
-        validation.data.project_id) {
+        projectHourlyRateCents) {
       // Only calculate budget if budget_cents is not explicitly set in the request
       if (validation.data.budget_cents === undefined) {
-        // Get project to get hourly_rate_cents
-        const { data: project } = await supabase
-          .from("projects")
-          .select("hourly_rate_cents")
-          .eq("id", validation.data.project_id)
-          .single();
-
-        if (project?.hourly_rate_cents) {
-          // Calculate budget: estimated_hours * hourly_rate (convert from cents to euros, then back to cents)
-          const hourlyRate = project.hourly_rate_cents / 100; // Convert cents to euros
-          const budgetInEuros = validation.data.estimated_hours * hourlyRate;
-          validation.data.budget_cents = Math.round(budgetInEuros * 100); // Convert back to cents
-        }
+        // Calculate budget: estimated_hours * hourly_rate (convert from cents to euros, then back to cents)
+        const hourlyRate = projectHourlyRateCents / 100; // Convert cents to euros
+        const budgetInEuros = validation.data.estimated_hours * hourlyRate;
+        validation.data.budget_cents = Math.round(budgetInEuros * 100); // Convert back to cents
+        console.log(`Auto-calculated budget from estimated_hours: ${budgetInEuros}€ (hours: ${validation.data.estimated_hours}h, rate: ${hourlyRate}€/h)`);
       }
     }
 

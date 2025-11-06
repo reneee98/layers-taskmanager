@@ -5,6 +5,7 @@ import { validateSchema } from "@/lib/zod-helpers";
 import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
+import { resolveHourlyRate } from "@/server/rates/resolveHourlyRate";
 
 export const dynamic = "force-dynamic";
 
@@ -174,33 +175,52 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: "Úloha nebola nájdená" }, { status: 404 });
     }
 
-    // If estimated_hours is set, automatically calculate budget = estimated_hours * hourly_rate
-    // Budget is always recalculated when estimated_hours changes (unless budget_cents is explicitly set to override)
-    // Only calculate budget if task has a project (tasks without project won't have hourly rate)
+    // Determine which project to use for calculations
     const projectIdForBudget = validation.data.project_id !== undefined 
       ? validation.data.project_id 
       : currentTask.project_id;
     
+    // Get project hourly rate if available
+    let projectHourlyRateCents: number | null = null;
+    if (projectIdForBudget) {
+      const { data: project } = await supabase
+        .from("projects")
+        .select("hourly_rate_cents")
+        .eq("id", projectIdForBudget)
+        .single();
+      
+      projectHourlyRateCents = project?.hourly_rate_cents || null;
+    }
+
+    // If budget_cents is set, automatically calculate estimated_hours = budget_cents / hourly_rate
+    // Only if estimated_hours is not explicitly set (allows manual override)
+    if (validation.data.budget_cents !== undefined && 
+        validation.data.budget_cents !== null && 
+        validation.data.budget_cents > 0 && 
+        projectHourlyRateCents &&
+        (validation.data.estimated_hours === undefined || validation.data.estimated_hours === null)) {
+      // Calculate estimated_hours from budget
+      const hourlyRate = projectHourlyRateCents / 100; // Convert cents to euros
+      const budgetInEuros = validation.data.budget_cents / 100; // Convert cents to euros
+      const calculatedHours = budgetInEuros / hourlyRate;
+      validation.data.estimated_hours = Math.round(calculatedHours * 100) / 100; // Round to 2 decimal places
+      console.log(`Auto-calculated estimated_hours from budget: ${validation.data.estimated_hours}h (budget: ${budgetInEuros}€, rate: ${hourlyRate}€/h)`);
+    }
+
+    // If estimated_hours is set, automatically calculate budget = estimated_hours * hourly_rate
+    // Budget is always recalculated when estimated_hours changes (unless budget_cents is explicitly set to override)
     if (validation.data.estimated_hours !== undefined && 
         validation.data.estimated_hours !== null && 
         validation.data.estimated_hours > 0 && 
-        projectIdForBudget) {
+        projectHourlyRateCents) {
       // Only calculate budget if budget_cents is not explicitly set in the request
       // This allows manual override if needed
       if (validation.data.budget_cents === undefined) {
-        // Get project to get hourly_rate_cents
-        const { data: project } = await supabase
-          .from("projects")
-          .select("hourly_rate_cents")
-          .eq("id", projectIdForBudget)
-          .single();
-
-        if (project?.hourly_rate_cents) {
-          // Calculate budget: estimated_hours * hourly_rate (convert from cents to euros, then back to cents)
-          const hourlyRate = project.hourly_rate_cents / 100; // Convert cents to euros
-          const budgetInEuros = validation.data.estimated_hours * hourlyRate;
-          validation.data.budget_cents = Math.round(budgetInEuros * 100); // Convert back to cents
-        }
+        // Calculate budget: estimated_hours * hourly_rate (convert from cents to euros, then back to cents)
+        const hourlyRate = projectHourlyRateCents / 100; // Convert cents to euros
+        const budgetInEuros = validation.data.estimated_hours * hourlyRate;
+        validation.data.budget_cents = Math.round(budgetInEuros * 100); // Convert back to cents
+        console.log(`Auto-calculated budget from estimated_hours: ${budgetInEuros}€ (hours: ${validation.data.estimated_hours}h, rate: ${hourlyRate}€/h)`);
       }
     }
 
@@ -232,6 +252,12 @@ export async function PATCH(
       assigned_to: currentTask.assigned_to,
     });
     
+    // Check if budget_cents or estimated_hours changed - if so, we need to recalculate time entries
+    const budgetChanged = updateData.budget_cents !== undefined && 
+      updateData.budget_cents !== currentTask.budget_cents;
+    const estimatedHoursChanged = updateData.estimated_hours !== undefined && 
+      updateData.estimated_hours !== currentTask.estimated_hours;
+
     const { data: task, error } = await supabase
       .from("tasks")
       .update(updateData)
@@ -247,6 +273,71 @@ export async function PATCH(
       console.error('Database error:', error);
       console.error('Update data:', updateData);
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    }
+
+    // If budget or estimated_hours changed, recalculate all time entries for this task
+    if (budgetChanged || estimatedHoursChanged) {
+      console.log('Budget or estimated_hours changed, recalculating time entries...');
+      
+      // Get all time entries for this task
+      const { data: timeEntries } = await supabase
+        .from("time_entries")
+        .select("id, hours, hourly_rate, user_id, date")
+        .eq("task_id", taskId)
+        .order("date", { ascending: true }); // Process in chronological order
+
+      if (timeEntries && timeEntries.length > 0) {
+        // Determine budget hours limit
+        let budgetHoursLimit = 0;
+        const finalBudgetCents = task.budget_cents || 0;
+        const finalEstimatedHours = task.estimated_hours || 0;
+        
+        // Get hourly rate from first entry or project
+        let hourlyRate = 0;
+        if (timeEntries[0]?.hourly_rate) {
+          hourlyRate = timeEntries[0].hourly_rate;
+        } else if (timeEntries[0]?.user_id && task.project_id) {
+          const resolved = await resolveHourlyRate(timeEntries[0].user_id, task.project_id);
+          hourlyRate = resolved.hourlyRate;
+        } else if (task.project?.hourly_rate_cents) {
+          hourlyRate = task.project.hourly_rate_cents / 100;
+        }
+
+        if (finalBudgetCents > 0 && hourlyRate > 0) {
+          const budgetInEuros = finalBudgetCents / 100;
+          budgetHoursLimit = budgetInEuros / hourlyRate;
+        } else if (finalEstimatedHours > 0) {
+          budgetHoursLimit = finalEstimatedHours;
+        }
+
+        // Recalculate amounts for all entries in chronological order
+        let cumulativeHours = 0;
+
+        for (const entry of timeEntries) {
+          const entryRate = entry.hourly_rate || hourlyRate;
+          
+          // Calculate how many hours from this entry are within budget
+          const hoursWithinBudget = Math.max(0, Math.min(cumulativeHours, budgetHoursLimit));
+          const remainingBudgetHours = Math.max(0, budgetHoursLimit - hoursWithinBudget);
+          const newHoursWithinBudget = Math.min(entry.hours, remainingBudgetHours);
+          
+          // Hours that exceed the budget limit
+          const hoursOverBudget = Math.max(0, entry.hours - newHoursWithinBudget);
+          
+          // Calculate new amount
+          const newAmount = hoursOverBudget * entryRate;
+          
+          // Update entry
+          await supabase
+            .from("time_entries")
+            .update({ amount: newAmount })
+            .eq("id", entry.id);
+
+          cumulativeHours += entry.hours;
+        }
+        
+        console.log(`Recalculated ${timeEntries.length} time entries`);
+      }
     }
 
     // Verify that all other task values were preserved (especially important when only project_id is changed)

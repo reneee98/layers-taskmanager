@@ -399,19 +399,12 @@ export function TaskRow({
             const isMatch = Math.abs(calculatedBudget - (task.budget_cents || 0)) <= 1;
             
             if (isMatch) {
-              // Budget is auto-calculated from estimated hours - show it with calculation detail
-              const hourlyRateFormatted = hourlyRate.toFixed(2);
+              // Budget is auto-calculated from estimated hours - show it
               return (
-                <div className="flex flex-col items-end gap-0.5 text-xs">
-                  <div className="flex items-center gap-1 font-medium">
-                    <span className="text-green-600">
-                      {formatCurrency((task.budget_cents || 0) / 100)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Euro className="h-2.5 w-2.5" />
-                    <span>{task.estimated_hours}h × {hourlyRateFormatted}€</span>
-                  </div>
+                <div className="flex items-center justify-end gap-1 text-xs font-medium">
+                  <span className="text-green-600">
+                    {formatCurrency((task.budget_cents || 0) / 100)}
+                  </span>
                 </div>
               );
             }

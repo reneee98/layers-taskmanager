@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 /**
  * Removes HTML tags from a string (server-side version)
@@ -36,14 +37,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's workspace
-    const { data: workspace } = await supabase
-      .from('workspaces')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single();
-
-    if (!workspace) {
+    // Get user's workspace (works for both owners and members)
+    const workspaceId = await getUserWorkspaceIdFromRequest(request);
+    
+    if (!workspaceId) {
       return NextResponse.json({ success: false, error: "No workspace found" }, { status: 404 });
     }
 
@@ -60,7 +57,7 @@ export async function GET(request: NextRequest) {
         description,
         client:clients(name)
       `)
-      .eq('workspace_id', workspace.id)
+      .eq('workspace_id', workspaceId)
       .or(`name.ilike.${searchTerm},code.ilike.${searchTerm},description.ilike.${searchTerm}`)
       .limit(5);
 
@@ -90,7 +87,7 @@ export async function GET(request: NextRequest) {
         priority,
         project:projects(id, name, code)
       `)
-      .eq('workspace_id', workspace.id)
+      .eq('workspace_id', workspaceId)
       .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
       .limit(5);
 
@@ -127,7 +124,7 @@ export async function GET(request: NextRequest) {
         phone,
         company
       `)
-      .eq('workspace_id', workspace.id)
+      .eq('workspace_id', workspaceId)
       .or(`name.ilike.${searchTerm},email.ilike.${searchTerm},company.ilike.${searchTerm}`)
       .limit(5);
 
@@ -156,7 +153,7 @@ export async function GET(request: NextRequest) {
         status,
         client:clients(name)
       `)
-      .eq('workspace_id', workspace.id)
+      .eq('workspace_id', workspaceId)
       .or(`invoice_number.ilike.${searchTerm}`)
       .limit(3);
 

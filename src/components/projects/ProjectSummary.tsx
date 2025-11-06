@@ -11,6 +11,7 @@ interface ProjectSummaryData {
   completedTasks: number;
   totalHours: number;
   totalCost: number;
+  totalBudget: number;
   profit: number;
   profitPct: number;
 }
@@ -132,27 +133,19 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
         </CardContent>
       </Card>
 
-      {/* Zisk/Strata */}
+      {/* Spolu k fakturácií */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">
-            Zisk/Strata
+            Spolu k fakturácií
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2">
-            <div className="text-2xl font-bold">
-              {formatCurrency(summary.profit)}
-            </div>
-            <Badge 
-              variant={summary.profit >= 0 ? "default" : "destructive"}
-              className="text-xs"
-            >
-              {summary.profitPct >= 0 ? "+" : ""}{summary.profitPct.toFixed(1)}%
-            </Badge>
+          <div className="text-2xl font-bold">
+            {formatCurrency(summary.totalBudget || 0)}
           </div>
           <p className="text-xs text-muted-foreground">
-            {summary.profit >= 0 ? "Zisk" : "Strata"}
+            Suma na vyfakturovanie
           </p>
         </CardContent>
       </Card>

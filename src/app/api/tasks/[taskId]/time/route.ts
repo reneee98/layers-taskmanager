@@ -26,10 +26,10 @@ export async function POST(
       task_id: taskId,
     });
 
-    // Get task to find project_id and estimated_hours (filtered by workspace)
+    // Get task to find project_id, estimated_hours, budget_cents, and actual_hours (filtered by workspace)
     const { data: task, error: taskError } = await supabase
       .from("tasks")
-      .select("project_id, estimated_hours, actual_hours")
+      .select("project_id, estimated_hours, budget_cents, actual_hours")
       .eq("id", taskId)
       .eq("workspace_id", workspaceId)
       .single();
@@ -63,23 +63,40 @@ export async function POST(
       rateSource = resolved.source;
     }
 
-    // Calculate amount - only bill hours that exceed estimated_hours
-    let billableHours = validatedData.hours;
-    const estimatedHours = task.estimated_hours || 0;
+    // Determine the budget hours limit
+    // Priority: budget_cents (if set) > estimated_hours
+    let budgetHoursLimit = 0;
+    let budgetAmount = 0; // Budget amount in euros
+    
+    if (task.budget_cents && task.budget_cents > 0 && hourlyRate && hourlyRate > 0) {
+      // Calculate hours from budget: budget_cents / hourly_rate
+      budgetAmount = task.budget_cents / 100; // Convert to euros
+      budgetHoursLimit = budgetAmount / hourlyRate;
+      console.log(`Using budget-based limit: ${budgetHoursLimit}h (budget: ${budgetAmount}€, rate: ${hourlyRate}€/h)`);
+    } else if (task.estimated_hours && task.estimated_hours > 0) {
+      // Fallback to estimated_hours if budget_cents is not set
+      budgetHoursLimit = task.estimated_hours;
+      console.log(`Using estimated_hours limit: ${budgetHoursLimit}h`);
+    }
+
+    // Calculate amount - budget covers hours up to limit, extra hours are billed
     const currentActualHours = task.actual_hours || 0;
+    const totalHoursAfterEntry = currentActualHours + validatedData.hours;
     
-    // Calculate how many hours from the estimated are already "used"
-    const hoursWithinEstimate = Math.max(0, Math.min(currentActualHours, estimatedHours));
+    // Calculate how many hours from the new entry are within the budget limit
+    const hoursWithinBudget = Math.max(0, Math.min(currentActualHours, budgetHoursLimit));
+    const remainingBudgetHours = Math.max(0, budgetHoursLimit - hoursWithinBudget);
+    const newHoursWithinBudget = Math.min(validatedData.hours, remainingBudgetHours);
     
-    // Calculate how many hours from the new entry are within the estimate
-    const remainingEstimateHours = Math.max(0, estimatedHours - hoursWithinEstimate);
-    const newHoursWithinEstimate = Math.min(validatedData.hours, remainingEstimateHours);
+    // Hours that exceed the budget limit (these will be billed)
+    const hoursOverBudget = Math.max(0, validatedData.hours - newHoursWithinBudget);
     
-    // Only bill hours that exceed the estimate
-    billableHours = Math.max(0, validatedData.hours - newHoursWithinEstimate);
+    // Amount calculation:
+    // - Hours within budget: amount = 0€ (covered by budget)
+    // - Hours over budget: amount = hours_over_budget * hourly_rate
+    const amount = hoursOverBudget * (hourlyRate || 0);
     
-    // Calculate amount only for billable hours (those exceeding estimate)
-    const amount = billableHours * (hourlyRate || 0);
+    console.log(`Time entry calculation: total=${validatedData.hours}h, within_budget=${newHoursWithinBudget}h, over_budget=${hoursOverBudget}h, amount=${amount}€`);
 
 
     // Insert time entry

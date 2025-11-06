@@ -84,6 +84,12 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
   const [taskId, setTaskId] = useState<string>(defaultTaskId || "");
 
   const fetchCostItems = async () => {
+    // Don't fetch if projectId is invalid
+    if (!projectId || projectId === "unknown" || !projectId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      console.warn("Invalid projectId, skipping fetch:", projectId);
+      return;
+    }
+
     try {
       let url = `/api/costs?project_id=${projectId}`;
       // If defaultTaskId is set, filter by task_id to show only costs for this task
@@ -126,12 +132,29 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
       return;
     }
 
+    // Validate projectId
+    if (!projectId || projectId === "unknown" || !projectId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      toast({
+        title: "Chyba",
+        description: "Neplatné ID projektu",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
+      // Determine task_id: if defaultTaskId is set, use it; otherwise use taskId from form (if not empty)
+      let finalTaskId: string | null = null;
+      if (defaultTaskId) {
+        finalTaskId = defaultTaskId;
+      } else if (taskId && taskId.trim() !== "") {
+        finalTaskId = taskId;
+      }
+
       const payload = {
         project_id: projectId,
-        // If defaultTaskId is set, always use it; otherwise use taskId from form
-        task_id: defaultTaskId || taskId || null,
+        task_id: finalTaskId,
         name,
         description: description || null,
         category,
@@ -163,9 +186,12 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
           onCostAdded();
         }
       } else {
-        throw new Error(result.error);
+        const errorMessage = result.error || "Nepodarilo sa pridať náklad";
+        console.error("Error adding cost:", result);
+        throw new Error(errorMessage);
       }
     } catch (error) {
+      console.error("Error in handleSubmit:", error);
       toast({
         title: "Chyba",
         description: error instanceof Error ? error.message : "Nepodarilo sa pridať náklad",

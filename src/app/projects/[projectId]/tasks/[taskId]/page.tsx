@@ -1314,14 +1314,16 @@ export default function TaskDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <CostsPanel 
-                    projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
-                    tasks={[task]}
-                    defaultTaskId={task.id}
-                    onCostAdded={() => {
-                      fetchTask();
-                    }}
-                  />
+                  {task && (
+                    <CostsPanel 
+                      projectId={task.project_id || (Array.isArray(params.projectId) ? params.projectId[0] : params.projectId)} 
+                      tasks={[task]}
+                      defaultTaskId={task.id}
+                      onCostAdded={() => {
+                        fetchTask();
+                      }}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1468,10 +1470,12 @@ export default function TaskDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <ProjectReport 
-                    projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId}
-                    taskId={task.id}
-                  />
+                  {task && (
+                    <ProjectReport 
+                      projectId={task.project_id || (Array.isArray(params.projectId) ? params.projectId[0] : params.projectId)}
+                      taskId={task.id}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

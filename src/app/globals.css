@@ -231,7 +231,7 @@
     border: none !important;
     background: white !important;
     box-shadow: none !important;
-    border-radius: 0 !important;
+    border-radius: 0.5rem !important;
     margin-bottom: 2mm !important;
   }
 

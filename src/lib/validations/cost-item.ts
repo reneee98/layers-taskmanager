@@ -2,7 +2,12 @@ import { z } from "zod";
 
 export const costItemSchema = z.object({
   project_id: z.string().uuid("Neplatné ID projektu"),
-  task_id: z.string().uuid("Neplatné ID úlohy").optional().nullable(),
+  task_id: z.union([
+    z.string().uuid("Neplatné ID úlohy"),
+    z.null(),
+    z.undefined(),
+    z.literal("")
+  ]).transform((val) => val === "" || val === undefined ? null : val).optional().nullable(),
   name: z.string().min(1, "Názov je povinný").max(255, "Názov je príliš dlhý"),
   description: z.string().max(1000, "Popis je príliš dlhý").optional().nullable(),
   category: z.string().max(100, "Kategória je príliš dlhá").optional().nullable(),

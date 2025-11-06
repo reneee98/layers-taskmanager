@@ -52,15 +52,28 @@ export const DateRangePicker = ({
 
   const handleSelect = (range: DateRange | undefined) => {
     if (range) {
-      setSelectedRange({
-        from: range.from,
-        to: range.to,
-      });
-      
-      // Ak sú oba dátumy vybrané, automaticky uložíme
-      if (range.from && range.to) {
-        handleSave(range.from, range.to);
+      // Ak používateľ už má oba dátumy vybrané a klikne na nový dátum,
+      // resetujeme range a začneme nový výber (prvý klik = start date)
+      if (selectedRange.from && selectedRange.to && range.from && !range.to) {
+        setSelectedRange({
+          from: range.from,
+          to: undefined,
+        });
+      } else {
+        // Normálne správanie:
+        // - Prvý klik nastaví from (start date)
+        // - Druhý klik nastaví to (end date)
+        setSelectedRange({
+          from: range.from,
+          to: range.to,
+        });
       }
+    } else {
+      // Ak je range undefined, resetujeme
+      setSelectedRange({
+        from: undefined,
+        to: undefined,
+      });
     }
   };
 
@@ -96,8 +109,17 @@ export const DateRangePicker = ({
     return placeholder;
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    
+    // Keď sa popover zavrie, uložíme vybrané dátumy
+    if (!newOpen && !isSaving) {
+      handleSave(selectedRange.from, selectedRange.to);
+    }
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <div
           className={cn(

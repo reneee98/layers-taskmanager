@@ -8,7 +8,7 @@ interface CacheOptions {
   useCache?: boolean; // default true
 }
 
-interface FetchOptions extends RequestInit {
+interface FetchOptions extends Omit<RequestInit, 'cache'> {
   cache?: CacheOptions;
 }
 
@@ -109,41 +109,41 @@ export async function optimizedFetch<T = any>(
   const fetchPromise = fetch(url, fetchOptions)
     .then(async (response) => {
       console.log(`[optimizedFetch] Response for ${url}: status ${response.status}, ok: ${response.ok}`);
-      // Remove from active fetches
-      activeFetches.delete(fetchKey);
-      
-      if (!response.ok) {
+    // Remove from active fetches
+    activeFetches.delete(fetchKey);
+    
+    if (!response.ok) {
         console.error(`[optimizedFetch] HTTP error for ${url}: status ${response.status}`);
-        // If we have cache, return it instead of throwing
-        if (useCache && cacheKey) {
-          const cached = getCachedData<T>(cacheKey, cacheExpiry);
-          if (cached !== null) {
+      // If we have cache, return it instead of throwing
+      if (useCache && cacheKey) {
+        const cached = getCachedData<T>(cacheKey, cacheExpiry);
+        if (cached !== null) {
             console.log(`[optimizedFetch] Returning cached data due to error for ${url}`);
-            return new Response(JSON.stringify(cached), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' },
-            });
-          }
+          return new Response(JSON.stringify(cached), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
         }
-        
+      }
+      
         const errorText = await response.text().catch(() => 'Unable to read error response');
         console.error(`[optimizedFetch] Error response body: ${errorText}`);
         throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
-      }
-      
-      // Check if response is JSON
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Response is not JSON");
-      }
-      
-      return response;
+    }
+    
+    // Check if response is JSON
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      throw new Error("Response is not JSON");
+    }
+    
+    return response;
     })
     .catch((error) => {
       console.error(`[optimizedFetch] Fetch error for ${url}:`, error);
       activeFetches.delete(fetchKey);
       throw error;
-    });
+  });
   
   activeFetches.set(fetchKey, fetchPromise);
   
@@ -171,7 +171,7 @@ export async function batchFetch<T extends Record<string, any>>(
   const results = await Promise.all(promises);
   
   return results.reduce((acc, { key, data }) => {
-    acc[key] = data;
+    (acc as any)[key] = data;
     return acc;
   }, {} as T);
 }

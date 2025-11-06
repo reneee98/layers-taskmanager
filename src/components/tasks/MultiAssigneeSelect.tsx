@@ -11,9 +11,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Profile, TaskAssignee } from "@/types/database";
+import { TaskAssignee } from "@/types/database";
 import { X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface WorkspaceUser {
+  id: string;
+  email: string;
+  name?: string;
+  display_name?: string;
+  avatar_url?: string | null;
+  role?: string;
+}
 
 interface MultiAssigneeSelectProps {
   taskId: string;
@@ -28,7 +37,7 @@ export function MultiAssigneeSelect({
   onAssigneesChange,
   disabled = false,
 }: MultiAssigneeSelectProps) {
-  const [users, setUsers] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<WorkspaceUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const getInitials = (name: string | undefined) => {

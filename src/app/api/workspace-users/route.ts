@@ -98,9 +98,17 @@ export async function GET(request: NextRequest) {
     }
     
     // Build the users list
-    const allUsers = [];
+    interface WorkspaceUser {
+      id: string;
+      email: string;
+      name: string;
+      display_name: string;
+      avatar_url: string | null;
+      role: string;
+    }
+    const allUsers: WorkspaceUser[] = [];
     const userIdsCombined = new Set<string>();
-    const profilesMap = new Map<string, any>();
+    const profilesMap = new Map<string, { id: string; email: string; display_name: string | null; role: string }>();
     
     // Create a map of profiles for quick lookup
     if (allProfiles) {
@@ -146,12 +154,12 @@ export async function GET(request: NextRequest) {
         
         const email = profile.email || 'unknown@email.com';
         
-        allUsers.push({
-          id: profile.id,
+          allUsers.push({
+            id: profile.id,
           email: email,
           name: displayName,
           display_name: displayName,
-          avatar_url: null,
+            avatar_url: null,
           role: userRole
         });
       } else {
@@ -172,7 +180,7 @@ export async function GET(request: NextRequest) {
     });
     
     // Apply search filter if provided
-    let filteredUsers = allUsers;
+    let filteredUsers: WorkspaceUser[] = allUsers;
     if (search) {
       filteredUsers = allUsers.filter(user => 
         user.email.toLowerCase().includes(search.toLowerCase()) ||

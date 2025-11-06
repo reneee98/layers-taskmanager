@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { timeEntrySchema } from "@/lib/validations/time-entry";
-import { resolveHourlyRate } from "@/server/rates/resolveHourlyRate";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 import { logActivity, ActivityTypes, getUserDisplayName, getTaskTitle } from "@/lib/activity-logger";
 
@@ -58,9 +57,53 @@ export async function POST(
     let rateSource = "manual";
 
     if (hourlyRate == null) {
-      const resolved = await resolveHourlyRate(userId, task.project_id);
-      hourlyRate = resolved.hourlyRate;
-      rateSource = resolved.source;
+      // Use server-side Supabase client to resolve hourly rate
+      // Priority 1: Check project_members.hourly_rate
+      const { data: projectMember } = await supabase
+        .from("project_members")
+        .select("hourly_rate")
+        .eq("project_id", task.project_id)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (projectMember?.hourly_rate != null) {
+        hourlyRate = Number(projectMember.hourly_rate);
+        rateSource = "project_member";
+      } else {
+        // Priority 2: Check projects.hourly_rate_cents
+        const { data: project } = await supabase
+          .from("projects")
+          .select("hourly_rate_cents")
+          .eq("id", task.project_id)
+          .maybeSingle();
+
+        if (project?.hourly_rate_cents != null) {
+          hourlyRate = Number(project.hourly_rate_cents) / 100;
+          rateSource = "project_member";
+        } else {
+          // Priority 3: Check rates table
+          const today = new Date().toISOString().split("T")[0];
+          const { data: rates } = await supabase
+            .from("rates")
+            .select("id, name, hourly_rate, user_id, project_id, valid_from, valid_to, is_default")
+            .or(`user_id.eq.${userId},project_id.eq.${task.project_id}`)
+            .lte("valid_from", today)
+            .or(`valid_to.is.null,valid_to.gte.${today}`)
+            .order("is_default", { ascending: false })
+            .order("valid_from", { ascending: false });
+
+          if (rates && rates.length > 0) {
+            const userRate = rates.find((r) => r.user_id === userId);
+            const rate = userRate || rates[0];
+            hourlyRate = Number(rate.hourly_rate);
+            rateSource = "rates_table";
+          } else {
+            // Priority 4: Fallback to 0
+            hourlyRate = 0;
+            rateSource = "fallback";
+          }
+        }
+      }
     }
 
     // Determine the budget hours limit
@@ -96,7 +139,7 @@ export async function POST(
     // - Hours over budget: amount = hours_over_budget * hourly_rate
     const amount = hoursOverBudget * (hourlyRate || 0);
     
-    console.log(`Time entry calculation: total=${validatedData.hours}h, within_budget=${newHoursWithinBudget}h, over_budget=${hoursOverBudget}h, amount=${amount}€`);
+    console.log(`Time entry calculation: total=${validatedData.hours}h, hourly_rate=${hourlyRate}€/h (source: ${rateSource}), within_budget=${newHoursWithinBudget}h, over_budget=${hoursOverBudget}h, amount=${amount}€`);
 
 
     // Insert time entry

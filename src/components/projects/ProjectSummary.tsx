@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatHours } from "@/lib/format";
 import type { Project } from "@/types/database";
+import { usePermission } from "@/hooks/usePermissions";
 
 interface ProjectSummaryData {
   totalTasks: number;
@@ -24,6 +25,8 @@ interface ProjectSummaryProps {
 export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => {
   const [summary, setSummary] = useState<ProjectSummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
+  const { hasPermission: canViewCosts } = usePermission('financial', 'view_costs');
 
   const fetchSummary = useCallback(async (showLoading = false) => {
     try {
@@ -117,38 +120,42 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
 
 
       {/* Náklady */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Náklady
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {formatCurrency(summary.totalCost)}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Externé náklady
-          </p>
-        </CardContent>
-      </Card>
+      {canViewCosts && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Náklady
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(summary.totalCost)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Externé náklady
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Spolu k fakturácií */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Spolu k fakturácií
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {formatCurrency(summary.totalBudget || 0)}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Suma na vyfakturovanie
-          </p>
-        </CardContent>
-      </Card>
+      {canViewPrices && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Spolu k fakturácií
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(summary.totalBudget || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Suma na vyfakturovanie
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

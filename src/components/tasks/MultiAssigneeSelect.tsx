@@ -13,17 +13,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Profile, TaskAssignee } from "@/types/database";
 import { X, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface MultiAssigneeSelectProps {
   taskId: string;
   currentAssignees: TaskAssignee[];
   onAssigneesChange: (assignees: TaskAssignee[]) => void;
+  disabled?: boolean;
 }
 
 export function MultiAssigneeSelect({
   taskId,
   currentAssignees,
   onAssigneesChange,
+  disabled = false,
 }: MultiAssigneeSelectProps) {
   const [users, setUsers] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -136,7 +139,10 @@ export function MultiAssigneeSelect({
       {currentAssignees.map((assignee) => (
         <div
           key={assignee.id}
-          className="flex items-center gap-1.5 px-3 py-2 h-[2.5rem] bg-muted rounded-md border border-border hover:bg-muted/80 transition-colors"
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-2 h-[2.5rem] bg-muted rounded-md border border-border transition-colors",
+            disabled ? "cursor-default" : "hover:bg-muted/80"
+          )}
         >
           <Avatar className="h-5 w-5">
             <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
@@ -146,45 +152,49 @@ export function MultiAssigneeSelect({
           <span className="text-sm font-medium">
             {assignee.user?.name || assignee.user?.email || "Neznámy"}
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-4 w-4 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={() => handleRemoveAssignee(assignee.user_id)}
-            title="Odstrániť"
-          >
-            <X className="h-3 w-3" />
-          </Button>
+          {!disabled && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-4 w-4 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              onClick={() => handleRemoveAssignee(assignee.user_id)}
+              title="Odstrániť"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
         </div>
       ))}
 
       {/* Add assignee select */}
-      <Select onValueChange={handleAddAssignee}>
-        <SelectTrigger className="h-[2.5rem] px-3 py-2 text-sm bg-muted rounded-md border border-border hover:bg-muted/80 transition-colors w-auto min-w-[100px]">
-          <SelectValue placeholder="+ Priradiť">
-            <div className="flex items-center gap-1.5 text-foreground">
-              <Plus className="h-3 w-3" />
-              <span className="text-sm font-medium">Priradiť</span>
-            </div>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent className="py-2">
-          {users
-            .filter(user => !currentAssignees.some(assignee => assignee.user_id === user.id))
-            .map((user) => (
-              <SelectItem key={user.id} value={user.id} className="py-2.5">
-                <div className="flex items-center gap-2.5">
-                  <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                      {getInitials(user.display_name || user.email)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm">{user.display_name || user.email || "Neznámy"}</span>
-                </div>
-              </SelectItem>
-            ))}
-        </SelectContent>
-      </Select>
+      {!disabled && (
+        <Select onValueChange={handleAddAssignee}>
+          <SelectTrigger className="h-[2.5rem] px-3 py-2 text-sm bg-muted rounded-md border border-border hover:bg-muted/80 transition-colors w-auto min-w-[100px]">
+            <SelectValue placeholder="+ Priradiť">
+              <div className="flex items-center gap-1.5 text-foreground">
+                <Plus className="h-3 w-3" />
+                <span className="text-sm font-medium">Priradiť</span>
+              </div>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent className="py-2">
+            {users
+              .filter(user => !currentAssignees.some(assignee => assignee.user_id === user.id))
+              .map((user) => (
+                <SelectItem key={user.id} value={user.id} className="py-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                        {getInitials(user.display_name || user.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm">{user.display_name || user.email || "Neznámy"}</span>
+                  </div>
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+      )}
     </div>
   );
 }

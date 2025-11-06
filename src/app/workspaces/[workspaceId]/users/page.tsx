@@ -43,10 +43,12 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { getRoleLabel, getRoleDisplayName } from "@/lib/role-utils";
 
 interface WorkspaceUser {
   user_id: string;
-  role: string;
+  role: string; // System role name or custom role name for display
+  role_id?: string; // Custom role ID if user has custom role
   email: string;
   display_name: string;
   is_owner: boolean;
@@ -64,6 +66,7 @@ export default function WorkspaceUsersPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<WorkspaceUser | null>(null);
+  const [availableRoles, setAvailableRoles] = useState<Array<{id: string, name: string, is_system_role: boolean}>>([]);
   
   // Add user form
   const [newUserEmail, setNewUserEmail] = useState("");
@@ -75,8 +78,21 @@ export default function WorkspaceUsersPage() {
   useEffect(() => {
     if (workspaceId) {
       fetchUsers();
+      fetchAvailableRoles();
     }
   }, [workspaceId]);
+
+  const fetchAvailableRoles = async () => {
+    try {
+      const response = await fetch(`/api/workspaces/${workspaceId}/roles`);
+      const result = await response.json();
+      if (result.success) {
+        setAvailableRoles(result.data);
+      }
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -153,6 +169,27 @@ export default function WorkspaceUsersPage() {
         return;
       }
 
+      // Get custom roles for all users
+      const { data: userRoles, error: userRolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role_id, roles!inner(name)')
+        .eq('workspace_id', workspaceId);
+
+      if (userRolesError) {
+        console.error("Error fetching user roles:", userRolesError);
+      }
+
+      // Create maps for custom roles
+      const customRoleNameMap = new Map<string, string>(); // user_id -> role name
+      const customRoleIdMap = new Map<string, string>(); // user_id -> role_id
+      if (userRoles) {
+        userRoles.forEach(ur => {
+          const role = ur.roles as any;
+          customRoleNameMap.set(ur.user_id, role.name);
+          customRoleIdMap.set(ur.user_id, ur.role_id);
+        });
+      }
+
       // Create a map of user_id -> profile for quick lookup
       const profileMap = new Map(profiles.map(p => [p.id, p]));
       
@@ -167,9 +204,12 @@ export default function WorkspaceUsersPage() {
         const ownerProfile = profileMap.get(workspace.owner_id);
         if (ownerProfile) {
           const ownerMember = memberMap.get(workspace.owner_id);
+          const customRoleName = customRoleNameMap.get(workspace.owner_id);
+          const customRoleId = customRoleIdMap.get(workspace.owner_id);
           formattedMembers.push({
             user_id: workspace.owner_id,
-            role: ownerMember?.role || 'owner',
+            role: customRoleName || ownerMember?.role || 'owner',
+            role_id: customRoleId,
             display_name: ownerProfile.display_name || ownerProfile.email || 'Unknown User',
             email: ownerProfile.email,
             is_owner: true,
@@ -183,9 +223,12 @@ export default function WorkspaceUsersPage() {
         if (m.user_id !== workspace.owner_id) {
           const profile = profileMap.get(m.user_id);
           if (profile) {
+            const customRoleName = customRoleNameMap.get(m.user_id);
+            const customRoleId = customRoleIdMap.get(m.user_id);
             formattedMembers.push({
               user_id: m.user_id,
-              role: m.role,
+              role: customRoleName || m.role,
+              role_id: customRoleId,
               display_name: profile.display_name || profile.email || 'Unknown User',
               email: profile.email,
               is_owner: false,
@@ -274,19 +317,39 @@ export default function WorkspaceUsersPage() {
         return;
       }
 
-      // Add user to workspace
+      // Check if it's a system role (owner, member) or custom role (UUID)
+      const isSystemRole = ['owner', 'member'].includes(newUserRole);
+      
+      // Add user to workspace_members
+      const memberRole = isSystemRole ? newUserRole : 'member';
       const { error: insertError } = await supabase
         .from('workspace_members')
         .insert({
           workspace_id: workspaceId,
           user_id: targetUser.id,
-          role: newUserRole
+          role: memberRole
         });
 
       if (insertError) {
         console.error("Error adding user to workspace:", insertError);
         setError("Failed to add user to workspace");
         return;
+      }
+
+      // If custom role, also add to user_roles table
+      if (!isSystemRole) {
+        const { error: insertUserRoleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: targetUser.id,
+            role_id: newUserRole,
+            workspace_id: workspaceId
+          });
+
+        if (insertUserRoleError) {
+          console.error("Error adding user role:", insertUserRoleError);
+          // Don't fail completely, just log the error
+        }
       }
 
       setNewUserEmail("");
@@ -355,17 +418,90 @@ export default function WorkspaceUsersPage() {
         return;
       }
 
-      // Update user role in workspace_members table
-      const { error: updateError } = await supabase
-        .from('workspace_members')
-        .update({ role: editUserRole })
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', selectedUser.user_id);
+      // Check if it's a system role (owner, member) or custom role (UUID)
+      const isSystemRole = ['owner', 'member'].includes(editUserRole);
+      
+      if (isSystemRole) {
+        // System role: update workspace_members.role
+        const { error: updateError } = await supabase
+          .from('workspace_members')
+          .update({ role: editUserRole })
+          .eq('workspace_id', workspaceId)
+          .eq('user_id', selectedUser.user_id);
 
-      if (updateError) {
-        console.error("Error updating user role:", updateError);
-        setError("Failed to update user role");
-        return;
+        if (updateError) {
+          console.error("Error updating user role:", updateError);
+          setError("Failed to update user role");
+          return;
+        }
+
+        // Remove custom role if exists
+        const { data: existingUserRole } = await supabase
+          .from('user_roles')
+          .select('id')
+          .eq('user_id', selectedUser.user_id)
+          .eq('workspace_id', workspaceId)
+          .single();
+
+        if (existingUserRole) {
+          await supabase
+            .from('user_roles')
+            .delete()
+            .eq('user_id', selectedUser.user_id)
+            .eq('workspace_id', workspaceId);
+        }
+      } else {
+        // Custom role: update user_roles table
+        // First, set workspace_members.role to 'member' (default)
+        const { error: updateMemberError } = await supabase
+          .from('workspace_members')
+          .update({ role: 'member' })
+          .eq('workspace_id', workspaceId)
+          .eq('user_id', selectedUser.user_id);
+
+        if (updateMemberError) {
+          console.error("Error updating workspace member role:", updateMemberError);
+          setError("Failed to update user role");
+          return;
+        }
+
+        // Check if user_roles entry already exists
+        const { data: existingUserRole } = await supabase
+          .from('user_roles')
+          .select('id')
+          .eq('user_id', selectedUser.user_id)
+          .eq('workspace_id', workspaceId)
+          .single();
+
+        if (existingUserRole) {
+          // Update existing user_roles entry
+          const { error: updateUserRoleError } = await supabase
+            .from('user_roles')
+            .update({ role_id: editUserRole })
+            .eq('user_id', selectedUser.user_id)
+            .eq('workspace_id', workspaceId);
+
+          if (updateUserRoleError) {
+            console.error("Error updating user role:", updateUserRoleError);
+            setError("Failed to update user role");
+            return;
+          }
+        } else {
+          // Create new user_roles entry
+          const { error: insertUserRoleError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: selectedUser.user_id,
+              role_id: editUserRole,
+              workspace_id: workspaceId
+            });
+
+          if (insertUserRoleError) {
+            console.error("Error creating user role:", insertUserRoleError);
+            setError("Failed to update user role");
+            return;
+          }
+        }
       }
 
       setSelectedUser(null);
@@ -469,7 +605,14 @@ export default function WorkspaceUsersPage() {
 
   const openEditDialog = (user: WorkspaceUser) => {
     setSelectedUser(user);
-    setEditUserRole(user.role);
+    
+    // If user has custom role, use role_id, otherwise use system role name
+    if (user.role_id) {
+      setEditUserRole(user.role_id);
+    } else {
+      setEditUserRole(user.role);
+    }
+    
     setIsEditDialogOpen(true);
   };
 
@@ -485,11 +628,6 @@ export default function WorkspaceUsersPage() {
     return "outline";
   };
 
-  const getRoleLabel = (role: string, isOwner: boolean) => {
-    if (isOwner) return "Majiteľ";
-    if (role === "owner") return "Majiteľ";
-    return "Člen";
-  };
 
   if (loading) {
     return (
@@ -544,8 +682,20 @@ export default function WorkspaceUsersPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="member">Člen</SelectItem>
-                    <SelectItem value="owner">Majiteľ</SelectItem>
+                    {availableRoles
+                      .filter(role => role.is_system_role && ['owner', 'member'].includes(role.name))
+                      .map(role => (
+                        <SelectItem key={role.id} value={role.name}>
+                          {getRoleDisplayName(role.name)}
+                        </SelectItem>
+                      ))}
+                    {availableRoles
+                      .filter(role => !role.is_system_role)
+                      .map(role => (
+                        <SelectItem key={role.id} value={role.id}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -665,8 +815,20 @@ export default function WorkspaceUsersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="member">Člen</SelectItem>
-                  <SelectItem value="owner">Majiteľ</SelectItem>
+                  {availableRoles
+                    .filter(role => role.is_system_role && ['owner', 'member'].includes(role.name))
+                    .map(role => (
+                      <SelectItem key={role.id} value={role.name}>
+                        {getRoleDisplayName(role.name)}
+                      </SelectItem>
+                    ))}
+                  {availableRoles
+                    .filter(role => !role.is_system_role)
+                    .map(role => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

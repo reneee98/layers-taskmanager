@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { getRoleDisplayName } from "@/lib/role-utils";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -47,16 +48,6 @@ export function UserMenu() {
       .slice(0, 2);
   };
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case "owner":
-        return "Majiteľ";
-      case "designer":
-        return "Grafik";
-      default:
-        return role;
-    }
-  };
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -95,7 +86,7 @@ export function UserMenu() {
                   profile.role
                 )}`}
               >
-                {getRoleLabel(profile.role)}
+                {getRoleDisplayName(profile.role)}
               </span>
             </div>
           </div>

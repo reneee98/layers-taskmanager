@@ -34,6 +34,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Plus, Mail, MoreHorizontal, Trash2, UserCheck, Loader2, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { getRoleDisplayName } from "@/lib/role-utils";
 import { useApiUrl } from "@/lib/api-utils";
 
 interface WorkspaceMembersProps {
@@ -222,18 +223,6 @@ export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
     }
   };
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'owner':
-        return 'Majiteľ';
-      case 'admin':
-        return 'Admin';
-      case 'member':
-        return 'Člen';
-      default:
-        return role;
-    }
-  };
 
   if (loading) {
     return (
@@ -393,7 +382,7 @@ export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
                       </TableCell>
                       <TableCell>
                         <Badge variant={getRoleBadgeVariant(member.role)}>
-                          {getRoleLabel(member.role)}
+                          {getRoleDisplayName(member.role)}
                         </Badge>
                       </TableCell>
                       <TableCell>

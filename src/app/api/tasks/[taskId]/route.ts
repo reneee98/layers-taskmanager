@@ -37,6 +37,16 @@ export async function GET(
 
     if (error) {
       console.error(`Task fetch error for ${taskId}:`, error);
+      console.error(`Error code: ${error.code}, Message: ${error.message}`);
+      
+      // If RLS blocks access (PGRST301 or similar), return 403 instead of 404
+      if (error.code === 'PGRST301' || error.message?.includes('permission') || error.message?.includes('row-level security')) {
+        return NextResponse.json({ 
+          success: false, 
+          error: "Nemáte oprávnenie na zobrazenie tejto úlohy. Skontrolujte, či máte 'tasks.read' permission." 
+        }, { status: 403 });
+      }
+      
       // Return 404 for not found, 400 for bad request (invalid UUID, etc.)
       const status = error.code === 'PGRST116' ? 404 : 400;
       return NextResponse.json({ success: false, error: error.message }, { status });

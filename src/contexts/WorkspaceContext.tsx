@@ -11,7 +11,7 @@ interface WorkspaceContextType {
   switchWorkspace: (workspaceId: string) => Promise<void>;
 }
 
-const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
+export const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);

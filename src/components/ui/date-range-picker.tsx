@@ -20,6 +20,7 @@ interface DateRangePickerProps {
   onSave: (startDate: string | null, endDate: string | null) => Promise<void>;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export const DateRangePicker = ({
@@ -28,6 +29,7 @@ export const DateRangePicker = ({
   onSave,
   placeholder = "Vyberte dátum",
   className,
+  disabled = false,
 }: DateRangePickerProps) => {
   const [open, setOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -119,11 +121,12 @@ export const DateRangePicker = ({
   };
 
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
+    <Popover open={disabled ? false : open} onOpenChange={disabled ? undefined : handleOpenChange}>
       <PopoverTrigger asChild>
         <div
           className={cn(
-            "flex items-center gap-2 cursor-pointer hover:bg-muted/80 bg-muted rounded-md px-3 py-2 h-[2.5rem] transition-colors group border border-border",
+            "flex items-center gap-2 bg-muted rounded-md px-3 py-2 h-[2.5rem] transition-colors group border border-border",
+            disabled ? "cursor-default" : "cursor-pointer hover:bg-muted/80",
             className
           )}
         >
@@ -131,7 +134,7 @@ export const DateRangePicker = ({
           <span className="text-sm font-medium text-foreground flex-1">
             {formatDateRange()}
           </span>
-          {(start || end) && (
+          {!disabled && (start || end) && (
             <X
               className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:text-foreground"
               onClick={handleClear}
@@ -139,16 +142,18 @@ export const DateRangePicker = ({
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="range"
-          selected={selectedRange}
-          onSelect={handleSelect}
-          numberOfMonths={2}
-          initialFocus
-          disabled={(date) => date < new Date("1900-01-01")}
-        />
-      </PopoverContent>
+      {!disabled && (
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="range"
+            selected={selectedRange}
+            onSelect={handleSelect}
+            numberOfMonths={2}
+            initialFocus
+            disabled={(date) => date < new Date("1900-01-01")}
+          />
+        </PopoverContent>
+      )}
     </Popover>
   );
 };

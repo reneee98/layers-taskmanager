@@ -76,44 +76,39 @@ export function StatusSelect({ status, onStatusChange, disabled = false }: Statu
   const IconComponent = currentStatus.icon;
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+    <DropdownMenu open={disabled ? false : isOpen} onOpenChange={disabled ? undefined : setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className={cn(
-            "h-auto p-0 hover:bg-transparent",
-            disabled && "opacity-50 cursor-not-allowed"
-          )}
-          disabled={disabled}
-        >
+        <div className="h-auto p-0">
           <div className={cn(
-            "cursor-pointer flex items-center gap-2 px-3 py-2 h-[2.5rem] rounded-md border transition-all duration-200",
+            "flex items-center gap-2 px-3 py-2 h-[2.5rem] rounded-md border transition-all duration-200",
             "text-sm font-medium",
             currentStatus.color,
-            "hover:opacity-80"
+            disabled ? "cursor-default" : "cursor-pointer hover:opacity-80"
           )}>
             <IconComponent className={cn("h-4 w-4", currentStatus.iconColor, status === "in_progress" && "animate-pulse")} />
             <span>{currentStatus.label}</span>
-            <ChevronDown className="h-3 w-3 opacity-70" />
+            {!disabled && <ChevronDown className="h-3 w-3 opacity-70" />}
           </div>
-        </Button>
+        </div>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48 p-2">
-        {statusOptions.map((option) => {
-          const OptionIcon = option.icon;
-          return (
-            <DropdownMenuItem
-              key={option.value}
-              onClick={() => handleStatusChange(option.value as "done" | "cancelled" | "todo" | "in_progress" | "review" | "sent_to_client")}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-accent transition-colors"
-            >
-              <OptionIcon className={cn("h-4 w-4", option.iconColor, option.value === "in_progress" && "animate-pulse")} />
-              <span className="font-medium">{option.label}</span>
-              {status === option.value && <Check className="h-4 w-4 ml-auto text-muted-foreground" />}
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
+      {!disabled && (
+        <DropdownMenuContent align="start" className="w-48 p-2">
+          {statusOptions.map((option) => {
+            const OptionIcon = option.icon;
+            return (
+              <DropdownMenuItem
+                key={option.value}
+                onClick={() => handleStatusChange(option.value as "done" | "cancelled" | "todo" | "in_progress" | "review" | "sent_to_client")}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-accent transition-colors"
+              >
+                <OptionIcon className={cn("h-4 w-4", option.iconColor, option.value === "in_progress" && "animate-pulse")} />
+                <span className="font-medium">{option.label}</span>
+                {status === option.value && <Check className="h-4 w-4 ml-auto text-muted-foreground" />}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      )}
     </DropdownMenu>
   );
 }

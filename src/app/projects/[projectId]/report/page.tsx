@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Download, Loader2, Clock, Euro, Users, FileText, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatHours } from "@/lib/format";
+import { usePermission } from "@/hooks/usePermissions";
 import { format } from "date-fns";
 import type { Project, Task } from "@/types/database";
 import pdfMake from "pdfmake/build/pdfmake";
@@ -65,6 +66,7 @@ export default function ProjectReportPage() {
   const [timeEntries, setTimeEntries] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
 
   // Add CSS for better PDF formatting
   useEffect(() => {
@@ -754,16 +756,18 @@ export default function ProjectReportPage() {
               </CardContent>
             </Card>
             
-            <Card className="border border-border shadow-sm hover:shadow-md transition-shadow print:border-gray-200 print:mb-0 print:bg-transparent print:shadow-none print:rounded-lg">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 print:pb-0 print:pt-1mm print:bg-transparent">
-                <CardTitle className="text-sm font-semibold text-foreground print:text-2xs print:font-semibold">Cena</CardTitle>
-                <Euro className="h-5 w-5 text-muted-foreground print:hidden" />
-              </CardHeader>
-              <CardContent className="print:pt-0 print:pb-1mm print:bg-transparent">
-                <div className="text-3xl font-bold print:text-2xl print:font-bold print:mb-0 text-foreground">{formatCurrency(totalPrice)}</div>
-                <p className="text-xs text-muted-foreground print:text-2xs print:mt-0">Celková cena</p>
-              </CardContent>
-            </Card>
+            {canViewPrices && (
+              <Card className="border border-border shadow-sm hover:shadow-md transition-shadow print:border-gray-200 print:mb-0 print:bg-transparent print:shadow-none print:rounded-lg">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 print:pb-0 print:pt-1mm print:bg-transparent">
+                  <CardTitle className="text-sm font-semibold text-foreground print:text-2xs print:font-semibold">Cena</CardTitle>
+                  <Euro className="h-5 w-5 text-muted-foreground print:hidden" />
+                </CardHeader>
+                <CardContent className="print:pt-0 print:pb-1mm print:bg-transparent">
+                  <div className="text-3xl font-bold print:text-2xl print:font-bold print:mb-0 text-foreground">{formatCurrency(totalPrice)}</div>
+                  <p className="text-xs text-muted-foreground print:text-2xs print:mt-0">Celková cena</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
           )}
         </div>

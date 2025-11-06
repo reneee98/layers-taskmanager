@@ -18,12 +18,17 @@ import {
   Euro,
   Bug,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Shield
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useWorkspace, WorkspaceContext } from "@/contexts/WorkspaceContext";
+import { usePermission } from "@/hooks/usePermissions";
+import { useContext } from "react";
+import { getRoleLabel, getRoleDisplayName } from "@/lib/role-utils";
+import { useWorkspaceRole } from "@/hooks/useWorkspaceRole";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeSwitcher } from "@/components/ui/theme-switcher";
@@ -44,6 +49,7 @@ const mainNavItems: Array<{
   icon: any;
   badge?: string;
   adminOnly?: boolean;
+  permission?: { resource: string; action: string };
 }> = [
   {
     title: "Dashboard",
@@ -54,17 +60,20 @@ const mainNavItems: Array<{
     title: "Projekty",
     href: "/projects",
     icon: FolderKanban,
+    permission: { resource: 'pages', action: 'view_projects' },
   },
   {
     title: "Klienti",
     href: "/clients",
     icon: Users,
+    permission: { resource: 'pages', action: 'view_clients' },
   },
   {
     title: "Faktúry",
     href: "/invoices",
     icon: FileText,
     adminOnly: true,
+    permission: { resource: 'pages', action: 'view_invoices' },
   },
 ];
 
@@ -74,23 +83,34 @@ const toolsNavItems: Array<{
   icon: any;
   adminOnly?: boolean;
   superadminOnly?: boolean;
+  permission?: { resource: string; action: string };
 }> = [
   {
     title: "Správa používateľov",
     href: (workspaceId: string) => `/workspaces/${workspaceId}/users`,
     icon: UserCog,
     adminOnly: true,
+    permission: { resource: 'pages', action: 'view_workspace_users' },
+  },
+  {
+    title: "Role a oprávnenia",
+    href: "/admin/roles",
+    icon: Shield,
+    superadminOnly: true,
+    permission: { resource: 'pages', action: 'view_admin_roles' },
   },
   {
     title: "Bug reporty",
     href: "/admin/bugs",
     icon: Bug,
     superadminOnly: true,
+    permission: { resource: 'pages', action: 'view_admin_bugs' },
   },
   {
     title: "Nastavenia",
     href: "/settings",
     icon: Settings,
+    permission: { resource: 'pages', action: 'view_settings' },
   },
 ];
 
@@ -99,8 +119,34 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
   const pathname = usePathname();
   const router = useRouter();
   const { user, profile, signOut } = useAuth();
-  const { workspace } = useWorkspace();
+  // Safely get workspace - use useContext directly to avoid throwing error
+  const workspaceContext = useContext(WorkspaceContext);
+  const workspace = workspaceContext?.workspace || null;
+  const workspaceRole = useWorkspaceRole();
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  
+  // Check permissions for pages
+  const { hasPermission: canViewDashboard } = usePermission('pages', 'view_dashboard');
+  const { hasPermission: canViewProjects } = usePermission('pages', 'view_projects');
+  const { hasPermission: canViewClients } = usePermission('pages', 'view_clients');
+  const { hasPermission: canViewTasks } = usePermission('pages', 'view_tasks');
+  const { hasPermission: canViewInvoices } = usePermission('pages', 'view_invoices');
+  const { hasPermission: canViewSettings } = usePermission('pages', 'view_settings');
+  const { hasPermission: canViewWorkspaceUsers } = usePermission('pages', 'view_workspace_users');
+  const { hasPermission: canViewAdminRoles } = usePermission('pages', 'view_admin_roles');
+  const { hasPermission: canViewAdminBugs } = usePermission('pages', 'view_admin_bugs');
+  
+  // Create permission map
+  const pagePermissions = {
+    'pages.view_dashboard': canViewDashboard,
+    'pages.view_projects': canViewProjects,
+    'pages.view_clients': canViewClients,
+    'pages.view_invoices': canViewInvoices,
+    'pages.view_settings': canViewSettings,
+    'pages.view_workspace_users': canViewWorkspaceUsers,
+    'pages.view_admin_roles': canViewAdminRoles,
+    'pages.view_admin_bugs': canViewAdminBugs,
+  };
 
   const handleSignOut = async () => {
     try {
@@ -128,39 +174,30 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
       .slice(0, 2);
   };
 
-  const getRoleLabel = (role: string, isOwner: boolean = false) => {
-    if (isOwner) return "Majiteľ";
-    switch (role) {
-      case "admin":
-        return "Administrátor";
-      case "member":
-        return "Člen";
-      case "user":
-        return "Používateľ";
-      default:
-        return role;
-    }
-  };
 
   // Check if current user is owner of the workspace
-  const isOwner = (workspace?.owner_id && profile?.id === workspace.owner_id) ||
-    (workspace?.role === 'owner');
+  const isOwner = workspace ? 
+    ((workspace.owner_id && profile?.id === workspace.owner_id) || (workspace.role === 'owner')) :
+    false;
 
   // Check if current user is superadmin
   const isSuperadmin = user?.email === 'design@renemoravec.sk' || 
                        user?.email === 'rene@renemoravec.sk';
 
   const getRoleColor = (role: string, isOwner: boolean = false) => {
-    if (isOwner) return "text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20";
-    switch (role) {
+    if (isOwner || role?.toLowerCase() === 'owner') {
+      return "text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20";
+    }
+    switch (role?.toLowerCase()) {
       case "admin":
+      case "administrátor":
         return "text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20";
       case "member":
-        return "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20";
-      case "user":
+      case "člen":
         return "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20";
       default:
-        return "text-muted-foreground bg-muted";
+        // Custom roles get a default color
+        return "text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/20";
     }
   };
 
@@ -185,6 +222,14 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
       // Skip superadmin-only items if user is not superadmin
       if ('superadminOnly' in item && item.superadminOnly && !isSuperadmin) {
         return null;
+      }
+      
+      // Check page permission if specified
+      if (item.permission) {
+        const permissionKey = `${item.permission.resource}.${item.permission.action}`;
+        if (!pagePermissions[permissionKey as keyof typeof pagePermissions]) {
+          return null;
+        }
       }
       
       const href = typeof item.href === 'function' 
@@ -291,6 +336,14 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                     return null;
                   }
                   
+                  // Check page permission if specified
+                  if (item.permission) {
+                    const permissionKey = `${item.permission.resource}.${item.permission.action}`;
+                    if (!pagePermissions[permissionKey as keyof typeof pagePermissions]) {
+                      return null;
+                    }
+                  }
+                  
                   const href = item.href;
                   const isActive = pathname === href;
                   
@@ -324,32 +377,36 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                         {isProjectsExpanded && (
                           <div className="ml-4 space-y-0.5 border-l border-border pl-2 mt-1">
                             {/* Projekty */}
-                            <Link
-                              href="/projects"
-                              onClick={() => onClose()}
-                              className={cn(
-                                "flex items-center gap-2 rounded-md text-xs font-medium transition-all duration-200 px-3 py-1.5",
-                                pathname === "/projects"
-                                  ? "bg-accent text-accent-foreground"
-                                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                              )}
-                            >
-                              <span>Projekty</span>
-                            </Link>
+                            {canViewProjects && (
+                              <Link
+                                href="/projects"
+                                onClick={() => onClose()}
+                                className={cn(
+                                  "flex items-center gap-2 rounded-md text-xs font-medium transition-all duration-200 px-3 py-1.5",
+                                  pathname === "/projects"
+                                    ? "bg-accent text-accent-foreground"
+                                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                                )}
+                              >
+                                <span>Projekty</span>
+                              </Link>
+                            )}
                             
                             {/* Úlohy bez projektu */}
-                            <Link
-                              href="/tasks"
-                              onClick={() => onClose()}
-                              className={cn(
-                                "flex items-center gap-2 rounded-md text-xs font-medium transition-all duration-200 px-3 py-1.5",
-                                pathname === "/tasks" || (pathname.includes("/tasks/") && !pathname.includes("/projects/"))
-                                  ? "bg-accent text-accent-foreground"
-                                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                              )}
-                            >
-                              <span>Úlohy</span>
-                            </Link>
+                            {canViewTasks && (
+                              <Link
+                                href="/tasks"
+                                onClick={() => onClose()}
+                                className={cn(
+                                  "flex items-center gap-2 rounded-md text-xs font-medium transition-all duration-200 px-3 py-1.5",
+                                  pathname === "/tasks" || (pathname.includes("/tasks/") && !pathname.includes("/projects/"))
+                                    ? "bg-accent text-accent-foreground"
+                                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                                )}
+                              >
+                                <span>Úlohy</span>
+                              </Link>
+                            )}
                           </div>
                         )}
                       </div>
@@ -411,9 +468,12 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                       <div className="flex items-center gap-2">
                         <Badge 
                           variant="outline" 
-                          className={cn("text-xs px-2 py-0.5", getRoleColor(profile.role || 'user', isOwner))}
+                          className={cn("text-xs px-2 py-0.5", getRoleColor(workspaceRole?.role || profile?.role || 'member', isOwner))}
                         >
-                          {getRoleLabel(profile.role || 'user', isOwner)}
+                          {workspaceRole 
+                            ? getRoleDisplayName(workspaceRole.role)
+                            : getRoleLabel(profile?.role || 'member', isOwner)
+                          }
                         </Badge>
                       </div>
                     </div>

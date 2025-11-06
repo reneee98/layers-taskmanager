@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { UserProfile, UserRole } from "@/types/user";
+import { getRoleDisplayName } from "@/lib/role-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -144,9 +145,6 @@ export function UserTable() {
     return role === 'admin' ? 'default' : 'secondary';
   };
 
-  const getRoleLabel = (role: UserRole) => {
-    return role === 'admin' ? 'Administrátor' : 'Používateľ';
-  };
 
   if (loading) {
     return (
@@ -198,7 +196,7 @@ export function UserTable() {
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
                     <Badge variant={getRoleBadgeVariant(user.role)}>
-                      {getRoleLabel(user.role)}
+                      {getRoleDisplayName(user.role)}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
@@ -213,7 +211,7 @@ export function UserTable() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {user.role === 'user' ? (
+                        {user.role === 'member' ? (
                           <DropdownMenuItem
                             onClick={() => handleRoleChange(user.id, 'admin')}
                             disabled={actionLoading === user.id}
@@ -221,15 +219,15 @@ export function UserTable() {
                             <UserPlus className="mr-2 h-4 w-4" />
                             Povýšiť na admina
                           </DropdownMenuItem>
-                        ) : (
+                        ) : user.role === 'admin' ? (
                           <DropdownMenuItem
-                            onClick={() => handleRoleChange(user.id, 'user')}
+                            onClick={() => handleRoleChange(user.id, 'member')}
                             disabled={actionLoading === user.id}
                           >
                             <UserMinus className="mr-2 h-4 w-4" />
-                            Znížiť na používateľa
+                            Znížiť na člena
                           </DropdownMenuItem>
-                        )}
+                        ) : null}
                         <DropdownMenuItem
                           onClick={() => handleDeleteUser(user.id, user.display_name)}
                           disabled={actionLoading === user.id}

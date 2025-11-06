@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { usePermission } from "@/hooks/usePermissions";
+import { AlertTriangle } from "lucide-react";
 import { Plus, MoreHorizontal, Pencil, Trash2, Circle, Play, Eye, CheckCircle, XCircle, Pause, Send, ChevronDown, Check, Archive, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -75,6 +77,7 @@ const statusConfig: Record<string, { label: string; icon: any; color: string; ic
 
 function ProjectsPageContent() {
   const router = useRouter();
+  const { hasPermission: canViewProjects, isLoading: isLoadingPermission } = usePermission('pages', 'view_projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -288,6 +291,32 @@ function ProjectsPageContent() {
       });
     }
   };
+
+  // Check permission
+  if (isLoadingPermission) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <p className="text-muted-foreground">Kontrolujem oprávnenia...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!canViewProjects) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <AlertTriangle className="h-12 w-12 text-muted-foreground" />
+          <h2 className="text-xl font-semibold text-foreground">Nemáte oprávnenie</h2>
+          <p className="text-muted-foreground max-w-md">
+            Nemáte oprávnenie na zobrazenie projektov. Kontaktujte administrátora workspace.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-8">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth";
-import { getUserWorkspaceId } from "@/lib/auth/workspace";
+import { hasPermission } from "@/lib/auth/permissions";
 
 export async function DELETE(
   request: NextRequest,
@@ -18,7 +18,7 @@ export async function DELETE(
     // Check if comment exists
     const { data: comment, error: fetchError } = await supabase
       .from("task_comments")
-      .select("id, user_id, workspace_id")
+      .select("id, user_id, task_id")
       .eq("id", params.commentId)
       .single();
 
@@ -26,33 +26,42 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: "Comment not found" }, { status: 404 });
     }
 
-    // Check workspace access if comment has workspace_id
-    if (comment.workspace_id) {
-      const userWorkspaceId = await getUserWorkspaceId();
-      if (userWorkspaceId !== comment.workspace_id) {
-        return NextResponse.json({ success: false, error: "Unauthorized to delete this comment" }, { status: 403 });
-      }
+    // Get task to find project and workspace
+    const { data: task, error: taskError } = await supabase
+      .from("tasks")
+      .select("project_id")
+      .eq("id", comment.task_id)
+      .single();
 
-      // Check if user is workspace owner
-      const { data: workspace, error: workspaceError } = await supabase
-        .from("workspaces")
-        .select("owner_id")
-        .eq("id", comment.workspace_id)
-        .single();
+    if (taskError || !task || !task.project_id) {
+      return NextResponse.json({ success: false, error: "Task not found for this comment" }, { status: 404 });
+    }
 
-      if (workspaceError || !workspace) {
-        return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
-      }
+    // Get project to find workspace
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("workspace_id")
+      .eq("id", task.project_id)
+      .single();
 
-      // Allow deletion if user is comment author OR workspace owner
-      if (comment.user_id !== user.id && workspace.owner_id !== user.id) {
-        return NextResponse.json({ success: false, error: "Unauthorized to delete this comment" }, { status: 403 });
-      }
-    } else {
-      // If no workspace_id, only allow comment author to delete
-      if (comment.user_id !== user.id) {
-        return NextResponse.json({ success: false, error: "Unauthorized to delete this comment" }, { status: 403 });
-      }
+    if (projectError || !project || !project.workspace_id) {
+      return NextResponse.json({ success: false, error: "Workspace not found for this comment" }, { status: 404 });
+    }
+
+    const workspaceId = project.workspace_id;
+
+    // Check permissions:
+    // 1. User can delete their own comment if they have 'comments.delete' permission
+    // 2. User can delete any comment if they have 'comments.manage' permission
+    const isOwnComment = comment.user_id === user.id;
+    const canDeleteOwn = isOwnComment && await hasPermission(user.id, 'comments', 'delete', workspaceId);
+    const canManageAll = await hasPermission(user.id, 'comments', 'manage', workspaceId);
+
+    if (!canDeleteOwn && !canManageAll) {
+      return NextResponse.json({ 
+        success: false, 
+        error: "Nemáte oprávnenie na vymazanie tohto komentára" 
+      }, { status: 403 });
     }
 
     const { error: deleteError } = await supabase

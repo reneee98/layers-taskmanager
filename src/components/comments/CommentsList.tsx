@@ -9,6 +9,8 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import type { Comment } from "@/types/comments";
+import { usePermission } from "@/hooks/usePermissions";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CommentsListProps {
   taskId: string;
@@ -16,12 +18,22 @@ interface CommentsListProps {
 }
 
 export function CommentsList({ taskId, onCommentAdded }: CommentsListProps) {
+  const { user } = useAuth();
+  const { hasPermission: canReadComments } = usePermission('comments', 'read');
+  const { hasPermission: canCreateComments } = usePermission('comments', 'create');
+  const { hasPermission: canDeleteComments } = usePermission('comments', 'delete');
+  const { hasPermission: canManageComments } = usePermission('comments', 'manage');
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchComments = async () => {
+    if (!canReadComments) {
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       const response = await fetch(`/api/tasks/${taskId}/comments`);
       const result = await response.json();
@@ -48,10 +60,10 @@ export function CommentsList({ taskId, onCommentAdded }: CommentsListProps) {
 
   useEffect(() => {
     fetchComments();
-  }, [taskId]);
+  }, [taskId, canReadComments]);
 
   const handleSubmitComment = async () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || !canCreateComments) return;
 
     console.log("Submitting comment:", { taskId, content: newComment.trim() });
     setIsSubmitting(true);
@@ -129,6 +141,11 @@ export function CommentsList({ taskId, onCommentAdded }: CommentsListProps) {
     }
   };
 
+  // If user doesn't have permission to read comments, don't render anything
+  if (!canReadComments) {
+    return null;
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -161,14 +178,19 @@ export function CommentsList({ taskId, onCommentAdded }: CommentsListProps) {
                       {format(new Date(comment.created_at), "d.M. HH:mm", { locale: sk })}
                     </span>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteComment(comment.id)}
-                    className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive flex-shrink-0"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  {/* Show delete button only if:
+                      - User has comments.manage (can delete any comment)
+                      - OR user has comments.delete AND the comment belongs to them */}
+                  {(canManageComments || (canDeleteComments && comment.user_id === user?.id)) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteComment(comment.id)}
+                      className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive flex-shrink-0"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
                 <div 
                   className="text-xs prose prose-xs max-w-none dark:prose-invert break-words"
@@ -180,26 +202,28 @@ export function CommentsList({ taskId, onCommentAdded }: CommentsListProps) {
         )}
       </div>
 
-      {/* Add new comment */}
-      <div className="space-y-2 pt-3 border-t">
-        <Textarea
-          placeholder="Napíšte komentár..."
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          className="min-h-[60px] resize-none text-sm"
-        />
-        <div className="flex justify-end">
-          <Button
-            onClick={handleSubmitComment}
-            disabled={!newComment.trim() || isSubmitting}
-            size="sm"
-            className="h-8 text-xs"
-          >
-            <Send className="h-3 w-3 mr-1" />
-            {isSubmitting ? "Pridávam..." : "Pridať"}
-          </Button>
+      {/* Add new comment - only show if user has permission to create comments */}
+      {canCreateComments && (
+        <div className="space-y-2 pt-3 border-t">
+          <Textarea
+            placeholder="Napíšte komentár..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            className="min-h-[60px] resize-none text-sm"
+          />
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSubmitComment}
+              disabled={!newComment.trim() || isSubmitting}
+              size="sm"
+              className="h-8 text-xs"
+            >
+              <Send className="h-3 w-3 mr-1" />
+              {isSubmitting ? "Pridávam..." : "Pridať"}
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

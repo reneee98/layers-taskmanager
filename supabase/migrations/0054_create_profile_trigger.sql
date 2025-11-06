@@ -40,7 +40,7 @@ BEGIN
       v_display_name,
       CASE 
         WHEN v_email = 'design@renemoravec.sk' THEN 'admin'
-        ELSE 'user'
+        ELSE 'member'
       END,
       NOW(),
       NOW()

@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Task } from "@/types/database";
 import { TaskRow } from "./TaskRow";
+import { usePermission } from "@/hooks/usePermissions";
 import {
   Table,
   TableBody,
@@ -43,6 +44,7 @@ export function TaskTable({
   project,
   onTaskUpdated,
 }: TaskTableProps) {
+  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -238,16 +240,18 @@ export function TaskTable({
               .toFixed(2)}{" "}
             h
           </span>
-          <span>
-            Celková cena:{" "}
-            {filteredTasks
-              .reduce((sum, task) => sum + (task.budget_cents ? task.budget_cents / 100 : 0), 0)
-              .toLocaleString("sk-SK", {
-                style: "currency",
-                currency: "EUR",
-                minimumFractionDigits: 2,
-              })}
-          </span>
+          {canViewPrices && (
+            <span>
+              Celková cena:{" "}
+              {filteredTasks
+                .reduce((sum, task) => sum + (task.budget_cents ? task.budget_cents / 100 : 0), 0)
+                .toLocaleString("sk-SK", {
+                  style: "currency",
+                  currency: "EUR",
+                  minimumFractionDigits: 2,
+                })}
+            </span>
+          )}
         </div>
       </div>
     </div>

@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     // Get user's workspace ID
     const workspaceId = await getUserWorkspaceIdFromRequest(request);
     if (!workspaceId) {
+      console.error("API /projects GET: No workspace found for user", user.id, "email:", user.email);
       return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
     }
 

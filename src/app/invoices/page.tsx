@@ -21,6 +21,7 @@ import { sk } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { usePermission } from "@/hooks/usePermissions";
 
 interface Project {
   id: string;
@@ -76,6 +77,8 @@ interface Task {
 }
 
 export default function InvoicesPage() {
+  const { hasPermission: canViewInvoices } = usePermission('financial', 'view_invoices');
+  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
   const [readyProjects, setReadyProjects] = useState<Project[]>([]);
   const [readyTasks, setReadyTasks] = useState<Task[]>([]);
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
@@ -282,6 +285,16 @@ export default function InvoicesPage() {
     return priorityMap[priority] || priority;
   };
 
+  if (!canViewInvoices) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="text-center space-y-2">
+          <p className="text-muted-foreground">Nemáte oprávnenie na zobrazenie faktúr</p>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
@@ -318,7 +331,9 @@ export default function InvoicesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-foreground">{readyProjects.length}</div>
-            <p className="text-sm text-muted-foreground mt-1">Celková hodnota: {formatCurrency(totalProjectsValue)}</p>
+            {canViewPrices && (
+              <p className="text-sm text-muted-foreground mt-1">Celková hodnota: {formatCurrency(totalProjectsValue)}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -330,8 +345,14 @@ export default function InvoicesPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{formatCurrency(totalValue)}</div>
-            <p className="text-sm text-muted-foreground mt-1">Na vyfaktúrovanie</p>
+            {canViewPrices ? (
+              <>
+                <div className="text-3xl font-bold text-foreground">{formatCurrency(totalValue)}</div>
+                <p className="text-sm text-muted-foreground mt-1">Na vyfaktúrovanie</p>
+              </>
+            ) : (
+              <div className="text-3xl font-bold text-foreground">—</div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -382,16 +403,18 @@ export default function InvoicesPage() {
                           <strong>Dokončené úlohy:</strong> {project.task_count}
                         </p>
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-green-600">
-                          {formatCurrency(project.total_cost)}
+                      {canViewPrices && (
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-green-600">
+                            {formatCurrency(project.total_cost)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {project.labor_cost > 0 && `${formatCurrency(project.labor_cost)} (čas) `}
+                            {project.fixed_budget_cost > 0 && `${formatCurrency(project.fixed_budget_cost)} (fixná) `}
+                            {project.external_cost > 0 && `${formatCurrency(project.external_cost)} (náklady)`}
+                          </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {project.labor_cost > 0 && `${formatCurrency(project.labor_cost)} (čas) `}
-                          {project.fixed_budget_cost > 0 && `${formatCurrency(project.fixed_budget_cost)} (fixná) `}
-                          {project.external_cost > 0 && `${formatCurrency(project.external_cost)} (náklady)`}
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -495,16 +518,18 @@ export default function InvoicesPage() {
                           )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                          {formatCurrency(project.total_cost)}
+                      {canViewPrices && (
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                            {formatCurrency(project.total_cost)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {project.labor_cost > 0 && `${formatCurrency(project.labor_cost)} (čas) `}
+                            {project.fixed_budget_cost > 0 && `${formatCurrency(project.fixed_budget_cost)} (fixná) `}
+                            {project.external_cost > 0 && `${formatCurrency(project.external_cost)} (náklady)`}
+                          </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {project.labor_cost > 0 && `${formatCurrency(project.labor_cost)} (čas) `}
-                          {project.fixed_budget_cost > 0 && `${formatCurrency(project.fixed_budget_cost)} (fixná) `}
-                          {project.external_cost > 0 && `${formatCurrency(project.external_cost)} (náklady)`}
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -523,7 +548,7 @@ export default function InvoicesPage() {
                                 </Badge>
                               </div>
                               <div className="text-sm text-muted-foreground">
-                                {task.budget_cents && task.budget_cents > 0 && (
+                                {task.budget_cents && task.budget_cents > 0 && canViewPrices && (
                                   <span className="flex items-center gap-1">
                                     <Clock className="h-3 w-3" />
                                     {formatCurrency((task.budget_cents || 0) / 100)}

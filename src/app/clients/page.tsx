@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { usePermission } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -19,6 +20,7 @@ import type { Client } from "@/types/database";
 import { cn } from "@/lib/utils";
 
 function ClientsPageContent() {
+  const { hasPermission: canViewClients, isLoading: isLoadingPermission } = usePermission('pages', 'view_clients');
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,6 +97,32 @@ function ClientsPageContent() {
     setIsFormOpen(false);
     setEditingClient(undefined);
   };
+
+  // Check permission
+  if (isLoadingPermission) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <p className="text-muted-foreground">Kontrolujem oprávnenia...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!canViewClients) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <AlertTriangle className="h-12 w-12 text-muted-foreground" />
+          <h2 className="text-xl font-semibold text-foreground">Nemáte oprávnenie</h2>
+          <p className="text-muted-foreground max-w-md">
+            Nemáte oprávnenie na zobrazenie klientov. Kontaktujte administrátora workspace.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-8">

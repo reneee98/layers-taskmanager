@@ -34,6 +34,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
+import { usePermission } from "@/hooks/usePermissions";
 
 interface CostItem {
   id: string;
@@ -71,6 +72,7 @@ const COST_CATEGORIES = [
 ];
 
 export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: CostsPanelProps) {
+  const { hasPermission: canViewCosts } = usePermission('financial', 'view_costs');
   const [costItems, setCostItems] = useState<CostItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -360,14 +362,16 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
               <TableHead>Kategória</TableHead>
               <TableHead>Dátum</TableHead>
               <TableHead>Úloha</TableHead>
-              <TableHead className="text-right">Suma</TableHead>
+              {canViewCosts && (
+                <TableHead className="text-right">Suma</TableHead>
+              )}
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {costItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={canViewCosts ? 6 : 5} className="text-center text-muted-foreground">
                   Žiadne náklady
                 </TableCell>
               </TableRow>
@@ -401,9 +405,11 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
                         <span className="text-sm text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(item.amount)}
-                    </TableCell>
+                    {canViewCosts && (
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(item.amount)}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -419,17 +425,19 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
               })
             )}
           </TableBody>
-          <TableFooter>
-            <TableRow>
-              <TableCell colSpan={4} className="font-semibold">
-                Celkové náklady
-              </TableCell>
-              <TableCell className="text-right font-semibold">
-                {formatCurrency(totalCost)}
-              </TableCell>
-              <TableCell />
-            </TableRow>
-          </TableFooter>
+          {canViewCosts && (
+            <TableFooter>
+              <TableRow>
+                <TableCell colSpan={4} className="font-semibold">
+                  Celkové náklady
+                </TableCell>
+                <TableCell className="text-right font-semibold">
+                  {formatCurrency(totalCost)}
+                </TableCell>
+                <TableCell />
+              </TableRow>
+            </TableFooter>
+          )}
         </Table>
       </CardContent>
     </Card>

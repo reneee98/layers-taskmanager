@@ -7,7 +7,7 @@ import type { User } from "@supabase/supabase-js";
 interface UserProfile {
   id: string;
   email: string;
-  role: "user" | "admin" | "owner" | "designer";
+  role: "member" | "admin" | "owner" | "designer";
   display_name: string;
   avatar_url?: string;
   created_at: string;
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             id: user.id,
             email: user.email || '',
             display_name: displayName,
-            role: user.email === 'design@renemoravec.sk' ? 'admin' : 'user'
+            role: user.email === 'design@renemoravec.sk' ? 'admin' : 'member'
           })
           .select()
           .single();

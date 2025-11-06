@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         id: userId,
         email: email,
         display_name: finalDisplayName,
-        role: email === "design@renemoravec.sk" ? "admin" : "user",
+        role: email === "design@renemoravec.sk" ? "admin" : "member",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

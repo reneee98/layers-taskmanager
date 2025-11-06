@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePermission } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,6 +65,8 @@ interface TimePanelProps {
 }
 
 export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }: TimePanelProps) {
+  const { hasPermission: canViewHourlyRates } = usePermission('financial', 'view_hourly_rates');
+  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string>(defaultTaskId || "");
   const [hours, setHours] = useState("");
@@ -582,8 +585,12 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Poznámka</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Používateľ</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Trvanie</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Sadzba</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Suma</th>
+                    {canViewHourlyRates && (
+                      <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Sadzba</th>
+                    )}
+                    {canViewPrices && (
+                      <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Suma</th>
+                    )}
                     <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground w-[50px]"></th>
                   </tr>
                 </thead>
@@ -618,12 +625,16 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
                       <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
                         {formatHours(entry.hours)}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm text-foreground">
-                        {formatCurrency(entry.hourly_rate)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
-                        {formatCurrency(entry.amount)}
-                      </td>
+                      {canViewHourlyRates && (
+                        <td className="px-4 py-3 text-right text-sm text-foreground">
+                          {formatCurrency(entry.hourly_rate)}
+                        </td>
+                      )}
+                      {canViewPrices && (
+                        <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
+                          {formatCurrency(entry.amount)}
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-center">
                         <Button
                           variant="ghost"
@@ -646,10 +657,14 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
                     <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
                       {formatHours(totalHours)}
                     </td>
-                    <td className="px-4 py-3"></td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
-                      {formatCurrency(totalAmount)}
-                    </td>
+                    {canViewHourlyRates && (
+                      <td className="px-4 py-3"></td>
+                    )}
+                    {canViewPrices && (
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
+                        {formatCurrency(totalAmount)}
+                      </td>
+                    )}
                     <td className="px-4 py-3"></td>
                   </tr>
                 </tfoot>

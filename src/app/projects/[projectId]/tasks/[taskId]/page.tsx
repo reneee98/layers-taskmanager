@@ -60,6 +60,7 @@ import type { Task, TaskAssignee } from "@/types/database";
 import { cn } from "@/lib/utils";
 import { getDeadlineStatus, getDeadlineBadge } from "@/lib/deadline-utils";
 import { useTimer } from "@/contexts/TimerContext";
+import { usePermission } from "@/hooks/usePermissions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,6 +95,17 @@ export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { activeTimer, startTimer, stopTimer } = useTimer();
+  const { hasPermission: canReadTasks } = usePermission('tasks', 'read');
+  const { hasPermission: canViewHourlyRates } = usePermission('financial', 'view_hourly_rates');
+  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
+  const { hasPermission: canViewCosts } = usePermission('financial', 'view_costs');
+  const { hasPermission: canViewReports } = usePermission('financial', 'view_reports');
+  const { hasPermission: canReadTimeEntries } = usePermission('time_entries', 'read');
+  const { hasPermission: canReadComments } = usePermission('comments', 'read');
+  const { hasPermission: canCreateComments } = usePermission('comments', 'create');
+  const { hasPermission: canUpdateTasks } = usePermission('tasks', 'update');
+  const { hasPermission: canCreateTasks } = usePermission('tasks', 'create');
+  const { hasPermission: canDeleteTasks } = usePermission('tasks', 'delete');
   const [task, setTask] = useState<Task | null>(null);
   const [assignees, setAssignees] = useState<TaskAssignee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -103,7 +115,7 @@ export default function TaskDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing] = useState(true); // Always in editing mode
   const [activeTab, setActiveTab] = useState("overview");
-  const [rightSidebarTab, setRightSidebarTab] = useState("comments");
+  const [rightSidebarTab, setRightSidebarTab] = useState(canReadComments ? "comments" : "links");
   const [hasChanges, setHasChanges] = useState(false);
   const [commentsCount, setCommentsCount] = useState(0);
   const [linksCount, setLinksCount] = useState(0);
@@ -115,22 +127,40 @@ export default function TaskDetailPage() {
   const fetchTask = async () => {
     try {
       const response = await fetch(`/api/tasks/${params.taskId}`);
+      
+      if (!response.ok) {
+        const result = await response.json();
+        console.error("Failed to fetch task:", response.status, result.error || "Unknown error");
+        setTask(null);
+        toast({
+          title: "Chyba",
+          description: result.error || `Nepodarilo sa načítať úlohu (${response.status})`,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       const result = await response.json();
 
-      if (result.success) {
+      if (result.success && result.data) {
         setTask(result.data);
         setDescription(result.data.description || "");
         setDescriptionHtml(result.data.description || "");
         setAssignees(result.data.assignees || []);
         setHasChanges(false);
       } else {
+        console.error("Failed to fetch task:", result.error || "Unknown error");
+        setTask(null);
         toast({
           title: "Chyba",
-          description: "Úloha nebola nájdená",
+          description: result.error || "Úloha nebola nájdená alebo nemáte oprávnenie na jej zobrazenie",
           variant: "destructive",
         });
       }
     } catch (error) {
+      console.error("Error fetching task:", error);
+      setTask(null);
       toast({
         title: "Chyba",
         description: "Nepodarilo sa načítať úlohu",
@@ -168,6 +198,11 @@ export default function TaskDetailPage() {
   };
 
   const fetchCommentsCount = async () => {
+    if (!canReadComments) {
+      setCommentsCount(0);
+      return;
+    }
+    
     try {
       const response = await fetch(`/api/tasks/${params.taskId}/comments`);
       const result = await response.json();
@@ -199,17 +234,23 @@ export default function TaskDetailPage() {
     const loadData = async () => {
       await fetchTask();
       // Load non-critical data after task is loaded
-      Promise.all([
+      const nonCriticalPromises = [
         fetchAssignees(),
         fetchProjects(),
-        fetchCommentsCount(),
         fetchLinksCount(),
-      ]).catch(() => {
+      ];
+      
+      // Only fetch comments count if user has permission
+      if (canReadComments) {
+        nonCriticalPromises.push(fetchCommentsCount());
+      }
+      
+      Promise.all(nonCriticalPromises).catch(() => {
         // Silently fail - non-critical data
       });
     };
     loadData();
-  }, [params.taskId]);
+  }, [params.taskId, canReadComments]);
 
   // Refresh task when timer stops (to update actual_hours)
   useEffect(() => {
@@ -375,8 +416,11 @@ export default function TaskDetailPage() {
         description: "Úloha bola duplikovaná",
       });
 
-      // Navigate to new task
-      router.push(`/projects/${task.project_id}/tasks/${newTaskId}`);
+      // Navigate to new task - ensure project_id is not empty
+      const validProjectId = (task.project_id && task.project_id.trim() !== '') 
+        ? task.project_id 
+        : 'unknown';
+      router.push(`/projects/${validProjectId}/tasks/${newTaskId}`);
     } catch (error) {
       console.error("Error duplicating task:", error);
       toast({
@@ -917,7 +961,11 @@ export default function TaskDetailPage() {
         <div className="flex flex-col items-center gap-4">
           <AlertCircle className="h-12 w-12 text-muted-foreground" />
           <p className="text-lg font-medium text-foreground">Úloha nebola nájdená</p>
-          <p className="text-muted-foreground">Skúste obnoviť stránku alebo sa vráťte na projekt</p>
+          <p className="text-muted-foreground">
+            {!canReadTasks 
+              ? "Nemáte oprávnenie na zobrazenie tejto úlohy" 
+              : "Skúste obnoviť stránku alebo sa vráťte na projekt"}
+          </p>
         </div>
       </div>
     );
@@ -944,12 +992,16 @@ export default function TaskDetailPage() {
           </Button>
           <div className="h-4 w-px bg-border" />
           {/* Project Select */}
-          <Popover open={projectSelectOpen} onOpenChange={setProjectSelectOpen}>
+          <Popover open={canUpdateTasks ? projectSelectOpen : false} onOpenChange={canUpdateTasks ? setProjectSelectOpen : undefined}>
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
                 role="combobox"
-                className="w-auto h-auto border-none shadow-none hover:bg-accent px-2 py-1 justify-between"
+                disabled={!canUpdateTasks}
+                className={cn(
+                  "w-auto h-auto border-none shadow-none px-2 py-1 justify-between",
+                  canUpdateTasks ? "hover:bg-accent" : "cursor-default"
+                )}
               >
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   {task.project ? (
@@ -962,79 +1014,87 @@ export default function TaskDetailPage() {
                     <span className="text-muted-foreground">Bez projektu</span>
                   )}
                 </div>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                {canUpdateTasks && <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[400px] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Hľadať projekt..." />
-                <CommandList>
-                  <CommandEmpty>Žiadny projekt sa nenašiel.</CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      value="Bez projektu"
-                      onSelect={() => {
-                        handleProjectChange(null);
-                        setProjectSelectOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          !task.project_id ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      <span className="text-muted-foreground">Bez projektu</span>
-                    </CommandItem>
-                    {projects.map((project) => (
+            {canUpdateTasks && (
+              <PopoverContent className="w-[400px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Hľadať projekt..." />
+                  <CommandList>
+                    <CommandEmpty>Žiadny projekt sa nenašiel.</CommandEmpty>
+                    <CommandGroup>
                       <CommandItem
-                        key={project.id}
-                        value={`${project.name} ${project.code}`}
+                        value="Bez projektu"
                         onSelect={() => {
-                          handleProjectChange(project.id);
+                          handleProjectChange(null);
                           setProjectSelectOpen(false);
                         }}
                       >
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4",
-                            task.project_id === project.id ? "opacity-100" : "opacity-0"
+                            !task.project_id ? "opacity-100" : "opacity-0"
                           )}
                         />
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{project.name}</span>
-                          {project.code && (
-                            <span className="text-xs text-muted-foreground font-mono">
-                              ({project.code})
-                            </span>
-                          )}
-                        </div>
+                        <span className="text-muted-foreground">Bez projektu</span>
                       </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
+                      {projects.map((project) => (
+                        <CommandItem
+                          key={project.id}
+                          value={`${project.name} ${project.code}`}
+                          onSelect={() => {
+                            handleProjectChange(project.id);
+                            setProjectSelectOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              task.project_id === project.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{project.name}</span>
+                            {project.code && (
+                              <span className="text-xs text-muted-foreground font-mono">
+                                ({project.code})
+                              </span>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            )}
           </Popover>
         </div>
         
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="text-muted-foreground hover:text-foreground">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={handleDuplicate}>
-              <Copy className="h-4 w-4 mr-2" />
-              Duplikovať
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDelete} className="text-red-600">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Vymazať
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {(canCreateTasks || canDeleteTasks) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="text-muted-foreground hover:text-foreground">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {canCreateTasks && (
+                <DropdownMenuItem onClick={handleDuplicate}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Duplikovať
+                </DropdownMenuItem>
+              )}
+              {canDeleteTasks && (
+                <DropdownMenuItem onClick={handleDelete} className="text-red-600">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Vymazať
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Compact Task Header */}
@@ -1071,6 +1131,7 @@ export default function TaskDetailPage() {
                   <StatusSelect 
                     status={task.status} 
                     onStatusChange={handleStatusChange}
+                    disabled={!canUpdateTasks}
                   />
                 </div>
 
@@ -1083,15 +1144,16 @@ export default function TaskDetailPage() {
                   <PrioritySelect 
                     priority={task.priority} 
                     onPriorityChange={handlePriorityChange}
+                    disabled={!canUpdateTasks}
                   />
                 </div>
 
                 {/* Date Range (Start Date - Deadline) */}
                 <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     Dátum
-                    </div>
+                  </div>
                   <DateRangePicker
                     startDate={task.start_date}
                     endDate={task.due_date}
@@ -1102,6 +1164,7 @@ export default function TaskDetailPage() {
                       ]);
                     }}
                     placeholder="Nastaviť dátum"
+                    disabled={!canUpdateTasks}
                   />
                 </div>
 
@@ -1115,92 +1178,95 @@ export default function TaskDetailPage() {
                     taskId={task.id}
                     currentAssignees={assignees}
                     onAssigneesChange={handleAssigneesChange}
+                    disabled={!canUpdateTasks}
                   />
                 </div>
 
                 {/* Tracked Time */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                    <Timer className="h-4 w-4" />
-                    Natrackovaný čas
-              </div>
-                  <div className="flex items-stretch gap-2">
-                    <div className="flex items-center gap-1.5 px-3 py-2 h-[2.5rem] bg-muted rounded-md text-sm border border-border">
-                      {(() => {
-                        const actualHours = task.actual_hours || 0;
-                        const estimatedHours = task.estimated_hours || 0;
-                        const isOverBudget = estimatedHours > 0 && actualHours > estimatedHours;
-                        
-                        // If both are 0, show nothing
-                        if (actualHours === 0 && estimatedHours === 0) {
-                          return <span className="text-muted-foreground italic">—</span>;
-                        }
-                        
-                        return (
-                          <>
-                            {/* Estimated Hours (nabudgetovaný) - only show if > 0 */}
-                            {estimatedHours > 0 && (
-                              <>
+                {canReadTimeEntries && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <Timer className="h-4 w-4" />
+                      Natrackovaný čas
+                    </div>
+                    <div className="flex items-stretch gap-2">
+                      <div className="flex items-center gap-1.5 px-3 py-2 h-[2.5rem] bg-muted rounded-md text-sm border border-border">
+                        {(() => {
+                          const actualHours = task.actual_hours || 0;
+                          const estimatedHours = task.estimated_hours || 0;
+                          const isOverBudget = estimatedHours > 0 && actualHours > estimatedHours;
+                          
+                          // If both are 0, show nothing
+                          if (actualHours === 0 && estimatedHours === 0) {
+                            return <span className="text-muted-foreground italic">—</span>;
+                          }
+                          
+                          return (
+                            <>
+                              {/* Estimated Hours (nabudgetovaný) - only show if > 0 */}
+                              {estimatedHours > 0 && (
+                                <>
+                                  <div className="flex items-center gap-1">
+                                    <Euro className={cn(
+                                      "h-3.5 w-3.5",
+                                      isOverBudget ? "text-red-500" : "text-muted-foreground"
+                                    )} />
+                                    <span className={cn(
+                                      isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
+                                    )}>
+                                      {formatHours(estimatedHours)}
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Separator - only show if both values exist */}
+                                  {actualHours > 0 && (
+                                    <span className={cn(
+                                      isOverBudget ? "text-red-500" : "text-muted-foreground"
+                                    )}>/</span>
+                                  )}
+                                </>
+                              )}
+                              
+                              {/* Actual Hours (natrackovaný) - always show if > 0 */}
+                              {actualHours > 0 && (
                                 <div className="flex items-center gap-1">
-                                  <Euro className={cn(
+                                  <Timer className={cn(
                                     "h-3.5 w-3.5",
                                     isOverBudget ? "text-red-500" : "text-muted-foreground"
                                   )} />
                                   <span className={cn(
                                     isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
                                   )}>
-                                    {formatHours(estimatedHours)}
+                                    {formatHours(actualHours)}
                                   </span>
                                 </div>
-                                
-                                {/* Separator - only show if both values exist */}
-                                {actualHours > 0 && (
-                                  <span className={cn(
-                                    isOverBudget ? "text-red-500" : "text-muted-foreground"
-                                  )}>/</span>
-                                )}
-                              </>
-                            )}
-                            
-                            {/* Actual Hours (natrackovaný) - always show if > 0 */}
-                            {actualHours > 0 && (
-                              <div className="flex items-center gap-1">
-                                <Timer className={cn(
-                                  "h-3.5 w-3.5",
-                                  isOverBudget ? "text-red-500" : "text-muted-foreground"
-                                )} />
-                                <span className={cn(
-                                  isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
-                                )}>
-                                  {formatHours(actualHours)}
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleTimerToggle}
+                        disabled={isStartingTimer}
+                        className={cn(
+                          "flex items-center justify-center w-10 h-[2.5rem] rounded-full bg-black text-white cursor-pointer hover:bg-black/80 transition-colors",
+                          activeTimer && activeTimer.task_id === task.id && "bg-red-600 hover:bg-red-700",
+                          isStartingTimer && "opacity-50 cursor-not-allowed"
+                        )}
+                        title={activeTimer && activeTimer.task_id === task.id ? "Zastaviť trackovanie" : "Začať trackovať"}
+                      >
+                        {isStartingTimer ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-white" />
+                        ) : activeTimer && activeTimer.task_id === task.id ? (
+                          <Square className="h-4 w-4 text-white" />
+                        ) : (
+                          <Play className="h-4 w-4 text-white" />
+                        )}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleTimerToggle}
-                      disabled={isStartingTimer}
-                      className={cn(
-                        "flex items-center justify-center w-10 h-[2.5rem] rounded-full bg-black text-white cursor-pointer hover:bg-black/80 transition-colors",
-                        activeTimer && activeTimer.task_id === task.id && "bg-red-600 hover:bg-red-700",
-                        isStartingTimer && "opacity-50 cursor-not-allowed"
-                      )}
-                      title={activeTimer && activeTimer.task_id === task.id ? "Zastaviť trackovanie" : "Začať trackovať"}
-                    >
-                      {isStartingTimer ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-white" />
-                      ) : activeTimer && activeTimer.task_id === task.id ? (
-                        <Square className="h-4 w-4 text-white" />
-                      ) : (
-                        <Play className="h-4 w-4 text-white" />
-                      )}
-                    </button>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -1217,22 +1283,30 @@ export default function TaskDetailPage() {
                 <FileText className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Prehľad</span>
               </TabsTrigger>
-              <TabsTrigger value="time" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                <Clock className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Čas</span>
-              </TabsTrigger>
-              <TabsTrigger value="costs" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                <Euro className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Náklady</span>
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                <Settings className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Nastavenia</span>
-              </TabsTrigger>
-              <TabsTrigger value="report" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                <BarChart3 className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Report</span>
-              </TabsTrigger>
+              {canReadTimeEntries && (
+                <TabsTrigger value="time" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                  <Clock className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Čas</span>
+                </TabsTrigger>
+              )}
+              {canViewCosts && (
+                <TabsTrigger value="costs" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                  <Euro className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Náklady</span>
+                </TabsTrigger>
+              )}
+              {canUpdateTasks && (
+                <TabsTrigger value="settings" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                  <Settings className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Nastavenia</span>
+                </TabsTrigger>
+              )}
+              {canViewReports && (
+                <TabsTrigger value="report" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Report</span>
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4 mt-4">
@@ -1279,83 +1353,88 @@ export default function TaskDetailPage() {
               <TaskFiles taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
             </TabsContent>
 
-            <TabsContent value="time" className="mt-4">
-              <Card className="bg-card border border-border shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Časové záznamy
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <TimePanel 
-                    projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
-                    tasks={[{
-                      ...task,
-                      project_name: task.project?.name || "Neznámy projekt",
-                      project_id: task.project_id
-                    }]} 
-                    defaultTaskId={task.id}
-                    onTimeEntryAdded={() => {
-                      fetchTask();
-                      window.dispatchEvent(new CustomEvent('timeEntryAdded'));
-                    }}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="costs" className="mt-4">
-              <Card className="bg-card border border-border shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-                    <Euro className="h-4 w-4" />
-                    Náklady
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  {task && (
-                    <CostsPanel 
-                      projectId={task.project_id || (Array.isArray(params.projectId) ? params.projectId[0] : params.projectId)} 
-                      tasks={[task]}
+            {canReadTimeEntries && (
+              <TabsContent value="time" className="mt-4">
+                <Card className="bg-card border border-border shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Časové záznamy
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <TimePanel 
+                      projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId} 
+                      tasks={[{
+                        ...task,
+                        project_name: task.project?.name || "Neznámy projekt",
+                        project_id: task.project_id
+                      }]} 
                       defaultTaskId={task.id}
-                      onCostAdded={() => {
+                      onTimeEntryAdded={() => {
                         fetchTask();
+                        window.dispatchEvent(new CustomEvent('timeEntryAdded'));
                       }}
                     />
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
 
-            <TabsContent value="settings" className="space-y-4 mt-4">
-              {/* Time Settings */}
-              <Card className="bg-card border border-border shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Časové nastavenia
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* Estimated Hours */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">Odhad hodín</label>
-                      <Input
-                        type="number"
-                        step="0.25"
-                        min="0"
-                        value={task?.estimated_hours || ''}
-                        onChange={(e) => {
-                          const value = e.target.value ? parseFloat(e.target.value) : null;
-                          setTask(prev => prev ? { ...prev, estimated_hours: value } : null);
-                          setHasChanges(true);
+            {canViewCosts && (
+              <TabsContent value="costs" className="mt-4">
+                <Card className="bg-card border border-border shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <Euro className="h-4 w-4" />
+                      Náklady
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {task && (
+                      <CostsPanel 
+                        projectId={task.project_id || (Array.isArray(params.projectId) ? params.projectId[0] : params.projectId)} 
+                        tasks={[task]}
+                        defaultTaskId={task.id}
+                        onCostAdded={() => {
+                          fetchTask();
                         }}
-                        placeholder="0"
-                        className="w-full"
                       />
-                    </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {canUpdateTasks && (
+              <TabsContent value="settings" className="space-y-4 mt-4">
+                {/* Time Settings */}
+                <Card className="bg-card border border-border shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Časové nastavenia
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {/* Estimated Hours */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">Odhad hodín</label>
+                        <Input
+                          type="number"
+                          step="0.25"
+                          min="0"
+                          value={task?.estimated_hours || ''}
+                          onChange={(e) => {
+                            const value = e.target.value ? parseFloat(e.target.value) : null;
+                            setTask(prev => prev ? { ...prev, estimated_hours: value } : null);
+                            setHasChanges(true);
+                          }}
+                          placeholder="0"
+                          className="w-full"
+                        />
+                      </div>
 
                     {/* Actual Hours - Read Only */}
                     <div className="space-y-2">
@@ -1366,25 +1445,28 @@ export default function TaskDetailPage() {
                     </div>
 
                     {/* Hourly Rate - Read Only */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">Hodinovka projektu</label>
-                      <div className="px-3 py-2 bg-muted rounded-md text-sm text-foreground">
-                        {task?.project?.hourly_rate ? `${task.project.hourly_rate.toFixed(2)}€/h` : 'Nenastavené'}
+                    {canViewHourlyRates && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">Hodinovka projektu</label>
+                        <div className="px-3 py-2 bg-muted rounded-md text-sm text-foreground">
+                          {task?.project?.hourly_rate ? `${task.project.hourly_rate.toFixed(2)}€/h` : 'Nenastavené'}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
 
               {/* Budget Settings */}
-              <Card className="bg-card border border-border shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4" />
-                    Rozpočtové nastavenia
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
+              {canViewPrices && (
+                <Card className="bg-card border border-border shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Rozpočtové nastavenia
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Rozpočet úlohy</label>
                     <div className="flex items-center gap-2">
@@ -1413,6 +1495,7 @@ export default function TaskDetailPage() {
                   </div>
                 </CardContent>
               </Card>
+              )}
 
               {/* Project Info */}
               <Card className="bg-card border border-border shadow-sm">
@@ -1459,26 +1542,29 @@ export default function TaskDetailPage() {
                   </Button>
                 </div>
               )}
-            </TabsContent>
+              </TabsContent>
+            )}
 
-            <TabsContent value="report" className="mt-4">
-              <Card className="bg-card border border-border shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4" />
-                    Report
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  {task && (
-                    <ProjectReport 
-                      projectId={task.project_id || (Array.isArray(params.projectId) ? params.projectId[0] : params.projectId)}
-                      taskId={task.id}
-                    />
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+            {canViewReports && (
+              <TabsContent value="report" className="mt-4">
+                <Card className="bg-card border border-border shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Report
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {task && (
+                      <ProjectReport 
+                        projectId={task.project_id || (Array.isArray(params.projectId) ? params.projectId[0] : params.projectId)}
+                        taskId={task.id}
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
           </Tabs>
         </div>
 
@@ -1486,15 +1572,17 @@ export default function TaskDetailPage() {
         <div className="w-full xl:w-80 space-y-4 order-first xl:order-last">
           <Tabs value={rightSidebarTab} onValueChange={setRightSidebarTab} className="w-full">
             <TabsList className="inline-flex h-9 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
-              <TabsTrigger value="comments" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Komentáre</span>
-                {commentsCount > 0 && (
-                  <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 text-xs">
-                    {commentsCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
+              {canReadComments && (
+                <TabsTrigger value="comments" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Komentáre</span>
+                  {commentsCount > 0 && (
+                    <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 text-xs">
+                      {commentsCount}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="links" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                 <Link className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Linky</span>
@@ -1506,25 +1594,27 @@ export default function TaskDetailPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="comments" className="mt-4">
-              <Card className="bg-card border border-border shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4" />
-                    Komentáre
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <CommentsList 
-                    taskId={task.id}
-                    onCommentAdded={() => {
-                      // Refresh comments count when comment is added
-                      fetchCommentsCount();
-                    }}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
+            {canReadComments && (
+              <TabsContent value="comments" className="mt-4">
+                <Card className="bg-card border border-border shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Komentáre
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <CommentsList 
+                      taskId={task.id}
+                      onCommentAdded={() => {
+                        // Refresh comments count when comment is added
+                        fetchCommentsCount();
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
 
             <TabsContent value="links" className="mt-4">
               <Card className="bg-card border border-border shadow-sm">

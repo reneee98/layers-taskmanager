@@ -35,8 +35,6 @@ import {
   Send,
   ChevronDown,
   Check,
-  Timer,
-  Euro,
 } from "lucide-react";
 import { formatHours, formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
@@ -45,6 +43,7 @@ import { getTextPreview } from "@/lib/utils/html";
 import { getDeadlineStatus, getDeadlineDotClass } from "@/lib/deadline-utils";
 import { isProjectArchived } from "@/lib/project-utils";
 import type { Project } from "@/types/database";
+import { usePermission } from "@/hooks/usePermissions";
 
 interface TaskRowProps {
   task: Task;
@@ -141,6 +140,7 @@ export function TaskRow({
   onDragEnd,
   onTaskUpdated,
 }: TaskRowProps) {
+  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
   const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -156,7 +156,13 @@ export function TaskRow({
     ) {
       return;
     }
-    router.push(`/projects/${projectId}/tasks/${task.id}`);
+    // Ensure projectId is not empty - use task.project_id as fallback, then 'unknown'
+    const validProjectId = (projectId && projectId.trim() !== '') 
+      ? projectId 
+      : (task.project_id && task.project_id.trim() !== '') 
+        ? task.project_id 
+        : 'unknown';
+    router.push(`/projects/${validProjectId}/tasks/${task.id}`);
   };
 
   const handleStatusChange = async (newStatus: string) => {
@@ -321,123 +327,99 @@ export function TaskRow({
         </div>
       </TableCell>
 
-      {/* Time - Actual / Estimated hours */}
-      <TableCell className="py-4 pl-6 pr-2 w-fit">
+      {/* Time - Estimated hours (budget) */}
+      <TableCell className="p-4 align-middle [&:has([role=checkbox])]:pr-0 py-4 pl-6 pr-2 w-fit">
         {(() => {
-          const actualHours = task.actual_hours || 0;
           const estimatedHours = task.estimated_hours || 0;
-          const isOverBudget = estimatedHours > 0 && actualHours > estimatedHours;
+          const actualHours = task.actual_hours || 0;
           
-          // If both are 0, show nothing
-          if (actualHours === 0 && estimatedHours === 0) {
-            return <span className="text-xs text-muted-foreground italic">—</span>;
-          }
-          
-          return (
-            <div className="flex items-center gap-1.5 text-xs">
-              {/* Estimated Hours (nabudgetovaný) - only show if > 0 */}
-              {estimatedHours > 0 && (
-                <>
-              <div className="flex items-center gap-1">
-                <Euro className={cn(
-                  "h-3.5 w-3.5",
-                  isOverBudget ? "text-red-500" : "text-muted-foreground"
-                )} />
-                <span className={cn(
-                  isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
-                )}>
+          // If budget (estimated_hours) is set, show it with clock icon
+          if (estimatedHours > 0) {
+            return (
+              <div className="flex items-center gap-1.5 text-xs">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-foreground font-medium">
+                  {formatHours(actualHours)}
+                </span>
+                <span className="text-muted-foreground">/</span>
+                <span className="text-muted-foreground">
                   {formatHours(estimatedHours)}
                 </span>
               </div>
-              
-                  {/* Separator - only show if both values exist */}
-                  {actualHours > 0 && (
-              <span className={cn(
-                isOverBudget ? "text-red-500" : "text-muted-foreground"
-              )}>/</span>
-                  )}
-                </>
-              )}
-              
-              {/* Actual Hours (natrackovaný) - always show if > 0 */}
-              {actualHours > 0 && (
-              <div className="flex items-center gap-1">
-                <Timer className={cn(
-                  "h-3.5 w-3.5",
-                  isOverBudget ? "text-red-500" : "text-muted-foreground"
-                )} />
-                <span className={cn(
-                  isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
-                )}>
-                  {formatHours(actualHours)}
-                </span>
-              </div>
-              )}
-            </div>
-          );
+            );
+          }
+          
+          // If no budget, show nothing
+          return <span className="text-xs text-muted-foreground italic">—</span>;
         })()}
       </TableCell>
 
       {/* Price - Fixed or Calculated */}
-      <TableCell className="py-4 pl-6 pr-2 w-fit">
-        {(() => {
-          // Use project from props or from task.project
-          const projectData = project || task.project;
-          
-          // Priority 1: Check if budget matches estimated_hours * hourly_rate (auto-calculated)
-          const hasEstimatedHours = task.estimated_hours && task.estimated_hours > 0;
-          const hasProjectRate = (projectData as any)?.hourly_rate_cents || projectData?.hourly_rate;
-          const hasBudget = task.budget_cents && task.budget_cents > 0;
-          
-          if (hasEstimatedHours && hasProjectRate && hasBudget && projectData) {
-            // Try hourly_rate_cents first, then hourly_rate as fallback
-            const hourlyRateCents = (projectData as any).hourly_rate_cents || 
-                                   (projectData.hourly_rate ? projectData.hourly_rate * 100 : 0);
-            const hourlyRate = hourlyRateCents / 100;
-            const calculatedBudget = (task.estimated_hours || 0) * hourlyRate * 100; // Convert to cents
-            // Allow small rounding differences (within 1 cent)
-            const isMatch = Math.abs(calculatedBudget - (task.budget_cents || 0)) <= 1;
+      {canViewPrices ? (
+        <TableCell className="py-4 pl-6 pr-2 w-fit">
+          {(() => {
+            // Use project from props or from task.project
+            const projectData = project || task.project;
             
-            if (isMatch) {
-              // Budget is auto-calculated from estimated hours - show it
+            // Priority 1: Check if budget matches estimated_hours * hourly_rate (auto-calculated)
+            const hasEstimatedHours = task.estimated_hours && task.estimated_hours > 0;
+            const hasProjectRate = (projectData as any)?.hourly_rate_cents || projectData?.hourly_rate;
+            const hasBudget = task.budget_cents && task.budget_cents > 0;
+            
+            if (hasEstimatedHours && hasProjectRate && hasBudget && projectData) {
+              // Try hourly_rate_cents first, then hourly_rate as fallback
+              const hourlyRateCents = (projectData as any).hourly_rate_cents || 
+                                     (projectData.hourly_rate ? projectData.hourly_rate * 100 : 0);
+              const hourlyRate = hourlyRateCents / 100;
+              const calculatedBudget = (task.estimated_hours || 0) * hourlyRate * 100; // Convert to cents
+              // Allow small rounding differences (within 1 cent)
+              const isMatch = Math.abs(calculatedBudget - (task.budget_cents || 0)) <= 1;
+              
+              if (isMatch) {
+                // Budget is auto-calculated from estimated hours - show it
+                return (
+                  <div className="flex items-center justify-end gap-1 text-xs font-medium">
+                    <span className="text-green-600">
+                      {formatCurrency((task.budget_cents || 0) / 100)}
+                    </span>
+                  </div>
+                );
+              }
+            }
+
+            // Priority 2: If there's a fixed budget amount (manually set), show it
+            if (hasBudget) {
               return (
                 <div className="flex items-center justify-end gap-1 text-xs font-medium">
                   <span className="text-green-600">
                     {formatCurrency((task.budget_cents || 0) / 100)}
                   </span>
+                  <span className="text-xs text-muted-foreground">(fixná)</span>
                 </div>
               );
             }
-          }
-
-          // Priority 2: If there's a fixed budget amount (manually set), show it
-          if (hasBudget) {
-            return (
-              <div className="flex items-center justify-end gap-1 text-xs font-medium">
-                <span className="text-green-600">
-                  {formatCurrency((task.budget_cents || 0) / 100)}
-                </span>
-                <span className="text-xs text-muted-foreground">(fixná)</span>
-              </div>
-            );
-          }
-          
-          // Priority 3: If there's calculated price from time entries, show it
-          if (task.calculated_price && task.calculated_price > 0) {
-            return (
-              <div className="flex items-center justify-end gap-1 text-xs">
-                <span className="text-blue-600">
-                  {formatCurrency(task.calculated_price)}
-                </span>
-                <span className="text-xs text-muted-foreground">(čas)</span>
-              </div>
-            );
-          }
-          
-          // No budget or time
-          return <span className="text-muted-foreground">—</span>;
-        })()}
-      </TableCell>
+            
+            // Priority 3: If there's calculated price from time entries, show it
+            if (task.calculated_price && task.calculated_price > 0) {
+              return (
+                <div className="flex items-center justify-end gap-1 text-xs">
+                  <span className="text-blue-600">
+                    {formatCurrency(task.calculated_price)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">(čas)</span>
+                </div>
+              );
+            }
+            
+            // No budget or time
+            return <span className="text-muted-foreground">—</span>;
+          })()}
+        </TableCell>
+      ) : (
+        <TableCell className="py-4 pl-6 pr-2 w-fit">
+          <span className="text-muted-foreground">—</span>
+        </TableCell>
+      )}
 
       {/* Due date */}
       <TableCell className="py-4 pl-6 pr-2 w-fit">

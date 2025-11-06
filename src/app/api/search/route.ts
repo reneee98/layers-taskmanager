@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
         description,
         status,
         priority,
+        project_id,
         project:projects(id, name, code)
       `)
       .eq('workspace_id', workspaceId)
@@ -101,13 +102,23 @@ export async function GET(request: NextRequest) {
           'sent_to_client': 'Odoslané klientovi'
         };
 
+        // project is an object, not an array
+        const project = task.project as any;
+        // Ensure projectId is not empty string - use 'unknown' if null, undefined, or empty
+        const projectId = (project?.id && project.id.trim() !== '') 
+          ? project.id 
+          : (task.project_id && task.project_id.trim() !== '') 
+            ? task.project_id 
+            : 'unknown';
+        const projectName = project?.name || 'Neznámy projekt';
+
         results.push({
           id: task.id,
           type: 'task',
           title: stripHtml(task.title),
-          subtitle: `${task.project?.[0]?.name || 'Neznámy projekt'} • ${statusMap[task.status as keyof typeof statusMap] || task.status}`,
+          subtitle: `${projectName} • ${statusMap[task.status as keyof typeof statusMap] || task.status}`,
           description: stripHtml(task.description),
-          url: `/projects/${task.project?.[0]?.id || 'unknown'}/tasks/${task.id}`,
+          url: `/projects/${projectId}/tasks/${task.id}`,
           icon: 'Clock',
           badge: task.priority === 'urgent' ? 'Urgentné' : 'Úloha'
         });

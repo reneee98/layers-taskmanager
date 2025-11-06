@@ -146,18 +146,54 @@ export async function POST(
       return NextResponse.json({ success: false, error: "User is already a member of this workspace" }, { status: 400 });
     }
 
-    // Add user to workspace
+    // Check if it's a system role (owner, member) or custom role (UUID)
+    const isSystemRole = ['owner', 'member'].includes(role);
+    
+    // If it's a custom role, verify it exists
+    if (!isSystemRole) {
+      const { data: customRole, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('id', role)
+        .single();
+      
+      if (roleError || !customRole) {
+        return NextResponse.json({ 
+          success: false, 
+          error: "Invalid role. Role not found" 
+        }, { status: 400 });
+      }
+    }
+
+    // Add user to workspace_members
+    const memberRole = isSystemRole ? role : 'member';
     const { error: insertError } = await supabase
       .from('workspace_members')
       .insert({
         workspace_id: workspaceId,
         user_id: targetUser.id,
-        role: role
+        role: memberRole
       });
 
     if (insertError) {
       console.error("Error adding user to workspace:", insertError);
       return NextResponse.json({ success: false, error: "Failed to add user to workspace" }, { status: 500 });
+    }
+
+    // If custom role, also add to user_roles table
+    if (!isSystemRole) {
+      const { error: insertUserRoleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: targetUser.id,
+          role_id: role,
+          workspace_id: workspaceId
+        });
+
+      if (insertUserRoleError) {
+        console.error("Error adding user role:", insertUserRoleError);
+        // Don't fail completely, just log the error
+      }
     }
 
     return NextResponse.json({ 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { usePermission } from "@/hooks/usePermissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -165,6 +166,15 @@ interface Activity {
 
 export default function DashboardPage() {
   const { workspace, loading: workspaceLoading } = useWorkspace();
+  // Check permissions for different sections
+  const { hasPermission: canViewProjects, isLoading: isLoadingProjectsPermission } = usePermission('pages', 'view_projects');
+  const { hasPermission: canViewTasks, isLoading: isLoadingTasksPermission } = usePermission('pages', 'view_tasks');
+  const { hasPermission: canViewClients } = usePermission('pages', 'view_clients');
+  const { hasPermission: canReadProjects, isLoading: isLoadingReadProjectsPermission } = usePermission('projects', 'read');
+  const { hasPermission: canReadTasks, isLoading: isLoadingReadTasksPermission } = usePermission('tasks', 'read');
+  const { hasPermission: canReadClients } = usePermission('clients', 'read');
+  
+  const isLoadingPermissions = isLoadingProjectsPermission || isLoadingTasksPermission || isLoadingReadProjectsPermission || isLoadingReadTasksPermission;
   const [tasks, setTasks] = useState<AssignedTask[]>([]); // Priradené používateľovi
   const [allActiveTasks, setAllActiveTasks] = useState<AssignedTask[]>([]); // Všetky aktívne v workspace
   const [unassignedTasks, setUnassignedTasks] = useState<AssignedTask[]>([]); // Nepriradené
@@ -496,118 +506,174 @@ export default function DashboardPage() {
   // Fetch dashboard data when workspace changes
   useEffect(() => {
     const fetchData = async () => {
-      if (!workspace) return;
+      if (!workspace || isLoadingPermissions) return;
       
       setIsLoading(true);
       try {
-        // Načítaj priradené, všetky aktívne a nepriradené tasky + používateľov workspace
-        const [assignedTasksResponse, allActiveTasksResponse, unassignedTasksResponse, activitiesResponse, projectsResponse, usersResponse] = await Promise.all([
-          fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=false`),
-          fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=true`),
-          fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=true`),
-          fetch(`/api/dashboard/activity?workspace_id=${workspace.id}&only_today=true`),
-          fetch(`/api/projects`),
-          fetch(`/api/workspace-users?workspace_id=${workspace.id}`)
-        ]);
-
-        const assignedTasksResult = await assignedTasksResponse.json();
-        const allActiveTasksResult = await allActiveTasksResponse.json();
-        const unassignedTasksResult = await unassignedTasksResponse.json();
-        const activitiesResult = await activitiesResponse.json();
-        const projectsResult = await projectsResponse.json();
-        const usersResult = await usersResponse.json();
+        // Načítaj dáta podľa permissions
+        const fetchPromises: Promise<Response>[] = [];
         
-        if (assignedTasksResult.success) {
-          setTasks(assignedTasksResult.data);
-        } else {
-          console.error("Failed to fetch assigned tasks:", assignedTasksResult.error);
-        }
-
-        if (allActiveTasksResult.success) {
-          setAllActiveTasks(allActiveTasksResult.data);
-        } else {
-          console.error("Failed to fetch all active tasks:", allActiveTasksResult.error);
-        }
-
-        if (unassignedTasksResult.success) {
-          setUnassignedTasks(unassignedTasksResult.data);
-        } else {
-          console.error("Failed to fetch unassigned tasks:", unassignedTasksResult.error);
-        }
-
-
-        if (activitiesResult.success) {
-          setActivities(activitiesResult.data);
-        } else {
-          console.error("Failed to fetch activities:", activitiesResult.error);
-        }
-
-        // Find or create personal project
-        if (projectsResult.success && projectsResult.data) {
-          // Hľadáme projekt podľa názvu "Osobné úlohy" alebo kódu začínajúceho sa na "PERSONAL-"
-          const personalProject = projectsResult.data.find((p: any) => 
-            p.name === "Osobné úlohy" || (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
+        // Tasks - len ak má permission
+        if (canReadTasks || canViewTasks) {
+          fetchPromises.push(
+            fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=false`),
+            fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=true`),
+            fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=true`)
           );
-          
-          if (personalProject) {
-            setPersonalProjectId(personalProject.id);
+        }
+        
+        // Activities - len ak má permission na tasks alebo projects
+        if (canReadTasks || canViewTasks || canReadProjects || canViewProjects) {
+          fetchPromises.push(
+            fetch(`/api/dashboard/activity?workspace_id=${workspace.id}&only_today=true`)
+          );
+        }
+        
+        // Projects - len ak má permission
+        if (canReadProjects || canViewProjects) {
+          fetchPromises.push(
+            fetch(`/api/projects`)
+          );
+        }
+        
+        // Users - vždy (pre workspace)
+        fetchPromises.push(
+          fetch(`/api/workspace-users?workspace_id=${workspace.id}`)
+        );
+        
+        const responses = await Promise.all(fetchPromises);
+        
+        let responseIndex = 0;
+        let assignedTasksResponse: Response | null = null;
+        let allActiveTasksResponse: Response | null = null;
+        let unassignedTasksResponse: Response | null = null;
+        let activitiesResponse: Response | null = null;
+        let projectsResponse: Response | null = null;
+        let usersResponse: Response | null = null;
+        
+        if (canReadTasks || canViewTasks) {
+          assignedTasksResponse = responses[responseIndex++];
+          allActiveTasksResponse = responses[responseIndex++];
+          unassignedTasksResponse = responses[responseIndex++];
+        }
+        
+        if (canReadTasks || canViewTasks || canReadProjects || canViewProjects) {
+          activitiesResponse = responses[responseIndex++];
+        }
+        
+        if (canReadProjects || canViewProjects) {
+          projectsResponse = responses[responseIndex++];
+        }
+        
+        usersResponse = responses[responseIndex++];
+
+        // Process responses based on permissions
+        if (assignedTasksResponse) {
+          const assignedTasksResult = await assignedTasksResponse.json();
+          if (assignedTasksResult.success) {
+            setTasks(assignedTasksResult.data);
           } else {
-            // First, try to find it in all statuses
-            try {
-              const allStatusesResponse = await fetch('/api/projects?status=draft,active,on_hold,completed,cancelled');
-              const allStatusesResult = await allStatusesResponse.json();
-              
-              if (allStatusesResult.success && allStatusesResult.data) {
-                const existingPersonalProject = allStatusesResult.data.find((p: any) => 
-                  p.name === "Osobné úlohy" || (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
-                );
+            console.error("Failed to fetch assigned tasks:", assignedTasksResult.error);
+          }
+        }
+
+        if (allActiveTasksResponse) {
+          const allActiveTasksResult = await allActiveTasksResponse.json();
+          if (allActiveTasksResult.success) {
+            setAllActiveTasks(allActiveTasksResult.data);
+          } else {
+            console.error("Failed to fetch all active tasks:", allActiveTasksResult.error);
+          }
+        }
+
+        if (unassignedTasksResponse) {
+          const unassignedTasksResult = await unassignedTasksResponse.json();
+          if (unassignedTasksResult.success) {
+            setUnassignedTasks(unassignedTasksResult.data);
+          } else {
+            console.error("Failed to fetch unassigned tasks:", unassignedTasksResult.error);
+          }
+        }
+
+        if (activitiesResponse) {
+          const activitiesResult = await activitiesResponse.json();
+          if (activitiesResult.success) {
+            setActivities(activitiesResult.data);
+          } else {
+            console.error("Failed to fetch activities:", activitiesResult.error);
+          }
+        }
+
+        // Find or create personal project - only if user has permission to view projects
+        if (projectsResponse) {
+          const projectsResult = await projectsResponse.json();
+          if (projectsResult.success && projectsResult.data) {
+            // Hľadáme projekt podľa názvu "Osobné úlohy" alebo kódu začínajúceho sa na "PERSONAL-"
+            const personalProject = projectsResult.data.find((p: any) => 
+              p.name === "Osobné úlohy" || (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
+            );
+            
+            if (personalProject) {
+              setPersonalProjectId(personalProject.id);
+            } else {
+              // First, try to find it in all statuses
+              try {
+                const allStatusesResponse = await fetch('/api/projects?status=draft,active,on_hold,completed,cancelled');
+                const allStatusesResult = await allStatusesResponse.json();
                 
-                if (existingPersonalProject) {
-                  setPersonalProjectId(existingPersonalProject.id);
-                } else {
-                  // Create personal project if it really doesn't exist
-                  // Fallback: vytvor osobný projekt ak neexistuje (pre starých používateľov)
-                  const personalProjectCode = workspace ? `PERSONAL-${workspace.id.substring(0, 8).toUpperCase()}` : 'PERSONAL';
-                  const createResponse = await fetch('/api/projects', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      name: "Osobné úlohy",
-                      code: personalProjectCode,
-                      description: "Projekt pre osobné úlohy bez klienta",
-                      status: "active",
-                      client_id: null
-                    })
-                  });
+                if (allStatusesResult.success && allStatusesResult.data) {
+                  const existingPersonalProject = allStatusesResult.data.find((p: any) => 
+                    p.name === "Osobné úlohy" || (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
+                  );
                   
-                  const createResult = await createResponse.json();
-                  
-                  if (createResult.success && createResult.data) {
-                    setPersonalProjectId(createResult.data.id);
+                  if (existingPersonalProject) {
+                    setPersonalProjectId(existingPersonalProject.id);
                   } else {
-                    console.error("Failed to create personal project:", createResult.error || createResult);
+                    // Create personal project if it really doesn't exist
+                    // Fallback: vytvor osobný projekt ak neexistuje (pre starých používateľov)
+                    const personalProjectCode = workspace ? `PERSONAL-${workspace.id.substring(0, 8).toUpperCase()}` : 'PERSONAL';
+                    const createResponse = await fetch('/api/projects', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        name: "Osobné úlohy",
+                        code: personalProjectCode,
+                        description: "Projekt pre osobné úlohy bez klienta",
+                        status: "active",
+                        client_id: null
+                      })
+                    });
+                    
+                    const createResult = await createResponse.json();
+                    
+                    if (createResult.success && createResult.data) {
+                      setPersonalProjectId(createResult.data.id);
+                    } else {
+                      console.error("Failed to create personal project:", createResult.error || createResult);
+                    }
                   }
                 }
+              } catch (error) {
+                console.error("Failed to handle personal project:", error);
               }
-            } catch (error) {
-              console.error("Failed to handle personal project:", error);
             }
           }
-        } else {
-          console.error("Failed to fetch projects:", projectsResult.error || "Unknown error");
         }
 
         // Load workspace users
-        if (usersResult.success && usersResult.data) {
-          // Map users to ensure we have id, name, and email
-          const mappedUsers = usersResult.data.map((user: any) => ({
-            id: user.id || user.user_id,
-            name: user.name || user.display_name || user.email?.split('@')[0] || 'Neznámy',
-            email: user.email || ''
-          }));
-          setWorkspaceUsers(mappedUsers);
-        } else {
-          console.error("Failed to fetch workspace users:", usersResult.error);
+        if (usersResponse) {
+          const usersResult = await usersResponse.json();
+          if (usersResult.success && usersResult.data) {
+            // Map users to ensure we have id, name, and email
+            const mappedUsers = usersResult.data.map((user: any) => ({
+              id: user.id || user.user_id,
+              name: user.name || user.display_name || user.email?.split('@')[0] || 'Neznámy',
+              email: user.email || ''
+            }));
+            setWorkspaceUsers(mappedUsers);
+          } else {
+            console.error("Failed to fetch workspace users:", usersResult?.error || "Unknown error");
+          }
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -617,7 +683,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [workspace]);
+  }, [workspace, canReadTasks, canViewTasks, canReadProjects, canViewProjects, isLoadingPermissions]);
 
   // Listen for task status changes to refresh stats
   useEffect(() => {
@@ -972,7 +1038,7 @@ export default function DashboardPage() {
   const totalActualHours = tasks.reduce((sum, task) => sum + (task.actual_hours || 0), 0);
   const completionRate = totalEstimatedHours > 0 ? (totalActualHours / totalEstimatedHours) * 100 : 0;
 
-  if (workspaceLoading || isLoading) {
+  if (workspaceLoading || isLoading || isLoadingPermissions) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -1063,14 +1129,15 @@ export default function DashboardPage() {
 
       {/* Main Content - Single Column */}
       <div className="w-full">
-        {/* Tasks and Activity Section */}
-        <div className="w-full">
-          {/* Combined Tasks and Activity Block */}
-          <Card className="bg-card border border-border shadow-sm rounded-xl overflow-hidden">
-        <CardContent className="p-0">
-          <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] divide-x divide-border">
-                {/* Tasks Section */}
-                <div>
+        {/* Tasks and Activity Section - only show if user has permission to view tasks */}
+        {(canReadTasks || canViewTasks) && (
+          <div className="w-full">
+            {/* Combined Tasks and Activity Block */}
+            <Card className="bg-card border border-border shadow-sm rounded-xl overflow-hidden">
+          <CardContent className="p-0">
+            <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] divide-x divide-border">
+                  {/* Tasks Section */}
+                  <div>
                   <div className="px-6 py-4 bg-muted/50 border-b border-border/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 text-lg font-semibold text-foreground">
@@ -2059,8 +2126,9 @@ export default function DashboardPage() {
               )}
               </div>
                 
-                {/* Activity Section */}
-                <div className="h-full flex flex-col">
+                {/* Activity Section - only show if user has permission */}
+                {(canReadTasks || canViewTasks || canReadProjects || canViewProjects) && (
+                  <div className="h-full flex flex-col">
                   <div className="px-6 py-4 bg-muted/50 border-b border-border/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 text-lg font-semibold text-foreground">
@@ -2179,11 +2247,13 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
+                )}
+            </div>
+              </CardContent>
+            </Card>
           </div>
-            </CardContent>
-          </Card>
+        )}
         </div>
-      </div>
 
       {/* Quick Task Dialog */}
       <TaskDialog
@@ -2278,7 +2348,13 @@ export default function DashboardPage() {
                     key={task.id}
                     onClick={() => {
                       setMoreEventsModalOpen(false);
-                      window.location.href = `/projects/${task.project?.id || 'unknown'}/tasks/${task.id}`;
+                      // Ensure projectId is not empty
+                      const projectId = (task.project?.id && task.project.id.trim() !== '') 
+                        ? task.project.id 
+                        : (task.project_id && task.project_id.trim() !== '') 
+                          ? task.project_id 
+                          : 'unknown';
+                      window.location.href = `/projects/${projectId}/tasks/${task.id}`;
                     }}
                     className={cn(
                       "px-4 py-3 rounded-lg cursor-pointer transition-all hover:shadow-md flex flex-col gap-1"

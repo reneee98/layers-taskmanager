@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePermission } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -33,6 +34,11 @@ interface ProjectReportProps {
 export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
   const [finance, setFinance] = useState<ProjectFinance | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { hasPermission: canViewReports } = usePermission('financial', 'view_reports');
+  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
+  const { hasPermission: canViewHourlyRates } = usePermission('financial', 'view_hourly_rates');
+  const { hasPermission: canViewProfit } = usePermission('financial', 'view_profit');
+  const { hasPermission: canViewCosts } = usePermission('financial', 'view_costs');
 
   useEffect(() => {
     fetchFinanceData();
@@ -77,6 +83,16 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
     );
   }
 
+  if (!canViewReports) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-2">
+          <p className="text-muted-foreground">Nemáte oprávnenie na zobrazenie finančných reportov</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!finance) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -113,22 +129,24 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
         </Card>
 
         {/* Average Hourly Rate Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Priemerná hodinovka</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {finance.totalHours > 0
-                ? formatCurrency(finance.budgetAmount / finance.totalHours)
-                : formatCurrency(0)}
-            </div>
-          </CardContent>
-        </Card>
+        {canViewHourlyRates && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Priemerná hodinovka</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {finance.totalHours > 0
+                  ? formatCurrency(finance.budgetAmount / finance.totalHours)
+                  : formatCurrency(0)}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* External Costs Card - only shown in project view, not in task detail */}
-        {!taskId && (
+        {!taskId && canViewCosts && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Externé náklady</CardTitle>
@@ -141,18 +159,20 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
         )}
 
         {/* Total Cost Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Celkové náklady</CardTitle>
-            <Euro className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(finance.totalCost)}</div>
-          </CardContent>
-        </Card>
+        {canViewCosts && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Celkové náklady</CardTitle>
+              <Euro className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(finance.totalCost)}</div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Invoice Price Card - only shown in task detail */}
-        {taskId && (
+        {taskId && canViewPrices && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Spolu k fakturácií</CardTitle>
@@ -165,23 +185,25 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
         )}
 
         {/* Profit/Loss Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Zisk / Strata</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <div className="text-2xl font-bold">{formatCurrency(finance.profit)}</div>
-              {(finance.laborCost + finance.budgetAmount) > 0 && (
-                <Badge className={getProfitColor(finance.profitPct)}>
-                  {finance.profitPct >= 0 ? "+" : ""}
-                  {finance.profitPct.toFixed(1)}%
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {canViewProfit && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Zisk / Strata</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-baseline gap-2">
+                <div className="text-2xl font-bold">{formatCurrency(finance.profit)}</div>
+                {(finance.laborCost + finance.budgetAmount) > 0 && (
+                  <Badge className={getProfitColor(finance.profitPct)}>
+                    {finance.profitPct >= 0 ? "+" : ""}
+                    {finance.profitPct.toFixed(1)}%
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Charts */}

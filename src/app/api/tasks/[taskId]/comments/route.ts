@@ -53,6 +53,7 @@ export async function GET(
       const userProfile = userProfiles?.find(profile => profile.id === comment.user_id);
       return {
         ...comment,
+        user_id: comment.user_id, // Keep user_id for frontend to check ownership
         user: userProfile ? { 
           name: userProfile.display_name || "User", 
           email: userProfile.email || "" 

@@ -104,7 +104,12 @@ import {
 } from "@/components/ui/select";
 import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
 import { cn, stripHtml } from "@/lib/utils";
-import { WeekCalendar } from "@/components/calendar/WeekCalendar";
+
+// Lazy load WeekCalendar - only load when calendar view is active
+const WeekCalendar = dynamic(() => import("@/components/calendar/WeekCalendar").then(mod => ({ default: mod.WeekCalendar })), {
+  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
+  ssr: false,
+});
 import {
   Dialog,
   DialogContent,
@@ -518,13 +523,29 @@ export default function DashboardPage() {
       
       setIsLoading(true);
       try {
-        // Načítaj dáta podľa permissions
-        const fetchPromises: Promise<Response>[] = [];
+        // Optimalizácia: Načítaj najdôležitejšie dáta najprv (assigned tasks)
+        // Potom načítaj ostatné dáta na pozadí
         
-        // Tasks - len ak má permission
+        // Priority 1: Assigned tasks (najdôležitejšie pre dashboard)
         if (canReadTasks || canViewTasks) {
-          fetchPromises.push(
-            fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=false`),
+          try {
+            const assignedTasksResponse = await fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=false`);
+            const assignedTasksResult = await assignedTasksResponse.json();
+            if (assignedTasksResult.success) {
+              setTasks(assignedTasksResult.data);
+              setIsLoading(false); // Zobraz dashboard hneď po načítaní tasks
+            }
+          } catch (error) {
+            console.error("Failed to fetch assigned tasks:", error);
+          }
+        }
+        
+        // Priority 2: Načítaj ostatné dáta na pozadí (paralelne)
+        const backgroundPromises: Promise<Response>[] = [];
+        
+        // Tasks - ostatné typy
+        if (canReadTasks || canViewTasks) {
+          backgroundPromises.push(
             fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=true`),
             fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=true`)
           );
@@ -532,27 +553,26 @@ export default function DashboardPage() {
         
         // Activities - len ak má permission na tasks alebo projects
         if (canReadTasks || canViewTasks || canReadProjects || canViewProjects) {
-          fetchPromises.push(
+          backgroundPromises.push(
             fetch(`/api/dashboard/activity?workspace_id=${workspace.id}&only_today=true`)
           );
         }
         
         // Projects - len ak má permission
         if (canReadProjects || canViewProjects) {
-          fetchPromises.push(
+          backgroundPromises.push(
             fetch(`/api/projects`)
           );
         }
         
         // Users - vždy (pre workspace)
-        fetchPromises.push(
+        backgroundPromises.push(
           fetch(`/api/workspace-users?workspace_id=${workspace.id}`)
         );
         
-        const responses = await Promise.all(fetchPromises);
+        const responses = await Promise.all(backgroundPromises);
         
         let responseIndex = 0;
-        let assignedTasksResponse: Response | null = null;
         let allActiveTasksResponse: Response | null = null;
         let unassignedTasksResponse: Response | null = null;
         let activitiesResponse: Response | null = null;
@@ -560,7 +580,6 @@ export default function DashboardPage() {
         let usersResponse: Response | null = null;
         
         if (canReadTasks || canViewTasks) {
-          assignedTasksResponse = responses[responseIndex++];
           allActiveTasksResponse = responses[responseIndex++];
           unassignedTasksResponse = responses[responseIndex++];
         }
@@ -575,16 +594,7 @@ export default function DashboardPage() {
         
         usersResponse = responses[responseIndex++];
 
-        // Process responses based on permissions
-        if (assignedTasksResponse) {
-          const assignedTasksResult = await assignedTasksResponse.json();
-          if (assignedTasksResult.success) {
-            setTasks(assignedTasksResult.data);
-          } else {
-            console.error("Failed to fetch assigned tasks:", assignedTasksResult.error);
-          }
-        }
-
+        // Process responses based on permissions (assigned tasks už boli spracované vyššie)
         if (allActiveTasksResponse) {
           const allActiveTasksResult = await allActiveTasksResponse.json();
           if (allActiveTasksResult.success) {
@@ -613,59 +623,24 @@ export default function DashboardPage() {
         }
 
         // Find or create personal project - only if user has permission to view projects
+        // Optimalizácia: Toto sa môže robiť na pozadí, nie je kritické pre zobrazenie dashboardu
         if (projectsResponse) {
-          const projectsResult = await projectsResponse.json();
-          if (projectsResult.success && projectsResult.data) {
-            // Hľadáme projekt podľa názvu "Osobné úlohy" alebo kódu začínajúceho sa na "PERSONAL-"
-            const personalProject = projectsResult.data.find((p: any) => 
-              p.name === "Osobné úlohy" || (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
-            );
-            
-            if (personalProject) {
-              setPersonalProjectId(personalProject.id);
-            } else {
-              // First, try to find it in all statuses
-              try {
-                const allStatusesResponse = await fetch('/api/projects?status=draft,active,on_hold,completed,cancelled');
-                const allStatusesResult = await allStatusesResponse.json();
-                
-                if (allStatusesResult.success && allStatusesResult.data) {
-                  const existingPersonalProject = allStatusesResult.data.find((p: any) => 
-                    p.name === "Osobné úlohy" || (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
-                  );
-                  
-                  if (existingPersonalProject) {
-                    setPersonalProjectId(existingPersonalProject.id);
-                  } else {
-                    // Create personal project if it really doesn't exist
-                    // Fallback: vytvor osobný projekt ak neexistuje (pre starých používateľov)
-                    const personalProjectCode = workspace ? `PERSONAL-${workspace.id.substring(0, 8).toUpperCase()}` : 'PERSONAL';
-                    const createResponse = await fetch('/api/projects', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        name: "Osobné úlohy",
-                        code: personalProjectCode,
-                        description: "Projekt pre osobné úlohy bez klienta",
-                        status: "active",
-                        client_id: null
-                      })
-                    });
-                    
-                    const createResult = await createResponse.json();
-                    
-                    if (createResult.success && createResult.data) {
-                      setPersonalProjectId(createResult.data.id);
-                    } else {
-                      console.error("Failed to create personal project:", createResult.error || createResult);
-                    }
-                  }
-                }
-              } catch (error) {
-                console.error("Failed to handle personal project:", error);
+          projectsResponse.json().then((projectsResult: any) => {
+            if (projectsResult.success && projectsResult.data) {
+              // Hľadáme projekt podľa názvu "Osobné úlohy" alebo kódu začínajúceho sa na "PERSONAL-"
+              const personalProject = projectsResult.data.find((p: any) => 
+                p.name === "Osobné úlohy" || (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
+              );
+              
+              if (personalProject) {
+                setPersonalProjectId(personalProject.id);
               }
+              // Nevyhľadávame v ostatných statusoch a nevytvárame automaticky - to môže byť pomalé
+              // Personal project sa vytvorí pri prvom použití
             }
-          }
+          }).catch((error: any) => {
+            console.error("Failed to handle personal project:", error);
+          });
         }
 
         // Load workspace users

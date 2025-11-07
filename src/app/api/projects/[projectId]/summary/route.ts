@@ -46,8 +46,29 @@ export async function GET(
     const doneTasks = tasks.filter(task => task.status === "done");
     const doneTaskIds = doneTasks.map(task => task.id);
     
-    // Convert budget_cents to euros for calculation - only for done tasks
-    const totalBudget = doneTasks.reduce((sum, task) => sum + ((task.budget_cents || 0) / 100), 0);
+    // Calculate total budget from done tasks
+    // If budget_cents is set, use it. Otherwise, calculate from time entries (hours * hourly_rate)
+    const totalBudget = await Promise.all(
+      doneTasks.map(async (task) => {
+        if (task.budget_cents && task.budget_cents > 0) {
+          return task.budget_cents / 100;
+        } else {
+          // Calculate from time entries: sum(hours * hourly_rate)
+          const { data: timeEntries } = await supabase
+            .from("time_entries")
+            .select("hours, hourly_rate")
+            .eq("task_id", task.id);
+          
+          if (!timeEntries || timeEntries.length === 0) {
+            return 0;
+          }
+          
+          return timeEntries.reduce((sum, entry) => {
+            return sum + ((entry.hours || 0) * (entry.hourly_rate || 0));
+          }, 0);
+        }
+      })
+    ).then(results => results.reduce((sum, val) => sum + val, 0));
 
     // Get time entries (labor cost) - only for done tasks
     let laborCost = 0;

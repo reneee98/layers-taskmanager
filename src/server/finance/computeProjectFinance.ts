@@ -227,18 +227,31 @@ export const computeProjectFinance = async (
     ?.reduce((sum, te) => sum + (te.hours || 0), 0) || 0;
 
   // Use only done tasks for profit calculation
+  // Calculate revenue as sum(hours * hourly_rate) from time entries
+  const revenue = doneTimeEntries
+    ?.filter((te) => te.is_billable)
+    .reduce((sum, te) => {
+      const entryRevenue = (te.hours || 0) * (te.hourly_rate || 0);
+      return sum + entryRevenue;
+    }, 0) || 0;
+
+  // Labor cost is the actual cost of labor (sum of time_entries.amount - only hours over budget)
+  // But for profit calculation, we use revenue (hours * hourly_rate) instead
   const laborCost = doneTimeEntries
     ?.filter((te) => te.is_billable)
     .reduce((sum, te) => sum + (te.amount || 0), 0) || 0;
 
-  // Debug logging for labor cost calculation
-  console.log("Labor cost calculation:", {
+  // Debug logging for revenue calculation
+  console.log("Revenue calculation:", {
     doneTimeEntriesCount: doneTimeEntries?.length || 0,
     billableEntriesCount: doneTimeEntries?.filter((te) => te.is_billable).length || 0,
+    revenue,
     laborCost,
     timeEntriesDetails: doneTimeEntries?.filter((te) => te.is_billable).map(te => ({
       id: te.id,
       hours: te.hours,
+      hourly_rate: te.hourly_rate,
+      revenue: (te.hours || 0) * (te.hourly_rate || 0),
       amount: te.amount,
       date: te.date
     }))
@@ -248,7 +261,7 @@ export const computeProjectFinance = async (
     ?.filter((ci) => ci.is_billable)
     .reduce((sum, ci) => sum + (ci.amount || 0), 0) || 0;
 
-  // 6. Get total budget from done tasks only
+  // 6. Get total budget from done tasks only (this is "Spolu k fakturácií")
   // If budget_cents is set, use it. Otherwise, calculate from time entries (hours * hourly_rate)
   const budgetAmount = await Promise.all(
     doneTasks.map(async (task) => {
@@ -273,22 +286,25 @@ export const computeProjectFinance = async (
     })
   ).then(results => results.reduce((sum, val) => sum + val, 0));
 
-  // 7. Calculate totals - labor + budget is revenue, external costs are losses (only for done tasks)
+  // 7. Calculate totals
+  // budgetAmount = "Spolu k fakturácií" (what should be invoiced)
+  // revenue = actual revenue from time entries (hours * hourly_rate)
+  // totalCost = external costs only
   const totalCost = externalCost; // Only external costs count as costs
-  const totalRevenue = laborCost + budgetAmount; // Labor + budget is revenue/profit
   
   // 8. Calculate profit/loss
-  const profit = totalRevenue - totalCost; // Revenue minus costs
-  const profitPct = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+  // Profit = Revenue (hours * hourly_rate) - Costs (external costs)
+  const profit = revenue - totalCost; // Revenue minus costs
+  const profitPct = revenue > 0 ? (profit / revenue) * 100 : 0;
 
   // Debug logging
   console.log("Finance calculation:", {
     doneTasksCount: doneTasks.length,
     doneTaskIds,
+    revenue,
     laborCost,
     externalCost,
     budgetAmount,
-    totalRevenue,
     totalCost,
     profit,
     profitPct

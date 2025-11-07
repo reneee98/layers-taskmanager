@@ -57,9 +57,10 @@ export async function GET(
       workspaceId 
     });
     
-    // If task not found and we don't have workspaceId, try to get workspace_id from task itself
+    // If task not found, try to get workspace_id from task itself
     // This helps with RLS policy which requires workspace_id check
-    if (!task && !workspaceId) {
+    // Task might be in a different workspace than the one we're filtering by
+    if (!task) {
       console.log(`[GET /api/tasks/${taskId}] Task not found without workspaceId, trying to get workspace_id...`);
       
       // First, try to get just workspace_id from the task (RLS might allow this)

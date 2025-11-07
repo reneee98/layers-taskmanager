@@ -726,7 +726,7 @@ export default function TaskDetailPage() {
         });
         // Dispatch event to refresh dashboard
         window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
-          detail: { taskId: params.taskId } 
+          detail: { taskId: taskId } 
         }));
       } else {
         toast({
@@ -864,7 +864,7 @@ export default function TaskDetailPage() {
         });
         // Dispatch event to refresh dashboard
         window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
-          detail: { taskId: params.taskId } 
+          detail: { taskId: taskId } 
         }));
       } else {
         toast({

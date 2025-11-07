@@ -261,11 +261,10 @@ export const computeProjectFinance = async (
     ?.filter((ci) => ci.is_billable)
     .reduce((sum, ci) => sum + (ci.amount || 0), 0) || 0;
 
-  // 6. Get total budget from ALL tasks (this is "Spolu k fakturácií")
+  // 6. Get total budget from done tasks only (this is "Spolu k fakturácií")
   // If budget_cents is set, use it. Otherwise, calculate from time entries (hours * hourly_rate)
-  // This should include all tasks, not just done ones, because we want to see what should be invoiced
   const budgetAmount = await Promise.all(
-    (allTasks || []).map(async (task) => {
+    doneTasks.map(async (task) => {
       if (task.budget_cents && task.budget_cents > 0) {
         const taskBudget = task.budget_cents / 100;
         console.log(`Task ${task.id}: budget_cents=${task.budget_cents}, budget=${taskBudget}`);
@@ -277,15 +276,25 @@ export const computeProjectFinance = async (
           .select("hours, hourly_rate")
           .eq("task_id", task.id);
         
-        const calculatedPrice = timeEntries?.reduce((sum, entry) => {
+        if (!timeEntries || timeEntries.length === 0) {
+          console.log(`Task ${task.id}: no budget_cents and no time entries, returning 0`);
+          return 0;
+        }
+        
+        const calculatedPrice = timeEntries.reduce((sum, entry) => {
           const entryAmount = (entry.hours || 0) * (entry.hourly_rate || 0);
+          console.log(`Task ${task.id} entry: hours=${entry.hours}, hourly_rate=${entry.hourly_rate}, amount=${entryAmount}`);
           return sum + entryAmount;
-        }, 0) || 0;
-        console.log(`Task ${task.id}: no budget_cents, calculated from time entries: ${calculatedPrice}€`);
+        }, 0);
+        console.log(`Task ${task.id}: no budget_cents, calculated from time entries: ${calculatedPrice}€ (${timeEntries.length} entries)`);
         return calculatedPrice;
       }
     })
-  ).then(results => results.reduce((sum, val) => sum + val, 0));
+  ).then(results => {
+    const total = results.reduce((sum, val) => sum + val, 0);
+    console.log(`Total budgetAmount calculated: ${total}€ from ${doneTasks.length} done tasks`);
+    return total;
+  });
 
   // 7. Calculate totals
   // budgetAmount = "Spolu k fakturácií" (what should be invoiced)

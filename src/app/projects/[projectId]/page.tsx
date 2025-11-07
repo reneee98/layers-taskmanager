@@ -3,10 +3,22 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProjectHeader } from "@/components/projects/ProjectHeader";
-import { TaskTable } from "@/components/tasks/TaskTable";
-import { TaskDialog } from "@/components/tasks/TaskDialog";
 import { Button } from "@/components/ui/button";
+import dynamic from "next/dynamic";
+
+// Lazy load heavy components
+const ProjectHeader = dynamic(() => import("@/components/projects/ProjectHeader").then(mod => ({ default: mod.ProjectHeader })), {
+  loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
+});
+
+const TaskTable = dynamic(() => import("@/components/tasks/TaskTable").then(mod => ({ default: mod.TaskTable })), {
+  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
+});
+
+const TaskDialog = dynamic(() => import("@/components/tasks/TaskDialog").then(mod => ({ default: mod.TaskDialog })), {
+  loading: () => null,
+  ssr: false,
+});
 import { Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useOptimizedFetch } from "@/hooks/useOptimizedFetch";

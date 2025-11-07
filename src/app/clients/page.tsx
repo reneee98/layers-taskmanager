@@ -16,8 +16,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ClientForm } from "@/components/clients/ClientForm";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import dynamic from "next/dynamic";
+
+// Lazy load ClientForm
+const ClientForm = dynamic(() => import("@/components/clients/ClientForm").then(mod => ({ default: mod.ClientForm })), {
+  loading: () => null,
+  ssr: false,
+});
 import { toast } from "@/hooks/use-toast";
 import type { Client } from "@/types/database";
 import { cn } from "@/lib/utils";

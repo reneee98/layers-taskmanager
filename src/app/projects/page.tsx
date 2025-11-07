@@ -30,8 +30,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { ProjectForm } from "@/components/projects/ProjectForm";
 import { toast } from "@/hooks/use-toast";
+import dynamic from "next/dynamic";
+
+// Lazy load ProjectForm
+const ProjectForm = dynamic(() => import("@/components/projects/ProjectForm").then(mod => ({ default: mod.ProjectForm })), {
+  loading: () => null,
+  ssr: false,
+});
 import type { Project, Client } from "@/types/database";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";

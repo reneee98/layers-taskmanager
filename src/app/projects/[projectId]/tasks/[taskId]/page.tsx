@@ -39,19 +39,63 @@ import {
   Square,
   Flame
 } from "lucide-react";
-import { TimePanel } from "@/components/time/TimePanel";
-import { CostsPanel } from "@/components/costs/CostsPanel";
-import { ProjectReport } from "@/components/report/ProjectReport";
-import { CommentsList } from "@/components/comments/CommentsList";
-import { QuillEditor } from "@/components/ui/quill-editor";
-import { MultiAssigneeSelect } from "@/components/tasks/MultiAssigneeSelect";
-import { StatusSelect } from "@/components/tasks/StatusSelect";
-import { PrioritySelect } from "@/components/tasks/PrioritySelect";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { GoogleDriveLinks } from "@/components/tasks/GoogleDriveLinks";
-import { TaskChecklist } from "@/components/tasks/TaskChecklist";
-import { TaskFiles } from "@/components/tasks/TaskFiles";
-import { FileUploadHandler } from "@/components/tasks/FileUploadHandler";
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
+
+// Lazy load heavy components
+const TimePanel = dynamic(() => import("@/components/time/TimePanel").then(mod => ({ default: mod.TimePanel })), {
+  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
+});
+
+const CostsPanel = dynamic(() => import("@/components/costs/CostsPanel").then(mod => ({ default: mod.CostsPanel })), {
+  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
+});
+
+const ProjectReport = dynamic(() => import("@/components/report/ProjectReport").then(mod => ({ default: mod.ProjectReport })), {
+  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
+});
+
+const CommentsList = dynamic(() => import("@/components/comments/CommentsList").then(mod => ({ default: mod.CommentsList })), {
+  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
+});
+
+const QuillEditor = dynamic(() => import("@/components/ui/quill-editor").then(mod => ({ default: mod.QuillEditor })), {
+  loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
+  ssr: false,
+});
+
+const MultiAssigneeSelect = dynamic(() => import("@/components/tasks/MultiAssigneeSelect").then(mod => ({ default: mod.MultiAssigneeSelect })), {
+  loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
+});
+
+const StatusSelect = dynamic(() => import("@/components/tasks/StatusSelect").then(mod => ({ default: mod.StatusSelect })), {
+  loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
+});
+
+const PrioritySelect = dynamic(() => import("@/components/tasks/PrioritySelect").then(mod => ({ default: mod.PrioritySelect })), {
+  loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
+});
+
+const DateRangePicker = dynamic(() => import("@/components/ui/date-range-picker").then(mod => ({ default: mod.DateRangePicker })), {
+  loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
+  ssr: false,
+});
+
+const GoogleDriveLinks = dynamic(() => import("@/components/tasks/GoogleDriveLinks").then(mod => ({ default: mod.GoogleDriveLinks })), {
+  loading: () => <div className="h-20 bg-muted animate-pulse rounded"></div>,
+});
+
+const TaskChecklist = dynamic(() => import("@/components/tasks/TaskChecklist").then(mod => ({ default: mod.TaskChecklist })), {
+  loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
+});
+
+const TaskFiles = dynamic(() => import("@/components/tasks/TaskFiles").then(mod => ({ default: mod.TaskFiles })), {
+  loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
+});
+
+const FileUploadHandler = dynamic(() => import("@/components/tasks/FileUploadHandler").then(mod => ({ default: mod.FileUploadHandler })), {
+  ssr: false,
+});
 import { toast } from "@/hooks/use-toast";
 import { formatHours } from "@/lib/format";
 import { format } from "date-fns";

@@ -2,9 +2,18 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useOptimizedFetch } from "@/hooks/useOptimizedFetch";
-import { TaskTable } from "@/components/tasks/TaskTable";
-import { TaskDialog } from "@/components/tasks/TaskDialog";
 import { Button } from "@/components/ui/button";
+import dynamic from "next/dynamic";
+
+// Lazy load heavy components
+const TaskTable = dynamic(() => import("@/components/tasks/TaskTable").then(mod => ({ default: mod.TaskTable })), {
+  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
+});
+
+const TaskDialog = dynamic(() => import("@/components/tasks/TaskDialog").then(mod => ({ default: mod.TaskDialog })), {
+  loading: () => null,
+  ssr: false,
+});
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {

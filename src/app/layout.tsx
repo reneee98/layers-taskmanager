@@ -5,8 +5,16 @@ import { LayoutProvider } from "@/components/providers/layout-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TimerProvider } from "@/contexts/TimerContext";
-import { Toaster } from "@/components/ui/toaster";
-import { BugReporter } from "@/components/bug-reporter/BugReporter";
+import dynamic from "next/dynamic";
+
+// Lazy load non-critical components
+const Toaster = dynamic(() => import("@/components/ui/toaster").then(mod => ({ default: mod.Toaster })), {
+  ssr: false,
+});
+
+const BugReporter = dynamic(() => import("@/components/bug-reporter/BugReporter").then(mod => ({ default: mod.BugReporter })), {
+  ssr: false,
+});
 
 const inter = Inter({ subsets: ["latin"] });
 

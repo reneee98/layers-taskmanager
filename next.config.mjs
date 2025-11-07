@@ -13,6 +13,7 @@ const nextConfig = {
   },
   images: {
     domains: ['localhost'],
+    formats: ['image/avif', 'image/webp'],
   },
   typescript: {
     ignoreBuildErrors: false,
@@ -22,6 +23,13 @@ const nextConfig = {
   },
   env: {
     NEXT_PUBLIC_APP_VERSION: appVersion,
+  },
+  // Enable code splitting and lazy loading
+  swcMinify: true,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
   },
 };
 

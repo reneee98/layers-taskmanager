@@ -84,9 +84,17 @@ import { getDeadlineStatus, getDeadlineRowClass, getDeadlineDotClass } from "@/l
 import Link from "next/link";
 import type { Task } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { WorkspaceInvitations } from "@/components/workspace/WorkspaceInvitations";
-import { TaskDialog } from "@/components/tasks/TaskDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Lazy load heavy components
+const WorkspaceInvitations = dynamic(() => import("@/components/workspace/WorkspaceInvitations").then(mod => ({ default: mod.WorkspaceInvitations })), {
+  loading: () => <div className="h-20 bg-muted animate-pulse rounded"></div>,
+});
+
+const TaskDialog = dynamic(() => import("@/components/tasks/TaskDialog").then(mod => ({ default: mod.TaskDialog })), {
+  loading: () => null,
+  ssr: false,
+});
 import {
   Select,
   SelectContent,

@@ -59,10 +59,53 @@ const CommentsList = dynamic(() => import("@/components/comments/CommentsList").
   loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
 });
 
-const QuillEditor = dynamic(() => import("@/components/ui/quill-editor").then(mod => ({ default: mod.QuillEditor })), {
+const TaskDescription = dynamic(() => import("@/components/tasks/TaskDescription").then(mod => ({ default: mod.TaskDescription })), {
   loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
   ssr: false,
 });
+
+// Status component for TaskDescription
+const TaskDescriptionStatus = ({ taskId }: { taskId: string }) => {
+  const [status, setStatus] = useState<"idle" | "typing" | "saving" | "saved" | "error">("idle");
+  const [statusText, setStatusText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleStatusChange = (newStatus: "idle" | "typing" | "saving" | "saved" | "error", text: string) => {
+      setStatus(newStatus);
+      setStatusText(text);
+      if (newStatus === "error") {
+        setError(text);
+      } else {
+        setError(null);
+      }
+    };
+
+    // Listen for custom events from TaskDescription
+    const handleCustomStatusChange = (e: CustomEvent) => {
+      handleStatusChange(e.detail.status, e.detail.text);
+    };
+
+    window.addEventListener(`task-description-status-${taskId}` as any, handleCustomStatusChange as EventListener);
+
+    return () => {
+      window.removeEventListener(`task-description-status-${taskId}` as any, handleCustomStatusChange as EventListener);
+    };
+  }, [taskId]);
+
+  if (status === "idle") return null;
+
+  const statusColor = status === "error" ? "text-red-500" : status === "saved" ? "text-green-500" : "text-muted-foreground";
+
+  return (
+    <div
+      className={`text-xs ${statusColor} flex items-center gap-1`}
+      title={error || undefined}
+    >
+      {statusText}
+    </div>
+  );
+};
 
 const MultiAssigneeSelect = dynamic(() => import("@/components/tasks/MultiAssigneeSelect").then(mod => ({ default: mod.MultiAssigneeSelect })), {
   loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
@@ -93,9 +136,6 @@ const TaskFiles = dynamic(() => import("@/components/tasks/TaskFiles").then(mod 
   loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
 });
 
-const FileUploadHandler = dynamic(() => import("@/components/tasks/FileUploadHandler").then(mod => ({ default: mod.FileUploadHandler })), {
-  ssr: false,
-});
 import { toast } from "@/hooks/use-toast";
 import { formatHours } from "@/lib/format";
 import { format } from "date-fns";
@@ -154,8 +194,6 @@ export default function TaskDetailPage() {
   const [assignees, setAssignees] = useState<TaskAssignee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [description, setDescription] = useState("");
-  const [descriptionHtml, setDescriptionHtml] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing] = useState(true); // Always in editing mode
   const [activeTab, setActiveTab] = useState("overview");
@@ -189,8 +227,6 @@ export default function TaskDetailPage() {
 
       if (result.success && result.data) {
         setTask(result.data);
-        setDescription(result.data.description || "");
-        setDescriptionHtml(result.data.description || "");
         setAssignees(result.data.assignees || []);
         setHasChanges(false);
       } else {
@@ -331,19 +367,7 @@ export default function TaskDetailPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (task) {
-      setDescription(task.description || "");
-      setDescriptionHtml(task.description || "");
-    }
-  }, [task]);
 
-  const handleDescriptionChange = (content: string, html: string) => {
-    setDescription(content);
-    setDescriptionHtml(html);
-    setHasChanges(true);
-    // Don't auto-save - wait for user to click "Uložiť" button
-  };
 
   const handleDuplicate = async () => {
     if (!task) return;
@@ -512,10 +536,10 @@ export default function TaskDetailPage() {
 
     setIsSaving(true);
     try {
-      // Save task settings (including task budget and description)
+      // Save task settings (including task budget)
+      // Note: description is now saved automatically by TaskDescription component
       const taskPayload: any = {
         estimated_hours: task.estimated_hours,
-        description: descriptionHtml.trim() || null,
       };
       
       // Include task budget if it exists
@@ -560,44 +584,6 @@ export default function TaskDetailPage() {
     }
   };
 
-  const handleSaveDescriptionWithContent = async (content: string) => {
-    if (!task || isSaving || !content) return;
-
-    // Remove the image delay logic - save immediately
-
-    setIsSaving(true);
-    try {
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          description: content.trim() || null,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setTask(result.data);
-      } else {
-        toast({
-          title: "Chyba",
-          description: "Nepodarilo sa uložiť popis úlohy",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Chyba",
-        description: "Nepodarilo sa uložiť popis úlohy",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleAssigneesChange = (newAssignees: TaskAssignee[]) => {
     setAssignees(newAssignees);
@@ -1444,31 +1430,14 @@ export default function TaskDetailPage() {
                       <FileText className="h-4 w-4" />
                       Popis úlohy
                     </CardTitle>
-                    {isSaving && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Ukladám...
-                      </div>
-                    )}
+                    <TaskDescriptionStatus taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <FileUploadHandler
+                  <TaskDescription
                     taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
-                    onFileUploaded={() => {
-                      // File uploaded successfully
-                    }}
-                  >
-                    <QuillEditor
-                      key={task?.id}
-                      content={descriptionHtml}
-                      onChange={handleDescriptionChange}
-                      placeholder="Napíšte popis úlohy..."
-                      className="min-h-[150px]"
-                      editable={isEditing}
-                      taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
-                    />
-                  </FileUploadHandler>
+                    initialDescription={task?.description || ""}
+                  />
                 </CardContent>
               </Card>
 

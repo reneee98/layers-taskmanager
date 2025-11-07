@@ -49,15 +49,33 @@ export async function GET(
     
     let { data: task, error } = await query.maybeSingle();
     
+    console.log(`[GET /api/tasks/${taskId}] Initial query result:`, { 
+      hasTask: !!task, 
+      hasError: !!error, 
+      errorCode: error?.code, 
+      errorMessage: error?.message,
+      workspaceId 
+    });
+    
     // If task not found and we don't have workspaceId, try to get workspace_id from task itself
     // This helps with RLS policy which requires workspace_id check
     if (!task && !workspaceId) {
+      console.log(`[GET /api/tasks/${taskId}] Task not found without workspaceId, trying to get workspace_id...`);
+      
       // First, try to get just workspace_id from the task (RLS might allow this)
-      const { data: taskWorkspace } = await supabase
+      const { data: taskWorkspace, error: workspaceError } = await supabase
         .from("tasks")
         .select("workspace_id")
         .eq("id", taskId)
         .maybeSingle();
+      
+      console.log(`[GET /api/tasks/${taskId}] Workspace query result:`, { 
+        hasWorkspace: !!taskWorkspace, 
+        workspaceId: taskWorkspace?.workspace_id,
+        hasError: !!workspaceError,
+        errorCode: workspaceError?.code,
+        errorMessage: workspaceError?.message
+      });
       
       if (taskWorkspace?.workspace_id) {
         // Retry query with workspace_id
@@ -68,6 +86,13 @@ export async function GET(
           .eq("workspace_id", taskWorkspace.workspace_id);
         
         const retryResult = await retryQuery.maybeSingle();
+        console.log(`[GET /api/tasks/${taskId}] Retry query result:`, { 
+          hasTask: !!retryResult.data, 
+          hasError: !!retryResult.error,
+          errorCode: retryResult.error?.code,
+          errorMessage: retryResult.error?.message
+        });
+        
         if (retryResult.data) {
           task = retryResult.data;
           error = null;
@@ -78,6 +103,8 @@ export async function GET(
       } else {
         // If we still can't get workspace_id, try user's default workspace
         const userWorkspaceId = await getUserWorkspaceId();
+        console.log(`[GET /api/tasks/${taskId}] User's default workspace:`, userWorkspaceId);
+        
         if (userWorkspaceId) {
           const retryQuery = supabase
             .from("tasks")
@@ -86,6 +113,13 @@ export async function GET(
             .eq("workspace_id", userWorkspaceId);
           
           const retryResult = await retryQuery.maybeSingle();
+          console.log(`[GET /api/tasks/${taskId}] User workspace retry result:`, { 
+            hasTask: !!retryResult.data, 
+            hasError: !!retryResult.error,
+            errorCode: retryResult.error?.code,
+            errorMessage: retryResult.error?.message
+          });
+          
           if (retryResult.data) {
             task = retryResult.data;
             error = null;

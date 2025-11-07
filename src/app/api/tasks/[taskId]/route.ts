@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
-import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
+import { getUserWorkspaceIdFromRequest, getUserWorkspaceId } from "@/lib/auth/workspace";
 import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
 import { resolveHourlyRate } from "@/server/rates/resolveHourlyRate";
 
@@ -35,17 +35,67 @@ export async function GET(
 
     // Build query with workspace_id filter if available (helps with RLS)
     // For tasks without project, we need to query tasks table directly without JOIN
+    // Note: RLS policy requires workspace_id check, so we need to ensure it's available
     let query = supabase
       .from("tasks")
       .select("*")
       .eq("id", taskId);
     
     // Add workspace_id filter if available to help RLS policy
+    // If workspaceId is not available, RLS policy will still check workspace_id from the task
     if (workspaceId) {
       query = query.eq("workspace_id", workspaceId);
     }
     
-    const { data: task, error } = await query.maybeSingle();
+    let { data: task, error } = await query.maybeSingle();
+    
+    // If task not found and we don't have workspaceId, try to get workspace_id from task itself
+    // This helps with RLS policy which requires workspace_id check
+    if (!task && !workspaceId) {
+      // First, try to get just workspace_id from the task (RLS might allow this)
+      const { data: taskWorkspace } = await supabase
+        .from("tasks")
+        .select("workspace_id")
+        .eq("id", taskId)
+        .maybeSingle();
+      
+      if (taskWorkspace?.workspace_id) {
+        // Retry query with workspace_id
+        const retryQuery = supabase
+          .from("tasks")
+          .select("*")
+          .eq("id", taskId)
+          .eq("workspace_id", taskWorkspace.workspace_id);
+        
+        const retryResult = await retryQuery.maybeSingle();
+        if (retryResult.data) {
+          task = retryResult.data;
+          error = null;
+          workspaceId = taskWorkspace.workspace_id; // Update workspaceId for later use
+        } else if (retryResult.error) {
+          error = retryResult.error;
+        }
+      } else {
+        // If we still can't get workspace_id, try user's default workspace
+        const userWorkspaceId = await getUserWorkspaceId();
+        if (userWorkspaceId) {
+          const retryQuery = supabase
+            .from("tasks")
+            .select("*")
+            .eq("id", taskId)
+            .eq("workspace_id", userWorkspaceId);
+          
+          const retryResult = await retryQuery.maybeSingle();
+          if (retryResult.data) {
+            task = retryResult.data;
+            error = null;
+            workspaceId = userWorkspaceId;
+          } else if (retryResult.error) {
+            error = retryResult.error;
+          }
+        }
+      }
+    }
 
     if (error) {
       console.error(`Task fetch error for ${taskId}:`, error);

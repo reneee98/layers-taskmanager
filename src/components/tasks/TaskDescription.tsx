@@ -363,7 +363,6 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
             appendTo={() => document.body}
             options={{
               placement: "top-start",
-              zIndex: 10000,
               strategy: "fixed",
             }}
             className="flex items-center gap-1 p-1 bg-background border border-border rounded-lg shadow-lg"

@@ -365,25 +365,6 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
               placement: "top-start",
               zIndex: 10000,
               strategy: "fixed",
-              middleware: [
-                {
-                  name: "offset",
-                  options: {
-                    offset: [0, 8],
-                  },
-                },
-                {
-                  name: "shift",
-                  options: {
-                    padding: {
-                      left: 300,
-                      right: 16,
-                      top: 16,
-                      bottom: 16,
-                    },
-                  },
-                },
-              ],
             }}
             className="flex items-center gap-1 p-1 bg-background border border-border rounded-lg shadow-lg"
           >

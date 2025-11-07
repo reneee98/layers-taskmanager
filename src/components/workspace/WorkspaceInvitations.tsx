@@ -99,26 +99,10 @@ export function WorkspaceInvitations() {
     }
   }, []);
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Pozvánky do workspace
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center text-muted-foreground">
-            Načítavam pozvánky...
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (invitations.length === 0) {
-    return null; // Don't show the card if there are no invitations
+  // Don't show anything while loading or if there are no invitations
+  // This prevents flickering
+  if (loading || invitations.length === 0) {
+    return null;
   }
 
   return (

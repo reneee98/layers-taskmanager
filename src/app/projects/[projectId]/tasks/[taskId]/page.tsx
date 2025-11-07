@@ -341,17 +341,8 @@ export default function TaskDetailPage() {
   const handleDescriptionChange = (content: string, html: string) => {
     setDescription(content);
     setDescriptionHtml(html);
-    
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    
-    if (html) {
-      // Save immediately with a small delay to avoid too many requests
-      saveTimeoutRef.current = setTimeout(() => {
-        handleSaveDescriptionWithContent(html);
-      }, 500);
-    }
+    setHasChanges(true);
+    // Don't auto-save - wait for user to click "Uložiť" button
   };
 
   const handleDuplicate = async () => {
@@ -521,9 +512,10 @@ export default function TaskDetailPage() {
 
     setIsSaving(true);
     try {
-      // Save task settings (including task budget)
+      // Save task settings (including task budget and description)
       const taskPayload: any = {
         estimated_hours: task.estimated_hours,
+        description: descriptionHtml.trim() || null,
       };
       
       // Include task budget if it exists

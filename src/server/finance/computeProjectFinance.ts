@@ -261,10 +261,11 @@ export const computeProjectFinance = async (
     ?.filter((ci) => ci.is_billable)
     .reduce((sum, ci) => sum + (ci.amount || 0), 0) || 0;
 
-  // 6. Get total budget from done tasks only (this is "Spolu k fakturácií")
+  // 6. Get total budget from ALL tasks (this is "Spolu k fakturácií")
   // If budget_cents is set, use it. Otherwise, calculate from time entries (hours * hourly_rate)
+  // This should include all tasks, not just done ones, because we want to see what should be invoiced
   const budgetAmount = await Promise.all(
-    doneTasks.map(async (task) => {
+    (allTasks || []).map(async (task) => {
       if (task.budget_cents && task.budget_cents > 0) {
         const taskBudget = task.budget_cents / 100;
         console.log(`Task ${task.id}: budget_cents=${task.budget_cents}, budget=${taskBudget}`);

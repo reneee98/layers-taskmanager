@@ -1,6 +1,11 @@
 -- Migration: Add function to get task workspace_id without RLS restrictions
 -- Purpose: Allow API to get workspace_id from task even if RLS blocks access
 
+-- Drop existing function if it exists (with any parameter name)
+DROP FUNCTION IF EXISTS get_task_workspace_id(UUID);
+DROP FUNCTION IF EXISTS get_task_workspace_id(uuid);
+
+-- Create function to get task workspace_id
 CREATE OR REPLACE FUNCTION get_task_workspace_id(task_id_param UUID)
 RETURNS UUID AS $$
 DECLARE

@@ -63,12 +63,12 @@ export async function GET(
     if (!task) {
       console.log(`[GET /api/tasks/${taskId}] Task not found without workspaceId, trying to get workspace_id...`);
       
-      // First, try to get just workspace_id from the task (RLS might allow this)
-      const { data: taskWorkspace, error: workspaceError } = await supabase
-        .from("tasks")
-        .select("workspace_id")
-        .eq("id", taskId)
-        .maybeSingle();
+      // First, try to get workspace_id from the task using SECURITY DEFINER function
+      // This bypasses RLS restrictions
+      const { data: taskWorkspaceData, error: workspaceError } = await supabase
+        .rpc('get_task_workspace_id', { task_id_param: taskId });
+      
+      const taskWorkspace = taskWorkspaceData ? { workspace_id: taskWorkspaceData } : null;
       
       console.log(`[GET /api/tasks/${taskId}] Workspace query result:`, { 
         hasWorkspace: !!taskWorkspace, 

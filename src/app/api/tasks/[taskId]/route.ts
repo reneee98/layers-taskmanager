@@ -33,14 +33,19 @@ export async function GET(
       });
     }
 
-    const { data: task, error } = await supabase
+    // Build query with workspace_id filter if available (helps with RLS)
+    // For tasks without project, we need to query tasks table directly without JOIN
+    let query = supabase
       .from("tasks")
-      .select(`
-        *,
-        project:projects(id, name, code, hourly_rate_cents, budget_cents)
-      `)
-      .eq("id", taskId)
-      .maybeSingle();
+      .select("*")
+      .eq("id", taskId);
+    
+    // Add workspace_id filter if available to help RLS policy
+    if (workspaceId) {
+      query = query.eq("workspace_id", workspaceId);
+    }
+    
+    const { data: task, error } = await query.maybeSingle();
 
     if (error) {
       console.error(`Task fetch error for ${taskId}:`, error);
@@ -61,6 +66,18 @@ export async function GET(
 
     if (!task) {
       return NextResponse.json({ success: false, error: "Úloha nebola nájdená" }, { status: 404 });
+    }
+
+    // Fetch project separately if task has project_id (avoids RLS issues with LEFT JOIN)
+    let project = null;
+    if (task.project_id) {
+      const { data: projectData } = await supabase
+        .from("projects")
+        .select("id, name, code, hourly_rate_cents, budget_cents")
+        .eq("id", task.project_id)
+        .maybeSingle();
+      
+      project = projectData;
     }
 
     // Fetch assignees for this task
@@ -128,10 +145,10 @@ export async function GET(
     // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
     const taskWithHourlyRate = {
       ...task,
-      project: task.project ? {
-        ...task.project,
-        hourly_rate: task.project.hourly_rate_cents ? task.project.hourly_rate_cents / 100 : null,
-        fixed_fee: task.project.budget_cents ? task.project.budget_cents / 100 : null
+      project: project ? {
+        ...project,
+        hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
+        fixed_fee: project.budget_cents ? project.budget_cents / 100 : null
       } : null,
       assignees: assigneesWithUsers
     };

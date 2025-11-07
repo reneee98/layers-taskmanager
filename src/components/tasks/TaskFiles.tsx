@@ -261,13 +261,13 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
   if (isLoading) {
     return (
       <Card className="bg-card border border-border shadow-sm">
-        <CardHeader className="bg-muted/50">
-          <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <File className="h-5 w-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+            <File className="h-4 w-4" />
             Súbory
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="pt-0">
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             <span className="ml-2 text-muted-foreground">Načítavam súbory...</span>
@@ -279,20 +279,20 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
 
   return (
     <>
-    <Card className="bg-card border border-border shadow-sm">
-      <CardHeader className="bg-muted/50">
-        <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <File className="h-5 w-5" />
-          Súbory
-          {files.length > 0 && (
-            <Badge variant="secondary" className="ml-2">
-              {files.length}
-            </Badge>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent 
-        className="p-6"
+      <Card className="bg-card border border-border shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+            <File className="h-4 w-4" />
+            Súbory
+            {files.length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {files.length}
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent 
+          className="pt-0"
         onDragOver={(e) => {
           e.preventDefault();
           e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/20', 'border-blue-300', 'dark:border-blue-700', 'scale-105', 'shadow-lg');
@@ -312,10 +312,12 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
         }}
       >
         {files.length === 0 && !isUploading ? (
-          <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-border rounded-lg hover:border-blue-300 dark:hover:border-blue-700 transition-colors duration-300">
-            <Upload className="h-12 w-12 mx-auto mb-4 opacity-50 animate-bounce" />
-            <p>Žiadne súbory nie sú nahrané</p>
-            <p className="text-sm mt-1">Drag & drop súbory sem alebo paste do popisu úlohy</p>
+          <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-border rounded-lg">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-muted/50 flex items-center justify-center">
+              <Upload className="h-6 w-6 opacity-50" />
+            </div>
+            <h3 className="font-medium text-foreground mb-1 text-sm">Žiadne súbory nie sú nahrané</h3>
+            <p className="text-xs">Drag & drop súbory sem alebo paste do popisu úlohy</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">

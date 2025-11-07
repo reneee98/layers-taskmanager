@@ -96,12 +96,60 @@ const TaskFiles = dynamic(() => import("@/components/tasks/TaskFiles").then(mod 
 const FileUploadHandler = dynamic(() => import("@/components/tasks/FileUploadHandler").then(mod => ({ default: mod.FileUploadHandler })), {
   ssr: false,
 });
+
+const TaskDescription = dynamic(() => import("@/components/tasks/TaskDescription").then(mod => ({ default: mod.TaskDescription })), {
+  loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
+  ssr: false,
+});
+
+// Status component for TaskDescription
+const TaskDescriptionStatus = ({ taskId }: { taskId: string }) => {
+  const [status, setStatus] = useState<"idle" | "typing" | "saving" | "saved" | "error">("idle");
+  const [statusText, setStatusText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleStatusChange = (newStatus: "idle" | "typing" | "saving" | "saved" | "error", text: string) => {
+      setStatus(newStatus);
+      setStatusText(text);
+      if (newStatus === "error") {
+        setError(text);
+      } else {
+        setError(null);
+      }
+    };
+
+    // Listen for custom events from TaskDescription
+    const handleCustomStatusChange = (e: CustomEvent) => {
+      handleStatusChange(e.detail.status, e.detail.text);
+    };
+
+    window.addEventListener(`task-description-status-${taskId}` as any, handleCustomStatusChange as EventListener);
+
+    return () => {
+      window.removeEventListener(`task-description-status-${taskId}` as any, handleCustomStatusChange as EventListener);
+    };
+  }, [taskId]);
+
+  if (status === "idle") return null;
+
+  const statusColor = status === "error" ? "text-red-500" : status === "saved" ? "text-green-500" : "text-muted-foreground";
+
+  return (
+    <div className={cn("flex items-center gap-1 text-[10px] leading-tight", statusColor)}>
+      {status === "saving" && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+      {status === "saved" && <CheckCircle className="h-2.5 w-2.5" />}
+      {status === "error" && <AlertCircle className="h-2.5 w-2.5" />}
+      <span className="text-[10px]">{statusText}</span>
+    </div>
+  );
+};
 import { toast } from "@/hooks/use-toast";
 import { formatHours } from "@/lib/format";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
-import type { Task, TaskAssignee } from "@/types/database";
 import { cn } from "@/lib/utils";
+import type { Task, TaskAssignee } from "@/types/database";
 import { getDeadlineStatus, getDeadlineBadge } from "@/lib/deadline-utils";
 import { useTimer } from "@/contexts/TimerContext";
 import { usePermission } from "@/hooks/usePermissions";
@@ -1458,31 +1506,14 @@ export default function TaskDetailPage() {
                       <FileText className="h-4 w-4" />
                       Popis úlohy
                     </CardTitle>
-                    {isSaving && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Ukladám...
-                      </div>
-                    )}
+                    <TaskDescriptionStatus taskId={taskId} />
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <FileUploadHandler
+                  <TaskDescription
                     taskId={taskId}
-                    onFileUploaded={() => {
-                      // File uploaded successfully
-                    }}
-                  >
-                    <QuillEditor
-                      key={task?.id}
-                      content={descriptionHtml}
-                      onChange={handleDescriptionChange}
-                      placeholder="Napíšte popis úlohy..."
-                      className="min-h-[150px]"
-                      editable={isEditing}
-                      taskId={taskId}
-                    />
-                  </FileUploadHandler>
+                    initialDescription={task?.description || ""}
+                  />
                 </CardContent>
               </Card>
 

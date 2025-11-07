@@ -509,3 +509,26 @@
   animation: color-shift-dark-reverse 12s ease-in-out infinite;
 }
 
+/* Ensure Tiptap BubbleMenu is clickable and above everything, including fixed/sticky sidebar (z-40) */
+[role="toolbar"] {
+  position: fixed !important;
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+  isolation: isolate !important;
+}
+
+[role="toolbar"] * {
+  pointer-events: auto !important;
+  position: relative !important;
+}
+
+/* Shift BubbleMenu to the right if it's too close to left edge (sidebar area) */
+[role="toolbar"] {
+  min-width: fit-content;
+}
+
+/* If toolbar is positioned too far left (within sidebar width), ensure it shifts right */
+[role="toolbar"][style*="left"] {
+  left: max(300px, var(--toolbar-left, 0px)) !important;
+}
+

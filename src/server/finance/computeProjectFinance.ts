@@ -249,26 +249,15 @@ export const computeProjectFinance = async (
     .reduce((sum, ci) => sum + (ci.amount || 0), 0) || 0;
 
   // 6. Get total budget from done tasks only
-  // If budget_cents is not set, calculate from time entries (calculated_price)
-  const budgetAmount = await Promise.all(
-    doneTasks.map(async (task) => {
-      if (task.budget_cents) {
-        const taskBudget = task.budget_cents / 100;
-        console.log(`Task ${task.id}: budget_cents=${task.budget_cents}, budget=${taskBudget}`);
-        return taskBudget;
-      } else {
-        // Fallback: calculate from time entries (like calculated_price)
-        const { data: timeEntries } = await supabase
-          .from("time_entries")
-          .select("amount")
-          .eq("task_id", task.id);
-        
-        const calculatedPrice = timeEntries?.reduce((sum, entry) => sum + (entry.amount || 0), 0) || 0;
-        console.log(`Task ${task.id}: no budget_cents, calculated_price=${calculatedPrice}`);
-        return calculatedPrice;
-      }
-    })
-  ).then(results => results.reduce((sum, val) => sum + val, 0));
+  // Only use tasks with budget_cents set - if not set, don't count it in budgetAmount
+  // (time_entries.amount only contains hours OVER budget, not within budget)
+  const budgetAmount = doneTasks
+    .filter(task => task.budget_cents && task.budget_cents > 0)
+    .reduce((sum, task) => {
+      const taskBudget = task.budget_cents / 100;
+      console.log(`Task ${task.id}: budget_cents=${task.budget_cents}, budget=${taskBudget}`);
+      return sum + taskBudget;
+    }, 0);
 
   // 7. Calculate totals - labor + budget is revenue, external costs are losses (only for done tasks)
   const totalCost = externalCost; // Only external costs count as costs

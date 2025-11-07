@@ -12,21 +12,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Get active timer for current user
+    // First get timer without joins to avoid RLS issues
     const { data: timer, error } = await supabase
       .from("task_timers")
-      .select(`
-        id,
-        task_id,
-        started_at,
-        tasks!inner(
-          id,
-          title,
-          projects!inner(
-            id,
-            name
-          )
-        )
-      `)
+      .select("id, task_id, started_at")
       .eq("user_id", user.id)
       .is("stopped_at", null)
       .single();
@@ -44,6 +33,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, data: null });
     }
 
+    // Now get task details separately
+    const { data: taskData } = await supabase
+      .from("tasks")
+      .select(`
+        id,
+        title,
+        project_id,
+        projects:project_id(
+          id,
+          name
+        )
+      `)
+      .eq("id", timer.task_id)
+      .single();
+
     // Calculate duration
     const startedAt = new Date(timer.started_at);
     const now = new Date();
@@ -52,9 +56,9 @@ export async function GET(request: NextRequest) {
     const activeTimer = {
       id: timer.id,
       task_id: timer.task_id,
-      task_name: (timer.tasks as any)?.title || 'Unknown Task',
-      project_name: (timer.tasks as any)?.projects?.name || 'Unknown Project',
-      project_id: (timer.tasks as any)?.projects?.id || '',
+      task_name: taskData?.title || 'Unknown Task',
+      project_name: (taskData?.projects as any)?.name || '',
+      project_id: taskData?.project_id || '',
       started_at: timer.started_at,
       duration,
     };

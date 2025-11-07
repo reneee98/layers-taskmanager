@@ -99,12 +99,18 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
       const result = await response.json();
       if (result.success) {
+        // Wait a bit before refreshing to ensure timer is saved
+        await new Promise(resolve => setTimeout(resolve, 500));
         await refreshTimer();
+        // Double check after another short delay
+        setTimeout(() => refreshTimer(), 1000);
       } else {
-        console.error("Failed to start timer:", result.error);
+        console.error("Failed to start timer:", result.error, result);
+        throw new Error(result.error || "Failed to start timer");
       }
     } catch (error) {
       console.error("Error starting timer:", error);
+      throw error;
     }
   };
 

@@ -86,9 +86,16 @@ export function GlobalTimer() {
   };
 
   const handleClick = () => {
-    if (activeTimer.task_id && activeTimer.project_id) {
-      const url = `/projects/${activeTimer.project_id}/tasks/${activeTimer.task_id}`;
-      router.push(url);
+    if (activeTimer.task_id) {
+      if (activeTimer.project_id) {
+        // Task with project - go to project task detail
+        const url = `/projects/${activeTimer.project_id}/tasks/${activeTimer.task_id}`;
+        router.push(url);
+      } else {
+        // Task without project - go to task detail
+        const url = `/tasks/${activeTimer.task_id}`;
+        router.push(url);
+      }
     }
   };
 
@@ -107,10 +114,14 @@ export function GlobalTimer() {
         className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity group"
         onClick={handleClick}
       >
-        <span className="text-xs text-muted-foreground font-medium">
-          {activeTimer.project_name}
-        </span>
-        <span className="text-xs text-muted-foreground">•</span>
+        {activeTimer.project_name && (
+          <>
+            <span className="text-xs text-muted-foreground font-medium">
+              {activeTimer.project_name}
+            </span>
+            <span className="text-xs text-muted-foreground">•</span>
+          </>
+        )}
         <span className="text-xs font-medium text-foreground truncate max-w-[120px]">
           {activeTimer.task_name}
         </span>

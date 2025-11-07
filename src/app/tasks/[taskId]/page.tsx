@@ -187,7 +187,7 @@ export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const taskId = Array.isArray(params.taskId) ? params.taskId[0] : params.taskId;
-  const { activeTimer, startTimer, stopTimer } = useTimer();
+  const { activeTimer, startTimer, stopTimer, refreshTimer } = useTimer();
   const { hasPermission: canReadTasks } = usePermission('tasks', 'read');
   const { hasPermission: canViewHourlyRates } = usePermission('financial', 'view_hourly_rates');
   const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
@@ -1047,14 +1047,17 @@ export default function TaskDetailPage() {
         task.project_id,
         task.project?.name || "Neznámy projekt"
       );
+      // Refresh timer state after starting
+      await refreshTimer();
       toast({
         title: "Časovač spustený",
         description: `Začal som trackovať čas pre úlohu "${task.title}"`,
       });
     } catch (error) {
+      console.error("Error in handleTimerToggle:", error);
       toast({
         title: "Chyba",
-        description: "Nepodarilo sa spustiť časovač",
+        description: error instanceof Error ? error.message : "Nepodarilo sa spustiť časovač",
         variant: "destructive",
       });
     } finally {

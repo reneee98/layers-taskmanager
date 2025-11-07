@@ -688,7 +688,7 @@ export default function ProjectReportPage() {
       </div>
 
       {/* Report Content */}
-      <div className="space-y-6 print:space-y-2mm bg-white">
+      <div className="space-y-6 print:space-y-2mm">
         {/* Project Header */}
         <div className="space-y-4 print:mb-0">
           <Card className="border border-border shadow-sm print:mb-0 print:bg-transparent print:shadow-none print:rounded-lg">

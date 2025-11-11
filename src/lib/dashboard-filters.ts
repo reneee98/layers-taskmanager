@@ -67,7 +67,7 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
 
     case "all_active":
       return tasks.filter(task => 
-        task.status !== "done" && task.status !== "cancelled"
+        task.status === "todo" || task.status === "in_progress"
       );
 
     case "unassigned":

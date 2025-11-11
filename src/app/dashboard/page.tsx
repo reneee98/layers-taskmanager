@@ -54,6 +54,7 @@ import {
   Trash2,
   Flag,
   UserMinus,
+  X,
   Square,
   MessageSquareMore,
   MessageSquareX,
@@ -103,16 +104,261 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
-import { cn, stripHtml } from "@/lib/utils";
+import { cn, stripHtml, truncateTaskTitle } from "@/lib/utils";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { toast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { Profile } from "@/types/database";
 
 // Lazy load WeekCalendar - only load when calendar view is active
 const WeekCalendar = dynamic(() => import("@/components/calendar/WeekCalendar").then(mod => ({ default: mod.WeekCalendar })), {
   loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
   ssr: false,
 });
+
+interface DashboardAssigneeCellProps {
+  task: any; // Using any to avoid type issues with AssignedTask vs Task
+  onTaskUpdate: (taskId: string, updates: { status?: string; priority?: string }) => Promise<void>;
+}
+
+function DashboardAssigneeCell({ task, onTaskUpdate }: DashboardAssigneeCellProps) {
+  const [users, setUsers] = useState<Profile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const getInitials = (name?: string) => {
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch("/api/workspace-users");
+        const result = await response.json();
+        if (result.success) {
+          setUsers(result.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch workspace users:", error);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  const handleAddAssignee = async (userId: string) => {
+    if (userId === "none") return;
+
+    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
+    if (currentAssigneeIds.includes(userId)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/assignees`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assigneeIds: [...currentAssigneeIds, userId],
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Refresh assignees
+        const assigneesResponse = await fetch(`/api/tasks/${task.id}/assignees`);
+        const assigneesResult = await assigneesResponse.json();
+        if (assigneesResult.success) {
+          // Refresh the page or update local state
+          window.location.reload();
+        }
+        setIsOpen(false);
+        toast({
+          title: "Úspech",
+          description: "Používateľ bol priradený k úlohe",
+        });
+      } else {
+        toast({
+          title: "Chyba",
+          description: result.error || "Nepodarilo sa priradiť používateľa",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to add assignee:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa priradiť používateľa",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveAssignee = async (userId: string) => {
+    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
+    const newAssigneeIds = currentAssigneeIds.filter(id => id !== userId);
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/assignees`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assigneeIds: newAssigneeIds,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Refresh the page or update local state
+        window.location.reload();
+        toast({
+          title: "Úspech",
+          description: "Používateľ bol odstránený z úlohy",
+        });
+      } else {
+        toast({
+          title: "Chyba",
+          description: result.error || "Nepodarilo sa odstrániť používateľa",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to remove assignee:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa odstrániť používateľa",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const availableUsers = users.filter(user => {
+    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
+    return !currentAssigneeIds.includes(user.id);
+  });
+
+  return (
+    <div className="flex items-center gap-1">
+      {task.assignees && task.assignees.length > 0 ? (
+        <>
+          {task.assignees.slice(0, 4).map((assignee, index) => {
+            const assigneeId = assignee.user_id || assignee.id;
+            const assigneeName = (assignee as any).user?.name || (assignee as any).display_name || (assignee as any).email || 'Neznámy používateľ';
+            return (
+              <div 
+                key={assignee.id} 
+                className="h-6 w-6 rounded-full bg-muted flex items-center justify-center group/avatar relative"
+                title={assigneeName}
+              >
+                <span className="text-xs text-muted-foreground font-medium">
+                  {assigneeName !== 'Neznámy používateľ' ? assigneeName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
+                </span>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                  {assigneeName}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                </div>
+                {/* Remove button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full p-0 bg-black text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center z-20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveAssignee(assigneeId);
+                  }}
+                  disabled={isLoading}
+                >
+                  <X className="h-2 w-2" />
+                </Button>
+              </div>
+            );
+          })}
+          {task.assignees.length > 4 && (
+            <div 
+              className="h-6 w-6 rounded-full bg-muted flex items-center justify-center group/overflow relative"
+              title={`Ďalší assignee: ${task.assignees.slice(4).map(a => (a as any).user?.name || (a as any).display_name || (a as any).email).filter(Boolean).join(', ')}`}
+            >
+              <span className="text-xs text-muted-foreground">
+                +{task.assignees.length - 4}
+              </span>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/overflow:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                {task.assignees.slice(4).map(a => (a as any).user?.name || (a as any).display_name || (a as any).email).filter(Boolean).join(', ')}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div 
+          className="h-6 w-6 rounded-full border-2 border-dashed border-border flex items-center justify-center"
+          title="Žiadny assignee"
+        >
+          <span className="text-xs text-muted-foreground">?</span>
+        </div>
+      )}
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 rounded-full p-0 hover:bg-accent border border-dashed border-border hover:border-solid"
+            disabled={isLoading || availableUsers.length === 0}
+          >
+            <Plus className="h-3 w-3 text-muted-foreground" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48">
+          {availableUsers.length === 0 ? (
+            <DropdownMenuItem disabled>Všetci používatelia sú už priradení</DropdownMenuItem>
+          ) : (
+            availableUsers.map((user) => {
+              const userName = (user as any).name || (user as any).display_name || user.email || "Neznámy";
+              return (
+                <DropdownMenuItem
+                  key={user.id}
+                  onClick={() => handleAddAssignee(user.id)}
+                  className="flex items-center gap-2"
+                >
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-xs">
+                      {getInitials(userName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm">{userName}</span>
+                </DropdownMenuItem>
+              );
+            })
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
 import {
   Dialog,
   DialogContent,
@@ -1335,7 +1581,6 @@ export default function DashboardPage() {
                     <TableHeader>
                       <TableRow className="bg-muted/80 hover:bg-muted border-b border-border">
                         <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Úloha</TableHead>
-                        <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Projekt</TableHead>
                         <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Status</TableHead>
                         <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Assignee</TableHead>
                         <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Priorita</TableHead>
@@ -1366,31 +1611,22 @@ export default function DashboardPage() {
                     >
                           <TableCell className="py-4 pl-6 pr-2">
                             <div className="min-w-0 space-y-1">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 flex-shrink-0">
-                                  {deadlineStatus && 
-                                   task.status !== "done" && 
-                                   task.status !== "cancelled" && 
-                                   task.project &&
-                                   (task.project as any).status !== "completed" &&
-                                   (task.project as any).status !== "cancelled" && (
-                                    <div className={getDeadlineDotClass(deadlineStatus)}></div>
-                                  )}
-                                </div>
-                                <h3 className="font-semibold truncate text-sm group-hover:text-foreground text-foreground">
-                                  {stripHtml(task.title)}
+                              <div className="flex items-center">
+                                <h3 className="font-semibold truncate text-sm group-hover:text-foreground text-foreground" title={stripHtml(task.title)}>
+                                  {truncateTaskTitle(task.title, 50)}
                                 </h3>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-4 pl-6 pr-2">
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium text-foreground group-hover:text-foreground">
-                                {task.project?.name || 'Neznámy projekt'}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {task.project?.code || 'N/A'}
-                              </div>
+                              {task.project && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  {task.project.name}
+                                  {task.project.code && (
+                                    <>
+                                      <span>•</span>
+                                      <span>{task.project.code}</span>
+                                    </>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2">
@@ -1402,51 +1638,8 @@ export default function DashboardPage() {
                               />
                             </div>
                           </TableCell>
-                          <TableCell className="py-4 pl-6 pr-2">
-                            <div className="flex items-center gap-1">
-                              {task.assignees && task.assignees.length > 0 ? (
-                                <>
-                                  {task.assignees.slice(0, 4).map((assignee, index) => (
-                                    <div 
-                                      key={assignee.id} 
-                                      className="h-6 w-6 rounded-full bg-muted flex items-center justify-center group/avatar relative"
-                                      title={assignee.user?.name || 'Neznámy používateľ'}
-                                    >
-                                      <span className="text-xs text-muted-foreground font-medium">
-                                        {assignee.user?.name ? assignee.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
-                                      </span>
-                                      {/* Tooltip */}
-                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                                        {assignee.user?.name || 'Neznámy používateľ'}
-                                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                  {task.assignees.length > 4 && (
-                                    <div 
-                                      className="h-6 w-6 rounded-full bg-muted flex items-center justify-center group/overflow relative"
-                                      title={`Ďalší assignee: ${task.assignees.slice(4).map(a => a.user?.name).filter(Boolean).join(', ')}`}
-                                    >
-                                      <span className="text-xs text-muted-foreground">
-                                        +{task.assignees.length - 4}
-                                      </span>
-                                      {/* Tooltip */}
-                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/overflow:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                                        {task.assignees.slice(4).map(a => a.user?.name).filter(Boolean).join(', ')}
-                                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <div 
-                                  className="h-6 w-6 rounded-full border-2 border-dashed border-border flex items-center justify-center"
-                                  title="Žiadny assignee"
-                                >
-                                  <span className="text-xs text-muted-foreground">?</span>
-                                </div>
-                              )}
-                            </div>
+                          <TableCell className="py-4 pl-6 pr-2" onClick={(e) => e.stopPropagation()}>
+                            <DashboardAssigneeCell task={task} onTaskUpdate={handleUpdateTask} />
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2">
                             <div onClick={(e) => e.stopPropagation()}>

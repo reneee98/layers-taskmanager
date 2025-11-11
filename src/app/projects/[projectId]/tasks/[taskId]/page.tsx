@@ -1244,6 +1244,7 @@ export default function TaskDetailPage() {
                     status={task.status} 
                     onStatusChange={handleStatusChange}
                     disabled={!canUpdateTasks}
+                    size="default"
                   />
                 </div>
 
@@ -1257,6 +1258,7 @@ export default function TaskDetailPage() {
                     priority={task.priority} 
                     onPriorityChange={handlePriorityChange}
                     disabled={!canUpdateTasks}
+                    size="default"
                   />
                 </div>
 

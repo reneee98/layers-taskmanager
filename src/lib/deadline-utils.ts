@@ -98,18 +98,6 @@ export const getDeadlineRowClass = (deadlineStatus: DeadlineStatus | null) => {
 };
 
 export const getDeadlineDotClass = (deadlineStatus: DeadlineStatus | null) => {
-  if (!deadlineStatus) return '';
-  
-  switch (deadlineStatus.priority) {
-    case 'critical':
-      return 'w-2 h-2 bg-red-500 rounded-full animate-pulse';
-    case 'high':
-      return 'w-2 h-2 bg-orange-500 rounded-full animate-pulse';
-    case 'medium':
-      return 'w-2 h-2 bg-yellow-500 rounded-full animate-pulse';
-    case 'low':
-      return 'w-2 h-2 bg-blue-500 rounded-full animate-pulse';
-    default:
-      return '';
-  }
+  // Deadline dot disabled globally
+  return '';
 };

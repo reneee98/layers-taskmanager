@@ -53,3 +53,21 @@ export const stripHtml = (html: string | null | undefined): string => {
     .trim();
 };
 
+/**
+ * Truncates task title to a maximum length
+ * @param title - Task title to truncate
+ * @param maxLength - Maximum length (default: 50)
+ * @returns Truncated title with ellipsis if needed
+ */
+export const truncateTaskTitle = (title: string | null | undefined, maxLength: number = 50): string => {
+  if (!title) return '';
+  const cleanTitle = stripHtml(title).trim();
+  if (cleanTitle.length <= maxLength) return cleanTitle;
+  // Find the last space before maxLength to avoid cutting words, but limit search to last 10 chars
+  const truncated = cleanTitle.substring(0, maxLength);
+  const lastSpaceIndex = truncated.lastIndexOf(' ', maxLength - 10);
+  // If we found a space and it's not too far from the end, use it
+  const finalText = lastSpaceIndex > maxLength - 15 ? truncated.substring(0, lastSpaceIndex).trim() : truncated.trim();
+  return finalText + '...';
+};
+

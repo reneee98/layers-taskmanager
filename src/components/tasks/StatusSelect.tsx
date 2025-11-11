@@ -16,6 +16,7 @@ interface StatusSelectProps {
   status: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled";
   onStatusChange: (status: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled") => void;
   disabled?: boolean;
+  size?: "default" | "compact";
 }
 
 const statusOptions = [
@@ -63,7 +64,7 @@ const statusOptions = [
   },
 ];
 
-export function StatusSelect({ status, onStatusChange, disabled = false }: StatusSelectProps) {
+export function StatusSelect({ status, onStatusChange, disabled = false, size = "compact" }: StatusSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   
   const currentStatus = statusOptions.find(option => option.value === status) || statusOptions[0];
@@ -75,19 +76,30 @@ export function StatusSelect({ status, onStatusChange, disabled = false }: Statu
 
   const IconComponent = currentStatus.icon;
 
+  const isCompact = size === "compact";
+
   return (
     <DropdownMenu open={disabled ? false : isOpen} onOpenChange={disabled ? undefined : setIsOpen}>
       <DropdownMenuTrigger asChild>
         <div className="h-auto p-0">
           <div className={cn(
-            "flex items-center gap-2 px-3 py-2 h-[2.5rem] rounded-md border transition-all duration-200",
-            "text-sm font-medium",
+            "flex items-center rounded-md border transition-all duration-200",
+            isCompact ? "gap-1 px-1.5 py-0.5 h-6 w-fit text-xs" : "gap-2 px-3 py-2 h-[2.5rem] text-sm",
+            "font-medium whitespace-nowrap",
             currentStatus.color,
             disabled ? "cursor-default" : "cursor-pointer hover:opacity-80"
           )}>
-            <IconComponent className={cn("h-4 w-4", currentStatus.iconColor, status === "in_progress" && "animate-pulse")} />
-            <span>{currentStatus.label}</span>
-            {!disabled && <ChevronDown className="h-3 w-3 opacity-70" />}
+            <IconComponent className={cn(
+              "flex-shrink-0",
+              isCompact ? "h-3 w-3" : "h-4 w-4",
+              currentStatus.iconColor,
+              status === "in_progress" && "animate-pulse"
+            )} />
+            <span className="whitespace-nowrap">{currentStatus.label}</span>
+            {!disabled && <ChevronDown className={cn(
+              "opacity-70 flex-shrink-0",
+              isCompact ? "h-2.5 w-2.5" : "h-3 w-3"
+            )} />}
           </div>
         </div>
       </DropdownMenuTrigger>

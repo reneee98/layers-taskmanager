@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Task, Profile } from "@/types/database";
@@ -35,10 +35,12 @@ import {
   Send,
   ChevronDown,
   Check,
+  Plus,
+  X,
 } from "lucide-react";
 import { formatHours, formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml, truncateTaskTitle } from "@/lib/utils";
 import { getTextPreview } from "@/lib/utils/html";
 import { getDeadlineStatus, getDeadlineDotClass } from "@/lib/deadline-utils";
 import { isProjectArchived } from "@/lib/project-utils";
@@ -125,6 +127,200 @@ const priorityConfig = {
     iconColor: "text-red-500" 
   },
 };
+
+interface AssigneeCellProps {
+  task: Task;
+  onUpdate: (taskId: string, data: Partial<Task>) => Promise<void>;
+}
+
+function AssigneeCell({ task, onUpdate }: AssigneeCellProps) {
+  const [users, setUsers] = useState<Profile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const getInitials = (name?: string) => {
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch("/api/workspace-users");
+        const result = await response.json();
+        if (result.success) {
+          setUsers(result.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch workspace users:", error);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  const handleAddAssignee = async (userId: string) => {
+    if (userId === "none") return;
+
+    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
+    if (currentAssigneeIds.includes(userId)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/assignees`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assigneeIds: [...currentAssigneeIds, userId],
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Refresh assignees
+        const assigneesResponse = await fetch(`/api/tasks/${task.id}/assignees`);
+        const assigneesResult = await assigneesResponse.json();
+        if (assigneesResult.success) {
+          // Update task with new assignees
+          await onUpdate(task.id, { assignees: assigneesResult.data } as any);
+        }
+        setIsOpen(false);
+      }
+    } catch (error) {
+      console.error("Failed to add assignee:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveAssignee = async (userId: string) => {
+    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
+    const newAssigneeIds = currentAssigneeIds.filter(id => id !== userId);
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/assignees`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assigneeIds: newAssigneeIds,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Refresh assignees
+        const assigneesResponse = await fetch(`/api/tasks/${task.id}/assignees`);
+        const assigneesResult = await assigneesResponse.json();
+        if (assigneesResult.success) {
+          // Update task with new assignees
+          await onUpdate(task.id, { assignees: assigneesResult.data } as any);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to remove assignee:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const availableUsers = users.filter(user => {
+    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
+    return !currentAssigneeIds.includes(user.id);
+  });
+
+  return (
+    <div className="flex items-center gap-1">
+      {task.assignees && task.assignees.length > 0 ? (
+        <>
+          {task.assignees.slice(0, 3).map((assignee) => {
+            const assigneeId = assignee.user_id || assignee.id;
+            return (
+              <div
+                key={assigneeId}
+                className="relative group/assignee"
+              >
+                <Avatar className="h-6 w-6 border-2 border-background">
+                  <AvatarFallback className="text-xs">
+                    {getInitials((assignee as any).display_name || (assignee as any).email || (assignee as any).user?.name || '?')}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full p-0 bg-black text-white opacity-0 group-hover/assignee:opacity-100 transition-opacity flex items-center justify-center"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveAssignee(assigneeId);
+                  }}
+                  disabled={isLoading}
+                >
+                  <X className="h-2 w-2" />
+                </Button>
+              </div>
+            );
+          })}
+          {task.assignees.length > 3 && (
+            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center border-2 border-background">
+              <span className="text-xs text-muted-foreground">+{task.assignees.length - 3}</span>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+          <span className="text-xs text-muted-foreground">-</span>
+        </div>
+      )}
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 rounded-full p-0 hover:bg-accent border border-dashed border-border hover:border-solid"
+            disabled={isLoading || availableUsers.length === 0}
+          >
+            <Plus className="h-3 w-3 text-muted-foreground" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48">
+          {availableUsers.length === 0 ? (
+            <DropdownMenuItem disabled>Všetci používatelia sú už priradení</DropdownMenuItem>
+          ) : (
+            availableUsers.map((user) => {
+              const userName = (user as any).name || (user as any).display_name || user.email || "Neznámy";
+              return (
+                <DropdownMenuItem
+                  key={user.id}
+                  onClick={() => handleAddAssignee(user.id)}
+                  className="flex items-center gap-2"
+                >
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-xs">
+                      {getInitials(userName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm">{userName}</span>
+                </DropdownMenuItem>
+              );
+            })
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
 
 export function TaskRow({
   task,
@@ -232,18 +428,27 @@ export function TaskRow({
       {/* Title */}
       <TableCell className="py-4 pl-6 pr-2">
         <div className="min-w-0 space-y-1">
-          <div className="flex items-center gap-2">
-            {showDeadlineDot && (
-              <div className={cn("flex-shrink-0", deadlineDotClass)} />
-            )}
+          <div className="flex items-center">
             <Link 
-              href={`/projects/${task.project_id}?tab=time`}
+              href={task.project_id ? `/projects/${task.project_id}/tasks/${task.id}` : `/tasks/${task.id}`}
               className="font-semibold text-sm text-foreground hover:text-foreground/80 hover:underline inline-flex items-center gap-1 group/link"
+              title={stripHtml(task.title)}
             >
-              {task.title}
+              {truncateTaskTitle(task.title, 50)}
               <ExternalLink className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
             </Link>
           </div>
+          {task.project && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {task.project.name}
+              {task.project.code && (
+                <>
+                  <span>•</span>
+                  <span>{task.project.code}</span>
+                </>
+              )}
+            </div>
+          )}
           {task.description && (
             <div className="text-xs text-muted-foreground line-clamp-1">
               {getTextPreview(task.description, 80)}
@@ -270,13 +475,13 @@ export function TaskRow({
                 return (
                   <div className={cn(
                     "cursor-pointer flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200",
-                    "text-xs font-medium",
+                    "text-xs font-medium whitespace-nowrap",
                     config.color,
                     "hover:opacity-80"
                   )}>
-                    <IconComponent className={cn("h-3.5 w-3.5", config.iconColor, task.status === "in_progress" && "animate-pulse")} />
-                    <span>{config.label}</span>
-                    <ChevronDown className="h-3 w-3 opacity-70" />
+                    <IconComponent className={cn("h-3.5 w-3.5 flex-shrink-0", config.iconColor, task.status === "in_progress" && "animate-pulse")} />
+                    <span className="whitespace-nowrap">{config.label}</span>
+                    <ChevronDown className="h-3 w-3 opacity-70 flex-shrink-0" />
                   </div>
                 );
               })()}
@@ -302,29 +507,8 @@ export function TaskRow({
       </TableCell>
 
       {/* Assignees */}
-      <TableCell className="py-4 pl-6 pr-2">
-        <div className="flex items-center gap-1">
-          {task.assignees && task.assignees.length > 0 ? (
-            <>
-              {task.assignees.slice(0, 3).map((assignee) => (
-                <Avatar key={assignee.user_id || assignee.id} className="h-6 w-6 border-2 border-background">
-                  <AvatarFallback className="text-xs">
-                    {getInitials((assignee as any).display_name || (assignee as any).email || '?')}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
-              {task.assignees.length > 3 && (
-                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center border-2 border-background">
-                  <span className="text-xs text-muted-foreground">+{task.assignees.length - 3}</span>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-              <span className="text-xs text-muted-foreground">-</span>
-            </div>
-          )}
-        </div>
+      <TableCell className="py-4 pl-6 pr-2" onClick={(e) => e.stopPropagation()}>
+        <AssigneeCell task={task} onUpdate={onUpdate} />
       </TableCell>
 
       {/* Time - Estimated hours (budget) */}
@@ -453,13 +637,13 @@ export function TaskRow({
                 return (
                   <div className={cn(
                     "cursor-pointer flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200",
-                    "text-xs font-medium",
+                    "text-xs font-medium whitespace-nowrap",
                     config.color,
                     "hover:opacity-80"
                   )}>
-                    <IconComponent className={cn("h-3.5 w-3.5", config.iconColor, task.priority === "urgent" && "animate-pulse")} />
-                    <span>{config.label}</span>
-                    <ChevronDown className="h-3 w-3 opacity-70" />
+                    <IconComponent className={cn("h-3.5 w-3.5 flex-shrink-0", config.iconColor, task.priority === "urgent" && "animate-pulse")} />
+                    <span className="whitespace-nowrap">{config.label}</span>
+                    <ChevronDown className="h-3 w-3 opacity-70 flex-shrink-0" />
                   </div>
                 );
               })()}

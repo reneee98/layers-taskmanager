@@ -123,11 +123,19 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       const result = await response.json();
       if (result.success) {
         setActiveTimer(null);
+        setCurrentDuration(0);
       } else {
         console.error("Failed to stop timer:", result.error);
+        // Even if API call failed, clear the timer state to prevent UI issues
+        // The timer might have been stopped by another request or expired
+        setActiveTimer(null);
+        setCurrentDuration(0);
       }
     } catch (error) {
       console.error("Error stopping timer:", error);
+      // On error, still clear the timer state to prevent UI issues
+      setActiveTimer(null);
+      setCurrentDuration(0);
     }
   };
 

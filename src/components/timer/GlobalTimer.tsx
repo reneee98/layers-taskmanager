@@ -8,7 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
 export function GlobalTimer() {
-  const { activeTimer, currentDuration, stopTimer } = useTimer();
+  const { activeTimer, currentDuration, stopTimer, refreshTimer } = useTimer();
   const router = useRouter();
 
   if (!activeTimer) {
@@ -37,26 +37,20 @@ export function GlobalTimer() {
     const startedAt = new Date(activeTimer.started_at);
     const now = new Date();
     const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+    const taskName = activeTimer.task_name;
     
     try {
-      // Volať stopTimer API, ktorý automaticky uloží časový záznam a zastaví timer
-      const response = await fetch("/api/timers/stop", {
-        method: "POST",
+      // Volať stopTimer z kontextu, ktorý automaticky uloží časový záznam a zastaví timer
+      await stopTimer();
+      
+      // Počkáme chvíľu a refreshneme timer, aby sme sa uistili, že timer je skutočne zastavený
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await refreshTimer();
+      
+      toast({
+        title: "Časovač zastavený",
+        description: `Zapísaných ${formatTime(duration)} do úlohy "${taskName}".`,
       });
-
-      const result = await response.json();
-
-      if (result.success) {
-        // Refresh timer state using stopTimer from context
-        await stopTimer();
-        
-        toast({
-          title: "Časovač zastavený",
-          description: `Zapísaných ${formatTime(duration)} do úlohy "${activeTimer.task_name}".`,
-        });
-      } else {
-        throw new Error(result.error || "Nepodarilo sa zastaviť časovač");
-      }
     } catch (error) {
       console.error("Failed to stop timer:", error);
       toast({
@@ -65,7 +59,7 @@ export function GlobalTimer() {
         variant: "destructive",
       });
       // Still try to refresh timer state even if saving failed
-      await stopTimer();
+      await refreshTimer();
     }
   };
 

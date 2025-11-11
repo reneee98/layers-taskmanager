@@ -38,49 +38,33 @@ export function GlobalTimer() {
     const now = new Date();
     const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
     
-    if (duration <= 0) {
-      await stopTimer();
-      return;
-    }
-
-    const trackedHours = Number((duration / 3600).toFixed(3));
-    const endTime = now.toTimeString().slice(0, 8); // HH:mm:ss format
-    const startTime = startedAt.toTimeString().slice(0, 8); // HH:mm:ss format
-    
     try {
-      // Automaticky zapísať čas do úlohy
-      const payload = {
-        hours: trackedHours,
-        date: now.toISOString().split("T")[0],
-        description: "", // Prázdna poznámka - používateľ si ju dopíše sám
-        start_time: startTime,
-        end_time: endTime,
-      };
-
-      const response = await fetch(`/api/tasks/${activeTimer.task_id}/time`, {
+      // Volať stopTimer API, ktorý automaticky uloží časový záznam a zastaví timer
+      const response = await fetch("/api/timers/stop", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
       });
 
       const result = await response.json();
 
       if (result.success) {
+        // Refresh timer state using stopTimer from context
+        await stopTimer();
+        
         toast({
           title: "Časovač zastavený",
           description: `Zapísaných ${formatTime(duration)} do úlohy "${activeTimer.task_name}".`,
         });
       } else {
-        throw new Error(result.error);
+        throw new Error(result.error || "Nepodarilo sa zastaviť časovač");
       }
     } catch (error) {
-      console.error("Failed to save time entry:", error);
+      console.error("Failed to stop timer:", error);
       toast({
         title: "Chyba",
-        description: "Nepodarilo sa uložiť čas do úlohy",
+        description: error instanceof Error ? error.message : "Nepodarilo sa zastaviť časovač",
         variant: "destructive",
       });
-    } finally {
+      // Still try to refresh timer state even if saving failed
       await stopTimer();
     }
   };

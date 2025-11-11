@@ -140,43 +140,132 @@ export function useDashboardPermissions() {
   const { workspace } = useWorkspace();
   const { user } = useAuth();
   const [permissions, setPermissions] = useState<DashboardPermissions>(DEFAULT_PERMISSIONS);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Start with true - wait for permissions to load
+  const [hasLoaded, setHasLoaded] = useState(false); // Track if permissions have been loaded at least once
 
-  useEffect(() => {
+  const fetchPermissions = async () => {
     if (!workspace || !user) {
-      setLoading(false);
+      console.log('[useDashboardPermissions] Missing workspace or user');
       return;
     }
 
-    fetchPermissions();
-  }, [workspace?.id, user?.id]);
-
-  const fetchPermissions = async () => {
-    if (!workspace || !user) return;
-
     try {
+      console.log('[useDashboardPermissions] Fetching permissions for:', {
+        workspaceId: workspace.id,
+        userId: user.id
+      });
+
+      // Fetch without timeout - permissions are critical
       const response = await fetch(
         `/api/workspaces/${workspace.id}/users/${user.id}/dashboard-permissions`
       );
+      
+      console.log('[useDashboardPermissions] Response status:', response.status, response.ok);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[useDashboardPermissions] HTTP error:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
+      console.log('[useDashboardPermissions] Response data:', result);
+      console.log('[useDashboardPermissions] Response data.show_stats_overview:', result.data?.show_stats_overview);
+      console.log('[useDashboardPermissions] Response data.show_activities_section:', result.data?.show_activities_section);
+      console.log('[useDashboardPermissions] Response data.show_tasks_section:', result.data?.show_tasks_section);
 
       if (result.success && result.data) {
-        setPermissions(result.data);
+        // Merge with defaults to ensure all fields are present
+        const mergedPermissions = { ...DEFAULT_PERMISSIONS, ...result.data };
+        console.log('[useDashboardPermissions] Merged permissions:', {
+          show_tasks_section: mergedPermissions.show_tasks_section,
+          show_activities_section: mergedPermissions.show_activities_section,
+          show_stats_overview: mergedPermissions.show_stats_overview,
+        });
+        console.log('[useDashboardPermissions] About to set permissions, current state:', permissions);
+        setPermissions(mergedPermissions);
+        setHasLoaded(true);
+        setLoading(false);
+        console.log('[useDashboardPermissions] Permissions set and loaded');
       } else {
-        // Use defaults if no permissions found
-        setPermissions(DEFAULT_PERMISSIONS);
+        console.warn('[useDashboardPermissions] Response not successful or missing data:', result);
+        setHasLoaded(true);
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching dashboard permissions:", error);
-      // Use defaults on error
-      setPermissions(DEFAULT_PERMISSIONS);
-    } finally {
+    } catch (error: any) {
+      console.error('[useDashboardPermissions] Error fetching permissions:', error);
+      // Keep using DEFAULT_PERMISSIONS which are already set
+      setHasLoaded(true);
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (!workspace || !user) {
+      console.log('[useDashboardPermissions] useEffect: Missing workspace or user');
+      return;
+    }
+
+    console.log('[useDashboardPermissions] useEffect: Fetching permissions', {
+      workspaceId: workspace.id,
+      userId: user.id
+    });
+    // Fetch in background - don't block UI
+    fetchPermissions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace?.id, user?.id]);
+
+  // Return empty permissions (all false) until loaded, then use actual permissions
+  // This prevents showing everything before permissions are loaded
+  const emptyPermissions: DashboardPermissions = {
+    show_stats_overview: false,
+    show_tasks_section: false,
+    show_activities_section: false,
+    show_calendar_section: false,
+    show_projects_section: false,
+    show_clients_section: false,
+    show_tab_all_active: false,
+    show_tab_today: false,
+    show_tab_sent_to_client: false,
+    show_tab_in_progress: false,
+    show_tab_unassigned: false,
+    show_tab_overdue: false,
+    show_tab_upcoming: false,
+    show_stat_total_tasks: false,
+    show_stat_completed_tasks: false,
+    show_stat_in_progress_tasks: false,
+    show_stat_total_hours: false,
+    show_stat_completion_rate: false,
+    show_quick_task_button: false,
+    show_workspace_invitations: false,
+    show_stat_todo_tasks: false,
+    show_stat_overdue_tasks: false,
+    show_stat_upcoming_tasks: false,
+    show_task_title_column: false,
+    show_task_project_column: false,
+    show_task_assignees_column: false,
+    show_task_status_column: false,
+    show_task_priority_column: false,
+    show_task_deadline_column: false,
+    show_task_actions_column: false,
+    show_view_mode_toggle: false,
+    show_calendar_view_toggle: false,
+    allow_list_view: false,
+    allow_calendar_view: false,
+    show_activity_view_all_link: false,
+    show_activity_count: false,
+    max_activities_displayed: 10,
+    allow_task_edit: false,
+    allow_task_delete: false,
+    allow_task_status_change: false,
+    allow_task_priority_change: false,
+    allow_task_assignee_change: false,
+    allow_task_filtering: false,
+    allow_task_sorting: false,
+  };
+
   return {
-    permissions,
+    permissions: hasLoaded ? permissions : emptyPermissions, // Use empty (all false) until loaded
     loading,
     refreshPermissions: fetchPermissions,
   };

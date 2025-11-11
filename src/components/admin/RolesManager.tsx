@@ -335,7 +335,13 @@ export function RolesManager() {
     dashboard: {
       title: 'Dashboard',
       description: 'Prístup k hlavnej stránke a prehľadu',
-      permissions: permissions.filter(p => p.name === 'pages.view_dashboard')
+      permissions: permissions.filter(p => 
+        p.name === 'pages.view_dashboard' ||
+        p.name?.toLowerCase().includes('dashboard') ||
+        p.resource === 'dashboard' ||
+        (p.resource === 'pages' && p.action === 'view_dashboard') ||
+        (p.resource === 'pages' && p.action?.toLowerCase().includes('dashboard'))
+      )
     },
     projects: {
       title: 'Projekty',
@@ -547,10 +553,60 @@ export function RolesManager() {
           </DialogHeader>
           <div className="space-y-6 py-4">
             {Object.entries(permissionsByPage)
-              .filter(([_, page]) => page.permissions.length > 0)
+              .filter(([pageKey, page]) => page.permissions.length > 0 || pageKey === 'dashboard')
               .map(([pageKey, page]) => {
                 // Translate action names to Slovak
-                const getActionLabel = (action: string, resource: string) => {
+                const getActionLabel = (action: string, resource: string, permName?: string) => {
+                  // Dashboard permissions have specific labels
+                  if (resource === 'dashboard' || permName?.startsWith('dashboard.')) {
+                    const dashboardLabels: Record<string, string> = {
+                      'show_stats_overview': 'Zobraziť prehľad štatistík',
+                      'show_tasks_section': 'Zobraziť sekciu úloh',
+                      'show_activities_section': 'Zobraziť sekciu aktivít',
+                      'show_calendar_section': 'Zobraziť sekciu kalendára',
+                      'show_projects_section': 'Zobraziť sekciu projektov',
+                      'show_clients_section': 'Zobraziť sekciu klientov',
+                      'show_tab_all_active': 'Zobraziť tab Všetky aktívne',
+                      'show_tab_today': 'Zobraziť tab Dnes',
+                      'show_tab_sent_to_client': 'Zobraziť tab Odoslané klientovi',
+                      'show_tab_in_progress': 'Zobraziť tab V riešení',
+                      'show_tab_unassigned': 'Zobraziť tab Nezadané',
+                      'show_tab_overdue': 'Zobraziť tab Prešli deadline',
+                      'show_tab_upcoming': 'Zobraziť tab Blížia sa',
+                      'show_stat_total_tasks': 'Zobraziť štatistiku Celkový počet úloh',
+                      'show_stat_completed_tasks': 'Zobraziť štatistiku Dokončené úlohy',
+                      'show_stat_in_progress_tasks': 'Zobraziť štatistiku Úlohy v riešení',
+                      'show_stat_total_hours': 'Zobraziť štatistiku Celkový počet hodín',
+                      'show_stat_completion_rate': 'Zobraziť štatistiku Miera dokončenia',
+                      'show_stat_todo_tasks': 'Zobraziť štatistiku Na spracovanie',
+                      'show_stat_overdue_tasks': 'Zobraziť štatistiku Prešli deadline',
+                      'show_stat_upcoming_tasks': 'Zobraziť štatistiku Blížia sa',
+                      'show_quick_task_button': 'Zobraziť tlačidlo Rýchla úloha',
+                      'show_workspace_invitations': 'Zobraziť pozvánky do workspace',
+                      'show_task_title_column': 'Zobraziť stĺpec Názov úlohy',
+                      'show_task_project_column': 'Zobraziť stĺpec Projekt',
+                      'show_task_assignees_column': 'Zobraziť stĺpec Pridelené',
+                      'show_task_status_column': 'Zobraziť stĺpec Status',
+                      'show_task_priority_column': 'Zobraziť stĺpec Priorita',
+                      'show_task_deadline_column': 'Zobraziť stĺpec Deadline',
+                      'show_task_actions_column': 'Zobraziť stĺpec Akcie',
+                      'show_view_mode_toggle': 'Zobraziť prepínač zobrazenia',
+                      'show_calendar_view_toggle': 'Zobraziť prepínač kalendára',
+                      'allow_list_view': 'Povoliť zobrazenie zoznamu',
+                      'allow_calendar_view': 'Povoliť zobrazenie kalendára',
+                      'show_activity_view_all_link': 'Zobraziť odkaz Zobraziť všetky aktivity',
+                      'show_activity_count': 'Zobraziť počet aktivít',
+                      'allow_task_edit': 'Povoliť úpravu úloh',
+                      'allow_task_delete': 'Povoliť mazanie úloh',
+                      'allow_task_status_change': 'Povoliť zmenu statusu úloh',
+                      'allow_task_priority_change': 'Povoliť zmenu priority úloh',
+                      'allow_task_assignee_change': 'Povoliť zmenu pridelených úloh',
+                      'allow_task_filtering': 'Povoliť filtrovanie úloh',
+                      'allow_task_sorting': 'Povoliť triedenie úloh',
+                    };
+                    return dashboardLabels[action] || action;
+                  }
+                  
                   switch (action) {
                     case 'create': return 'Vytvárať';
                     case 'read': return 'Čítať';
@@ -592,12 +648,21 @@ export function RolesManager() {
                     case 'financial': return 'finančné údaje';
                     case 'pages': return '';
                     case 'comments': return 'komentáre';
+                    case 'dashboard': return '';
                     default: return resource;
                   }
                 };
 
                 // Sort permissions: page access first, then CRUD operations
                 const sortedPermissions = [...page.permissions].sort((a, b) => {
+                  // For dashboard section, prioritize view_dashboard first
+                  if (pageKey === 'dashboard') {
+                    if (a.action === 'view_dashboard' && b.action !== 'view_dashboard') return -1;
+                    if (a.action !== 'view_dashboard' && b.action === 'view_dashboard') return 1;
+                    // Then sort by name alphabetically
+                    return (a.name || '').localeCompare(b.name || '');
+                  }
+                  
                   // Page permissions first
                   if (a.resource === 'pages' && b.resource !== 'pages') return -1;
                   if (a.resource !== 'pages' && b.resource === 'pages') return 1;
@@ -634,31 +699,38 @@ export function RolesManager() {
                         <p className="text-xs text-muted-foreground mt-1">{page.description}</p>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {sortedPermissions.map((perm) => {
-                        const resourceContext = getResourceContext(perm.resource);
-                        const actionLabel = getActionLabel(perm.action, perm.resource);
-                        const displayLabel = resourceContext 
-                          ? `${actionLabel} ${resourceContext}`
-                          : actionLabel;
-                        
-                        return (
-                          <div key={perm.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`perm-${perm.id}`}
-                              checked={selectedPermissions.has(perm.id)}
-                              onCheckedChange={() => togglePermission(perm.id)}
-                            />
-                            <Label
-                              htmlFor={`perm-${perm.id}`}
-                              className="text-sm font-normal cursor-pointer"
-                            >
-                              {displayLabel}
-                            </Label>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    {sortedPermissions.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {sortedPermissions.map((perm) => {
+                          const isDashboard = perm.resource === 'dashboard' || perm.name?.startsWith('dashboard.');
+                          const resourceContext = isDashboard ? '' : getResourceContext(perm.resource);
+                          const actionLabel = getActionLabel(perm.action, perm.resource, perm.name);
+                          const displayLabel = resourceContext 
+                            ? `${actionLabel} ${resourceContext}`
+                            : actionLabel;
+                          
+                          return (
+                            <div key={perm.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`perm-${perm.id}`}
+                                checked={selectedPermissions.has(perm.id)}
+                                onCheckedChange={() => togglePermission(perm.id)}
+                              />
+                              <Label
+                                htmlFor={`perm-${perm.id}`}
+                                className="text-sm font-normal cursor-pointer"
+                              >
+                                {displayLabel}
+                              </Label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Pre túto sekciu nie sú k dispozícii žiadne oprávnenia v databáze.
+                      </p>
+                    )}
                   </div>
                 );
               })}

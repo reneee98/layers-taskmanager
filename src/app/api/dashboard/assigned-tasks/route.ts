@@ -68,6 +68,51 @@ export async function GET(req: NextRequest) {
       console.error("Error in autoMoveOverdueTasksToToday:", err);
     });
     
+    // Check if user has "Riešiteľ" role - if yes, always show only assigned tasks
+    let isRiesitel = false;
+    if (!isOwner) {
+      // Get member data with role
+      const { data: memberData } = await supabase
+        .from('workspace_members')
+        .select('role')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (memberData) {
+        // Check for custom role (user_roles table)
+        const { data: userRole } = await supabase
+          .from('user_roles')
+          .select('role_id, roles!inner(id, name)')
+          .eq('user_id', user.id)
+          .eq('workspace_id', workspaceId)
+          .single();
+
+        if (userRole) {
+          const role = userRole.roles as any;
+          if (role.name === 'Riešiteľ') {
+            isRiesitel = true;
+            console.log(`DEBUG: User ${user.id} has "Riešiteľ" role - showing only assigned tasks`);
+          }
+        } else {
+          // Check if memberData.role is a UUID (custom role ID)
+          const isSystemRole = ['owner', 'member'].includes(memberData.role);
+          if (!isSystemRole) {
+            const { data: roleCheck } = await supabase
+              .from('roles')
+              .select('id, name')
+              .eq('id', memberData.role)
+              .single();
+            
+            if (roleCheck && roleCheck.name === 'Riešiteľ') {
+              isRiesitel = true;
+              console.log(`DEBUG: User ${user.id} has "Riešiteľ" role - showing only assigned tasks`);
+            }
+          }
+        }
+      }
+    }
+    
     // Získaj query parametre
     const { searchParams } = new URL(req.url);
     const showUnassigned = searchParams.get('show_unassigned') === 'true';
@@ -76,7 +121,70 @@ export async function GET(req: NextRequest) {
     let tasks;
     let tasksError;
     
-    if (showUnassigned) {
+    // If user is "Riešiteľ", always show only assigned tasks (ignore showAll and showUnassigned)
+    if (isRiesitel) {
+      console.log(`DEBUG: User is "Riešiteľ" - forcing show only assigned tasks`);
+      // Zobraziť len tasky priradené aktuálnemu používateľovi
+      const { data: taskAssignees, error: assigneesError } = await supabase
+        .from("task_assignees")
+        .select("task_id")
+        .eq("user_id", user.id)
+        .eq("workspace_id", workspaceId);
+
+      if (assigneesError) {
+        console.error("Error fetching task assignees:", assigneesError);
+        return NextResponse.json(
+          { success: false, error: assigneesError.message },
+          { status: 500 }
+        );
+      }
+
+      if (!taskAssignees || taskAssignees.length === 0) {
+        console.log(`DEBUG: No tasks assigned to user ${user.id} in workspace ${workspaceId}`);
+        return NextResponse.json({
+          success: true,
+          data: []
+        });
+      }
+
+      const taskIds = taskAssignees.map(ta => ta.task_id);
+      console.log(`DEBUG: Found ${taskIds.length} tasks assigned to user ${user.id}:`, taskIds);
+
+      // Načítaj úlohy s projektmi - len tie, kde je používateľ skutočne assignee
+      const { data: userTasks, error: userTasksError } = await supabase
+        .from("tasks")
+        .select(`
+          id,
+          title,
+          description,
+          status,
+          priority,
+          estimated_hours,
+          actual_hours,
+          start_date,
+          end_date,
+          due_date,
+          created_at,
+          updated_at,
+          project_id,
+          assignee_id,
+          assigned_to,
+          budget_cents,
+          workspace_id,
+          project:projects(
+            id,
+            name,
+            code,
+            workspace_id,
+            client:clients(name)
+          )
+        `)
+        .in("id", taskIds)
+        .eq("workspace_id", workspaceId);
+      
+      tasks = userTasks;
+      tasksError = userTasksError;
+    } else if (showUnassigned) {
       // Zobraziť len nepriradené tasky (bez assigneeov)
       console.log(`DEBUG: Showing unassigned tasks in workspace ${workspaceId}`);
       

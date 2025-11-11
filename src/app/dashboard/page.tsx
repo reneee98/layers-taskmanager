@@ -438,10 +438,25 @@ export default function DashboardPage() {
   const { hasPermission: canUpdateTasks } = usePermission('tasks', 'update');
   const { hasPermission: canReadClients } = usePermission('clients', 'read');
   
-  // Dashboard visibility permissions
-  const { permissions: dashboardPermissions, loading: isLoadingDashboardPermissions } = useDashboardPermissions();
+  // Dashboard visibility permissions - don't block on this
+  const { permissions: dashboardPermissions } = useDashboardPermissions();
   
-  const isLoadingPermissions = isLoadingProjectsPermission || isLoadingTasksPermission || isLoadingReadProjectsPermission || isLoadingReadTasksPermission || isLoadingDashboardPermissions;
+  // Debug: Log permissions
+  useEffect(() => {
+    console.log('[Dashboard Page] Current dashboard permissions:', {
+      show_stats_overview: dashboardPermissions.show_stats_overview,
+      show_tasks_section: dashboardPermissions.show_tasks_section,
+      show_activities_section: dashboardPermissions.show_activities_section,
+    });
+    console.log('[Dashboard Page] Full permissions object:', dashboardPermissions);
+  }, [dashboardPermissions]);
+  
+  // Debug: Log when component renders
+  useEffect(() => {
+    console.log('[Dashboard Page] Component rendered/re-rendered');
+  });
+  
+  const isLoadingPermissions = isLoadingProjectsPermission || isLoadingTasksPermission || isLoadingReadProjectsPermission || isLoadingReadTasksPermission;
   const [tasks, setTasks] = useState<AssignedTask[]>([]); // Priradené používateľovi
   const [allActiveTasks, setAllActiveTasks] = useState<AssignedTask[]>([]); // Všetky aktívne v workspace
   const [unassignedTasks, setUnassignedTasks] = useState<AssignedTask[]>([]); // Nepriradené
@@ -1414,7 +1429,10 @@ export default function DashboardPage() {
       <WorkspaceInvitations />
 
       {/* Stats Overview */}
-      {dashboardPermissions.show_stats_overview && (
+      {(() => {
+        console.log('[Dashboard Page] Rendering stats overview, permission:', dashboardPermissions.show_stats_overview);
+        return dashboardPermissions.show_stats_overview;
+      })() && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-card border border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1464,8 +1482,12 @@ export default function DashboardPage() {
 
       {/* Main Content - Single Column */}
       <div className="w-full">
-        {/* Tasks and Activity Section - only show if user has permission to view tasks AND dashboard permission allows it */}
-        {(canReadTasks || canViewTasks) && dashboardPermissions.show_tasks_section && (
+        {/* Tasks and Activity Section - show if dashboard permission allows it */}
+        {(() => {
+          const shouldShow = dashboardPermissions.show_tasks_section;
+          console.log('[Dashboard Page] Rendering tasks section, permission:', dashboardPermissions.show_tasks_section, 'shouldShow:', shouldShow);
+          return shouldShow;
+        })() && (
           <div className="w-full">
             {/* Combined Tasks and Activity Block */}
             <Card className="bg-card border border-border shadow-sm rounded-xl overflow-hidden">
@@ -2383,8 +2405,12 @@ export default function DashboardPage() {
               )}
               </div>
                 
-                {/* Activity Section - only show if user has permission AND dashboard permission allows it */}
-                {(canReadTasks || canViewTasks || canReadProjects || canViewProjects) && dashboardPermissions.show_activities_section && (
+                {/* Activity Section - show if dashboard permission allows it */}
+                {(() => {
+                  const shouldShow = dashboardPermissions.show_activities_section;
+                  console.log('[Dashboard Page] Rendering activities section, permission:', dashboardPermissions.show_activities_section, 'shouldShow:', shouldShow);
+                  return shouldShow;
+                })() && (
                   <div className="h-full flex flex-col">
                   <div className="px-6 py-4 bg-muted/50 border-b border-border/50">
                     <div className="flex items-center justify-between">

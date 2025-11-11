@@ -594,6 +594,7 @@ export default function DashboardPage() {
   // Filter tasks based on active tab
   // Pre "all_active" používame všetky aktívne tasky
   // Pre "unassigned" používame nepriradené tasky
+  // Pre "sent_to_client" používame všetky tasky (priradené + nepriradené) aby sa zobrazili aj nepriradené
   // Pre "today" používame úlohy priradené aktuálnemu používateľovi
   // Pre ostatné taby používame priradené tasky
   let tasksToFilter: AssignedTask[];
@@ -601,9 +602,15 @@ export default function DashboardPage() {
     tasksToFilter = allActiveTasks;
   } else if (activeTab === 'unassigned') {
     tasksToFilter = unassignedTasks;
+  } else if (activeTab === 'sent_to_client') {
+    // Pre "sent_to_client" kombinujeme všetky priradené aj nepriradené tasky
+    tasksToFilter = [...allActiveTasks, ...unassignedTasks];
   } else if (activeTab === 'today') {
     // Use tasks assigned to current user for "today" tab
     tasksToFilter = tasks;
+  } else if (activeTab === 'in_progress') {
+    // Pre "in_progress" používame všetky aktívne tasky
+    tasksToFilter = allActiveTasks;
   } else {
     tasksToFilter = tasks;
   }
@@ -649,14 +656,19 @@ export default function DashboardPage() {
   }, []);
   
   // Get task counts for each tab
-  const taskCounts = {
-    all_active: filterTasksByTab(allActiveTasks, "all_active").length,
-    unassigned: filterTasksByTab(unassignedTasks, "unassigned").length,
-    today: filterTasksByTab(tasks, "today").length, // Use tasks (assigned to current user) for accurate count
-    sent_to_client: filterTasksByTab(tasks, "sent_to_client").length,
-    in_progress: filterTasksByTab(tasks, "in_progress").length,
-    no_project: filterTasksByTab(allActiveTasks, "no_project").length,
-  };
+  const taskCounts = useMemo(() => {
+    // Pre "sent_to_client" kombinujeme allActiveTasks a unassignedTasks
+    const sentToClientTasks = [...allActiveTasks, ...unassignedTasks];
+    
+    return {
+      all_active: filterTasksByTab(allActiveTasks, "all_active").length,
+      unassigned: filterTasksByTab(unassignedTasks, "unassigned").length,
+      today: filterTasksByTab(tasks, "today").length, // Use tasks (assigned to current user) for accurate count
+      sent_to_client: filterTasksByTab(sentToClientTasks, "sent_to_client").length,
+      in_progress: filterTasksByTab(allActiveTasks, "in_progress").length,
+      no_project: filterTasksByTab(allActiveTasks, "no_project").length,
+    };
+  }, [tasks, allActiveTasks, unassignedTasks]);
 
   const handleShowMoreActivities = () => {
     setShowAllActivities(true);

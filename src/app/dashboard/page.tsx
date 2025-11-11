@@ -160,7 +160,7 @@ function DashboardAssigneeCell({ task, onTaskUpdate }: DashboardAssigneeCellProp
   const handleAddAssignee = async (userId: string) => {
     if (userId === "none") return;
 
-    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
+    const currentAssigneeIds = (task.assignees || []).map((a: any) => a.user_id || a.id);
     if (currentAssigneeIds.includes(userId)) {
       return;
     }
@@ -212,8 +212,8 @@ function DashboardAssigneeCell({ task, onTaskUpdate }: DashboardAssigneeCellProp
   };
 
   const handleRemoveAssignee = async (userId: string) => {
-    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
-    const newAssigneeIds = currentAssigneeIds.filter(id => id !== userId);
+    const currentAssigneeIds = (task.assignees || []).map((a: any) => a.user_id || a.id);
+    const newAssigneeIds = currentAssigneeIds.filter((id: any) => id !== userId);
 
     setIsLoading(true);
     try {
@@ -256,7 +256,7 @@ function DashboardAssigneeCell({ task, onTaskUpdate }: DashboardAssigneeCellProp
   };
 
   const availableUsers = users.filter(user => {
-    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
+    const currentAssigneeIds = (task.assignees || []).map((a: any) => a.user_id || a.id);
     return !currentAssigneeIds.includes(user.id);
   });
 
@@ -264,7 +264,7 @@ function DashboardAssigneeCell({ task, onTaskUpdate }: DashboardAssigneeCellProp
     <div className="flex items-center gap-1">
       {task.assignees && task.assignees.length > 0 ? (
         <>
-          {task.assignees.slice(0, 4).map((assignee, index) => {
+          {task.assignees.slice(0, 4).map((assignee: any, index: number) => {
             const assigneeId = assignee.user_id || assignee.id;
             const assigneeName = (assignee as any).user?.name || (assignee as any).display_name || (assignee as any).email || 'Neznámy používateľ';
             return (
@@ -300,14 +300,14 @@ function DashboardAssigneeCell({ task, onTaskUpdate }: DashboardAssigneeCellProp
           {task.assignees.length > 4 && (
             <div 
               className="h-6 w-6 rounded-full bg-muted flex items-center justify-center group/overflow relative"
-              title={`Ďalší assignee: ${task.assignees.slice(4).map(a => (a as any).user?.name || (a as any).display_name || (a as any).email).filter(Boolean).join(', ')}`}
+              title={`Ďalší assignee: ${task.assignees.slice(4).map((a: any) => (a as any).user?.name || (a as any).display_name || (a as any).email).filter(Boolean).join(', ')}`}
             >
               <span className="text-xs text-muted-foreground">
                 +{task.assignees.length - 4}
               </span>
               {/* Tooltip */}
               <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/overflow:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                {task.assignees.slice(4).map(a => (a as any).user?.name || (a as any).display_name || (a as any).email).filter(Boolean).join(', ')}
+                {task.assignees.slice(4).map((a: any) => (a as any).user?.name || (a as any).display_name || (a as any).email).filter(Boolean).join(', ')}
                 <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
               </div>
             </div>

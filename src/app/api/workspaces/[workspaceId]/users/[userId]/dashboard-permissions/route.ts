@@ -64,12 +64,14 @@ export async function GET(
       return NextResponse.json({
         success: true,
         data: {
+          // Sections
           show_stats_overview: true,
           show_tasks_section: true,
           show_activities_section: true,
           show_calendar_section: true,
           show_projects_section: true,
           show_clients_section: true,
+          // Tabs
           show_tab_all_active: true,
           show_tab_today: true,
           show_tab_sent_to_client: true,
@@ -77,11 +79,45 @@ export async function GET(
           show_tab_unassigned: true,
           show_tab_overdue: true,
           show_tab_upcoming: true,
+          // Stats
           show_stat_total_tasks: true,
           show_stat_completed_tasks: true,
           show_stat_in_progress_tasks: true,
           show_stat_total_hours: true,
           show_stat_completion_rate: true,
+          // Header/Actions
+          show_quick_task_button: true,
+          show_workspace_invitations: true,
+          // Individual Stats
+          show_stat_todo_tasks: true,
+          show_stat_overdue_tasks: true,
+          show_stat_upcoming_tasks: true,
+          // Task Table Columns
+          show_task_title_column: true,
+          show_task_project_column: true,
+          show_task_assignees_column: true,
+          show_task_status_column: true,
+          show_task_priority_column: true,
+          show_task_deadline_column: true,
+          show_task_actions_column: true,
+          // View Modes
+          show_view_mode_toggle: true,
+          show_calendar_view_toggle: true,
+          allow_list_view: true,
+          allow_calendar_view: true,
+          // Activities
+          show_activity_view_all_link: true,
+          show_activity_count: true,
+          max_activities_displayed: 10,
+          // Task Actions
+          allow_task_edit: true,
+          allow_task_delete: true,
+          allow_task_status_change: true,
+          allow_task_priority_change: true,
+          allow_task_assignee_change: true,
+          // Filtering/Sorting
+          allow_task_filtering: true,
+          allow_task_sorting: true,
         },
       });
     }
@@ -158,12 +194,14 @@ export async function POST(
     const permissionsData = {
       workspace_id: workspaceId,
       user_id: userId,
+      // Sections
       show_stats_overview: body.show_stats_overview ?? true,
       show_tasks_section: body.show_tasks_section ?? true,
       show_activities_section: body.show_activities_section ?? true,
       show_calendar_section: body.show_calendar_section ?? true,
       show_projects_section: body.show_projects_section ?? true,
       show_clients_section: body.show_clients_section ?? true,
+      // Tabs
       show_tab_all_active: body.show_tab_all_active ?? true,
       show_tab_today: body.show_tab_today ?? true,
       show_tab_sent_to_client: body.show_tab_sent_to_client ?? true,
@@ -171,11 +209,45 @@ export async function POST(
       show_tab_unassigned: body.show_tab_unassigned ?? true,
       show_tab_overdue: body.show_tab_overdue ?? true,
       show_tab_upcoming: body.show_tab_upcoming ?? true,
+      // Stats
       show_stat_total_tasks: body.show_stat_total_tasks ?? true,
       show_stat_completed_tasks: body.show_stat_completed_tasks ?? true,
       show_stat_in_progress_tasks: body.show_stat_in_progress_tasks ?? true,
       show_stat_total_hours: body.show_stat_total_hours ?? true,
       show_stat_completion_rate: body.show_stat_completion_rate ?? true,
+      // Header/Actions
+      show_quick_task_button: body.show_quick_task_button ?? true,
+      show_workspace_invitations: body.show_workspace_invitations ?? true,
+      // Individual Stats
+      show_stat_todo_tasks: body.show_stat_todo_tasks ?? true,
+      show_stat_overdue_tasks: body.show_stat_overdue_tasks ?? true,
+      show_stat_upcoming_tasks: body.show_stat_upcoming_tasks ?? true,
+      // Task Table Columns
+      show_task_title_column: body.show_task_title_column ?? true,
+      show_task_project_column: body.show_task_project_column ?? true,
+      show_task_assignees_column: body.show_task_assignees_column ?? true,
+      show_task_status_column: body.show_task_status_column ?? true,
+      show_task_priority_column: body.show_task_priority_column ?? true,
+      show_task_deadline_column: body.show_task_deadline_column ?? true,
+      show_task_actions_column: body.show_task_actions_column ?? true,
+      // View Modes
+      show_view_mode_toggle: body.show_view_mode_toggle ?? true,
+      show_calendar_view_toggle: body.show_calendar_view_toggle ?? true,
+      allow_list_view: body.allow_list_view ?? true,
+      allow_calendar_view: body.allow_calendar_view ?? true,
+      // Activities
+      show_activity_view_all_link: body.show_activity_view_all_link ?? true,
+      show_activity_count: body.show_activity_count ?? true,
+      max_activities_displayed: body.max_activities_displayed ?? 10,
+      // Task Actions
+      allow_task_edit: body.allow_task_edit ?? true,
+      allow_task_delete: body.allow_task_delete ?? true,
+      allow_task_status_change: body.allow_task_status_change ?? true,
+      allow_task_priority_change: body.allow_task_priority_change ?? true,
+      allow_task_assignee_change: body.allow_task_assignee_change ?? true,
+      // Filtering/Sorting
+      allow_task_filtering: body.allow_task_filtering ?? true,
+      allow_task_sorting: body.allow_task_sorting ?? true,
       custom_settings: body.custom_settings || {},
     };
 

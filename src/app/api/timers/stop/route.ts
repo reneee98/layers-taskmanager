@@ -190,6 +190,31 @@ export async function POST(request: NextRequest) {
     const hoursOverBudget = Math.max(0, trackedHours - newHoursWithinBudget);
     const amount = hoursOverBudget * hourlyRate;
 
+    // Check if timer was already stopped (race condition protection)
+    const { data: timerCheck, error: timerCheckError } = await supabase
+      .from("task_timers")
+      .select("stopped_at")
+      .eq("id", activeTimer.id)
+      .single();
+
+    if (timerCheckError) {
+      console.error("Error checking timer status:", timerCheckError);
+      return NextResponse.json({ success: false, error: "Failed to verify timer status" }, { status: 500 });
+    }
+
+    // If timer is already stopped, don't create duplicate time entry
+    if (timerCheck.stopped_at) {
+      console.log("Timer already stopped, skipping time entry creation");
+      return NextResponse.json({ 
+        success: true, 
+        message: "Timer was already stopped",
+        data: {
+          duration: duration,
+          hours: trackedHours
+        }
+      });
+    }
+
     // Create time entry
     const timeEntryData: any = {
       task_id: activeTimer.task_id,

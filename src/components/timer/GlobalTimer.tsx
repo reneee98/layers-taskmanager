@@ -6,10 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Square } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 
 export function GlobalTimer() {
   const { activeTimer, currentDuration, stopTimer, refreshTimer } = useTimer();
   const router = useRouter();
+  const isStoppingRef = useRef(false); // Prevent multiple simultaneous stop calls
+  const [isStopping, setIsStopping] = useState(false); // For UI disabled state
 
   if (!activeTimer) {
     return null;
@@ -27,10 +30,19 @@ export function GlobalTimer() {
   };
 
   const handleStop = async () => {
+    // Prevent multiple simultaneous calls
+    if (isStoppingRef.current || isStopping) {
+      return;
+    }
+
     if (!activeTimer) {
       await stopTimer();
       return;
     }
+
+    // Set flags to prevent duplicate calls
+    isStoppingRef.current = true;
+    setIsStopping(true);
 
     // Vypočítať trvanie priamo z activeTimer.started_at namiesto currentDuration
     // aby sme zabezpečili správnu hodnotu aj keď sa timer už zastavil
@@ -60,6 +72,12 @@ export function GlobalTimer() {
       });
       // Still try to refresh timer state even if saving failed
       await refreshTimer();
+    } finally {
+      // Reset flags after a short delay to allow for any cleanup
+      setTimeout(() => {
+        isStoppingRef.current = false;
+        setIsStopping(false);
+      }, 1000);
     }
   };
 
@@ -110,7 +128,8 @@ export function GlobalTimer() {
           size="sm"
           variant="ghost"
           onClick={handleStop}
-        className="h-6 w-6 p-0 hover:bg-destructive/10 text-destructive hover:text-destructive rounded-md"
+          disabled={isStopping}
+          className="h-6 w-6 p-0 hover:bg-destructive/10 text-destructive hover:text-destructive rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
           title="Zastaviť časovač"
         >
         <Square className="h-3.5 w-3.5" />

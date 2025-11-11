@@ -1074,7 +1074,7 @@ export default function DashboardPage() {
 
   // Filter tabs based on dashboard permissions
   const getAvailableTabs = (): DashboardTabType[] => {
-    const allTabs: DashboardTabType[] = ['all_active', 'today', 'sent_to_client', 'in_progress', 'unassigned', 'overdue', 'upcoming'];
+    const allTabs: DashboardTabType[] = ['all_active', 'today', 'sent_to_client', 'in_progress', 'unassigned'];
     return allTabs.filter(tab => {
       switch (tab) {
         case 'all_active':
@@ -1087,10 +1087,6 @@ export default function DashboardPage() {
           return dashboardPermissions.show_tab_in_progress;
         case 'unassigned':
           return dashboardPermissions.show_tab_unassigned;
-        case 'overdue':
-          return dashboardPermissions.show_tab_overdue;
-        case 'upcoming':
-          return dashboardPermissions.show_tab_upcoming;
         default:
           return true;
       }

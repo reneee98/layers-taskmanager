@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings2, Eye, EyeOff } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -171,7 +170,7 @@ export function DashboardPermissionsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <div className="max-h-[60vh] overflow-y-auto pr-4">
           <div className="space-y-6">
             {/* Sections */}
             <div>
@@ -396,7 +395,7 @@ export function DashboardPermissionsDialog({
               </div>
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

@@ -104,6 +104,9 @@ import {
 } from "@/components/ui/select";
 import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
 import { cn, stripHtml } from "@/lib/utils";
+import { StatusSelect } from "@/components/tasks/StatusSelect";
+import { PrioritySelect } from "@/components/tasks/PrioritySelect";
+import { toast } from "@/hooks/use-toast";
 
 // Lazy load WeekCalendar - only load when calendar view is active
 const WeekCalendar = dynamic(() => import("@/components/calendar/WeekCalendar").then(mod => ({ default: mod.WeekCalendar })), {
@@ -185,6 +188,7 @@ export default function DashboardPage() {
   const { hasPermission: canViewClients } = usePermission('pages', 'view_clients');
   const { hasPermission: canReadProjects, isLoading: isLoadingReadProjectsPermission } = usePermission('projects', 'read');
   const { hasPermission: canReadTasks, isLoading: isLoadingReadTasksPermission } = usePermission('tasks', 'read');
+  const { hasPermission: canUpdateTasks } = usePermission('tasks', 'update');
   const { hasPermission: canReadClients } = usePermission('clients', 'read');
   
   const isLoadingPermissions = isLoadingProjectsPermission || isLoadingTasksPermission || isLoadingReadProjectsPermission || isLoadingReadTasksPermission;
@@ -259,6 +263,60 @@ export default function DashboardPage() {
     setCalendarDate(today);
     setCalendarMonth(today.getMonth());
     setCalendarYear(today.getFullYear());
+  };
+
+  const handleUpdateTask = async (taskId: string, updates: { status?: string; priority?: string }) => {
+    if (!canUpdateTasks) {
+      toast({
+        title: "Chyba",
+        description: "Nemáte oprávnenie na úpravu úloh",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update local state
+        const updateTaskInState = (taskList: AssignedTask[]) => {
+          return taskList.map(task => 
+            task.id === taskId 
+              ? { ...task, ...updates }
+              : task
+          );
+        };
+
+        setTasks(updateTaskInState(tasks));
+        setAllActiveTasks(updateTaskInState(allActiveTasks));
+        setUnassignedTasks(updateTaskInState(unassignedTasks));
+
+        toast({
+          title: "Úspech",
+          description: "Úloha bola aktualizovaná",
+        });
+      } else {
+        toast({
+          title: "Chyba",
+          description: result.error || "Nepodarilo sa aktualizovať úlohu",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update task:", error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa aktualizovať úlohu",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleMoreEventsClick = (events: any[], date: Date) => {
@@ -1336,11 +1394,12 @@ export default function DashboardPage() {
                             </div>
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2">
-                            <div>
-                              <div className={`flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200 text-xs font-medium w-fit whitespace-nowrap ${statusInfo.color} hover:opacity-80`}>
-                                <StatusIcon className={`h-3.5 w-3.5 ${statusInfo.iconColor} ${task.status === "in_progress" && "animate-pulse"}`} />
-                                <span>{statusInfo.label}</span>
-                              </div>
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <StatusSelect
+                                status={task.status as "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled"}
+                                onStatusChange={(newStatus) => handleUpdateTask(task.id, { status: newStatus })}
+                                disabled={!canUpdateTasks}
+                              />
                             </div>
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2">
@@ -1390,11 +1449,12 @@ export default function DashboardPage() {
                             </div>
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2">
-                            <div>
-                              <div className={`flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200 text-xs font-medium w-fit whitespace-nowrap ${priorityInfo.color} hover:opacity-80`}>
-                                <PriorityIcon className={`h-3.5 w-3.5 ${priorityInfo.iconColor} ${task.priority === "urgent" && "animate-pulse"}`} />
-                                <span>{priorityInfo.label}</span>
-                              </div>
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <PrioritySelect
+                                priority={task.priority as "low" | "medium" | "high" | "urgent"}
+                                onPriorityChange={(newPriority) => handleUpdateTask(task.id, { priority: newPriority })}
+                                disabled={!canUpdateTasks}
+                              />
                             </div>
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2 w-fit">

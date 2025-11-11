@@ -52,6 +52,10 @@ const CostsPanel = dynamic(() => import("@/components/costs/CostsPanel").then(mo
 });
 
 const ProjectReport = dynamic(() => import("@/components/report/ProjectReport").then(mod => ({ default: mod.ProjectReport })), {
+  ssr: false,
+});
+
+const TaskReport = dynamic(() => import("@/components/report/TaskReport").then(mod => ({ default: mod.TaskReport })), {
   loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
 });
 
@@ -188,17 +192,29 @@ export default function TaskDetailPage() {
   const router = useRouter();
   const taskId = Array.isArray(params.taskId) ? params.taskId[0] : params.taskId;
   const { activeTimer, startTimer, stopTimer, refreshTimer } = useTimer();
-  const { hasPermission: canReadTasks } = usePermission('tasks', 'read');
-  const { hasPermission: canViewHourlyRates } = usePermission('financial', 'view_hourly_rates');
-  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
-  const { hasPermission: canViewCosts } = usePermission('financial', 'view_costs');
-  const { hasPermission: canViewReports } = usePermission('financial', 'view_reports');
-  const { hasPermission: canReadTimeEntries } = usePermission('time_entries', 'read');
-  const { hasPermission: canReadComments } = usePermission('comments', 'read');
-  const { hasPermission: canCreateComments } = usePermission('comments', 'create');
-  const { hasPermission: canUpdateTasks } = usePermission('tasks', 'update');
-  const { hasPermission: canCreateTasks } = usePermission('tasks', 'create');
-  const { hasPermission: canDeleteTasks } = usePermission('tasks', 'delete');
+  const canReadTasksResult = usePermission('tasks', 'read');
+  const canViewHourlyRatesResult = usePermission('financial', 'view_hourly_rates');
+  const canViewPricesResult = usePermission('financial', 'view_prices');
+  const canViewCostsResult = usePermission('financial', 'view_costs');
+  const canViewReportsResult = usePermission('financial', 'view_reports');
+  const canReadTimeEntriesResult = usePermission('time_entries', 'read');
+  const canReadCommentsResult = usePermission('comments', 'read');
+  const canCreateCommentsResult = usePermission('comments', 'create');
+  const canUpdateTasksResult = usePermission('tasks', 'update');
+  const canCreateTasksResult = usePermission('tasks', 'create');
+  const canDeleteTasksResult = usePermission('tasks', 'delete');
+  
+  const canReadTasks = canReadTasksResult.hasPermission;
+  const canViewHourlyRates = canViewHourlyRatesResult.hasPermission;
+  const canViewPrices = canViewPricesResult.hasPermission;
+  const canViewCosts = canViewCostsResult.hasPermission;
+  const canViewReports = canViewReportsResult.hasPermission;
+  const canReadTimeEntries = canReadTimeEntriesResult.hasPermission;
+  const canReadComments = canReadCommentsResult.hasPermission;
+  const canCreateComments = canCreateCommentsResult.hasPermission;
+  const canUpdateTasks = canUpdateTasksResult.hasPermission;
+  const canCreateTasks = canCreateTasksResult.hasPermission;
+  const canDeleteTasks = canDeleteTasksResult.hasPermission;
   const [task, setTask] = useState<Task | null>(null);
   const [assignees, setAssignees] = useState<TaskAssignee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -213,6 +229,7 @@ export default function TaskDetailPage() {
   const [commentsCount, setCommentsCount] = useState(0);
   const [linksCount, setLinksCount] = useState(0);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [userSettings, setUserSettings] = useState<{ default_hourly_rate?: number | null } | null>(null);
   const [isStartingTimer, setIsStartingTimer] = useState(false);
   const prevActiveTimerRef = useRef<typeof activeTimer>(null);
   const [projectSelectOpen, setProjectSelectOpen] = useState(false);
@@ -321,6 +338,52 @@ export default function TaskDetailPage() {
       setLinksCount(0);
     }
   };
+
+  // Fetch user settings for default hourly rate
+  useEffect(() => {
+    const fetchUserSettings = async () => {
+      try {
+        const response = await fetch("/api/me/settings");
+        const result = await response.json();
+        if (result.success) {
+          setUserSettings(result.data);
+        }
+      } catch (error) {
+        console.error("Error fetching user settings:", error);
+      }
+    };
+    fetchUserSettings();
+  }, []);
+
+  // Auto-calculate estimated_hours from budget_cents when budget changes
+  useEffect(() => {
+    if (!task || !task.budget_cents || task.budget_cents <= 0) {
+      return;
+    }
+
+    // Get hourly rate - priority: task.hourly_rate_cents > project.hourly_rate > user_settings.default_hourly_rate
+    let hourlyRate: number | null = null;
+    
+    if (task.hourly_rate_cents && task.hourly_rate_cents > 0) {
+      hourlyRate = task.hourly_rate_cents / 100;
+    } else if (task.project?.hourly_rate) {
+      hourlyRate = task.project.hourly_rate;
+    } else if (userSettings?.default_hourly_rate != null) {
+      hourlyRate = userSettings.default_hourly_rate;
+    }
+
+    // Only auto-calculate if hourly rate is available and estimated_hours is not manually set
+    if (hourlyRate && hourlyRate > 0 && (!task.estimated_hours || task.estimated_hours === 0)) {
+      const budgetInEuros = task.budget_cents / 100;
+      const calculatedHours = Math.round((budgetInEuros / hourlyRate) * 100) / 100;
+      
+      // Only update if calculated value is different from current
+      if (calculatedHours !== task.estimated_hours) {
+        setTask(prev => prev ? { ...prev, estimated_hours: calculatedHours } : null);
+        setHasChanges(true);
+      }
+    }
+  }, [task?.budget_cents, task?.hourly_rate_cents, task?.project?.hourly_rate, userSettings?.default_hourly_rate]);
 
   useEffect(() => {
     // Load critical data first (task), then load other non-critical data in parallel
@@ -569,7 +632,7 @@ export default function TaskDetailPage() {
 
     setIsSaving(true);
     try {
-      // Save task settings (including task budget and description)
+      // Save task settings (including task budget, hourly rate, and description)
       const taskPayload: any = {
         estimated_hours: task.estimated_hours,
         description: descriptionHtml.trim() || null,
@@ -578,6 +641,11 @@ export default function TaskDetailPage() {
       // Include task budget if it exists
       if (task.budget_cents !== undefined) {
         taskPayload.budget_cents = task.budget_cents;
+      }
+      
+      // Include hourly_rate_cents if task has no project
+      if (!task.project_id && task.hourly_rate_cents !== undefined) {
+        taskPayload.hourly_rate_cents = task.hourly_rate_cents;
       }
       
       const taskResponse = await fetch(`/api/tasks/${task.id}`, {
@@ -1618,13 +1686,44 @@ export default function TaskDetailPage() {
                       </div>
                     </div>
 
-                    {/* Hourly Rate - Read Only */}
-                    {canViewHourlyRates && (
+                    {/* Hourly Rate */}
+                    {(canViewHourlyRates || canUpdateTasks) && (
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground">Hodinovka projektu</label>
-                        <div className="px-3 py-2 bg-muted rounded-md text-sm text-foreground">
-                          {task?.project?.hourly_rate ? `${task.project.hourly_rate.toFixed(2)}€/h` : 'Nenastavené'}
-                        </div>
+                        <label className="text-sm font-medium text-foreground">
+                          {task?.project_id ? 'Hodinovka projektu' : 'Hodinová sadzba úlohy'}
+                        </label>
+                        {task?.project_id ? (
+                          <div className="px-3 py-2 bg-muted rounded-md text-sm text-foreground">
+                            {task?.project?.hourly_rate ? `${task.project.hourly_rate.toFixed(2)}€/h` : 'Nenastavené'}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={task?.hourly_rate_cents ? (task.hourly_rate_cents / 100).toString() : ''}
+                              onChange={(e) => {
+                                const value = e.target.value ? parseFloat(e.target.value) : null;
+                                const hourlyRateCents = value ? Math.round(value * 100) : null;
+                                setTask(prev => prev ? { 
+                                  ...prev, 
+                                  hourly_rate_cents: hourlyRateCents
+                                } : null);
+                                setHasChanges(true);
+                              }}
+                              placeholder="0.00"
+                              className="flex-1"
+                              disabled={!canUpdateTasks}
+                            />
+                            <span className="text-sm text-muted-foreground">€/h</span>
+                          </div>
+                        )}
+                        {!task?.project_id && (
+                          <p className="text-xs text-muted-foreground">
+                            Hodinová sadzba pre túto úlohu. Použije sa pri ukladaní času, ak nie je nastavená v nastaveniach.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1632,7 +1731,7 @@ export default function TaskDetailPage() {
               </Card>
 
               {/* Budget Settings */}
-              {canViewPrices && (
+              {(canViewPrices || canUpdateTasks) && (
                 <Card className="bg-card border border-border shadow-sm">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
@@ -1660,6 +1759,7 @@ export default function TaskDetailPage() {
                         }}
                         placeholder="0.00"
                         className="flex-1"
+                        disabled={!canUpdateTasks}
                       />
                       <span className="text-sm text-muted-foreground">€</span>
                     </div>
@@ -1736,10 +1836,14 @@ export default function TaskDetailPage() {
                   </CardHeader>
                   <CardContent className="pt-0">
                     {task && (
-                      <ProjectReport 
-                        projectId={task.project_id}
-                        taskId={task.id}
-                      />
+                      task.project_id ? (
+                        <ProjectReport 
+                          projectId={task.project_id}
+                          taskId={task.id}
+                        />
+                      ) : (
+                        <TaskReport taskId={task.id} />
+                      )
                     )}
                   </CardContent>
                 </Card>

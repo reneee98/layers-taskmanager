@@ -42,7 +42,13 @@ export function usePermission(resource: string, action: string) {
   if (permissionContext) {
     // Check if user is workspace owner or admin - they have all permissions
     const workspaceRole = workspaceContext?.workspaceRole;
-    const isOwner = workspaceRole?.role === 'owner';
+    const workspace = workspaceContext?.workspace;
+    
+    // Check if user is workspace owner
+    // Priority: workspaceRole?.role === 'owner' > workspace.owner_id === profile?.id
+    const isOwnerByRole = workspaceRole?.role === 'owner';
+    const isOwnerByWorkspace = workspace && profile && workspace.owner_id === profile.id;
+    const isOwner = isOwnerByRole || isOwnerByWorkspace;
     
     // Check if user is admin (admins have all permissions)
     const isAdmin = profile?.role === 'admin';
@@ -101,7 +107,17 @@ export function usePermissions(permissions: Array<{ resource: string; action: st
 
   // If PermissionContext is available, use it
   if (permissionContext) {
+    const workspaceRole = workspaceContext?.workspaceRole;
+    const workspace = workspaceContext?.workspace;
+    const { profile } = useAuth();
+    const isOwner = workspaceRole?.role === 'owner' || (workspace && workspace.owner_id === profile?.id);
+    const isAdmin = profile?.role === 'admin';
+    
     const hasPermission = (resource: string, action: string) => {
+      // If owner or admin, return true immediately
+      if (isOwner || isAdmin) {
+        return true;
+      }
       return permissionContext.hasPermission(resource, action);
     };
     

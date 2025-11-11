@@ -15,6 +15,7 @@ export interface UserSettings {
   user_id: string;
   language: string;
   theme: 'light' | 'dark' | 'system';
+  default_hourly_rate?: number | null;
   notifications: {
     email: boolean;
     push: boolean;
@@ -42,6 +43,7 @@ export interface UpdateUserRoleData {
 export interface UpdateSettingsData {
   language?: string;
   theme?: 'light' | 'dark' | 'system';
+  default_hourly_rate?: number | null;
   notifications?: {
     email?: boolean;
     push?: boolean;

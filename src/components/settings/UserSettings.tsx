@@ -38,6 +38,7 @@ export function UserSettings() {
         // Set form values
         setValue("language", result.data.language);
         setValue("theme", result.data.theme);
+        setValue("default_hourly_rate", result.data.default_hourly_rate ?? null);
       } else {
         throw new Error(result.error);
       }
@@ -151,6 +152,24 @@ export function UserSettings() {
               )}
             </div>
 
+            {/* Default Hourly Rate */}
+            <div className="space-y-2">
+              <Label htmlFor="default_hourly_rate">Predvolená hodinová sadzba (pre úlohy bez projektu)</Label>
+              <Input
+                id="default_hourly_rate"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                {...register("default_hourly_rate", { valueAsNumber: true })}
+              />
+              <p className="text-sm text-muted-foreground">
+                Hodinová sadzba v eurách, ktorá sa použije pre úlohy bez projektu pri ukladaní času
+              </p>
+              {errors.default_hourly_rate && (
+                <p className="text-sm text-red-600">{errors.default_hourly_rate.message}</p>
+              )}
+            </div>
 
             <div className="flex justify-end">
               <Button type="submit" disabled={!isDirty || saving}>

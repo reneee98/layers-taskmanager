@@ -311,16 +311,38 @@ export async function PATCH(
       ? validation.data.project_id 
       : currentTask.project_id;
     
-    // Get project hourly rate if available
-    let projectHourlyRateCents: number | null = null;
-    if (projectIdForBudget) {
+    // Get hourly rate - priority: task.hourly_rate_cents > project.hourly_rate_cents
+    let hourlyRateCents: number | null = null;
+    
+    // Priority 1: Check if task has hourly_rate_cents (for tasks without project)
+    if (validation.data.hourly_rate_cents !== undefined && validation.data.hourly_rate_cents !== null) {
+      hourlyRateCents = validation.data.hourly_rate_cents;
+    } else if (currentTask.hourly_rate_cents !== undefined && currentTask.hourly_rate_cents !== null) {
+      hourlyRateCents = currentTask.hourly_rate_cents;
+    }
+    
+    // Priority 2: Check project hourly rate (for tasks with project)
+    if (!hourlyRateCents && projectIdForBudget) {
       const { data: project } = await supabase
         .from("projects")
         .select("hourly_rate_cents")
         .eq("id", projectIdForBudget)
         .single();
       
-      projectHourlyRateCents = project?.hourly_rate_cents || null;
+      hourlyRateCents = project?.hourly_rate_cents || null;
+    }
+    
+    // Priority 3: Check user_settings.default_hourly_rate (for tasks without project)
+    if (!hourlyRateCents && !projectIdForBudget) {
+      const { data: userSettings } = await supabase
+        .from("user_settings")
+        .select("default_hourly_rate")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (userSettings?.default_hourly_rate != null) {
+        hourlyRateCents = Math.round(userSettings.default_hourly_rate * 100);
+      }
     }
 
     // If budget_cents is set, automatically calculate estimated_hours = budget_cents / hourly_rate
@@ -328,10 +350,11 @@ export async function PATCH(
     if (validation.data.budget_cents !== undefined && 
         validation.data.budget_cents !== null && 
         validation.data.budget_cents > 0 && 
-        projectHourlyRateCents &&
+        hourlyRateCents &&
+        hourlyRateCents > 0 &&
         (validation.data.estimated_hours === undefined || validation.data.estimated_hours === null)) {
       // Calculate estimated_hours from budget
-      const hourlyRate = projectHourlyRateCents / 100; // Convert cents to euros
+      const hourlyRate = hourlyRateCents / 100; // Convert cents to euros
       const budgetInEuros = validation.data.budget_cents / 100; // Convert cents to euros
       const calculatedHours = budgetInEuros / hourlyRate;
       validation.data.estimated_hours = Math.round(calculatedHours * 100) / 100; // Round to 2 decimal places
@@ -343,12 +366,13 @@ export async function PATCH(
     if (validation.data.estimated_hours !== undefined && 
         validation.data.estimated_hours !== null && 
         validation.data.estimated_hours > 0 && 
-        projectHourlyRateCents) {
+        hourlyRateCents &&
+        hourlyRateCents > 0) {
       // Only calculate budget if budget_cents is not explicitly set in the request
       // This allows manual override if needed
       if (validation.data.budget_cents === undefined) {
         // Calculate budget: estimated_hours * hourly_rate (convert from cents to euros, then back to cents)
-        const hourlyRate = projectHourlyRateCents / 100; // Convert cents to euros
+        const hourlyRate = hourlyRateCents / 100; // Convert cents to euros
         const budgetInEuros = validation.data.estimated_hours * hourlyRate;
         validation.data.budget_cents = Math.round(budgetInEuros * 100); // Convert back to cents
         console.log(`Auto-calculated budget from estimated_hours: ${budgetInEuros}€ (hours: ${validation.data.estimated_hours}h, rate: ${hourlyRate}€/h)`);
@@ -383,11 +407,13 @@ export async function PATCH(
       assigned_to: currentTask.assigned_to,
     });
     
-    // Check if budget_cents or estimated_hours changed - if so, we need to recalculate time entries
+    // Check if budget_cents, estimated_hours, or hourly_rate_cents changed - if so, we need to recalculate time entries
     const budgetChanged = updateData.budget_cents !== undefined && 
       updateData.budget_cents !== currentTask.budget_cents;
     const estimatedHoursChanged = updateData.estimated_hours !== undefined && 
       updateData.estimated_hours !== currentTask.estimated_hours;
+    const hourlyRateChanged = updateData.hourly_rate_cents !== undefined && 
+      updateData.hourly_rate_cents !== currentTask.hourly_rate_cents;
 
     const { data: task, error } = await supabase
       .from("tasks")
@@ -406,9 +432,9 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    // If budget or estimated_hours changed, recalculate all time entries for this task
-    if (budgetChanged || estimatedHoursChanged) {
-      console.log('Budget or estimated_hours changed, recalculating time entries...');
+    // If budget, estimated_hours, or hourly_rate_cents changed, recalculate all time entries for this task
+    if (budgetChanged || estimatedHoursChanged || hourlyRateChanged) {
+      console.log('Budget, estimated_hours, or hourly_rate_cents changed, recalculating time entries...');
       
       // Get all time entries for this task
       const { data: timeEntries } = await supabase
@@ -423,15 +449,28 @@ export async function PATCH(
         const finalBudgetCents = task.budget_cents || 0;
         const finalEstimatedHours = task.estimated_hours || 0;
         
-        // Get hourly rate from first entry or project
+        // Get hourly rate - priority: task.hourly_rate_cents > first entry > project > resolve
         let hourlyRate = 0;
-        if (timeEntries[0]?.hourly_rate) {
+        if (task.hourly_rate_cents && task.hourly_rate_cents > 0) {
+          hourlyRate = task.hourly_rate_cents / 100;
+        } else if (timeEntries[0]?.hourly_rate) {
           hourlyRate = timeEntries[0].hourly_rate;
         } else if (timeEntries[0]?.user_id && task.project_id) {
           const resolved = await resolveHourlyRate(timeEntries[0].user_id, task.project_id);
           hourlyRate = resolved.hourlyRate;
         } else if (task.project?.hourly_rate_cents) {
           hourlyRate = task.project.hourly_rate_cents / 100;
+        } else if (timeEntries[0]?.user_id && !task.project_id) {
+          // Task has no project - check user_settings.default_hourly_rate
+          const { data: userSettings } = await supabase
+            .from("user_settings")
+            .select("default_hourly_rate")
+            .eq("user_id", timeEntries[0].user_id)
+            .single();
+          
+          if (userSettings?.default_hourly_rate != null) {
+            hourlyRate = Number(userSettings.default_hourly_rate);
+          }
         }
 
         if (finalBudgetCents > 0 && hourlyRate > 0) {
@@ -445,7 +484,13 @@ export async function PATCH(
         let cumulativeHours = 0;
 
         for (const entry of timeEntries) {
-          const entryRate = entry.hourly_rate || hourlyRate;
+          // Use task.hourly_rate_cents if available and changed, otherwise use entry's existing rate
+          let entryRate = entry.hourly_rate || hourlyRate;
+          
+          // If hourly_rate_cents changed, use the new rate for all entries
+          if (hourlyRateChanged && hourlyRate > 0) {
+            entryRate = hourlyRate;
+          }
           
           // Calculate how many hours from this entry are within budget
           const hoursWithinBudget = Math.max(0, Math.min(cumulativeHours, budgetHoursLimit));
@@ -458,10 +503,15 @@ export async function PATCH(
           // Calculate new amount
           const newAmount = hoursOverBudget * entryRate;
           
-          // Update entry
+          // Update entry with new amount and potentially new hourly_rate
+          const updateData: any = { amount: newAmount };
+          if (hourlyRateChanged && hourlyRate > 0) {
+            updateData.hourly_rate = entryRate;
+          }
+          
           await supabase
             .from("time_entries")
-            .update({ amount: newAmount })
+            .update(updateData)
             .eq("id", entry.id);
 
           cumulativeHours += entry.hours;

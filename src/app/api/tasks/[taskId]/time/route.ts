@@ -25,10 +25,10 @@ export async function POST(
       task_id: taskId,
     });
 
-    // Get task to find project_id, estimated_hours, budget_cents, and actual_hours (filtered by workspace)
+    // Get task to find project_id, estimated_hours, budget_cents, actual_hours, and hourly_rate_cents (filtered by workspace)
     const { data: task, error: taskError } = await supabase
       .from("tasks")
-      .select("project_id, estimated_hours, budget_cents, actual_hours")
+      .select("project_id, estimated_hours, budget_cents, actual_hours, hourly_rate_cents")
       .eq("id", taskId)
       .eq("workspace_id", workspaceId)
       .single();
@@ -58,49 +58,91 @@ export async function POST(
 
     if (hourlyRate == null) {
       // Use server-side Supabase client to resolve hourly rate
-      // Priority 1: Check project_members.hourly_rate
-      const { data: projectMember } = await supabase
-        .from("project_members")
-        .select("hourly_rate")
-        .eq("project_id", task.project_id)
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (projectMember?.hourly_rate != null) {
-        hourlyRate = Number(projectMember.hourly_rate);
-        rateSource = "project_member";
-      } else {
-        // Priority 2: Check projects.hourly_rate_cents
-        const { data: project } = await supabase
-          .from("projects")
-          .select("hourly_rate_cents")
-          .eq("id", task.project_id)
+      // Only check project-related rates if task has a project
+      if (task.project_id) {
+        // Priority 1: Check project_members.hourly_rate
+        const { data: projectMember } = await supabase
+          .from("project_members")
+          .select("hourly_rate")
+          .eq("project_id", task.project_id)
+          .eq("user_id", userId)
           .maybeSingle();
 
-        if (project?.hourly_rate_cents != null) {
-          hourlyRate = Number(project.hourly_rate_cents) / 100;
+        if (projectMember?.hourly_rate != null) {
+          hourlyRate = Number(projectMember.hourly_rate);
           rateSource = "project_member";
         } else {
-          // Priority 3: Check rates table
+          // Priority 2: Check projects.hourly_rate_cents
+          const { data: project } = await supabase
+            .from("projects")
+            .select("hourly_rate_cents")
+            .eq("id", task.project_id)
+            .maybeSingle();
+
+          if (project?.hourly_rate_cents != null) {
+            hourlyRate = Number(project.hourly_rate_cents) / 100;
+            rateSource = "project_member";
+          } else {
+            // Priority 3: Check rates table
+            const today = new Date().toISOString().split("T")[0];
+            const { data: rates } = await supabase
+              .from("rates")
+              .select("id, name, hourly_rate, user_id, project_id, valid_from, valid_to, is_default")
+              .or(`user_id.eq.${userId},project_id.eq.${task.project_id}`)
+              .lte("valid_from", today)
+              .or(`valid_to.is.null,valid_to.gte.${today}`)
+              .order("is_default", { ascending: false })
+              .order("valid_from", { ascending: false });
+
+            if (rates && rates.length > 0) {
+              const userRate = rates.find((r) => r.user_id === userId);
+              const rate = userRate || rates[0];
+              hourlyRate = Number(rate.hourly_rate);
+              rateSource = "rates_table";
+            } else {
+              // Priority 4: Fallback to 0
+              hourlyRate = 0;
+              rateSource = "fallback";
+            }
+          }
+        }
+      } else {
+        // Task has no project - Priority 1: Check task.hourly_rate_cents
+        if (task.hourly_rate_cents != null && task.hourly_rate_cents > 0) {
+          hourlyRate = Number(task.hourly_rate_cents) / 100;
+          rateSource = "task";
+        } else {
+          // Priority 2: Check rates table for user rates only
           const today = new Date().toISOString().split("T")[0];
           const { data: rates } = await supabase
             .from("rates")
             .select("id, name, hourly_rate, user_id, project_id, valid_from, valid_to, is_default")
-            .or(`user_id.eq.${userId},project_id.eq.${task.project_id}`)
+            .eq("user_id", userId)
             .lte("valid_from", today)
             .or(`valid_to.is.null,valid_to.gte.${today}`)
             .order("is_default", { ascending: false })
             .order("valid_from", { ascending: false });
 
           if (rates && rates.length > 0) {
-            const userRate = rates.find((r) => r.user_id === userId);
-            const rate = userRate || rates[0];
+            const rate = rates[0];
             hourlyRate = Number(rate.hourly_rate);
             rateSource = "rates_table";
           } else {
-            // Priority 4: Fallback to 0
-            hourlyRate = 0;
-            rateSource = "fallback";
+            // Priority 3: Check user_settings.default_hourly_rate
+            const { data: userSettings } = await supabase
+              .from("user_settings")
+              .select("default_hourly_rate")
+              .eq("user_id", userId)
+              .single();
+
+            if (userSettings?.default_hourly_rate != null) {
+              hourlyRate = Number(userSettings.default_hourly_rate);
+              rateSource = "user_settings";
+            } else {
+              // Fallback to 0
+              hourlyRate = 0;
+              rateSource = "fallback";
+            }
           }
         }
       }
@@ -143,22 +185,29 @@ export async function POST(
 
 
     // Insert time entry
+    // Only include project_id if task has a project
+    const timeEntryData: any = {
+      task_id: taskId,
+      user_id: userId,
+      hours: validatedData.hours,
+      date: validatedData.date,
+      description: validatedData.description || null,
+      hourly_rate: hourlyRate,
+      amount: amount,
+      is_billable: validatedData.is_billable ?? true,
+      start_time: validatedData.start_time || null,
+      end_time: validatedData.end_time || null,
+      workspace_id: workspaceId,
+    };
+
+    // Only add project_id if task has a project
+    if (task.project_id) {
+      timeEntryData.project_id = task.project_id;
+    }
+
     const { data: timeEntry, error: insertError } = await supabase
       .from("time_entries")
-      .insert({
-        project_id: task.project_id,
-        task_id: taskId,
-        user_id: userId,
-        hours: validatedData.hours,
-        date: validatedData.date,
-        description: validatedData.description || null,
-        hourly_rate: hourlyRate,
-        amount: amount,
-        is_billable: validatedData.is_billable ?? true,
-        start_time: validatedData.start_time || null,
-        end_time: validatedData.end_time || null,
-        workspace_id: workspaceId,
-      })
+      .insert(timeEntryData)
       .select()
       .single();
 
@@ -180,15 +229,20 @@ export async function POST(
       console.warn("Failed to update task actual_hours:", updateTaskError);
     }
 
-    // Get updated project finance snapshot
-    const { data: financeSnapshot, error: financeError } = await supabase
-      .from("project_finance_view")
-      .select("*")
-      .eq("project_id", task.project_id)
-      .single();
+    // Get updated project finance snapshot (only if task has a project)
+    let financeSnapshot = null;
+    if (task.project_id) {
+      const { data: snapshot, error: financeError } = await supabase
+        .from("project_finance_view")
+        .select("*")
+        .eq("project_id", task.project_id)
+        .single();
 
-    if (financeError) {
-      console.warn("Failed to get finance snapshot:", financeError);
+      if (financeError) {
+        console.warn("Failed to get finance snapshot:", financeError);
+      } else {
+        financeSnapshot = snapshot;
+      }
     }
 
     // Log activity - time added

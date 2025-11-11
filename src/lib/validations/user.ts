@@ -24,6 +24,7 @@ export const updateSettingsSchema = z.object({
   theme: z.enum(['light', 'dark', 'system'], {
     errorMap: () => ({ message: "Neplatný motív" })
   }).optional(),
+  default_hourly_rate: z.number().min(0, "Hodinová sadzba musí byť kladné číslo").nullable().optional(),
   notifications: z.object({
     email: z.boolean().optional(),
     push: z.boolean().optional(),

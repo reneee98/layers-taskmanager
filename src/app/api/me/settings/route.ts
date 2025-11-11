@@ -98,6 +98,9 @@ export async function PATCH(request: NextRequest) {
     if (validation.data.theme !== undefined) {
       updateData.theme = validation.data.theme;
     }
+    if (validation.data.default_hourly_rate !== undefined) {
+      updateData.default_hourly_rate = validation.data.default_hourly_rate;
+    }
     if (validation.data.notifications !== undefined) {
       // Merge with existing notifications
       const { data: currentSettings } = await supabase

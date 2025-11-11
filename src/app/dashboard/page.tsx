@@ -86,6 +86,7 @@ import Link from "next/link";
 import type { Task } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDashboardPermissions } from "@/hooks/useDashboardPermissions";
 
 // Lazy load heavy components
 const WorkspaceInvitations = dynamic(() => import("@/components/workspace/WorkspaceInvitations").then(mod => ({ default: mod.WorkspaceInvitations })), {
@@ -437,7 +438,10 @@ export default function DashboardPage() {
   const { hasPermission: canUpdateTasks } = usePermission('tasks', 'update');
   const { hasPermission: canReadClients } = usePermission('clients', 'read');
   
-  const isLoadingPermissions = isLoadingProjectsPermission || isLoadingTasksPermission || isLoadingReadProjectsPermission || isLoadingReadTasksPermission;
+  // Dashboard visibility permissions
+  const { permissions: dashboardPermissions, loading: isLoadingDashboardPermissions } = useDashboardPermissions();
+  
+  const isLoadingPermissions = isLoadingProjectsPermission || isLoadingTasksPermission || isLoadingReadProjectsPermission || isLoadingReadTasksPermission || isLoadingDashboardPermissions;
   const [tasks, setTasks] = useState<AssignedTask[]>([]); // Priradené používateľovi
   const [allActiveTasks, setAllActiveTasks] = useState<AssignedTask[]>([]); // Všetky aktívne v workspace
   const [unassignedTasks, setUnassignedTasks] = useState<AssignedTask[]>([]); // Nepriradené
@@ -1068,6 +1072,41 @@ export default function DashboardPage() {
     return priorityMap[priority] || priority;
   };
 
+  // Filter tabs based on dashboard permissions
+  const getAvailableTabs = (): DashboardTabType[] => {
+    const allTabs: DashboardTabType[] = ['all_active', 'today', 'sent_to_client', 'in_progress', 'unassigned', 'overdue', 'upcoming'];
+    return allTabs.filter(tab => {
+      switch (tab) {
+        case 'all_active':
+          return dashboardPermissions.show_tab_all_active;
+        case 'today':
+          return dashboardPermissions.show_tab_today;
+        case 'sent_to_client':
+          return dashboardPermissions.show_tab_sent_to_client;
+        case 'in_progress':
+          return dashboardPermissions.show_tab_in_progress;
+        case 'unassigned':
+          return dashboardPermissions.show_tab_unassigned;
+        case 'overdue':
+          return dashboardPermissions.show_tab_overdue;
+        case 'upcoming':
+          return dashboardPermissions.show_tab_upcoming;
+        default:
+          return true;
+      }
+    });
+  };
+
+  const availableTabs = getAvailableTabs();
+
+  // If current activeTab is not available, switch to first available tab
+  useEffect(() => {
+    if (!availableTabs.includes(activeTab) && availableTabs.length > 0) {
+      setActiveTab(availableTabs[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableTabs.length, activeTab]);
+
   const getTabLabel = (tab: DashboardTabType) => {
     const labels: Record<DashboardTabType, string> = {
       'all_active': 'Všetky aktívne',
@@ -1379,6 +1418,7 @@ export default function DashboardPage() {
       <WorkspaceInvitations />
 
       {/* Stats Overview */}
+      {dashboardPermissions.show_stats_overview && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-card border border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1424,12 +1464,12 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
+      )}
 
       {/* Main Content - Single Column */}
       <div className="w-full">
-        {/* Tasks and Activity Section - only show if user has permission to view tasks */}
-        {(canReadTasks || canViewTasks) && (
+        {/* Tasks and Activity Section - only show if user has permission to view tasks AND dashboard permission allows it */}
+        {(canReadTasks || canViewTasks) && dashboardPermissions.show_tasks_section && (
           <div className="w-full">
             {/* Combined Tasks and Activity Block */}
             <Card className="bg-card border border-border shadow-sm rounded-xl overflow-hidden">
@@ -1499,7 +1539,7 @@ export default function DashboardPage() {
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {(['all_active', 'today', 'sent_to_client', 'in_progress', 'unassigned'] as DashboardTabType[]).map((tab) => {
+                      {availableTabs.map((tab) => {
                         const Icon = getTabIcon(tab);
                         return (
                           <SelectItem key={tab} value={tab}>
@@ -1523,51 +1563,24 @@ export default function DashboardPage() {
                 <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DashboardTabType)} className="w-full hidden lg:block">
                   <div className="overflow-x-auto">
                     <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground min-w-max">
-                    <TabsTrigger value="all_active" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                      <List className="h-4 w-4 mr-2" />
-                      <span>Všetky aktívne</span>
-                      {taskCounts.all_active > 0 && (
-                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
-                          {taskCounts.all_active}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="today" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                      <CalendarIcon className="h-4 w-4 mr-2" />
-                      <span>Úlohy dnes</span>
-                      {taskCounts.today > 0 && (
-                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
-                          {taskCounts.today}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="sent_to_client" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                      <Send className="h-4 w-4 mr-2" />
-                      <span>Poslané klientovi</span>
-                      {taskCounts.sent_to_client > 0 && (
-                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
-                          {taskCounts.sent_to_client}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="in_progress" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                      <Play className="h-4 w-4 mr-2" />
-                      <span>In progress</span>
-                      {taskCounts.in_progress > 0 && (
-                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
-                          {taskCounts.in_progress}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="unassigned" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                      <User className="h-4 w-4 mr-2" />
-                      <span>Nepriradené</span>
-                      {taskCounts.unassigned > 0 && (
-                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
-                          {taskCounts.unassigned}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
+                      {availableTabs.map((tab) => {
+                        const Icon = getTabIcon(tab);
+                        return (
+                          <TabsTrigger 
+                            key={tab}
+                            value={tab} 
+                            className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                          >
+                            <Icon className="h-4 w-4 mr-2" />
+                            <span>{getTabLabel(tab)}</span>
+                            {taskCounts[tab] > 0 && (
+                              <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                                {taskCounts[tab]}
+                              </Badge>
+                            )}
+                          </TabsTrigger>
+                        );
+                      })}
                   </TabsList>
                   </div>
                 </Tabs>
@@ -2374,8 +2387,8 @@ export default function DashboardPage() {
               )}
               </div>
                 
-                {/* Activity Section - only show if user has permission */}
-                {(canReadTasks || canViewTasks || canReadProjects || canViewProjects) && (
+                {/* Activity Section - only show if user has permission AND dashboard permission allows it */}
+                {(canReadTasks || canViewTasks || canReadProjects || canViewProjects) && dashboardPermissions.show_activities_section && (
                   <div className="h-full flex flex-col">
                   <div className="px-6 py-4 bg-muted/50 border-b border-border/50">
                     <div className="flex items-center justify-between">

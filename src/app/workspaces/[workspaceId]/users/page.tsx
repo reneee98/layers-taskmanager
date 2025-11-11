@@ -40,8 +40,10 @@ import {
   Crown,
   Shield,
   User,
-  AlertTriangle
+  AlertTriangle,
+  Settings2
 } from "lucide-react";
+import { DashboardPermissionsDialog } from "@/components/dashboard/DashboardPermissionsDialog";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { getRoleLabel, getRoleDisplayName } from "@/lib/role-utils";
 
@@ -65,6 +67,7 @@ export default function WorkspaceUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDashboardPermissionsOpen, setIsDashboardPermissionsOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<WorkspaceUser | null>(null);
   const [availableRoles, setAvailableRoles] = useState<Array<{id: string, name: string, is_system_role: boolean}>>([]);
   
@@ -765,6 +768,17 @@ export default function WorkspaceUsersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setIsDashboardPermissionsOpen(true);
+                          }}
+                          title="Nastavenie viditeľnosti dashboardu"
+                        >
+                          <Settings2 className="h-4 w-4" />
+                        </Button>
                         {!user.is_owner && (
                           <>
                             <Button
@@ -841,6 +855,17 @@ export default function WorkspaceUsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dashboard Permissions Dialog */}
+      {selectedUser && (
+        <DashboardPermissionsDialog
+          open={isDashboardPermissionsOpen}
+          onOpenChange={setIsDashboardPermissionsOpen}
+          workspaceId={workspaceId}
+          userId={selectedUser.user_id}
+          userName={selectedUser.display_name}
+        />
+      )}
     </div>
   );
 }

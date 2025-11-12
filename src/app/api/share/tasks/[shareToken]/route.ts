@@ -65,11 +65,18 @@ export async function GET(
     const taskId = task.id;
 
     // Fetch checklist items
-    const { data: checklistItems } = await supabase
+    console.log(`[Share API] Fetching checklist items for task ${taskId}`);
+    const { data: checklistItems, error: checklistError } = await supabase
       .from("task_checklist_items")
       .select("*")
       .eq("task_id", taskId)
       .order("position", { ascending: true });
+    
+    if (checklistError) {
+      console.error(`[Share API] Error fetching checklist items:`, checklistError);
+    } else {
+      console.log(`[Share API] Found ${checklistItems?.length || 0} checklist items`);
+    }
 
     // Fetch comments with user info
     // Use service client which should bypass RLS
@@ -140,14 +147,22 @@ export async function GET(
     }
 
     // Fetch Google Drive links
-    const { data: driveLinks } = await supabase
+    console.log(`[Share API] Fetching Google Drive links for task ${taskId}`);
+    const { data: driveLinks, error: driveLinksError } = await supabase
       .from("google_drive_links")
       .select("*")
       .eq("task_id", taskId)
       .order("created_at", { ascending: false });
+    
+    if (driveLinksError) {
+      console.error(`[Share API] Error fetching drive links:`, driveLinksError);
+    } else {
+      console.log(`[Share API] Found ${driveLinks?.length || 0} drive links`);
+    }
 
     // Fetch files (from storage)
-    const { data: files } = await supabase.storage
+    console.log(`[Share API] Fetching files for task ${taskId}`);
+    const { data: files, error: filesError } = await supabase.storage
       .from("task-files")
       .list(taskId, {
         limit: 100,
@@ -155,25 +170,66 @@ export async function GET(
         sortBy: { column: "created_at", order: "desc" }
       });
 
+    if (filesError) {
+      console.error(`[Share API] Error listing files:`, filesError);
+    } else {
+      console.log(`[Share API] Found ${files?.length || 0} files in storage`);
+    }
+
     // Get signed URLs for files
     let filesWithUrls: any[] = [];
     if (files && files.length > 0) {
+      console.log(`[Share API] Generating signed URLs for ${files.length} files`);
       filesWithUrls = await Promise.all(
         files.map(async (file) => {
-          const { data: urlData } = await supabase.storage
-            .from("task-files")
-            .createSignedUrl(`${taskId}/${file.name}`, 3600);
+          try {
+            const { data: urlData, error: urlError } = await supabase.storage
+              .from("task-files")
+              .createSignedUrl(`${taskId}/${file.name}`, 3600);
 
-          return {
-            name: file.name,
-            url: urlData?.signedUrl || null,
-            size: file.metadata?.size || 0,
-            type: file.metadata?.mimetype || "application/octet-stream",
-            createdAt: file.created_at
-          };
+            if (urlError) {
+              console.error(`[Share API] Error creating signed URL for ${file.name}:`, urlError);
+              return {
+                name: file.name,
+                url: null,
+                size: file.metadata?.size || 0,
+                type: file.metadata?.mimetype || "application/octet-stream",
+                createdAt: file.created_at
+              };
+            }
+
+            return {
+              name: file.name,
+              url: urlData?.signedUrl || null,
+              size: file.metadata?.size || 0,
+              type: file.metadata?.mimetype || "application/octet-stream",
+              createdAt: file.created_at
+            };
+          } catch (err) {
+            console.error(`[Share API] Error processing file ${file.name}:`, err);
+            return {
+              name: file.name,
+              url: null,
+              size: file.metadata?.size || 0,
+              type: file.metadata?.mimetype || "application/octet-stream",
+              createdAt: file.created_at
+            };
+          }
         })
       );
+      console.log(`[Share API] Generated ${filesWithUrls.filter(f => f.url).length} signed URLs`);
     }
+
+    // Log summary before returning
+    console.log(`[Share API] Returning task data:`, {
+      taskId: task.id,
+      title: task.title,
+      checklistCount: checklistItems?.length || 0,
+      commentsCount: commentsWithUsers?.length || 0,
+      linksCount: driveLinks?.length || 0,
+      filesCount: filesWithUrls?.length || 0,
+      updatedAt: task.updated_at
+    });
 
     // Return all public-safe information
     return NextResponse.json({

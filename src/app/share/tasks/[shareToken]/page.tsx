@@ -293,8 +293,8 @@ export default function SharedTaskPage() {
             newUpdatedAt: result.data.updatedAt,
             prevChecklistCount: prev?.checklist?.length,
             newChecklistCount: result.data.checklist?.length,
-            prevChecklist: prev?.checklist?.map(i => ({ id: i.id, text: i.text, completed: i.completed })),
-            newChecklist: result.data.checklist?.map(i => ({ id: i.id, text: i.text, completed: i.completed }))
+            prevChecklist: prev?.checklist?.map((i: ChecklistItem) => ({ id: i.id, text: i.text, completed: i.completed })),
+            newChecklist: result.data.checklist?.map((i: ChecklistItem) => ({ id: i.id, text: i.text, completed: i.completed }))
           });
           
           // Always update to ensure we have the latest data

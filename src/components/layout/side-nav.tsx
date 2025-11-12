@@ -22,6 +22,7 @@ import {
   Shield
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace, WorkspaceContext } from "@/contexts/WorkspaceContext";
@@ -302,14 +303,21 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
             "flex items-center gap-3 border-b border-border transition-all duration-300",
             isCollapsed ? "px-3 py-6 justify-center" : "px-6 py-6"
           )}>
-            <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-lg">L</span>
+            <div className={cn(
+              "flex items-center justify-center",
+              isCollapsed ? "w-10 h-10" : "h-10"
+            )}>
+              <Image
+                src="/images/layers-logo.svg"
+                alt="Layers Logo"
+                width={isCollapsed ? 40 : 120}
+                height={40}
+                className="object-contain"
+                priority
+              />
             </div>
             {!isCollapsed && (
               <div className="flex flex-col">
-                <h1 className="text-2xl font-bold text-foreground">
-                  Layers
-                </h1>
                 <span className="text-xs text-muted-foreground">v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0-alpha'}</span>
               </div>
             )}

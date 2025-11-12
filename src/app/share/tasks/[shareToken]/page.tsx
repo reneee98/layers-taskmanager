@@ -42,6 +42,7 @@ import { sk } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { getAppVersion } from "@/lib/version";
 import { createClient } from "@/lib/supabase/client";
+import Image from "next/image";
 
 interface ChecklistItem {
   id: string;
@@ -521,13 +522,17 @@ export default function SharedTaskPage() {
         <div className="space-y-4">
           {/* Header with Logo */}
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-lg">L</span>
+            <div className="h-10 flex items-center">
+              <Image
+                src="/images/layers-logo.svg"
+                alt="Layers Logo"
+                width={120}
+                height={40}
+                className="object-contain"
+                priority
+              />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-2xl font-bold text-foreground">
-                Layers
-              </h1>
               <span className="text-xs text-muted-foreground">v{getAppVersion()}</span>
             </div>
           </div>

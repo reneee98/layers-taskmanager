@@ -157,6 +157,13 @@ export async function POST(
       return NextResponse.json({ success: false, error: "Nepodarilo sa nahrať súbor" }, { status: 500 });
     }
 
+    // Update task's updated_at timestamp to trigger realtime updates
+    await supabase
+      .from("tasks")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", taskId)
+      .eq("workspace_id", workspaceId);
+
     // Get public URL
     const { data: urlData } = supabase.storage
       .from("task-files")

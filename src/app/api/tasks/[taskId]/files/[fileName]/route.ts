@@ -46,6 +46,13 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: "Nepodarilo sa vymazať súbor" }, { status: 500 });
     }
 
+    // Update task's updated_at timestamp to trigger realtime updates
+    await supabase
+      .from("tasks")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", taskId)
+      .eq("workspace_id", workspaceId);
+
     return NextResponse.json({
       success: true,
       data: { message: "Súbor bol vymazaný" }

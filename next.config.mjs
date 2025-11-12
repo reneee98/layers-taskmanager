@@ -4,7 +4,7 @@ import path from 'path';
 // Read version from package.json at build time
 const packageJsonPath = path.join(process.cwd(), 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-const appVersion = packageJson.version || '1.0.0-alpha';
+const appVersion = packageJson.version || '1.0.0';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

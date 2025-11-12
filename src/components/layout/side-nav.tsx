@@ -318,7 +318,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
             </div>
             {!isCollapsed && (
               <div className="flex flex-col justify-center">
-                <span className="text-xs text-muted-foreground">v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0-alpha'}</span>
+                <span className="text-xs text-muted-foreground">v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}</span>
               </div>
             )}
           </div>

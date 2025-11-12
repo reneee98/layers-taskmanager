@@ -1,10 +1,10 @@
 // Utility to get app version from package.json
 // This will be resolved at build time
 
-let cachedVersion: string = '1.0.0-alpha';
+let cachedVersion: string = '1.0.0';
 
 export const getAppVersion = (): string => {
-  if (cachedVersion !== '1.0.0-alpha') {
+  if (cachedVersion !== '1.0.0') {
     return cachedVersion;
   }
 
@@ -18,10 +18,10 @@ export const getAppVersion = (): string => {
   if (typeof window === 'undefined') {
     try {
       const packageJson = require('../../package.json');
-      cachedVersion = packageJson.version || '1.0.0-alpha';
+      cachedVersion = packageJson.version || '1.0.0';
       return cachedVersion;
     } catch (error) {
-      cachedVersion = '1.0.0-alpha';
+      cachedVersion = '1.0.0';
       return cachedVersion;
     }
   }

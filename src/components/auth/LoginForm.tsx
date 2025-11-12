@@ -227,7 +227,7 @@ export function LoginForm() {
             </p>
               
               <p className="text-xs text-muted-foreground pt-2">
-                Layers v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0-alpha'}
+                Layers v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}
               </p>
           </div>
         </CardContent>

@@ -19,7 +19,16 @@ export function getBaseUrl(request?: NextRequest): string {
     return url;
   }
 
-  // 2. On Vercel production, prefer VERCEL_URL
+  // 2. Use request origin if available (most reliable on Vercel)
+  // This will always be the correct domain the request came from
+  // On Vercel production, this will be the production URL (e.g., layers-studio.vercel.app)
+  if (request) {
+    const origin = request.nextUrl.origin;
+    // Use the origin from the request - this will be the actual domain
+    return origin;
+  }
+
+  // 3. Fallback to VERCEL_URL if available (for cases without request)
   // VERCEL_URL is available in all Vercel deployments
   if (process.env.VERCEL_URL) {
     const vercelUrl = process.env.VERCEL_URL.trim();
@@ -27,15 +36,6 @@ export function getBaseUrl(request?: NextRequest): string {
     // Remove any existing protocol if present
     const cleanUrl = vercelUrl.replace(/^https?:\/\//, '');
     return `https://${cleanUrl}`;
-  }
-
-  // 3. Fallback to request origin if available
-  // This works for most cases but may not be accurate on Vercel
-  if (request) {
-    const origin = request.nextUrl.origin;
-    // If origin looks like a Vercel preview URL, it's fine
-    // Otherwise, prefer environment variables
-    return origin;
   }
 
   // 4. Last resort: use localhost for development

@@ -86,6 +86,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    // Check if we're on a share route - don't block rendering for public pages
+    const isShareRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/share');
+    
+    // For share routes, set loading to false immediately to not block rendering
+    if (isShareRoute) {
+      setLoading(false);
+    }
+    
     // Get initial session
     const getInitialSession = async () => {
       try {

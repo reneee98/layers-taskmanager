@@ -61,8 +61,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - api (API routes - let them handle auth themselves)
+     * - share (Public share routes - no auth required)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api|share|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

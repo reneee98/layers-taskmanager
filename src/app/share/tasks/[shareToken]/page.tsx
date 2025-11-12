@@ -103,7 +103,7 @@ const statusOptions = [
     value: "in_progress", 
     label: "In Progress", 
     icon: Play,
-    color: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 dark:hover:bg-blue-800/30",
+    color: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200",
     iconColor: "text-blue-500"
   },
   { 
@@ -117,7 +117,7 @@ const statusOptions = [
     value: "sent_to_client", 
     label: "Sent to Client", 
     icon: Send,
-    color: "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800 dark:hover:bg-purple-800/30",
+    color: "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200",
     iconColor: "text-purple-500"
   },
   { 
@@ -141,28 +141,28 @@ const priorityOptions = [
     value: "low", 
     label: "Low", 
     icon: ArrowDown,
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800 dark:hover:bg-emerald-800/30",
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200",
     iconColor: "text-emerald-500"
   },
   { 
     value: "medium", 
     label: "Medium", 
     icon: ArrowUp,
-    color: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800 dark:hover:bg-amber-800/30",
+    color: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200",
     iconColor: "text-amber-500"
   },
   { 
     value: "high", 
     label: "High", 
     icon: ArrowUpRight,
-    color: "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800 dark:hover:bg-orange-800/30",
+    color: "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200",
     iconColor: "text-orange-500"
   },
   { 
     value: "urgent", 
     label: "Urgent", 
     icon: Flame,
-    color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-800/30",
+    color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200",
     iconColor: "text-red-500"
   },
 ];
@@ -341,7 +341,7 @@ export default function SharedTaskPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F8F8] dark:bg-slate-950">
+    <div className="min-h-screen bg-[#F8F8F8]">
       <div className="w-full px-6 py-6">
         <div className="space-y-4">
           {/* Header with Logo */}
@@ -700,7 +700,7 @@ export default function SharedTaskPage() {
                                     </div>
                                   </div>
                                   <div 
-                                    className="text-xs prose prose-xs max-w-none dark:prose-invert break-words"
+                                    className="text-xs prose prose-xs max-w-none break-words"
                                     dangerouslySetInnerHTML={{ __html: comment.content }}
                                   />
                                 </div>
@@ -725,7 +725,7 @@ export default function SharedTaskPage() {
                         <CardContent className="pt-0">
                           <div className="space-y-3">
                             {task.links.map((link) => (
-                              <div key={link.id} className="flex items-center justify-between rounded-md bg-muted/50 dark:bg-muted/30 p-3 border border-border dark:border-border">
+                              <div key={link.id} className="flex items-center justify-between rounded-md bg-muted/50 p-3 border border-border">
                                 <div className="flex-1 min-w-0">
                                   <a
                                     href={link.url}
@@ -733,7 +733,7 @@ export default function SharedTaskPage() {
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-2 text-sm font-medium text-primary hover:underline truncate"
                                   >
-                                    <LinkIcon className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+                                    <LinkIcon className="h-4 w-4 flex-shrink-0 text-blue-600" />
                                     <span className="truncate text-foreground">{link.description || "Link"}</span>
                                     <ExternalLink className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
                                   </a>

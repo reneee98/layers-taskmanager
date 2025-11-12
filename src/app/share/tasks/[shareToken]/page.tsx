@@ -41,6 +41,7 @@ import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { getAppVersion } from "@/lib/version";
+import { createClient } from "@/lib/supabase/client";
 
 interface ChecklistItem {
   id: string;
@@ -234,34 +235,208 @@ export default function SharedTaskPage() {
   const [rightSidebarTab, setRightSidebarTab] = useState("comments");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [togglingItems, setTogglingItems] = useState<Set<string>>(new Set());
+  const supabase = createClient();
+
+  const fetchTask = async () => {
+    try {
+      const response = await fetch(`/api/share/tasks/${shareToken}`);
+      const result = await response.json();
+
+      if (result.success) {
+        setTask(result.data);
+        // Set default tab based on available content
+        if (result.data.comments.length === 0 && result.data.links.length > 0) {
+          setRightSidebarTab("links");
+        }
+      } else {
+        setError(result.error || "Úloha nebola nájdená");
+      }
+    } catch (err) {
+      console.error("Error fetching shared task:", err);
+      setError("Nepodarilo sa načítať úlohu");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchTask = async () => {
-      try {
-        const response = await fetch(`/api/share/tasks/${shareToken}`);
-        const result = await response.json();
-
-        if (result.success) {
-          setTask(result.data);
-          // Set default tab based on available content
-          if (result.data.comments.length === 0 && result.data.links.length > 0) {
-            setRightSidebarTab("links");
-          }
-        } else {
-          setError(result.error || "Úloha nebola nájdená");
-        }
-      } catch (err) {
-        console.error("Error fetching shared task:", err);
-        setError("Nepodarilo sa načítať úlohu");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     if (shareToken) {
       fetchTask();
     }
   }, [shareToken]);
+
+  // Setup realtime subscriptions
+  useEffect(() => {
+    if (!task || !shareToken) return;
+
+    const taskId = task.id;
+    const channel = supabase
+      .channel(`shared-task-${shareToken}`)
+      .on("error", (error) => {
+        console.error("Realtime subscription error:", error);
+      })
+      .on("presence", { event: "sync" }, () => {
+        // Handle presence sync if needed
+      })
+      // Subscribe to task updates
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "tasks",
+          filter: `id=eq.${taskId}`,
+        },
+        (payload) => {
+          const updatedTask = payload.new as any;
+          setTask((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              title: updatedTask.title || prev.title,
+              description: updatedTask.description ?? prev.description,
+              status: updatedTask.status || prev.status,
+              priority: updatedTask.priority || prev.priority,
+              dueDate: updatedTask.due_date || prev.dueDate,
+              estimatedHours: updatedTask.estimated_hours ?? prev.estimatedHours,
+            };
+          });
+        }
+      )
+      // Subscribe to checklist updates
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "task_checklist_items",
+          filter: `task_id=eq.${taskId}`,
+        },
+        async (payload) => {
+          // Fetch updated checklist items
+          const { data: checklistItems } = await supabase
+            .from("task_checklist_items")
+            .select("*")
+            .eq("task_id", taskId)
+            .order("position", { ascending: true });
+
+          if (checklistItems) {
+            setTask((prev) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                checklist: checklistItems.map((item: any) => ({
+                  id: item.id,
+                  text: item.text,
+                  completed: item.completed,
+                  position: item.position,
+                })),
+              };
+            });
+          }
+        }
+      )
+      // Subscribe to comment updates
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "task_comments",
+          filter: `task_id=eq.${taskId}`,
+        },
+        async (payload) => {
+          // Fetch updated comments with user info
+          const { data: comments } = await supabase
+            .from("task_comments")
+            .select(`
+              id,
+              content,
+              created_at,
+              updated_at,
+              user_id
+            `)
+            .eq("task_id", taskId)
+            .order("created_at", { ascending: true });
+
+          if (comments && comments.length > 0) {
+            const userIds = Array.from(new Set(comments.map((c: any) => c.user_id)));
+            const { data: userProfiles } = await supabase
+              .from("profiles")
+              .select("id, display_name, email")
+              .in("id", userIds);
+
+            const commentsWithUsers = comments.map((comment: any) => {
+              const user = userProfiles?.find((p: any) => p.id === comment.user_id);
+              return {
+                id: comment.id,
+                content: comment.content,
+                createdAt: comment.created_at,
+                updatedAt: comment.updated_at,
+                user: user ? {
+                  displayName: user.display_name,
+                  email: user.email
+                } : null
+              };
+            });
+
+            setTask((prev) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                comments: commentsWithUsers,
+              };
+            });
+          } else {
+            setTask((prev) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                comments: [],
+              };
+            });
+          }
+        }
+      )
+      // Subscribe to Google Drive links updates
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "google_drive_links",
+          filter: `task_id=eq.${taskId}`,
+        },
+        async (payload) => {
+          // Fetch updated links
+          const { data: driveLinks } = await supabase
+            .from("google_drive_links")
+            .select("*")
+            .eq("task_id", taskId)
+            .order("created_at", { ascending: false });
+
+          if (driveLinks) {
+            setTask((prev) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                links: driveLinks.map((link: any) => ({
+                  id: link.id,
+                  url: link.url,
+                  description: link.description,
+                  created_at: link.created_at,
+                })),
+              };
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [task, shareToken, supabase]);
 
   if (isLoading) {
     return (

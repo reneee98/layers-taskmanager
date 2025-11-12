@@ -131,7 +131,7 @@ const statusOptions = [
     value: "cancelled", 
     label: "Cancelled", 
     icon: XCircle,
-    color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-800/30",
+    color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200",
     iconColor: "text-red-500"
   },
 ];

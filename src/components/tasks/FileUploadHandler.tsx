@@ -106,6 +106,11 @@ export const FileUploadHandler = ({ taskId, onFileUploaded, children }: FileUplo
               // All files go to Files section, not to description
               console.log('File uploaded, URL:', result.data.url);
               
+              // Dispatch custom event to refresh files list
+              window.dispatchEvent(new CustomEvent('taskFileUploaded', {
+                detail: { taskId, fileName: result.data.fileName }
+              }));
+              
               // Call the callback with empty content since we don't want to modify description
               onFileUploaded(result.data.url, '');
               

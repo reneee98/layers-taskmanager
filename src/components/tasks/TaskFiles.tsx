@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +43,7 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [newFileAnimation, setNewFileAnimation] = useState<string | null>(null);
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       const response = await fetch(`/api/tasks/${taskId}/files`, {
         credentials: "include",
@@ -60,11 +60,27 @@ export const TaskFiles = ({ taskId }: TaskFilesProps) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [taskId]);
 
   useEffect(() => {
     fetchFiles();
-  }, [taskId]);
+  }, [fetchFiles]);
+
+  // Listen for file upload events from FileUploadHandler
+  useEffect(() => {
+    const handleFileUploaded = (e: CustomEvent) => {
+      if (e.detail.taskId === taskId) {
+        // Refresh files list when a file is uploaded
+        fetchFiles();
+      }
+    };
+
+    window.addEventListener('taskFileUploaded', handleFileUploaded as EventListener);
+    
+    return () => {
+      window.removeEventListener('taskFileUploaded', handleFileUploaded as EventListener);
+    };
+  }, [taskId, fetchFiles]);
 
   const compressFileUniversal = async (file: File): Promise<{ compressedFile: File; compressionInfo: string }> => {
     // Check if file should be compressed

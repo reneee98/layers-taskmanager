@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { TopNav } from "@/components/layout/top-nav";
 import { SideNav } from "@/components/layout/side-nav";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +15,10 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
   const [isSideNavOpen, setIsSideNavOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { user, loading } = useAuth();
+  const pathname = usePathname();
+  
+  // Don't show layout for share routes
+  const isShareRoute = pathname?.startsWith('/share');
 
   // Load sidebar state from localStorage on mount
   useEffect(() => {
@@ -39,6 +44,11 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
   const handleToggleSidebarCollapse = () => {
     setIsSidebarCollapsed((prev) => !prev);
   };
+
+  // Don't show layout for share routes - return children directly
+  if (isShareRoute) {
+    return <>{children}</>;
+  }
 
   // If loading, show loading state
   if (loading) {

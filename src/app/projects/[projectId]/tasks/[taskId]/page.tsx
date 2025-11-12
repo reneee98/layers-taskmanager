@@ -136,6 +136,14 @@ const TaskFiles = dynamic(() => import("@/components/tasks/TaskFiles").then(mod 
   loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
 });
 
+const FileUploadHandler = dynamic(() => import("@/components/tasks/FileUploadHandler").then(mod => ({ default: mod.FileUploadHandler })), {
+  ssr: false,
+});
+
+const TaskShareButton = dynamic(() => import("@/components/tasks/TaskShareButton").then(mod => ({ default: mod.TaskShareButton })), {
+  ssr: false,
+});
+
 import { toast } from "@/hooks/use-toast";
 import { formatHours } from "@/lib/format";
 import { format } from "date-fns";
@@ -1184,29 +1192,32 @@ export default function TaskDetailPage() {
           </Popover>
         </div>
         
-        {(canCreateTasks || canDeleteTasks) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="text-muted-foreground hover:text-foreground">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {canCreateTasks && (
-                <DropdownMenuItem onClick={handleDuplicate}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Duplikovať
-                </DropdownMenuItem>
-              )}
-              {canDeleteTasks && (
-                <DropdownMenuItem onClick={handleDelete} className="text-red-600">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Vymazať
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        <div className="flex items-center gap-2">
+          <TaskShareButton taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
+          {(canCreateTasks || canDeleteTasks) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="text-muted-foreground hover:text-foreground">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {canCreateTasks && (
+                  <DropdownMenuItem onClick={handleDuplicate}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Duplikovať
+                  </DropdownMenuItem>
+                )}
+                {canDeleteTasks && (
+                  <DropdownMenuItem onClick={handleDelete} className="text-red-600">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Vymazať
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
 
       {/* Compact Task Header */}
@@ -1436,10 +1447,18 @@ export default function TaskDetailPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <TaskDescription
+                  <FileUploadHandler
                     taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
-                    initialDescription={task?.description || ""}
-                  />
+                    onFileUploaded={(fileUrl, htmlContent) => {
+                      // Files are automatically added to Files section via custom event
+                      // No need to modify description
+                    }}
+                  >
+                    <TaskDescription
+                      taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
+                      initialDescription={task?.description || ""}
+                    />
+                  </FileUploadHandler>
                 </CardContent>
               </Card>
 

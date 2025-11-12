@@ -1,6 +1,6 @@
 {
   "name": "laydo",
-  "version": "1.0.0-alpha.1762880138630",
+  "version": "1.0.0-alpha.1762947690386",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",

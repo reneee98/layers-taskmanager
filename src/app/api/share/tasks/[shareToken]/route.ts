@@ -64,8 +64,8 @@ export async function GET(
 
     const taskId = task.id;
 
-    // Fetch checklist items
-    console.log(`[Share API] Fetching checklist items for task ${taskId}`);
+    // Fetch checklist items - ensure we only get items for this specific task
+    console.log(`[Share API] Fetching checklist items for task ${taskId} (shareToken: ${shareToken})`);
     const { data: checklistItems, error: checklistError } = await supabase
       .from("task_checklist_items")
       .select("*")
@@ -75,7 +75,15 @@ export async function GET(
     if (checklistError) {
       console.error(`[Share API] Error fetching checklist items:`, checklistError);
     } else {
-      console.log(`[Share API] Found ${checklistItems?.length || 0} checklist items`);
+      console.log(`[Share API] Found ${checklistItems?.length || 0} checklist items for task ${taskId}`);
+      if (checklistItems && checklistItems.length > 0) {
+        console.log(`[Share API] Checklist items:`, checklistItems.map(item => ({
+          id: item.id,
+          text: item.text,
+          completed: item.completed,
+          task_id: item.task_id
+        })));
+      }
     }
 
     // Fetch comments with user info

@@ -276,14 +276,30 @@ export default function SharedTaskPage() {
       });
 
       if (result.success && result.data) {
-        // Always update with fresh data from server
+        // Always update with fresh data from server - use functional update to ensure React sees the change
         console.log(`[FetchTask] Updating task state with fresh data:`, {
           checklist: result.data.checklist?.length || 0,
           files: result.data.files?.length || 0,
           links: result.data.links?.length || 0,
           comments: result.data.comments?.length || 0,
+          updatedAt: result.data.updatedAt,
         });
-        setTask(result.data);
+        
+        // Force update by creating a new object reference
+        setTask((prev) => {
+          // Check if data actually changed
+          if (prev && prev.updatedAt === result.data.updatedAt && 
+              JSON.stringify(prev.checklist) === JSON.stringify(result.data.checklist) &&
+              JSON.stringify(prev.files) === JSON.stringify(result.data.files) &&
+              JSON.stringify(prev.links) === JSON.stringify(result.data.links) &&
+              JSON.stringify(prev.comments) === JSON.stringify(result.data.comments)) {
+            console.log(`[FetchTask] Data unchanged, skipping update`);
+            return prev;
+          }
+          console.log(`[FetchTask] Data changed, updating state`);
+          return { ...result.data };
+        });
+        
         // Set default tab based on available content
         if (result.data.comments.length === 0 && result.data.links.length > 0) {
           setRightSidebarTab("links");

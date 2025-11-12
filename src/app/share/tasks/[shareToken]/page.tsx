@@ -273,9 +273,6 @@ export default function SharedTaskPage() {
     const taskId = task.id;
     const channel = supabase
       .channel(`shared-task-${shareToken}`)
-      .on("error", (error) => {
-        console.error("Realtime subscription error:", error);
-      })
       .on("presence", { event: "sync" }, () => {
         // Handle presence sync if needed
       })

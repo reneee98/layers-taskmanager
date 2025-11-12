@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
+import { getBaseUrl } from "@/lib/url-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -60,13 +61,21 @@ export async function GET(
     }
     // Task without project - allow if user is in the workspace
 
+    const baseUrl = getBaseUrl(request);
+    
     return NextResponse.json({
       success: true,
       data: {
         shareToken: task.share_token,
         shareUrl: task.share_token 
-          ? `${request.nextUrl.origin}/share/tasks/${task.share_token}`
+          ? `${baseUrl}/share/tasks/${task.share_token}`
           : null
+      }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       }
     });
 
@@ -151,11 +160,19 @@ export async function POST(
         return NextResponse.json({ success: false, error: "Nepodarilo sa uložiť token" }, { status: 500 });
       }
       
+      const baseUrl = getBaseUrl(request);
+      
       return NextResponse.json({
         success: true,
         data: {
           shareToken: updatedTask.share_token,
-          shareUrl: `${request.nextUrl.origin}/share/tasks/${updatedTask.share_token}`
+          shareUrl: `${baseUrl}/share/tasks/${updatedTask.share_token}`
+        }
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         }
       });
     }
@@ -173,11 +190,19 @@ export async function POST(
       return NextResponse.json({ success: false, error: "Nepodarilo sa uložiť token" }, { status: 500 });
     }
 
+    const baseUrl = getBaseUrl(request);
+    
     return NextResponse.json({
       success: true,
       data: {
         shareToken: updatedTask.share_token,
-        shareUrl: `${request.nextUrl.origin}/share/tasks/${updatedTask.share_token}`
+        shareUrl: `${baseUrl}/share/tasks/${updatedTask.share_token}`
+      }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       }
     });
 

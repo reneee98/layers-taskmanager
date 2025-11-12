@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -236,7 +236,7 @@ export default function SharedTaskPage() {
   const [rightSidebarTab, setRightSidebarTab] = useState("comments");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [togglingItems, setTogglingItems] = useState<Set<string>>(new Set());
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const fetchTask = async () => {
     try {
@@ -271,6 +271,8 @@ export default function SharedTaskPage() {
     if (!task || !shareToken) return;
 
     const taskId = task.id;
+    console.log(`[Realtime] Setting up subscription for task ${taskId} with token ${shareToken}`);
+    
     const channel = supabase
       .channel(`shared-task-${shareToken}`)
       .on("presence", { event: "sync" }, () => {
@@ -286,6 +288,7 @@ export default function SharedTaskPage() {
           filter: `id=eq.${taskId}`,
         },
         (payload) => {
+          console.log(`[Realtime] Task UPDATE received:`, payload);
           const updatedTask = payload.new as any;
           setTask((prev) => {
             if (!prev) return null;
@@ -311,6 +314,7 @@ export default function SharedTaskPage() {
           filter: `task_id=eq.${taskId}`,
         },
         async (payload) => {
+          console.log(`[Realtime] Checklist UPDATE received:`, payload);
           // Fetch updated checklist items
           const { data: checklistItems } = await supabase
             .from("task_checklist_items")
@@ -429,12 +433,24 @@ export default function SharedTaskPage() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`[Realtime] Subscription status:`, status);
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Realtime] Successfully subscribed to channel shared-task-${shareToken}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`[Realtime] Channel error for shared-task-${shareToken}`);
+        } else if (status === 'TIMED_OUT') {
+          console.error(`[Realtime] Subscription timed out for shared-task-${shareToken}`);
+        } else if (status === 'CLOSED') {
+          console.log(`[Realtime] Channel closed for shared-task-${shareToken}`);
+        }
+      });
 
     return () => {
+      console.log(`[Realtime] Cleaning up subscription for task ${taskId}`);
       supabase.removeChannel(channel);
     };
-  }, [task, shareToken, supabase]);
+  }, [task?.id, shareToken, supabase]);
 
   if (isLoading) {
     return (

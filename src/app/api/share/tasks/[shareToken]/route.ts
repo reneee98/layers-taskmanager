@@ -10,10 +10,19 @@ export async function GET(
 ) {
   try {
     const { shareToken } = await params;
+    
+    if (!shareToken) {
+      return NextResponse.json({
+        success: false,
+        error: "Share token is required"
+      }, { status: 400 });
+    }
+    
     // Use service role client to bypass RLS for public access
     const supabase = createServiceClient();
     
     if (!supabase) {
+      console.error("[Share API] Service client not available - check SUPABASE_SERVICE_ROLE_KEY");
       return NextResponse.json({
         success: false,
         error: "Server configuration error"
@@ -37,7 +46,16 @@ export async function GET(
       .eq("share_token", shareToken)
       .single();
 
-    if (taskError || !task) {
+    if (taskError) {
+      console.error("[Share API] Error fetching task:", taskError);
+      return NextResponse.json({ 
+        success: false, 
+        error: "Úloha nebola nájdená alebo nie je zdieľateľná" 
+      }, { status: 404 });
+    }
+    
+    if (!task) {
+      console.log(`[Share API] Task not found for share token: ${shareToken}`);
       return NextResponse.json({ 
         success: false, 
         error: "Úloha nebola nájdená alebo nie je zdieľateľná" 

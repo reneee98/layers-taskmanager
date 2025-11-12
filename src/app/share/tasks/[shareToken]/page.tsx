@@ -237,6 +237,7 @@ export default function SharedTaskPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [togglingItems, setTogglingItems] = useState<Set<string>>(new Set());
   const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const supabase = useMemo(() => createClient(), []);
 
   const fetchTask = useCallback(async (silent = false) => {
@@ -247,8 +248,14 @@ export default function SharedTaskPage() {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
-        }
+        },
+        credentials: 'omit', // Don't send cookies for public access
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
 
       if (result.success) {
@@ -282,6 +289,20 @@ export default function SharedTaskPage() {
       }
     }
   }, [shareToken]);
+  
+  // Check if user is authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsAnonymous(!user);
+      } catch (err) {
+        console.error("Error checking auth:", err);
+        setIsAnonymous(true);
+      }
+    };
+    checkAuth();
+  }, [supabase]);
 
   useEffect(() => {
     if (shareToken) {
@@ -289,9 +310,16 @@ export default function SharedTaskPage() {
     }
   }, [shareToken]);
 
-  // Setup realtime subscriptions
+  // Setup realtime subscriptions (only if user is authenticated or if we can use anon access)
   useEffect(() => {
     if (!task || !shareToken) return;
+    
+    // Skip realtime subscriptions for anonymous users - use polling instead
+    // Realtime subscriptions require proper RLS policies and may not work reliably for anonymous users
+    if (isAnonymous) {
+      console.log(`[Realtime] Skipping subscriptions for anonymous user`);
+      return;
+    }
 
     const taskId = task.id;
     console.log(`[Realtime] Setting up subscription for task ${taskId} with token ${shareToken}`);
@@ -454,21 +482,22 @@ export default function SharedTaskPage() {
       console.log(`[Realtime] Cleaning up subscription for task ${taskId}`);
       supabase.removeChannel(channel);
     };
-  }, [task?.id, shareToken, supabase]);
+  }, [task?.id, shareToken, supabase, isAnonymous]);
 
   // Auto-refresh: Poll every 2 seconds to get latest updates
+  // For anonymous users, use more frequent polling since realtime doesn't work
   useEffect(() => {
     if (!task || !shareToken) return;
     
-    // Poll every 2 seconds to get latest updates (silent mode to avoid loading states)
+    // Poll every 2 seconds for authenticated users, every 3 seconds for anonymous users
     const pollInterval = setInterval(() => {
       fetchTask(true);
-    }, 2000);
+    }, isAnonymous ? 3000 : 2000);
 
     return () => {
       clearInterval(pollInterval);
     };
-  }, [task, shareToken, fetchTask]);
+  }, [task, shareToken, fetchTask, isAnonymous]);
 
   if (isLoading) {
     return (

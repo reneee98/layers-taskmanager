@@ -306,19 +306,13 @@ export default function SharedTaskPage() {
     }
   }, [shareToken]);
 
-  // Setup realtime subscriptions (only if user is authenticated or if we can use anon access)
+  // Setup realtime subscriptions for all users (including anonymous)
+  // RLS policies allow anonymous users to subscribe to shared tasks
   useEffect(() => {
     if (!task || !shareToken) return;
-    
-    // Skip realtime subscriptions for anonymous users - use polling instead
-    // Realtime subscriptions require proper RLS policies and may not work reliably for anonymous users
-    if (isAnonymous) {
-      console.log(`[Realtime] Skipping subscriptions for anonymous user`);
-      return;
-    }
 
     const taskId = task.id;
-    console.log(`[Realtime] Setting up subscription for task ${taskId} with token ${shareToken}`);
+    console.log(`[Realtime] Setting up subscription for task ${taskId} with token ${shareToken} (anonymous: ${isAnonymous})`);
     
     const channel = supabase
       .channel(`shared-task-${shareToken}`)
@@ -339,12 +333,12 @@ export default function SharedTaskPage() {
           console.log(`[Realtime] Payload new:`, payload.new);
           console.log(`[Realtime] Payload old:`, payload.old);
           
-          const updatedTask = payload.new as any;
-          
-          // Refetch full task data to ensure we have all fields
-          fetchTask().catch(err => {
+          // Always refetch full task data via API to ensure we have latest information
+          // This works for both authenticated and anonymous users
+          fetchTask(true).catch(err => {
             console.error("[Realtime] Error refetching task after update:", err);
-            // Fallback: update local state with payload data
+            // Fallback: update local state with payload data if API fails
+            const updatedTask = payload.new as any;
             setTask((prev) => {
               if (!prev) return null;
               return {
@@ -355,6 +349,7 @@ export default function SharedTaskPage() {
                 priority: updatedTask.priority || prev.priority,
                 dueDate: updatedTask.due_date || prev.dueDate,
                 estimatedHours: updatedTask.estimated_hours ?? prev.estimatedHours,
+                updatedAt: updatedTask.updated_at || prev.updatedAt,
               };
             });
           });
@@ -371,26 +366,44 @@ export default function SharedTaskPage() {
         },
         async (payload) => {
           console.log(`[Realtime] Checklist UPDATE received:`, payload);
-          // Fetch updated checklist items
-          const { data: checklistItems } = await supabase
-            .from("task_checklist_items")
-            .select("*")
-            .eq("task_id", taskId)
-            .order("position", { ascending: true });
+          // Refetch full task data via API to ensure we have latest checklist items
+          // This works better for anonymous users as API uses service client
+          try {
+            const response = await fetch(`/api/share/tasks/${shareToken}?t=${Date.now()}`);
+            const result = await response.json();
 
-          if (checklistItems) {
-            setTask((prev) => {
-              if (!prev) return null;
-              return {
-                ...prev,
-                checklist: checklistItems.map((item: any) => ({
-                  id: item.id,
-                  text: item.text,
-                  completed: item.completed,
-                  position: item.position,
-                })),
-              };
-            });
+            if (result.success && result.data) {
+              setTask((prev) => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  checklist: result.data.checklist || [],
+                };
+              });
+            }
+          } catch (error) {
+            console.error("Error refetching checklist:", error);
+            // Fallback: try direct query if API fails
+            const { data: checklistItems } = await supabase
+              .from("task_checklist_items")
+              .select("*")
+              .eq("task_id", taskId)
+              .order("position", { ascending: true });
+
+            if (checklistItems) {
+              setTask((prev) => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  checklist: checklistItems.map((item: any) => ({
+                    id: item.id,
+                    text: item.text,
+                    completed: item.completed,
+                    position: item.position,
+                  })),
+                };
+              });
+            }
           }
         }
       )
@@ -407,7 +420,7 @@ export default function SharedTaskPage() {
           console.log(`[Realtime] Comment UPDATE received:`, payload);
           // Refetch task to get all comments via API (which uses service client)
           try {
-            const response = await fetch(`/api/share/tasks/${shareToken}`);
+            const response = await fetch(`/api/share/tasks/${shareToken}?t=${Date.now()}`);
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -434,39 +447,58 @@ export default function SharedTaskPage() {
           filter: `task_id=eq.${taskId}`,
         },
         async (payload) => {
-          // Fetch updated links
-          const { data: driveLinks } = await supabase
-            .from("google_drive_links")
-            .select("*")
-            .eq("task_id", taskId)
-            .order("created_at", { ascending: false });
+          console.log(`[Realtime] Drive links UPDATE received:`, payload);
+          // Refetch full task data via API to ensure we have latest links
+          // This works better for anonymous users as API uses service client
+          try {
+            const response = await fetch(`/api/share/tasks/${shareToken}?t=${Date.now()}`);
+            const result = await response.json();
 
-          if (driveLinks) {
-            setTask((prev) => {
-              if (!prev) return null;
-              return {
-                ...prev,
-                links: driveLinks.map((link: any) => ({
-                  id: link.id,
-                  url: link.url,
-                  description: link.description,
-                  created_at: link.created_at,
-                })),
-              };
-            });
+            if (result.success && result.data) {
+              setTask((prev) => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  links: result.data.links || [],
+                };
+              });
+            }
+          } catch (error) {
+            console.error("Error refetching links:", error);
+            // Fallback: try direct query if API fails
+            const { data: driveLinks } = await supabase
+              .from("google_drive_links")
+              .select("*")
+              .eq("task_id", taskId)
+              .order("created_at", { ascending: false });
+
+            if (driveLinks) {
+              setTask((prev) => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  links: driveLinks.map((link: any) => ({
+                    id: link.id,
+                    url: link.url,
+                    description: link.description,
+                    created_at: link.created_at,
+                  })),
+                };
+              });
+            }
           }
         }
       )
       .subscribe((status) => {
-        console.log(`[Realtime] Subscription status:`, status);
+        console.log(`[Realtime] Subscription status:`, status, `(anonymous: ${isAnonymous})`);
         if (status === 'SUBSCRIBED') {
           console.log(`[Realtime] Successfully subscribed to channel shared-task-${shareToken}`);
           setRealtimeConnected(true);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[Realtime] Channel error for shared-task-${shareToken}`);
+          console.error(`[Realtime] Channel error for shared-task-${shareToken} - will use polling fallback`);
           setRealtimeConnected(false);
         } else if (status === 'TIMED_OUT') {
-          console.error(`[Realtime] Subscription timed out for shared-task-${shareToken}`);
+          console.error(`[Realtime] Subscription timed out for shared-task-${shareToken} - will use polling fallback`);
           setRealtimeConnected(false);
         } else if (status === 'CLOSED') {
           console.log(`[Realtime] Channel closed for shared-task-${shareToken}`);
@@ -480,16 +512,17 @@ export default function SharedTaskPage() {
     };
   }, [task?.id, shareToken, supabase, isAnonymous]);
 
-  // Auto-refresh: Poll every 2 seconds to get latest updates
-  // For anonymous users, use more frequent polling since realtime doesn't work
+  // Auto-refresh: Poll every 5 seconds as fallback if realtime doesn't work
+  // This ensures we still get updates even if realtime subscriptions fail
   useEffect(() => {
     if (!shareToken) return;
     
-    // Poll every 2 seconds for authenticated users, every 2 seconds for anonymous users too
-    // Always fetch fresh data to ensure we have the latest information
+    // Poll every 5 seconds as a fallback mechanism
+    // If realtime is working, this will just refresh data occasionally
+    // If realtime fails, this ensures we still get updates
     const pollInterval = setInterval(() => {
       fetchTask(true);
-    }, 2000);
+    }, 5000);
 
     return () => {
       clearInterval(pollInterval);

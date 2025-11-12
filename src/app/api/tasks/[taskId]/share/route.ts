@@ -41,14 +41,24 @@ export async function GET(
       .from("tasks")
       .select(`
         id,
-        project:projects!inner(workspace_id)
+        project_id,
+        project:projects(workspace_id)
       `)
       .eq("id", taskId)
       .single();
 
-    if (!taskWorkspace || (taskWorkspace.project as any)?.workspace_id !== workspaceId) {
-      return NextResponse.json({ success: false, error: "Nemáte oprávnenie" }, { status: 403 });
+    if (!taskWorkspace) {
+      return NextResponse.json({ success: false, error: "Úloha nebola nájdená" }, { status: 404 });
     }
+
+    // If task has a project, check workspace access
+    if (taskWorkspace.project_id && (taskWorkspace.project as any)?.workspace_id) {
+      const taskWorkspaceId = (taskWorkspace.project as any).workspace_id;
+      if (taskWorkspaceId !== workspaceId) {
+        return NextResponse.json({ success: false, error: "Nemáte oprávnenie" }, { status: 403 });
+      }
+    }
+    // Task without project - allow if user is in the workspace
 
     return NextResponse.json({
       success: true,

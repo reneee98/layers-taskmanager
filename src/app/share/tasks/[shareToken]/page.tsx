@@ -433,17 +433,18 @@ export default function SharedTaskPage() {
     };
   }, [task?.id, shareToken, supabase, isAnonymous]); // Note: refetchTaskData is defined inside and uses shareToken
 
-  // Auto-refresh: Poll every 5 seconds as fallback if realtime doesn't work
+  // Auto-refresh: Poll every 3 seconds as fallback if realtime doesn't work
   // This ensures we still get updates even if realtime subscriptions fail
   useEffect(() => {
     if (!shareToken) return;
     
-    // Poll every 5 seconds as a fallback mechanism
+    // Poll every 3 seconds as a fallback mechanism
     // If realtime is working, this will just refresh data occasionally
     // If realtime fails, this ensures we still get updates
     const pollInterval = setInterval(() => {
+      console.log(`[Polling] Refreshing task data...`);
       fetchTask(true);
-    }, 5000);
+    }, 3000);
 
     return () => {
       clearInterval(pollInterval);

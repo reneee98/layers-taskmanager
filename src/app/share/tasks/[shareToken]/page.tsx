@@ -317,16 +317,19 @@ export default function SharedTaskPage() {
     }
   }, [shareToken]);
 
-  // Setup realtime subscriptions for all users (including anonymous)
-  // RLS policies allow anonymous users to subscribe to shared tasks
+  // Setup realtime subscriptions only for authenticated users
+  // Anonymous users cannot use realtime (WebSocket requires auth), so they use polling only
   useEffect(() => {
     if (!task || !shareToken) return;
+    
+    // Skip realtime subscriptions for anonymous users - they don't work without auth
+    if (isAnonymous) {
+      console.log(`[Realtime] Skipping subscriptions for anonymous user - using polling only`);
+      return;
+    }
 
     const taskId = task.id;
-    console.log(`[Realtime] Setting up subscription for task ${taskId} with token ${shareToken} (anonymous: ${isAnonymous})`);
-    
-    // Use fetchTask directly instead of creating a new function
-    // This ensures we use the same logic and it's properly memoized
+    console.log(`[Realtime] Setting up subscription for task ${taskId} with token ${shareToken} (authenticated user)`);
     
     const channel = supabase
       .channel(`shared-task-${shareToken}`)
@@ -423,23 +426,25 @@ export default function SharedTaskPage() {
     };
   }, [task?.id, shareToken, supabase, isAnonymous, fetchTask]); // Include fetchTask in dependencies
 
-  // Auto-refresh: Poll every 3 seconds as fallback if realtime doesn't work
-  // This ensures we still get updates even if realtime subscriptions fail
+  // Auto-refresh: Polling for all users
+  // For anonymous users: poll every 2 seconds (realtime doesn't work)
+  // For authenticated users: poll every 5 seconds as fallback if realtime fails
   useEffect(() => {
     if (!shareToken) return;
     
-    // Poll every 3 seconds as a fallback mechanism
-    // If realtime is working, this will just refresh data occasionally
-    // If realtime fails, this ensures we still get updates
-    const pollInterval = setInterval(() => {
-      console.log(`[Polling] Refreshing task data...`);
+    // Anonymous users need more frequent polling since realtime doesn't work
+    // Authenticated users can rely on realtime, so polling is just a fallback
+    const pollInterval = isAnonymous ? 2000 : 5000;
+    
+    const interval = setInterval(() => {
+      console.log(`[Polling] Refreshing task data... (anonymous: ${isAnonymous})`);
       fetchTask(true);
-    }, 3000);
+    }, pollInterval);
 
     return () => {
-      clearInterval(pollInterval);
+      clearInterval(interval);
     };
-  }, [shareToken, fetchTask]);
+  }, [shareToken, fetchTask, isAnonymous]);
 
   if (isLoading) {
     return (

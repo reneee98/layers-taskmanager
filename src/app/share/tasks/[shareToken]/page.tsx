@@ -246,6 +246,8 @@ export default function SharedTaskPage() {
     try {
       // Add timestamp to prevent browser caching
       const timestamp = Date.now();
+      console.log(`[FetchTask] Fetching task data for shareToken: ${shareToken} at ${new Date().toISOString()}`);
+      
       const response = await fetch(`/api/share/tasks/${shareToken}?t=${timestamp}`, {
         cache: 'no-store',
         headers: {
@@ -261,21 +263,30 @@ export default function SharedTaskPage() {
       }
       
       const result = await response.json();
+      console.log(`[FetchTask] Received data:`, {
+        success: result.success,
+        hasData: !!result.data,
+        taskId: result.data?.id,
+        title: result.data?.title,
+        updatedAt: result.data?.updatedAt,
+      });
 
-      if (result.success) {
+      if (result.success && result.data) {
         // Always update with fresh data from server
+        console.log(`[FetchTask] Updating task state with fresh data`);
         setTask(result.data);
         // Set default tab based on available content
         if (result.data.comments.length === 0 && result.data.links.length > 0) {
           setRightSidebarTab("links");
         }
       } else {
+        console.error(`[FetchTask] Failed to fetch task:`, result.error);
         if (!silent) {
           setError(result.error || "Úloha nebola nájdená");
         }
       }
     } catch (err) {
-      console.error("Error fetching shared task:", err);
+      console.error("[FetchTask] Error fetching shared task:", err);
       if (!silent) {
         setError("Nepodarilo sa načítať úlohu");
       }
@@ -314,33 +325,8 @@ export default function SharedTaskPage() {
     const taskId = task.id;
     console.log(`[Realtime] Setting up subscription for task ${taskId} with token ${shareToken} (anonymous: ${isAnonymous})`);
     
-    // Create a function to refetch task data
-    const refetchTaskData = async () => {
-      try {
-        const timestamp = Date.now();
-        const response = await fetch(`/api/share/tasks/${shareToken}?t=${timestamp}`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-          },
-          credentials: 'omit',
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        if (result.success) {
-          console.log(`[Realtime] Refetched task data successfully`);
-          setTask(result.data);
-        }
-      } catch (err) {
-        console.error("[Realtime] Error refetching task:", err);
-      }
-    };
+    // Use fetchTask directly instead of creating a new function
+    // This ensures we use the same logic and it's properly memoized
     
     const channel = supabase
       .channel(`shared-task-${shareToken}`)
@@ -362,7 +348,8 @@ export default function SharedTaskPage() {
           console.log(`[Realtime] Payload old:`, payload.old);
           
           // Always refetch full task data via API to ensure we have latest information
-          refetchTaskData();
+          console.log(`[Realtime] Triggering fetchTask to refresh all data...`);
+          fetchTask(true);
         }
       )
       // Subscribe to checklist updates
@@ -377,7 +364,8 @@ export default function SharedTaskPage() {
         async (payload) => {
           console.log(`[Realtime] Checklist UPDATE received:`, payload);
           // Refetch full task data via API to ensure we have latest checklist items
-          refetchTaskData();
+          console.log(`[Realtime] Triggering fetchTask to refresh checklist...`);
+          fetchTask(true);
         }
       )
       // Subscribe to comment updates
@@ -392,7 +380,8 @@ export default function SharedTaskPage() {
         async (payload) => {
           console.log(`[Realtime] Comment UPDATE received:`, payload);
           // Refetch full task data via API to ensure we have latest comments
-          refetchTaskData();
+          console.log(`[Realtime] Triggering fetchTask to refresh comments...`);
+          fetchTask(true);
         }
       )
       // Subscribe to Google Drive links updates
@@ -407,7 +396,8 @@ export default function SharedTaskPage() {
         async (payload) => {
           console.log(`[Realtime] Drive links UPDATE received:`, payload);
           // Refetch full task data via API to ensure we have latest links
-          refetchTaskData();
+          console.log(`[Realtime] Triggering fetchTask to refresh links...`);
+          fetchTask(true);
         }
       )
       .subscribe((status) => {
@@ -431,7 +421,7 @@ export default function SharedTaskPage() {
       console.log(`[Realtime] Cleaning up subscription for task ${taskId}`);
       supabase.removeChannel(channel);
     };
-  }, [task?.id, shareToken, supabase, isAnonymous]); // Note: refetchTaskData is defined inside and uses shareToken
+  }, [task?.id, shareToken, supabase, isAnonymous, fetchTask]); // Include fetchTask in dependencies
 
   // Auto-refresh: Poll every 3 seconds as fallback if realtime doesn't work
   // This ensures we still get updates even if realtime subscriptions fail

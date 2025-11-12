@@ -1450,6 +1450,11 @@ export default function TaskDetailPage() {
                   />
                 </div>
 
+                {/* Share Link */}
+                <div className="space-y-2">
+                  <TaskShareButton taskId={taskId} showInline={true} />
+                </div>
+
                 {/* Tracked Time */}
                 {canReadTimeEntries && (
                   <div className="space-y-2">

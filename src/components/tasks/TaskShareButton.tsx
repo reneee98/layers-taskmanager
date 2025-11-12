@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,14 +11,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Share2, Copy, Check, Loader2, X } from "lucide-react";
+import { Share2, Copy, Check, Loader2, X, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface TaskShareButtonProps {
   taskId: string;
+  showInline?: boolean;
+  onShareChange?: (shareUrl: string | null) => void;
 }
 
-export const TaskShareButton = ({ taskId }: TaskShareButtonProps) => {
+export const TaskShareButton = ({ taskId, showInline = false, onShareChange }: TaskShareButtonProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -35,24 +37,35 @@ export const TaskShareButton = ({ taskId }: TaskShareButtonProps) => {
       if (result.success) {
         setShareToken(result.data.shareToken);
         setShareUrl(result.data.shareUrl);
+        onShareChange?.(result.data.shareUrl);
       } else {
-        toast({
-          title: "Chyba",
-          description: result.error || "Nepodarilo sa načítať zdieľací odkaz",
-          variant: "destructive",
-        });
+        // If task is not shared, that's OK - don't show error
+        if (result.error && !result.error.includes("not shared")) {
+          toast({
+            title: "Chyba",
+            description: result.error || "Nepodarilo sa načítať zdieľací odkaz",
+            variant: "destructive",
+          });
+        }
+        setShareToken(null);
+        setShareUrl(null);
+        onShareChange?.(null);
       }
     } catch (error) {
       console.error("Error fetching share token:", error);
-      toast({
-        title: "Chyba",
-        description: "Nepodarilo sa načítať zdieľací odkaz",
-        variant: "destructive",
-      });
+      setShareToken(null);
+      setShareUrl(null);
+      onShareChange?.(null);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Auto-fetch share token on mount
+  useEffect(() => {
+    fetchShareToken();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId]);
 
   const generateShareToken = async () => {
     setIsGenerating(true);
@@ -65,6 +78,7 @@ export const TaskShareButton = ({ taskId }: TaskShareButtonProps) => {
       if (result.success) {
         setShareToken(result.data.shareToken);
         setShareUrl(result.data.shareUrl);
+        onShareChange?.(result.data.shareUrl);
         toast({
           title: "Úspech",
           description: "Zdieľací odkaz bol vygenerovaný",
@@ -99,6 +113,7 @@ export const TaskShareButton = ({ taskId }: TaskShareButtonProps) => {
       if (result.success) {
         setShareToken(null);
         setShareUrl(null);
+        onShareChange?.(null);
         toast({
           title: "Úspech",
           description: "Zdieľanie bolo deaktivované",
@@ -152,15 +167,100 @@ export const TaskShareButton = ({ taskId }: TaskShareButtonProps) => {
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setIsOpen(true)}
-        className="text-muted-foreground hover:text-foreground"
-      >
-        <Share2 className="h-4 w-4 mr-2" />
-        Zdieľať
-      </Button>
+      {showInline ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Share2 className="h-4 w-4" />
+            Zdieľací odkaz
+          </div>
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Načítavam...
+            </div>
+          ) : shareUrl ? (
+            <div className="flex gap-2">
+              <Input 
+                value={shareUrl} 
+                readOnly 
+                className="font-mono text-sm flex-1" 
+              />
+              <Button
+                onClick={copyToClipboard}
+                variant="outline"
+                size="icon"
+                title="Skopírovať odkaz"
+              >
+                {copied ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                onClick={() => window.open(shareUrl, '_blank')}
+                variant="outline"
+                size="icon"
+                title="Otvoriť odkaz"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+              <Button
+                onClick={disableSharing}
+                disabled={isGenerating}
+                variant="outline"
+                size="icon"
+                title="Deaktivovať zdieľanie"
+              >
+                {isGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <X className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsOpen(true)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                Nastavenia
+              </Button>
+            </div>
+          ) : (
+            <Button
+              onClick={generateShareToken}
+              disabled={isGenerating}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generujem...
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Vygenerovať zdieľací odkaz
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsOpen(true)}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <Share2 className="h-4 w-4 mr-2" />
+          Zdieľať
+        </Button>
+      )}
 
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent>

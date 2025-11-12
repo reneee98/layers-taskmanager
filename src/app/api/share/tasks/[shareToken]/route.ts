@@ -54,7 +54,9 @@ export async function GET(
       .order("position", { ascending: true });
 
     // Fetch comments with user info
-    const { data: comments } = await supabase
+    // Use service client which should bypass RLS
+    console.log(`[Share API] Fetching comments for task ${taskId} using service client`);
+    const { data: comments, error: commentsError, count } = await supabase
       .from("task_comments")
       .select(`
         id,
@@ -62,21 +64,47 @@ export async function GET(
         created_at,
         updated_at,
         user_id
-      `)
+      `, { count: 'exact' })
       .eq("task_id", taskId)
       .order("created_at", { ascending: true });
+    
+    console.log(`[Share API] Query result - count: ${count}, data length: ${comments?.length || 0}, error:`, commentsError);
+
+    if (commentsError) {
+      console.error("Error fetching comments:", commentsError);
+    }
+    
+    console.log(`[Share API] Found ${comments?.length || 0} comments for task ${taskId}`);
+    if (comments && comments.length > 0) {
+      console.log(`[Share API] Comment IDs:`, comments.map(c => ({ id: c.id, user_id: c.user_id })));
+    }
 
     // Get user info for comments
     let commentsWithUsers: any[] = [];
     if (comments && comments.length > 0) {
-      const userIds = Array.from(new Set(comments.map(c => c.user_id)));
-      const { data: userProfiles } = await supabase
-        .from("profiles")
-        .select("id, display_name, email")
-        .in("id", userIds);
+      // Include ALL comments, even those without user_id
+      const userIds = Array.from(new Set(comments.map(c => c.user_id).filter(Boolean)));
+      console.log(`[Share API] Fetching profiles for ${userIds.length} unique user IDs:`, userIds);
+      
+      let userProfiles: any[] = [];
+      if (userIds.length > 0) {
+        const { data, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, display_name, email")
+          .in("id", userIds);
 
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
+        } else {
+          userProfiles = data || [];
+        }
+      }
+      
+      console.log(`[Share API] Found ${userProfiles.length} profiles`);
+
+      // Map ALL comments, including those without user_id
       commentsWithUsers = comments.map(comment => {
-        const user = userProfiles?.find(p => p.id === comment.user_id);
+        const user = comment.user_id ? userProfiles.find(p => p.id === comment.user_id) : null;
         return {
           id: comment.id,
           content: comment.content,
@@ -88,6 +116,9 @@ export async function GET(
           } : null
         };
       });
+      
+      console.log(`[Share API] Returning ${commentsWithUsers.length} comments with user info`);
+      console.log(`[Share API] Comments with users:`, commentsWithUsers.map(c => ({ id: c.id, hasUser: !!c.user })));
     }
 
     // Fetch Google Drive links

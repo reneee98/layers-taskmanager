@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -236,29 +236,52 @@ export default function SharedTaskPage() {
   const [rightSidebarTab, setRightSidebarTab] = useState("comments");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [togglingItems, setTogglingItems] = useState<Set<string>>(new Set());
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const supabase = useMemo(() => createClient(), []);
 
-  const fetchTask = async () => {
+  const fetchTask = useCallback(async (silent = false) => {
+    if (!shareToken) return;
+    
     try {
-      const response = await fetch(`/api/share/tasks/${shareToken}`);
+      const response = await fetch(`/api/share/tasks/${shareToken}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
+      });
       const result = await response.json();
 
       if (result.success) {
-        setTask(result.data);
+        setTask((prev) => {
+          // Only update if data actually changed (check updatedAt timestamp)
+          if (prev && prev.updatedAt === result.data.updatedAt && 
+              prev.checklist.length === result.data.checklist.length &&
+              prev.comments.length === result.data.comments.length) {
+            // Data hasn't changed, return previous state
+            return prev;
+          }
+          return result.data;
+        });
         // Set default tab based on available content
         if (result.data.comments.length === 0 && result.data.links.length > 0) {
           setRightSidebarTab("links");
         }
       } else {
-        setError(result.error || "Úloha nebola nájdená");
+        if (!silent) {
+          setError(result.error || "Úloha nebola nájdená");
+        }
       }
     } catch (err) {
       console.error("Error fetching shared task:", err);
-      setError("Nepodarilo sa načítať úlohu");
+      if (!silent) {
+        setError("Nepodarilo sa načítať úlohu");
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, [shareToken]);
 
   useEffect(() => {
     if (shareToken) {
@@ -289,18 +312,27 @@ export default function SharedTaskPage() {
         },
         (payload) => {
           console.log(`[Realtime] Task UPDATE received:`, payload);
+          console.log(`[Realtime] Payload new:`, payload.new);
+          console.log(`[Realtime] Payload old:`, payload.old);
+          
           const updatedTask = payload.new as any;
-          setTask((prev) => {
-            if (!prev) return null;
-            return {
-              ...prev,
-              title: updatedTask.title || prev.title,
-              description: updatedTask.description ?? prev.description,
-              status: updatedTask.status || prev.status,
-              priority: updatedTask.priority || prev.priority,
-              dueDate: updatedTask.due_date || prev.dueDate,
-              estimatedHours: updatedTask.estimated_hours ?? prev.estimatedHours,
-            };
+          
+          // Refetch full task data to ensure we have all fields
+          fetchTask().catch(err => {
+            console.error("[Realtime] Error refetching task after update:", err);
+            // Fallback: update local state with payload data
+            setTask((prev) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                title: updatedTask.title || prev.title,
+                description: updatedTask.description ?? prev.description,
+                status: updatedTask.status || prev.status,
+                priority: updatedTask.priority || prev.priority,
+                dueDate: updatedTask.due_date || prev.dueDate,
+                estimatedHours: updatedTask.estimated_hours ?? prev.estimatedHours,
+              };
+            });
           });
         }
       )
@@ -348,55 +380,23 @@ export default function SharedTaskPage() {
           filter: `task_id=eq.${taskId}`,
         },
         async (payload) => {
-          // Fetch updated comments with user info
-          const { data: comments } = await supabase
-            .from("task_comments")
-            .select(`
-              id,
-              content,
-              created_at,
-              updated_at,
-              user_id
-            `)
-            .eq("task_id", taskId)
-            .order("created_at", { ascending: true });
+          console.log(`[Realtime] Comment UPDATE received:`, payload);
+          // Refetch task to get all comments via API (which uses service client)
+          try {
+            const response = await fetch(`/api/share/tasks/${shareToken}`);
+            const result = await response.json();
 
-          if (comments && comments.length > 0) {
-            const userIds = Array.from(new Set(comments.map((c: any) => c.user_id)));
-            const { data: userProfiles } = await supabase
-              .from("profiles")
-              .select("id, display_name, email")
-              .in("id", userIds);
-
-            const commentsWithUsers = comments.map((comment: any) => {
-              const user = userProfiles?.find((p: any) => p.id === comment.user_id);
-              return {
-                id: comment.id,
-                content: comment.content,
-                createdAt: comment.created_at,
-                updatedAt: comment.updated_at,
-                user: user ? {
-                  displayName: user.display_name,
-                  email: user.email
-                } : null
-              };
-            });
-
-            setTask((prev) => {
-              if (!prev) return null;
-              return {
-                ...prev,
-                comments: commentsWithUsers,
-              };
-            });
-          } else {
-            setTask((prev) => {
-              if (!prev) return null;
-              return {
-                ...prev,
-                comments: [],
-              };
-            });
+            if (result.success && result.data) {
+              setTask((prev) => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  comments: result.data.comments || [],
+                };
+              });
+            }
+          } catch (error) {
+            console.error("Error refetching comments:", error);
           }
         }
       )
@@ -437,12 +437,16 @@ export default function SharedTaskPage() {
         console.log(`[Realtime] Subscription status:`, status);
         if (status === 'SUBSCRIBED') {
           console.log(`[Realtime] Successfully subscribed to channel shared-task-${shareToken}`);
+          setRealtimeConnected(true);
         } else if (status === 'CHANNEL_ERROR') {
           console.error(`[Realtime] Channel error for shared-task-${shareToken}`);
+          setRealtimeConnected(false);
         } else if (status === 'TIMED_OUT') {
           console.error(`[Realtime] Subscription timed out for shared-task-${shareToken}`);
+          setRealtimeConnected(false);
         } else if (status === 'CLOSED') {
           console.log(`[Realtime] Channel closed for shared-task-${shareToken}`);
+          setRealtimeConnected(false);
         }
       });
 
@@ -451,6 +455,20 @@ export default function SharedTaskPage() {
       supabase.removeChannel(channel);
     };
   }, [task?.id, shareToken, supabase]);
+
+  // Auto-refresh: Poll every 2 seconds to get latest updates
+  useEffect(() => {
+    if (!task || !shareToken) return;
+    
+    // Poll every 2 seconds to get latest updates (silent mode to avoid loading states)
+    const pollInterval = setInterval(() => {
+      fetchTask(true);
+    }, 2000);
+
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [task, shareToken, fetchTask]);
 
   if (isLoading) {
     return (

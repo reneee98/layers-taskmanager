@@ -46,11 +46,26 @@ CREATE POLICY "Anonymous users can view shared task drive links" ON google_drive
 -- Grant usage on schema to anon (required for realtime)
 GRANT USAGE ON SCHEMA public TO anon;
 
+-- Policy for anonymous users to view profiles of users who commented on shared tasks
+CREATE POLICY "Anonymous users can view shared task commenter profiles" ON profiles
+  FOR SELECT 
+  TO anon
+  USING (
+    id IN (
+      SELECT DISTINCT user_id 
+      FROM task_comments 
+      WHERE task_id IN (
+        SELECT id FROM tasks WHERE share_token IS NOT NULL
+      )
+    )
+  );
+
 -- Grant SELECT on tables to anon (required for realtime subscriptions)
 GRANT SELECT ON tasks TO anon;
 GRANT SELECT ON task_checklist_items TO anon;
 GRANT SELECT ON task_comments TO anon;
 GRANT SELECT ON google_drive_links TO anon;
+GRANT SELECT ON profiles TO anon;
 
 -- Add comment
 COMMENT ON POLICY "Anonymous users can view shared tasks" ON tasks IS 

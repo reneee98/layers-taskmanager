@@ -244,10 +244,14 @@ export default function SharedTaskPage() {
     if (!shareToken) return;
     
     try {
-      const response = await fetch(`/api/share/tasks/${shareToken}`, {
+      // Add timestamp to prevent browser caching
+      const timestamp = Date.now();
+      const response = await fetch(`/api/share/tasks/${shareToken}?t=${timestamp}`, {
         cache: 'no-store',
         headers: {
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
         credentials: 'omit', // Don't send cookies for public access
       });
@@ -259,16 +263,8 @@ export default function SharedTaskPage() {
       const result = await response.json();
 
       if (result.success) {
-        setTask((prev) => {
-          // Only update if data actually changed (check updatedAt timestamp)
-          if (prev && prev.updatedAt === result.data.updatedAt && 
-              prev.checklist.length === result.data.checklist.length &&
-              prev.comments.length === result.data.comments.length) {
-            // Data hasn't changed, return previous state
-            return prev;
-          }
-          return result.data;
-        });
+        // Always update with fresh data from server
+        setTask(result.data);
         // Set default tab based on available content
         if (result.data.comments.length === 0 && result.data.links.length > 0) {
           setRightSidebarTab("links");
@@ -487,17 +483,18 @@ export default function SharedTaskPage() {
   // Auto-refresh: Poll every 2 seconds to get latest updates
   // For anonymous users, use more frequent polling since realtime doesn't work
   useEffect(() => {
-    if (!task || !shareToken) return;
+    if (!shareToken) return;
     
-    // Poll every 2 seconds for authenticated users, every 3 seconds for anonymous users
+    // Poll every 2 seconds for authenticated users, every 2 seconds for anonymous users too
+    // Always fetch fresh data to ensure we have the latest information
     const pollInterval = setInterval(() => {
       fetchTask(true);
-    }, isAnonymous ? 3000 : 2000);
+    }, 2000);
 
     return () => {
       clearInterval(pollInterval);
     };
-  }, [task, shareToken, fetchTask, isAnonymous]);
+  }, [shareToken, fetchTask]);
 
   if (isLoading) {
     return (

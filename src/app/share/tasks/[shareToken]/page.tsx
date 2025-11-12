@@ -269,11 +269,20 @@ export default function SharedTaskPage() {
         taskId: result.data?.id,
         title: result.data?.title,
         updatedAt: result.data?.updatedAt,
+        checklistCount: result.data?.checklist?.length || 0,
+        commentsCount: result.data?.comments?.length || 0,
+        linksCount: result.data?.links?.length || 0,
+        filesCount: result.data?.files?.length || 0,
       });
 
       if (result.success && result.data) {
         // Always update with fresh data from server
-        console.log(`[FetchTask] Updating task state with fresh data`);
+        console.log(`[FetchTask] Updating task state with fresh data:`, {
+          checklist: result.data.checklist?.length || 0,
+          files: result.data.files?.length || 0,
+          links: result.data.links?.length || 0,
+          comments: result.data.comments?.length || 0,
+        });
         setTask(result.data);
         // Set default tab based on available content
         if (result.data.comments.length === 0 && result.data.links.length > 0) {
@@ -315,7 +324,22 @@ export default function SharedTaskPage() {
     if (shareToken) {
       fetchTask();
     }
-  }, [shareToken]);
+  }, [shareToken, fetchTask]);
+
+  // Debug: Log task changes
+  useEffect(() => {
+    if (task) {
+      console.log(`[TaskState] Task updated:`, {
+        id: task.id,
+        title: task.title,
+        checklistCount: task.checklist?.length || 0,
+        filesCount: task.files?.length || 0,
+        linksCount: task.links?.length || 0,
+        commentsCount: task.comments?.length || 0,
+        updatedAt: task.updatedAt,
+      });
+    }
+  }, [task]);
 
   // Setup realtime subscriptions only for authenticated users
   // Anonymous users cannot use realtime (WebSocket requires auth), so they use polling only

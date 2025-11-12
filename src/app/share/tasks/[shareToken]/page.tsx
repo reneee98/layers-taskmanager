@@ -287,16 +287,18 @@ export default function SharedTaskPage() {
         
         // Force update by creating a new object reference
         setTask((prev) => {
-          // Check if data actually changed
-          if (prev && prev.updatedAt === result.data.updatedAt && 
-              JSON.stringify(prev.checklist) === JSON.stringify(result.data.checklist) &&
-              JSON.stringify(prev.files) === JSON.stringify(result.data.files) &&
-              JSON.stringify(prev.links) === JSON.stringify(result.data.links) &&
-              JSON.stringify(prev.comments) === JSON.stringify(result.data.comments)) {
-            console.log(`[FetchTask] Data unchanged, skipping update`);
-            return prev;
-          }
-          console.log(`[FetchTask] Data changed, updating state`);
+          // Log detailed comparison
+          console.log(`[FetchTask] Comparing data:`, {
+            prevUpdatedAt: prev?.updatedAt,
+            newUpdatedAt: result.data.updatedAt,
+            prevChecklistCount: prev?.checklist?.length,
+            newChecklistCount: result.data.checklist?.length,
+            prevChecklist: prev?.checklist?.map(i => ({ id: i.id, text: i.text, completed: i.completed })),
+            newChecklist: result.data.checklist?.map(i => ({ id: i.id, text: i.text, completed: i.completed }))
+          });
+          
+          // Always update to ensure we have the latest data
+          console.log(`[FetchTask] Forcing state update with fresh data`);
           return { ...result.data };
         });
         

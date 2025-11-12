@@ -65,10 +65,11 @@ export async function GET(
     const taskId = task.id;
 
     // Fetch checklist items - ensure we only get items for this specific task
+    // IMPORTANT: Only fetch non-deleted items (no deleted_at or similar flag)
     console.log(`[Share API] Fetching checklist items for task ${taskId} (shareToken: ${shareToken})`);
     const { data: checklistItems, error: checklistError } = await supabase
       .from("task_checklist_items")
-      .select("*")
+      .select("id, task_id, text, completed, position, created_at, updated_at")
       .eq("task_id", taskId)
       .order("position", { ascending: true });
     
@@ -77,11 +78,14 @@ export async function GET(
     } else {
       console.log(`[Share API] Found ${checklistItems?.length || 0} checklist items for task ${taskId}`);
       if (checklistItems && checklistItems.length > 0) {
-        console.log(`[Share API] Checklist items:`, checklistItems.map(item => ({
+        console.log(`[Share API] Checklist items (FULL DATA):`, checklistItems.map(item => ({
           id: item.id,
           text: item.text,
           completed: item.completed,
-          task_id: item.task_id
+          position: item.position,
+          task_id: item.task_id,
+          created_at: item.created_at,
+          updated_at: item.updated_at
         })));
       }
     }

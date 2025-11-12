@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@/lib/supabase/service";
 import { z } from "zod";
 
 const updateChecklistItemSchema = z.object({
@@ -13,7 +13,15 @@ export async function PUT(
 ) {
   try {
     const { shareToken, itemId } = await params;
-    const supabase = createClient();
+    // Use service role client to bypass RLS for public access
+    const supabase = createServiceClient();
+    
+    if (!supabase) {
+      return NextResponse.json({
+        success: false,
+        error: "Server configuration error"
+      }, { status: 500 });
+    }
 
     // Find task by share token
     const { data: task, error: taskError } = await supabase

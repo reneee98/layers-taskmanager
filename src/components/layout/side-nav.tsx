@@ -305,19 +305,19 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
           )}>
             <div className={cn(
               "flex items-center justify-center",
-              isCollapsed ? "w-10 h-10" : "h-10"
+              isCollapsed ? "w-10" : "h-10"
             )}>
               <Image
                 src="/images/layers-logo.svg"
                 alt="Layers Logo"
                 width={isCollapsed ? 40 : 120}
                 height={40}
-                className="object-contain"
+                className="object-contain h-full"
                 priority
               />
             </div>
             {!isCollapsed && (
-              <div className="flex flex-col">
+              <div className="flex flex-col justify-center">
                 <span className="text-xs text-muted-foreground">v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0-alpha'}</span>
               </div>
             )}

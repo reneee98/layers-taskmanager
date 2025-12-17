@@ -63,7 +63,7 @@ export function TaskAssignees({ taskId, assignees, onAssigneesChange }: TaskAssi
       const response = await fetch(`/api/tasks/${taskId}/assignees`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: selectedUserId }),
+        body: JSON.stringify({ assigneeIds: [...assignees.map((a) => a.id), selectedUserId] }),
       });
 
       const result = await response.json();

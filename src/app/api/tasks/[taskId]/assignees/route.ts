@@ -146,9 +146,13 @@ export async function POST(
   try {
     // Dynamic import to avoid loading validation schema in GET handler
     const { z } = await import("zod");
-    const assigneesSchema = z.object({
-      assigneeIds: z.array(z.string().uuid()),
-    });
+    const assigneesSchema = z.union([
+      // Preferred payload
+      z.object({ assigneeIds: z.array(z.string().uuid()) }),
+      // Legacy payloads (keep backward compatibility)
+      z.object({ user_ids: z.array(z.string().uuid()) }),
+      z.object({ user_id: z.string().uuid() }),
+    ]);
     
     // Get user's workspace ID
     const workspaceId = await getUserWorkspaceIdFromRequest(request);
@@ -160,7 +164,16 @@ export async function POST(
     const supabase = createClient();
     const body = await request.json();
     
-    const { assigneeIds } = assigneesSchema.parse(body);
+    const parsed = assigneesSchema.parse(body) as any;
+    const rawAssigneeIds: string[] = Array.isArray(parsed.assigneeIds)
+      ? parsed.assigneeIds
+      : Array.isArray(parsed.user_ids)
+        ? parsed.user_ids
+        : parsed.user_id
+          ? [parsed.user_id]
+          : [];
+
+    const assigneeIds = Array.from(new Set(rawAssigneeIds));
 
     // First verify the task belongs to the user's workspace
     const { data: task, error: taskError } = await supabase
@@ -177,23 +190,36 @@ export async function POST(
       );
     }
 
-    // First, delete all existing assignees for this task
-    await supabase
+    // Diff-based update (safe for adding a second assignee even if DELETE is restricted by RLS)
+    const { data: existingAssignees, error: existingError } = await supabase
       .from("task_assignees")
-      .delete()
+      .select("user_id")
       .eq("task_id", taskId)
       .eq("workspace_id", workspaceId);
 
-    // Then, insert new assignees
-    if (assigneeIds.length > 0) {
-      // Get current user for assigned_by field
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const assigneesToInsert = assigneeIds.map(userId => ({
+    if (existingError) {
+      return NextResponse.json(
+        { success: false, error: existingError.message },
+        { status: 400 }
+      );
+    }
+
+    const existingUserIds = new Set((existingAssignees || []).map((a: any) => a.user_id));
+    const desiredUserIds = new Set(assigneeIds);
+
+    const userIdsToAdd = assigneeIds.filter((id) => !existingUserIds.has(id));
+    const userIdsToRemove = Array.from(existingUserIds).filter((id) => !desiredUserIds.has(id));
+
+    // Insert new assignees
+    if (userIdsToAdd.length > 0) {
+      const { data: authData } = await supabase.auth.getUser();
+      const assignedByUserId = authData?.user?.id || null;
+
+      const assigneesToInsert = userIdsToAdd.map((userId) => ({
         task_id: taskId,
         user_id: userId,
         workspace_id: workspaceId,
-        assigned_by: user?.id || null,
+        assigned_by: assignedByUserId,
       }));
 
       const { error: insertError } = await supabase
@@ -203,6 +229,23 @@ export async function POST(
       if (insertError) {
         return NextResponse.json(
           { success: false, error: insertError.message },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Remove assignees not in the desired list
+    if (userIdsToRemove.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("task_assignees")
+        .delete()
+        .eq("task_id", taskId)
+        .eq("workspace_id", workspaceId)
+        .in("user_id", userIdsToRemove);
+
+      if (deleteError) {
+        return NextResponse.json(
+          { success: false, error: deleteError.message },
           { status: 400 }
         );
       }

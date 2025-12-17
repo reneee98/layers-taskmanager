@@ -428,7 +428,7 @@ export default function TaskDetailPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ user_ids: assigneeIds }),
+          body: JSON.stringify({ assigneeIds }),
         });
       }
 

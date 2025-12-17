@@ -42,7 +42,6 @@ export function WorkspaceInvitations() {
       if (result.success) {
         setInvitations(result.data);
       } else {
-        console.error("Error fetching invitations:", result.error);
         toast({
           title: "Chyba",
           description: result.error,
@@ -50,7 +49,6 @@ export function WorkspaceInvitations() {
         });
       }
     } catch (error) {
-      console.error("Error fetching invitations:", error);
       toast({
         title: "Chyba",
         description: "Nepodarilo sa načítať pozvánky",
@@ -83,7 +81,6 @@ export function WorkspaceInvitations() {
         throw new Error(result.error);
       }
     } catch (error) {
-      console.error("Error accepting invitation:", error);
       toast({
         title: "Chyba",
         description: error instanceof Error ? error.message : "Nepodarilo sa pripojiť k workspace",
@@ -92,11 +89,30 @@ export function WorkspaceInvitations() {
     }
   };
 
+  // Listen for dashboard init data
   useEffect(() => {
-    // Only fetch once - prevent duplicate calls in React Strict Mode
-    if (!hasFetchedRef.current) {
-      fetchInvitations();
-    }
+    const handleDashboardInit = (event: CustomEvent) => {
+      const initData = event.detail;
+      if (initData?.invitations) {
+        setInvitations(initData.invitations);
+        setLoading(false);
+        hasFetchedRef.current = true;
+      }
+    };
+
+    window.addEventListener('dashboard-init-data' as any, handleDashboardInit as EventListener);
+    
+    // Fallback: fetch if no data received after 2 seconds
+    const timeout = setTimeout(() => {
+      if (!hasFetchedRef.current && !isFetchingRef.current) {
+        fetchInvitations();
+      }
+    }, 2000);
+
+    return () => {
+      window.removeEventListener('dashboard-init-data' as any, handleDashboardInit as EventListener);
+      clearTimeout(timeout);
+    };
   }, []);
 
   // Don't show anything while loading or if there are no invitations

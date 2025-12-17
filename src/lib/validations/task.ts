@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { TASK_STATUSES } from "@/lib/task-status";
 
-export const taskStatusEnum = z.enum(["todo", "in_progress", "review", "sent_to_client", "done", "cancelled"]);
+export const taskStatusEnum = z.enum(TASK_STATUSES);
 
 export const taskPriorityEnum = z.enum(["low", "medium", "high", "urgent"]);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -29,16 +29,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const isFetchingProfileRef = useRef(false);
+  const lastFetchedUserIdRef = useRef<string | null>(null);
 
   const supabase = createClient();
 
-  const refreshProfile = async () => {
+  const refreshProfile = async (force = false) => {
     if (!user?.id) {
       setProfile(null);
       return;
     }
 
+    // Prevent duplicate fetches
+    if (isFetchingProfileRef.current && !force) {
+      return;
+    }
+
+    // Skip if already fetched for this user
+    if (!force && lastFetchedUserIdRef.current === user.id && profile) {
+      return;
+    }
+
     try {
+      isFetchingProfileRef.current = true;
+      
       // Simple fetch without timeout
       const { data, error } = await supabase
         .from("profiles")
@@ -48,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (data) {
         setProfile(data);
+        lastFetchedUserIdRef.current = user.id;
         return;
       }
 
@@ -70,18 +85,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (createError) {
-          console.error("Failed to create user profile:", createError);
           setProfile(null);
         } else {
           setProfile(newProfile);
+          lastFetchedUserIdRef.current = user.id;
         }
       } else if (error) {
-        console.error("Failed to fetch user profile:", error);
         setProfile(null);
       }
     } catch (error) {
-      console.error("Error refreshing profile:", error);
       setProfile(null);
+    } finally {
+      isFetchingProfileRef.current = false;
     }
   };
 

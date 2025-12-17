@@ -56,11 +56,8 @@ export function useOptimizedFetch<T = any>(
 
   const fetchData = useCallback(async (useCache = true) => {
     if (!url || !enabled || isFetchingRef.current) {
-      console.log('[useOptimizedFetch] fetchData skipped:', { url, enabled, isFetching: isFetchingRef.current });
       return;
     }
-    
-    console.log('[useOptimizedFetch] fetchData called:', { url, useCache });
 
     // Try to load from cache first (optimistic loading)
     if (useCache && memoizedCacheKey) {
@@ -93,7 +90,6 @@ export function useOptimizedFetch<T = any>(
           : undefined,
       });
 
-      console.log('[useOptimizedFetch] Fetch successful:', { url, result });
       setData(result);
       setError(null);
       onSuccessRef.current?.(result);
@@ -141,21 +137,6 @@ export function useOptimizedFetch<T = any>(
     const urlBecameAvailable = !prevUrlRef.current && url; // Changed from null to string
     const enabledBecameTrue = !prevEnabledRef.current && enabled; // Changed from false to true
     
-    // Debug logging
-    if (url) {
-      console.log('[useOptimizedFetch] Debug:', {
-        url,
-        enabled,
-        urlChanged,
-        enabledChanged,
-        urlBecameAvailable,
-        enabledBecameTrue,
-        hasFetched: hasFetchedRef.current,
-        prevUrl: prevUrlRef.current,
-        prevEnabled: prevEnabledRef.current,
-      });
-    }
-    
     // Update refs
     prevUrlRef.current = url;
     prevEnabledRef.current = enabled;
@@ -166,11 +147,8 @@ export function useOptimizedFetch<T = any>(
       // 2. URL changed from null to string (became available), OR
       // 3. Enabled changed from false to true
       if (!hasFetchedRef.current || urlBecameAvailable || enabledBecameTrue) {
-        console.log('[useOptimizedFetch] Triggering fetch for:', url);
         hasFetchedRef.current = false; // Reset to allow fetch
         fetchData(true);
-      } else {
-        console.log('[useOptimizedFetch] Skipping fetch - already fetched');
       }
     } else if (!enabled) {
       setLoading(false);
@@ -190,4 +168,3 @@ export function useOptimizedFetch<T = any>(
     clearCache: clearCacheData,
   };
 }
-

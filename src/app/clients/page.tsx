@@ -59,25 +59,9 @@ function ClientsPageContent() {
   // Also wait for workspace to load to know if user is owner
   const shouldFetch = !workspaceLoading && (hasFullAccess || (!isLoadingPermission && canViewClients));
   
-  // Debug logging
-  useEffect(() => {
-    console.log('[ClientsPage] Debug:', {
-      workspaceLoading,
-      isOwner,
-      isAdmin,
-      hasFullAccess,
-      isLoadingPermission,
-      canViewClients,
-      shouldFetch,
-      workspaceRole: workspaceRole?.role,
-      profileRole: profile?.role,
-    });
-  }, [workspaceLoading, isOwner, isAdmin, hasFullAccess, isLoadingPermission, canViewClients, shouldFetch, workspaceRole, profile]);
-  
   // Fetch clients - owners and admins have all permissions, so fetch immediately
   // For non-owners/admins, wait for permission check
   const fetchUrl = shouldFetch ? "/api/clients" : null;
-  console.log('[ClientsPage] Fetch URL:', fetchUrl, 'shouldFetch:', shouldFetch, 'hasFullAccess:', hasFullAccess);
   
   const { data: clientsData, loading: isLoading, refetch, clearCache } = useOptimizedFetch<ClientsResponse>(
     fetchUrl,

@@ -199,11 +199,11 @@ export const TaskForm = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todo">To Do</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="review">Review</SelectItem>
-                  <SelectItem value="done">Done</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="todo">Na spracovanie</SelectItem>
+                  <SelectItem value="in_progress">V procese</SelectItem>
+                  <SelectItem value="review">Na kontrole</SelectItem>
+                  <SelectItem value="done">Dokončené</SelectItem>
+                  <SelectItem value="cancelled">Zrušené</SelectItem>
                 </SelectContent>
               </Select>
             </div>

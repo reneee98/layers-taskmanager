@@ -21,6 +21,7 @@ import { sk } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { getTaskStatusLabel } from "@/lib/task-status";
 import { usePermission } from "@/hooks/usePermissions";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
@@ -95,9 +96,28 @@ export default function InvoicesPage() {
   useEffect(() => {
     // Only fetch if user has permission (or is owner)
     if (canAccess && !isLoadingInvoices) {
-      // Load both tabs data on initial load
-      fetchInvoiceData();
-      fetchArchivedData();
+      // Load both tabs data in parallel on initial load
+      Promise.all([
+        fetch("/api/invoices/ready").then(r => r.json()),
+        fetch("/api/invoices/archived").then(r => r.json())
+      ]).then(([readyResult, archivedResult]) => {
+        if (readyResult.success) {
+          setReadyProjects(readyResult.data.projects || []);
+          setReadyTasks(readyResult.data.tasks || []);
+        }
+        if (archivedResult.success) {
+          setArchivedProjects(archivedResult.data.projects || []);
+          setArchivedTasks(archivedResult.data.tasks || []);
+        }
+        setIsLoading(false);
+      }).catch(() => {
+        setIsLoading(false);
+        toast({
+          title: "Chyba",
+          description: "Nepodarilo sa načítať dáta",
+          variant: "destructive",
+        });
+      });
     }
   }, [canAccess, isLoadingInvoices]);
 
@@ -129,7 +149,6 @@ export default function InvoicesPage() {
         });
       }
     } catch (error) {
-      console.error("Error fetching invoice data:", error);
       toast({
         title: "Chyba",
         description: "Nepodarilo sa načítať dáta pre faktúry",
@@ -157,7 +176,6 @@ export default function InvoicesPage() {
         });
       }
     } catch (error) {
-      console.error("Error fetching archived data:", error);
       toast({
         title: "Chyba",
         description: "Nepodarilo sa načítať archivované dáta",
@@ -266,14 +284,7 @@ export default function InvoicesPage() {
   };
 
   const getStatusText = (status: string) => {
-    const statusMap: { [key: string]: string } = {
-      'todo': 'To Do',
-      'in_progress': 'In Progress',
-      'review': 'Review',
-      'done': 'Done',
-      'cancelled': 'Cancelled'
-    };
-    return statusMap[status] || status;
+    return getTaskStatusLabel(status) || status;
   };
 
   const getPriorityBadgeVariant = (priority: string) => {

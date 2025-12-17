@@ -301,7 +301,7 @@ export function DashboardPermissionsDialog({
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="show_tab_sent_to_client">Poslané klientovi</Label>
+                  <Label htmlFor="show_tab_sent_to_client">Odoslané klientovi</Label>
                   <Switch
                     id="show_tab_sent_to_client"
                     checked={permissions.show_tab_sent_to_client}

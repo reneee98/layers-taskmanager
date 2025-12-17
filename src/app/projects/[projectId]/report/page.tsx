@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Download, Loader2, Clock, Euro, Users, FileText, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatHours } from "@/lib/format";
+import { getTaskStatusLabel } from "@/lib/task-status";
 import { usePermission } from "@/hooks/usePermissions";
 import { format } from "date-fns";
 import type { Project, Task } from "@/types/database";
@@ -575,14 +576,7 @@ export default function ProjectReportPage() {
   };
 
   const getStatusText = (status: string) => {
-    const statusMap: { [key: string]: string } = {
-      'todo': 'To Do',
-      'in_progress': 'In Progress',
-      'review': 'Review',
-      'done': 'Done',
-      'cancelled': 'Cancelled'
-    };
-    return statusMap[status] || status;
+    return getTaskStatusLabel(status) || status;
   };
 
   const getPriorityText = (priority: string) => {

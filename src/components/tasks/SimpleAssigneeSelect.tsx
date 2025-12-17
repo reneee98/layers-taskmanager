@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Profile } from "@/types/database";
+import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 
 interface SimpleAssigneeSelectProps {
   taskId: string;
@@ -23,8 +24,14 @@ export function SimpleAssigneeSelect({
   currentAssignee,
   onAssigneeChange,
 }: SimpleAssigneeSelectProps) {
-  const [users, setUsers] = useState<Profile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { users: workspaceUsers, loading: isLoading } = useWorkspaceUsers();
+  
+  // Map workspace users to Profile format
+  const users = useMemo(() => {
+    return workspaceUsers
+      .filter(wu => wu.profiles)
+      .map(wu => wu.profiles as Profile);
+  }, [workspaceUsers]);
 
   const getInitials = (name: string) => {
     return name
@@ -33,24 +40,6 @@ export function SimpleAssigneeSelect({
       .join("")
       .toUpperCase();
   };
-
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch("/api/workspace-users");
-      const result = await response.json();
-      if (result.success) {
-        setUsers(result.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch workspace users:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
 
   const handleAssigneeChange = async (userId: string) => {
     if (userId === "none") {

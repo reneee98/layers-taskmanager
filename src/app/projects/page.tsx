@@ -62,7 +62,7 @@ const statusConfig: Record<string, { label: string; icon: any; color: string; ic
     iconColor: "text-amber-500" 
   },
   sent_to_client: { 
-    label: "Sent to Client", 
+    label: "Odoslané klientovi", 
     icon: Send, 
     color: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800", 
     iconColor: "text-purple-500" 
@@ -104,26 +104,19 @@ function ProjectsPageContent() {
       const activeParams = new URLSearchParams(params);
       activeParams.append("exclude_status", "completed,cancelled");
       
+      // Fetch both in parallel
       const [activeResponse, archivedResponse] = await Promise.all([
-        fetch(`/api/projects?${activeParams}`),
-        // Fetch archived projects - same as invoices: projects with invoiced tasks
-        fetch(`/api/projects?status=completed,cancelled`)
+        fetch(`/api/projects?${activeParams}`).then(r => r.json()),
+        fetch(`/api/projects?status=completed,cancelled`).then(r => r.json())
       ]);
 
-      const activeResult = await activeResponse.json();
-      const archivedResult = await archivedResponse.json();
-
-      if (activeResult.success) {
-        setProjects(activeResult.data);
+      if (activeResponse.success) {
+        setProjects(activeResponse.data);
       }
-      if (archivedResult.success) {
-        console.log('[Projects Page] Archived projects received:', archivedResult.data);
-        setArchivedProjects(archivedResult.data);
-      } else {
-        console.error('[Projects Page] Error loading archived projects:', archivedResult);
+      if (archivedResponse.success) {
+        setArchivedProjects(archivedResponse.data);
       }
     } catch (error) {
-      console.error("Error fetching projects:", error);
       toast({
         title: "Chyba",
         description: "Nepodarilo sa načítať projekty",

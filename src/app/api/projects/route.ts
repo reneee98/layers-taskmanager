@@ -22,7 +22,6 @@ export async function GET(request: NextRequest) {
     // Get user's workspace ID
     const workspaceId = await getUserWorkspaceIdFromRequest(request);
     if (!workspaceId) {
-      console.error("API /projects GET: No workspace found for user", user.id, "email:", user.email);
       return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
     }
 
@@ -43,23 +42,27 @@ export async function GET(request: NextRequest) {
 
     // For archived projects, use same logic as /api/invoices/archived - get projects with invoiced tasks
     if (isArchivedRequest) {
-      // Get all invoiced tasks (same as in /api/invoices/archived)
-      const { data: invoicedTasks, error: tasksError } = await supabase
-        .from("tasks")
-        .select(`
-          project_id,
-          project:projects(*, client:clients(*))
-        `)
-        .eq("workspace_id", workspaceId)
-        .eq("status", "invoiced");
+      // OPTIMIZED: Load both queries in parallel
+      const [invoicedTasksResult, completedProjectsResult] = await Promise.all([
+        supabase
+          .from("tasks")
+          .select(`project_id, project:projects(*, client:clients(*))`)
+          .eq("workspace_id", workspaceId)
+          .eq("status", "invoiced"),
+        supabase
+          .from("projects")
+          .select("*, client:clients(*)")
+          .eq("workspace_id", workspaceId)
+          .in("status", ["completed", "cancelled"])
+      ]);
 
-      if (tasksError) {
-        return NextResponse.json({ success: false, error: tasksError.message }, { status: 400 });
+      if (invoicedTasksResult.error) {
+        return NextResponse.json({ success: false, error: invoicedTasksResult.error.message }, { status: 400 });
       }
 
       // Get unique projects from invoiced tasks (filter out null project_id)
       const projectMap = new Map();
-      (invoicedTasks || [])
+      (invoicedTasksResult.data || [])
         .filter((task: any) => task.project_id && task.project)
         .forEach((task: any) => {
           if (!projectMap.has(task.project_id)) {
@@ -67,15 +70,9 @@ export async function GET(request: NextRequest) {
           }
         });
 
-      // Also get projects with status completed/cancelled
-      const { data: completedProjects, error: completedError } = await supabase
-        .from("projects")
-        .select("*, client:clients(*)")
-        .eq("workspace_id", workspaceId)
-        .in("status", ["completed", "cancelled"]);
-
-      if (!completedError && completedProjects) {
-        completedProjects.forEach((project: any) => {
+      // Add completed/cancelled projects
+      if (!completedProjectsResult.error && completedProjectsResult.data) {
+        completedProjectsResult.data.forEach((project: any) => {
           if (!projectMap.has(project.id)) {
             projectMap.set(project.id, project);
           }

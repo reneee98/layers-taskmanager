@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Profile, TaskAssignee } from "@/types/database";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { X, Plus, Users } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 
 interface TaskAssigneesProps {
   taskId: string;
@@ -29,27 +30,17 @@ interface TaskAssigneesProps {
 }
 
 export function TaskAssignees({ taskId, assignees, onAssigneesChange }: TaskAssigneesProps) {
-  const [users, setUsers] = useState<Profile[]>([]);
+  const { users: workspaceUsers } = useWorkspaceUsers();
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-
-  // Fetch users
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch("/api/workspace-users");
-        const result = await response.json();
-        if (result.success) {
-          setUsers(result.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch workspace users:", error);
-      }
-    };
-
-    fetchUsers();
-  }, []);
+  
+  // Map workspace users to Profile format
+  const users = useMemo<Profile[]>(() => {
+    return workspaceUsers
+      .filter(wu => wu.profiles)
+      .map(wu => wu.profiles as Profile);
+  }, [workspaceUsers]);
 
   const handleAssignUser = async () => {
     if (!selectedUserId) return;

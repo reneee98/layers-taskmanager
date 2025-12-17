@@ -81,84 +81,106 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    // Fetch assignees and calculated price for each task
-    const tasksWithAssignees = await Promise.all(
-      (tasks || []).map(async (task) => {
-        // Get assignees for this task
-        const { data: assignees } = await supabase
-          .from("task_assignees")
-          .select("id, user_id, assigned_at, assigned_by")
-          .eq("task_id", task.id)
-          .eq("workspace_id", workspaceId);
+    if (!tasks || tasks.length === 0) {
+      return NextResponse.json({ success: true, data: [] });
+    }
 
-        // Get user profiles for assignees - len pre členov workspace
-        let assigneesWithUsers: any[] = [];
-        if (assignees && assignees.length > 0) {
-          const userIds = assignees.map(a => a.user_id);
-          
-          // Najprv skontrolujme, ktorí používatelia sú členmi workspace
-          const { data: workspaceMembers } = await supabase
+    // OPTIMIZED: Batch fetch all related data instead of N+1 queries
+    const taskIds = tasks.map(t => t.id);
+
+    // Fetch all assignees for all tasks in one query
+    const { data: allAssignees } = await supabase
+      .from("task_assignees")
+      .select("id, task_id, user_id, assigned_at, assigned_by")
+      .in("task_id", taskIds)
+      .eq("workspace_id", workspaceId);
+
+    // Get unique user IDs from assignees
+    const assigneeUserIds = Array.from(new Set(allAssignees?.map(a => a.user_id) || []));
+
+    // Fetch workspace members and profiles in parallel
+    const [workspaceMembersResult, profilesResult, timeEntriesResult] = await Promise.all([
+      assigneeUserIds.length > 0
+        ? supabase
             .from("workspace_members")
             .select("user_id")
             .eq("workspace_id", workspaceId)
-            .in("user_id", userIds);
-          
-          const memberUserIds = new Set(workspaceMembers?.map(m => m.user_id) || []);
-          // Pripočítame aj owner workspace, ak je medzi assignees
-          if (workspaceOwnerId) {
-            memberUserIds.add(workspaceOwnerId);
-          }
-          
-          // Filtruj assignees len na tých, ktorí sú členmi workspace
-          const validAssignees = assignees.filter(a => memberUserIds.has(a.user_id));
-          
-          if (validAssignees.length > 0) {
-            const validUserIds = validAssignees.map(a => a.user_id);
-            const { data: profiles } = await supabase
-              .from("profiles")
-              .select("id, display_name, email, role")
-              .in("id", validUserIds);
+            .in("user_id", assigneeUserIds)
+        : Promise.resolve({ data: [] }),
+      assigneeUserIds.length > 0
+        ? supabase
+            .from("profiles")
+            .select("id, display_name, email, role")
+            .in("id", assigneeUserIds)
+        : Promise.resolve({ data: [] }),
+      supabase
+        .from("time_entries")
+        .select("task_id, amount")
+        .in("task_id", taskIds)
+    ]);
 
-            assigneesWithUsers = validAssignees.map(assignee => {
-              const profile = profiles?.find(p => p.id === assignee.user_id);
-              return {
-                ...assignee,
-                ...profile ? {
-                  id: profile.id,
-                  display_name: profile.display_name,
-                  email: profile.email,
-                  role: profile.role,
-                } : {}
-              };
-            });
-          }
-        }
+    // Create lookup maps
+    const memberUserIds = new Set(workspaceMembersResult.data?.map(m => m.user_id) || []);
+    if (workspaceOwnerId) {
+      memberUserIds.add(workspaceOwnerId);
+    }
 
-        // Calculate total price from time entries
-        const { data: timeEntries } = await supabase
-          .from("time_entries")
-          .select("amount")
-          .eq("task_id", task.id);
+    const profilesMap = new Map<string, any>();
+    profilesResult.data?.forEach(p => profilesMap.set(p.id, p));
 
-        const calculatedPrice = timeEntries?.reduce((sum, entry) => sum + (entry.amount || 0), 0) || 0;
-        
-        // Convert project rates from cents to euros
-        const projectWithRates = task.project ? {
-          ...task.project,
-          hourly_rate: task.project.hourly_rate_cents ? task.project.hourly_rate_cents / 100 : null,
-          fixed_fee: task.project.budget_cents ? task.project.budget_cents / 100 : null
-        } : null;
-        
+    const assigneesByTaskId = new Map<string, any[]>();
+    allAssignees?.forEach(assignee => {
+      if (!assigneesByTaskId.has(assignee.task_id)) {
+        assigneesByTaskId.set(assignee.task_id, []);
+      }
+      assigneesByTaskId.get(assignee.task_id)!.push(assignee);
+    });
+
+    const timeEntriesByTaskId = new Map<string, number>();
+    timeEntriesResult.data?.forEach(entry => {
+      const current = timeEntriesByTaskId.get(entry.task_id) || 0;
+      timeEntriesByTaskId.set(entry.task_id, current + (entry.amount || 0));
+    });
+
+    // Process tasks with lookup maps (O(1) access)
+    const tasksWithAssignees = tasks.map(task => {
+      const taskAssignees = assigneesByTaskId.get(task.id) || [];
+      const validAssignees = taskAssignees.filter(a => memberUserIds.has(a.user_id));
+
+      const assigneesWithUsers = validAssignees.map(assignee => {
+        const profile = profilesMap.get(assignee.user_id);
         return {
-          ...task,
-          project: projectWithRates,
-          assignees: assigneesWithUsers,
-          calculated_price: calculatedPrice
+          ...assignee,
+          ...(profile ? {
+            id: profile.id,
+            display_name: profile.display_name,
+            email: profile.email,
+            role: profile.role,
+          } : {})
         };
-      })
-    );
+      });
 
-    return NextResponse.json({ success: true, data: tasksWithAssignees });
+      const calculatedPrice = timeEntriesByTaskId.get(task.id) || 0;
+
+      const projectWithRates = task.project ? {
+        ...task.project,
+        hourly_rate: task.project.hourly_rate_cents ? task.project.hourly_rate_cents / 100 : null,
+        fixed_fee: task.project.budget_cents ? task.project.budget_cents / 100 : null
+      } : null;
+
+      return {
+        ...task,
+        project: projectWithRates,
+        assignees: assigneesWithUsers,
+        calculated_price: calculatedPrice
+      };
+    });
+
+    return NextResponse.json({ success: true, data: tasksWithAssignees }, {
+      headers: {
+        'Cache-Control': 'private, max-age=5',
+      },
+    });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Internal server error" },

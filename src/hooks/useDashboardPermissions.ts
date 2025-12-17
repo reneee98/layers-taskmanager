@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -136,138 +136,120 @@ const DEFAULT_PERMISSIONS: DashboardPermissions = {
   allow_task_sorting: true,
 };
 
+// Cache key for localStorage
+const CACHE_KEY = 'dashboard_permissions_cache';
+const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+
+interface CachedPermissions {
+  permissions: DashboardPermissions;
+  workspaceId: string;
+  userId: string;
+  timestamp: number;
+}
+
 export function useDashboardPermissions() {
   const { workspace } = useWorkspace();
   const { user } = useAuth();
   const [permissions, setPermissions] = useState<DashboardPermissions>(DEFAULT_PERMISSIONS);
-  const [loading, setLoading] = useState(true); // Start with true - wait for permissions to load
-  const [hasLoaded, setHasLoaded] = useState(false); // Track if permissions have been loaded at least once
+  const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const isFetchingRef = useRef(false);
+  const lastFetchKeyRef = useRef<string | null>(null);
+
+  // Load from cache on mount
+  useEffect(() => {
+    if (!workspace?.id || !user?.id) return;
+    
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const data: CachedPermissions = JSON.parse(cached);
+        const isValid = 
+          data.workspaceId === workspace.id && 
+          data.userId === user.id &&
+          Date.now() - data.timestamp < CACHE_EXPIRY;
+        
+        if (isValid) {
+          setPermissions(data.permissions);
+          setHasLoaded(true);
+          setLoading(false);
+        }
+      }
+    } catch {
+      // Ignore cache errors
+    }
+  }, [workspace?.id, user?.id]);
 
   const fetchPermissions = async () => {
-    if (!workspace || !user) {
-      console.log('[useDashboardPermissions] Missing workspace or user');
+    if (!workspace || !user) return;
+    
+    const fetchKey = `${workspace.id}-${user.id}`;
+    
+    // Prevent duplicate fetches
+    if (isFetchingRef.current || lastFetchKeyRef.current === fetchKey) {
       return;
     }
 
-    try {
-      console.log('[useDashboardPermissions] Fetching permissions for:', {
-        workspaceId: workspace.id,
-        userId: user.id
-      });
+    isFetchingRef.current = true;
+    lastFetchKeyRef.current = fetchKey;
 
-      // Fetch without timeout - permissions are critical
+    try {
       const response = await fetch(
         `/api/workspaces/${workspace.id}/users/${user.id}/dashboard-permissions`
       );
       
-      console.log('[useDashboardPermissions] Response status:', response.status, response.ok);
-      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[useDashboardPermissions] HTTP error:', response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const result = await response.json();
-      console.log('[useDashboardPermissions] Response data:', result);
-      console.log('[useDashboardPermissions] Response data.show_stats_overview:', result.data?.show_stats_overview);
-      console.log('[useDashboardPermissions] Response data.show_activities_section:', result.data?.show_activities_section);
-      console.log('[useDashboardPermissions] Response data.show_tasks_section:', result.data?.show_tasks_section);
 
       if (result.success && result.data) {
-        // Merge with defaults to ensure all fields are present
         const mergedPermissions = { ...DEFAULT_PERMISSIONS, ...result.data };
-        console.log('[useDashboardPermissions] Merged permissions:', {
-          show_tasks_section: mergedPermissions.show_tasks_section,
-          show_activities_section: mergedPermissions.show_activities_section,
-          show_stats_overview: mergedPermissions.show_stats_overview,
-        });
-        console.log('[useDashboardPermissions] About to set permissions, current state:', permissions);
         setPermissions(mergedPermissions);
         setHasLoaded(true);
         setLoading(false);
-        console.log('[useDashboardPermissions] Permissions set and loaded');
+        
+        // Save to cache
+        try {
+          const cacheData: CachedPermissions = {
+            permissions: mergedPermissions,
+            workspaceId: workspace.id,
+            userId: user.id,
+            timestamp: Date.now(),
+          };
+          localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+        } catch {
+          // Ignore cache errors
+        }
       } else {
-        console.warn('[useDashboardPermissions] Response not successful or missing data:', result);
         setHasLoaded(true);
         setLoading(false);
       }
-    } catch (error: any) {
-      console.error('[useDashboardPermissions] Error fetching permissions:', error);
+    } catch {
       // Keep using DEFAULT_PERMISSIONS which are already set
       setHasLoaded(true);
       setLoading(false);
+    } finally {
+      isFetchingRef.current = false;
     }
   };
 
   useEffect(() => {
-    if (!workspace || !user) {
-      console.log('[useDashboardPermissions] useEffect: Missing workspace or user');
-      return;
+    if (!workspace || !user) return;
+    
+    // Only fetch if not already loaded from cache
+    if (!hasLoaded) {
+      fetchPermissions();
     }
-
-    console.log('[useDashboardPermissions] useEffect: Fetching permissions', {
-      workspaceId: workspace.id,
-      userId: user.id
-    });
-    // Fetch in background - don't block UI
-    fetchPermissions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace?.id, user?.id]);
 
-  // Return empty permissions (all false) until loaded, then use actual permissions
-  // This prevents showing everything before permissions are loaded
-  const emptyPermissions: DashboardPermissions = {
-    show_stats_overview: false,
-    show_tasks_section: false,
-    show_activities_section: false,
-    show_calendar_section: false,
-    show_projects_section: false,
-    show_clients_section: false,
-    show_tab_all_active: false,
-    show_tab_today: false,
-    show_tab_sent_to_client: false,
-    show_tab_in_progress: false,
-    show_tab_unassigned: false,
-    show_tab_overdue: false,
-    show_tab_upcoming: false,
-    show_stat_total_tasks: false,
-    show_stat_completed_tasks: false,
-    show_stat_in_progress_tasks: false,
-    show_stat_total_hours: false,
-    show_stat_completion_rate: false,
-    show_quick_task_button: false,
-    show_workspace_invitations: false,
-    show_stat_todo_tasks: false,
-    show_stat_overdue_tasks: false,
-    show_stat_upcoming_tasks: false,
-    show_task_title_column: false,
-    show_task_project_column: false,
-    show_task_assignees_column: false,
-    show_task_status_column: false,
-    show_task_priority_column: false,
-    show_task_deadline_column: false,
-    show_task_actions_column: false,
-    show_view_mode_toggle: false,
-    show_calendar_view_toggle: false,
-    allow_list_view: false,
-    allow_calendar_view: false,
-    show_activity_view_all_link: false,
-    show_activity_count: false,
-    max_activities_displayed: 10,
-    allow_task_edit: false,
-    allow_task_delete: false,
-    allow_task_status_change: false,
-    allow_task_priority_change: false,
-    allow_task_assignee_change: false,
-    allow_task_filtering: false,
-    allow_task_sorting: false,
-  };
-
+  // Show default permissions immediately for faster perceived load
+  // This allows content to render while permissions are being fetched
   return {
-    permissions: hasLoaded ? permissions : emptyPermissions, // Use empty (all false) until loaded
+    permissions: hasLoaded ? permissions : DEFAULT_PERMISSIONS,
     loading,
     refreshPermissions: fetchPermissions,
   };
 }
-

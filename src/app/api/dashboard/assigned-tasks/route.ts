@@ -4,6 +4,23 @@ import { getServerUser } from "@/lib/auth/admin";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
 
+// Simple in-memory cache with TTL
+const cache = new Map<string, { data: any; expires: number }>();
+const CACHE_TTL = 5 * 1000; // 5 seconds
+
+function getCached(key: string) {
+  const cached = cache.get(key);
+  if (cached && cached.expires > Date.now()) {
+    return cached.data;
+  }
+  cache.delete(key);
+  return null;
+}
+
+function setCache(key: string, data: any) {
+  cache.set(key, { data, expires: Date.now() + CACHE_TTL });
+}
+
 export async function GET(req: NextRequest) {
   try {
     const user = await getServerUser();
@@ -20,17 +37,14 @@ export async function GET(req: NextRequest) {
     // Get workspace_id from request (query params, cookie, or user's default)
     const workspaceId = await getUserWorkspaceIdFromRequest(req);
     
-    console.log(`DEBUG: Dashboard API - User ${user.email}, workspaceId: ${workspaceId}`);
-    
     if (!workspaceId) {
-      console.log(`DEBUG: Dashboard API - No workspace ID for user ${user.email}`);
       return NextResponse.json(
         { success: false, error: "Workspace ID je povinný" },
         { status: 400 }
       );
     }
 
-    // Check if user has access to workspace
+    // Check if user has access to workspace - batch with owner check
     const { data: workspace, error: workspaceError } = await supabase
       .from('workspaces')
       .select('owner_id')
@@ -44,11 +58,11 @@ export async function GET(req: NextRequest) {
       );
     }
     
-    // Check if user is owner or member
+    // Check if user is owner or member - batch check
     const isOwner = workspace.owner_id === user.id;
     const { data: member } = await supabase
       .from('workspace_members')
-      .select('id')
+      .select('id, role')
       .eq('workspace_id', workspaceId)
       .eq('user_id', user.id)
       .single();
@@ -60,71 +74,53 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Uložíme workspace owner ID pre použitie neskôr
     const workspaceOwnerId = workspace.owner_id;
 
-    // Automatically move overdue tasks to today (non-blocking, don't fail request if this fails)
-    autoMoveOverdueTasksToToday(supabase, workspaceId).catch(err => {
-      console.error("Error in autoMoveOverdueTasksToToday:", err);
+    // Automatically move overdue tasks to today (non-blocking)
+    autoMoveOverdueTasksToToday(supabase, workspaceId).catch(() => {
+      // Silently fail
     });
     
-    // Check if user has "Riešiteľ" role - if yes, always show only assigned tasks
+    // Check if user has "Riešiteľ" role - optimized single query
     let isRiesitel = false;
-    if (!isOwner) {
-      // Get member data with role
-      const { data: memberData } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', user.id)
-        .single();
-      
-      if (memberData) {
-        // Check for custom role (user_roles table)
-        const { data: userRole } = await supabase
-          .from('user_roles')
-          .select('role_id, roles!inner(id, name)')
-          .eq('user_id', user.id)
-          .eq('workspace_id', workspaceId)
+    if (!isOwner && member) {
+      const isSystemRole = ['owner', 'member'].includes(member.role);
+      if (!isSystemRole) {
+        // Check custom role
+        const { data: roleCheck } = await supabase
+          .from('roles')
+          .select('name')
+          .eq('id', member.role)
           .single();
-
-        if (userRole) {
-          const role = userRole.roles as any;
-          if (role.name === 'Riešiteľ') {
-            isRiesitel = true;
-            console.log(`DEBUG: User ${user.id} has "Riešiteľ" role - showing only assigned tasks`);
-          }
-        } else {
-          // Check if memberData.role is a UUID (custom role ID)
-          const isSystemRole = ['owner', 'member'].includes(memberData.role);
-          if (!isSystemRole) {
-            const { data: roleCheck } = await supabase
-              .from('roles')
-              .select('id, name')
-              .eq('id', memberData.role)
-              .single();
-            
-            if (roleCheck && roleCheck.name === 'Riešiteľ') {
-              isRiesitel = true;
-              console.log(`DEBUG: User ${user.id} has "Riešiteľ" role - showing only assigned tasks`);
-            }
-          }
+        
+        if (roleCheck?.name === 'Riešiteľ') {
+          isRiesitel = true;
         }
       }
     }
     
-    // Získaj query parametre
+    // Get query params
     const { searchParams } = new URL(req.url);
     const showUnassigned = searchParams.get('show_unassigned') === 'true';
     const showAll = searchParams.get('show_all') === 'true';
     
+    // Check cache
+    const cacheKey = `assigned-tasks:${workspaceId}:${user.id}:${showUnassigned}:${showAll}`;
+    const cached = getCached(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: {
+          'Cache-Control': 'private, max-age=5',
+        },
+      });
+    }
+    
     let tasks;
     let tasksError;
     
-    // If user is "Riešiteľ", always show only assigned tasks (ignore showAll and showUnassigned)
-    if (isRiesitel) {
-      console.log(`DEBUG: User is "Riešiteľ" - forcing show only assigned tasks`);
-      // Zobraziť len tasky priradené aktuálnemu používateľovi
+    // Fetch tasks based on filter
+    if (isRiesitel || (!showUnassigned && !showAll)) {
+      // Show only assigned tasks to current user
       const { data: taskAssignees, error: assigneesError } = await supabase
         .from("task_assignees")
         .select("task_id")
@@ -132,7 +128,6 @@ export async function GET(req: NextRequest) {
         .eq("workspace_id", workspaceId);
 
       if (assigneesError) {
-        console.error("Error fetching task assignees:", assigneesError);
         return NextResponse.json(
           { success: false, error: assigneesError.message },
           { status: 500 }
@@ -140,7 +135,6 @@ export async function GET(req: NextRequest) {
       }
 
       if (!taskAssignees || taskAssignees.length === 0) {
-        console.log(`DEBUG: No tasks assigned to user ${user.id} in workspace ${workspaceId}`);
         return NextResponse.json({
           success: true,
           data: []
@@ -148,9 +142,7 @@ export async function GET(req: NextRequest) {
       }
 
       const taskIds = taskAssignees.map(ta => ta.task_id);
-      console.log(`DEBUG: Found ${taskIds.length} tasks assigned to user ${user.id}:`, taskIds);
 
-      // Načítaj úlohy s projektmi - len tie, kde je používateľ skutočne assignee
       const { data: userTasks, error: userTasksError } = await supabase
         .from("tasks")
         .select(`
@@ -185,18 +177,14 @@ export async function GET(req: NextRequest) {
       tasks = userTasks;
       tasksError = userTasksError;
     } else if (showUnassigned) {
-      // Zobraziť len nepriradené tasky (bez assigneeov)
-      console.log(`DEBUG: Showing unassigned tasks in workspace ${workspaceId}`);
-      
-      // Najprv nájdeme všetky tasky s assignees
+      // Show unassigned tasks
       const { data: tasksWithAssignees } = await supabase
         .from("task_assignees")
         .select("task_id")
         .eq("workspace_id", workspaceId);
       
-      const taskIdsWithAssignees = tasksWithAssignees?.map(ta => ta.task_id) || [];
+      const taskIdsWithAssignees = new Set(tasksWithAssignees?.map(ta => ta.task_id) || []);
       
-      // Potom načítame všetky aktívne tasky a odfiltrujeme tie, ktoré majú assignees
       const { data: allTasks, error: allTasksError } = await supabase
         .from("tasks")
         .select(`
@@ -229,14 +217,10 @@ export async function GET(req: NextRequest) {
         .neq("status", "done")
         .neq("status", "cancelled");
       
-      // Filtrujeme nepriradené tasky (tie, ktoré NIE sú v taskIdsWithAssignees)
-      tasks = allTasks?.filter(task => !taskIdsWithAssignees.includes(task.id)) || [];
+      tasks = allTasks?.filter(task => !taskIdsWithAssignees.has(task.id)) || [];
       tasksError = allTasksError;
     } else if (showAll) {
-      // Zobraziť všetky aktívne tasky v workspace, ktoré SÚ priradené (majú assignees)
-      console.log(`DEBUG: Showing all active assigned tasks in workspace ${workspaceId}`);
-      
-      // Najprv nájdeme všetky tasky s assignees
+      // Show all active assigned tasks
       const { data: tasksWithAssignees } = await supabase
         .from("task_assignees")
         .select("task_id")
@@ -251,7 +235,6 @@ export async function GET(req: NextRequest) {
         });
       }
       
-      // Potom načítame len tie aktívne tasky, ktoré majú assignees
       const { data: allTasks, error: allTasksError } = await supabase
         .from("tasks")
         .select(`
@@ -287,72 +270,9 @@ export async function GET(req: NextRequest) {
       
       tasks = allTasks;
       tasksError = allTasksError;
-    } else {
-      // Zobraziť len tasky priradené aktuálnemu používateľovi
-      const { data: taskAssignees, error: assigneesError } = await supabase
-        .from("task_assignees")
-        .select("task_id")
-        .eq("user_id", user.id)
-        .eq("workspace_id", workspaceId);
-
-      if (assigneesError) {
-        console.error("Error fetching task assignees:", assigneesError);
-        return NextResponse.json(
-          { success: false, error: assigneesError.message },
-          { status: 500 }
-        );
-      }
-
-      if (!taskAssignees || taskAssignees.length === 0) {
-        console.log(`DEBUG: No tasks assigned to user ${user.id} in workspace ${workspaceId}`);
-        return NextResponse.json({
-          success: true,
-          data: []
-        });
-      }
-
-      const taskIds = taskAssignees.map(ta => ta.task_id);
-      console.log(`DEBUG: Found ${taskIds.length} tasks assigned to user ${user.id}:`, taskIds);
-
-      // Načítaj úlohy s projektmi - len tie, kde je používateľ skutočne assignee
-      const { data: userTasks, error: userTasksError } = await supabase
-        .from("tasks")
-        .select(`
-          id,
-          title,
-          description,
-          status,
-          priority,
-          estimated_hours,
-          actual_hours,
-          start_date,
-          end_date,
-          due_date,
-          created_at,
-          updated_at,
-          project_id,
-          assignee_id,
-          assigned_to,
-          budget_cents,
-          workspace_id,
-          project:projects(
-            id,
-            name,
-            code,
-            workspace_id,
-            client:clients(name)
-          )
-        `)
-        .in("id", taskIds)
-        .eq("workspace_id", workspaceId);
-      
-      tasks = userTasks;
-      tasksError = userTasksError;
     }
-    
 
     if (tasksError) {
-      console.error("Error fetching tasks:", tasksError);
       return NextResponse.json(
         { success: false, error: tasksError.message },
         { status: 500 }
@@ -360,78 +280,88 @@ export async function GET(req: NextRequest) {
     }
 
     if (!tasks || tasks.length === 0) {
-      console.log(`DEBUG: No tasks found ${showAll ? 'in workspace' : 'for user'}`);
       return NextResponse.json({
         success: true,
         data: []
       });
     }
 
-    console.log(`DEBUG: Found ${tasks.length} tasks ${showAll ? 'in workspace' : 'for user ' + user.id}`);
+    // OPTIMIZED: Batch load all assignees, workspace members, and profiles at once
+    const taskIds = tasks.map(t => t.id);
+    
+    // Load all assignees for all tasks in one query
+    const { data: allAssignees } = await supabase
+      .from("task_assignees")
+      .select("id, task_id, user_id, assigned_at, assigned_by")
+      .in("task_id", taskIds)
+      .eq("workspace_id", workspaceId);
 
-    // Načítaj assignee-ov pre každú úlohu
-    const tasksWithAssignees = await Promise.all(
-      (tasks || []).map(async (task) => {
-        // Get assignees for this task
-        const { data: assignees } = await supabase
-          .from("task_assignees")
-          .select("id, user_id, assigned_at, assigned_by")
-          .eq("task_id", task.id)
-          .eq("workspace_id", workspaceId);
+    // Get all unique user IDs from assignees
+    const allUserIds = Array.from(new Set(allAssignees?.map(a => a.user_id) || []));
+    
+    // Load all workspace members in one query
+    const { data: workspaceMembers } = await supabase
+      .from("workspace_members")
+      .select("user_id")
+      .eq("workspace_id", workspaceId)
+      .in("user_id", allUserIds.length > 0 ? allUserIds : ['00000000-0000-0000-0000-000000000000']); // Dummy ID if empty
+    
+    const memberUserIds = new Set(workspaceMembers?.map(m => m.user_id) || []);
+    if (workspaceOwnerId) {
+      memberUserIds.add(workspaceOwnerId);
+    }
+    
+    // Load all profiles in one query
+    const validUserIds = allUserIds.filter(id => memberUserIds.has(id));
+    const { data: allProfiles } = await supabase
+      .from("profiles")
+      .select("id, display_name, email, role")
+      .in("id", validUserIds.length > 0 ? validUserIds : ['00000000-0000-0000-0000-000000000000']);
 
-        // Get user profiles for assignees - len pre členov workspace
-        let assigneesWithUsers: any[] = [];
-        if (assignees && assignees.length > 0) {
-          const userIds = assignees.map(a => a.user_id);
-          
-          // Najprv skontrolujme, ktorí používatelia sú členmi workspace
-          const { data: workspaceMembers } = await supabase
-            .from("workspace_members")
-            .select("user_id")
-            .eq("workspace_id", workspaceId)
-            .in("user_id", userIds);
-          
-          const memberUserIds = new Set(workspaceMembers?.map(m => m.user_id) || []);
-          // Pripočítame aj owner workspace, ak je medzi assignees
-          if (workspaceOwnerId) {
-            memberUserIds.add(workspaceOwnerId);
-          }
-          
-          // Filtruj assignees len na tých, ktorí sú členmi workspace
-          const validAssignees = assignees.filter(a => memberUserIds.has(a.user_id));
-          
-          if (validAssignees.length > 0) {
-            const validUserIds = validAssignees.map(a => a.user_id);
-            const { data: profiles } = await supabase
-              .from("profiles")
-              .select("id, display_name, email, role")
-              .in("id", validUserIds);
+    // Create lookup maps for O(1) access
+    const assigneesByTaskId = new Map<string, typeof allAssignees>();
+    const profilesById = new Map<string, { id: string; display_name: string | null; email: string; role: string }>();
+    
+    // Group assignees by task_id
+    allAssignees?.forEach(assignee => {
+      if (!assigneesByTaskId.has(assignee.task_id)) {
+        assigneesByTaskId.set(assignee.task_id, []);
+      }
+      assigneesByTaskId.get(assignee.task_id)!.push(assignee);
+    });
+    
+    // Create profile lookup map
+    allProfiles?.forEach(profile => {
+      profilesById.set(profile.id, profile);
+    });
 
-            assigneesWithUsers = validAssignees.map(assignee => {
-              const profile = profiles?.find(p => p.id === assignee.user_id);
-              return {
-                ...assignee,
-                user: profile ? {
-                  id: profile.id,
-                  email: profile.email,
-                  name: profile.display_name, // Map display_name to name
-                  avatar_url: null,
-                  role: profile.role,
-                  is_active: true,
-                  created_at: "",
-                  updated_at: ""
-                } : null
-              };
-            });
-          }
-        }
-
+    // Map tasks with assignees using in-memory lookups
+    const tasksWithAssignees = tasks.map(task => {
+      const assignees = assigneesByTaskId.get(task.id) || [];
+      const validAssignees = assignees.filter(a => memberUserIds.has(a.user_id));
+      
+      const assigneesWithUsers = validAssignees.map(assignee => {
+        const profile = profilesById.get(assignee.user_id);
         return {
-          ...task,
-          assignees: assigneesWithUsers
+          ...assignee,
+          user: profile ? {
+            id: profile.id,
+            email: profile.email,
+            name: profile.display_name,
+            avatar_url: null,
+            role: profile.role,
+            is_active: true,
+            created_at: "",
+            updated_at: ""
+          } : null
         };
-      })
-    );
+      });
+
+      return {
+        ...task,
+        assignees: assigneesWithUsers
+      };
+    });
 
     // Transform data and calculate time until deadline
     const now = new Date();
@@ -449,21 +379,28 @@ export async function GET(req: NextRequest) {
           days_until_deadline: daysUntilDeadline,
         };
       })
-      .filter((task) => task.status !== 'done' && task.status !== 'invoiced') // Exclude done and invoiced tasks
+      .filter((task) => task.status !== 'done' && task.status !== 'invoiced')
       .sort((a, b) => {
-        // Sort by deadline urgency (nulls last)
         if (!a.due_date && !b.due_date) return 0;
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
         return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
       });
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: transformedTasks,
+    };
+    
+    // Cache the response
+    setCache(cacheKey, response);
+    
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'private, max-age=5',
+      },
     });
   } catch (error) {
-    console.error("Dashboard API error:", error);
     return NextResponse.json(
       { success: false, error: "Neznáma chyba" },
       { status: 500 }

@@ -4,7 +4,40 @@ import { useState, useEffect, useCallback } from "react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { Activity, Zap, FolderKanban, Clock, Edit, Plus, CheckCircle2, MessageSquare, FolderPlus, FolderOpen, Building2, Building, UserPlus, Upload, Search, Calendar as CalendarIcon, X } from "lucide-react";
+import { 
+  Activity, 
+  Zap, 
+  FolderKanban, 
+  Clock, 
+  Edit, 
+  Plus, 
+  CheckCircle2, 
+  MessageSquare, 
+  FolderPlus, 
+  FolderOpen, 
+  Building2, 
+  Building, 
+  UserPlus, 
+  Upload, 
+  Search, 
+  Calendar as CalendarIcon, 
+  X,
+  MoreVertical,
+  RefreshCw,
+  AlertCircle,
+  FileText,
+  Activity as ActivityIcon,
+  Circle,
+  Play,
+  Eye,
+  Send,
+  XCircle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpRight,
+  Flame,
+  Flag
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,17 +50,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { sk } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { formatTextWithTaskStatusLabels } from "@/lib/task-status";
 import { useMemo } from "react";
 
 interface ActivityData {
@@ -62,8 +89,85 @@ const getActivityIcon = (type: string) => {
     client_updated: Building,
     member_added: UserPlus,
     file_upload: Upload,
+    task_due_date_changed: Clock,
+    task_priority_changed: AlertCircle,
+    task_status_changed: RefreshCw,
   };
   return icons[type] || Activity;
+};
+
+// Get activity indicator (colored badge) based on activity type
+const getStatusIndicator = (status?: string | null) => {
+  switch (status) {
+    case "todo":
+      return { icon: Circle, bgColor: "bg-slate-500", iconColor: "text-white" };
+    case "in_progress":
+      return { icon: Play, bgColor: "bg-blue-600", iconColor: "text-white" };
+    case "review":
+      return { icon: Eye, bgColor: "bg-amber-500", iconColor: "text-white" };
+    case "sent_to_client":
+      return { icon: Send, bgColor: "bg-purple-600", iconColor: "text-white" };
+    case "done":
+      return { icon: CheckCircle2, bgColor: "bg-emerald-600", iconColor: "text-white" };
+    case "cancelled":
+      return { icon: XCircle, bgColor: "bg-red-600", iconColor: "text-white" };
+    default:
+      return null;
+  }
+};
+
+const getPriorityIndicator = (priority?: string | null) => {
+  switch (priority) {
+    case "low":
+      return { icon: ArrowDown, bgColor: "bg-emerald-600", iconColor: "text-white" };
+    case "medium":
+      return { icon: ArrowUp, bgColor: "bg-amber-500", iconColor: "text-white" };
+    case "high":
+      return { icon: ArrowUpRight, bgColor: "bg-orange-600", iconColor: "text-white" };
+    case "urgent":
+      return { icon: Flame, bgColor: "bg-red-600", iconColor: "text-white" };
+    default:
+      return null;
+  }
+};
+
+const getActivityIndicator = (type: string, metadata?: any) => {
+  if (type === "task_status_changed" || type.includes("status")) {
+    const statusFromMetadata = metadata?.new_status || metadata?.status || metadata?.to_status || null;
+    return (
+      getStatusIndicator(statusFromMetadata) ?? {
+        icon: RefreshCw,
+        bgColor: "bg-[#fe9a00]",
+        iconColor: "text-white",
+      }
+    );
+  }
+
+  if (type === "task_priority_changed" || type.includes("priority")) {
+    const priorityFromMetadata = metadata?.new_priority || metadata?.priority || null;
+    return (
+      getPriorityIndicator(priorityFromMetadata) ?? {
+        icon: Flag,
+        bgColor: "bg-[#fb2c36]",
+        iconColor: "text-white",
+      }
+    );
+  }
+
+  // Blue for deadline/date changes
+  if (type.includes('due_date') || type.includes('date') || type === 'time_entry') {
+    return {
+      icon: Clock,
+      bgColor: 'bg-[#2b7fff]',
+      iconColor: 'text-white'
+    };
+  }
+  // Default blue
+  return {
+    icon: ActivityIcon,
+    bgColor: 'bg-[#2b7fff]',
+    iconColor: 'text-white'
+  };
 };
 
 const getInitials = (name?: string, email?: string) => {
@@ -219,6 +323,17 @@ function ActivityPageContent() {
     }
   };
 
+  // Format activity description with project name inline
+  const formatActivityDescription = (activity: ActivityData) => {
+    const action = formatTextWithTaskStatusLabels(activity.action);
+    const project = activity.project || '';
+    
+    if (project && action) {
+      return `${action} ${project}`;
+    }
+    return action || activity.details || '';
+  };
+
   return (
     <div className="w-full space-y-8">
       {/* Header */}
@@ -275,126 +390,163 @@ function ActivityPageContent() {
         )}
       </div>
 
-      {/* Activities Table */}
-      <div className="bg-card border border-border rounded-lg shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted">
-              <TableHead className="w-[50px] text-muted-foreground font-semibold"></TableHead>
-              <TableHead className="text-muted-foreground font-semibold">Používateľ</TableHead>
-              <TableHead className="text-muted-foreground font-semibold">Akcia</TableHead>
-              <TableHead className="text-muted-foreground font-semibold">Projekt</TableHead>
-              <TableHead className="text-muted-foreground font-semibold">Dátum</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading && activities.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-                  <p>Načítavam aktivity...</p>
-                </TableCell>
-              </TableRow>
-            ) : filteredActivities.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                  <div className="flex flex-col items-center gap-2">
-                    <Zap className="h-12 w-12 opacity-50" />
-                    <p className="text-lg font-medium">
-                      {hasActiveFilters ? "Žiadne aktivity podľa filtrov" : "Žiadna aktivita"}
-                    </p>
-                    <p className="text-sm">
-                      {hasActiveFilters ? "Skúste zmeniť filtre" : "Začnite pracovať na úlohách"}
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredActivities.map((activity) => {
-                const Icon = getActivityIcon(activity.type);
-                return (
-                  <TableRow
-                    key={activity.id}
-                    onClick={() => handleActivityClick(activity)}
-                    className={cn(
-                      "hover:bg-muted transition-colors",
-                      activity.task_id && activity.project_id ? "cursor-pointer" : ""
-                    )}
-                    title={activity.task_id && activity.project_id ? "Kliknite pre zobrazenie detailu úlohy" : ""}
-                  >
-                    <TableCell>
-                      <div className="relative flex-shrink-0">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={activity.user_avatar_url || undefined} alt={activity.user} />
-                          <AvatarFallback className="text-xs font-semibold bg-muted">
-                            {getInitials(activity.user_name || activity.user, activity.user_email)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className={cn(
-                          "absolute -bottom-0.5 -right-0.5 p-0.5 rounded-full border-2 border-background bg-black"
-                        )}>
-                          <Icon className="h-2 w-2 text-white" />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium text-foreground">
-                      {activity.user || 'Neznámy používateľ'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm text-foreground">
-                          <span className="font-medium">{activity.action}</span>
-                          {activity.details && <span className="ml-1 text-muted-foreground">{activity.details}</span>}
-                        </span>
-                        {activity.description && (
-                          <span className="text-xs text-muted-foreground italic line-clamp-1">
-                            {activity.description}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {activity.project ? (
-                        <div className="flex items-center gap-1.5">
-                          <FolderKanban className="h-3 w-3 flex-shrink-0" />
-                          <span className="truncate">
-                            {activity.project} {activity.project_code && `(${activity.project_code})`}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
+      {/* Activity Card - Figma Design */}
+      <Card className="bg-white/50 dark:bg-slate-900/50 border border-[#e2e8f0] dark:border-slate-700 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+        {/* Card Header */}
+        <CardHeader className="border-b border-[#f1f5f9] dark:border-slate-700 pb-0 px-6 pt-0">
+          <div className="flex items-center justify-between h-[89px] px-6 py-0">
+            <div className="flex items-center gap-3">
+              {/* Icon */}
+              <div className="h-10 w-10 rounded-[14px] bg-[#0f172b] dark:bg-slate-800 shadow-[0px_10px_15px_-3px_#e2e8f0,0px_4px_6px_-4px_#e2e8f0] flex items-center justify-center flex-shrink-0">
+                <ActivityIcon className="h-5 w-5 text-white" />
+              </div>
+              {/* Title and Subtitle */}
+              <div className="flex flex-col">
+                <h2 className="text-[18px] font-bold leading-[28px] text-[#0f172b] dark:text-foreground tracking-[-0.44px]">
+                  Aktivita
+                </h2>
+                <p className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-muted-foreground mt-0.5">
+                  Posledné zmeny
+                </p>
+              </div>
+            </div>
+            {/* Menu Button */}
+            <button className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+              <MoreVertical className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+        </CardHeader>
+
+        {/* Card Content - Timeline */}
+        <CardContent className="pt-6 px-6 pb-0">
+          {loading && activities.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent mb-4"></div>
+              <p>Načítavam aktivity...</p>
+            </div>
+          ) : filteredActivities.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Zap className="h-12 w-12 opacity-50 mb-4" />
+              <p className="text-lg font-medium mb-1">
+                {hasActiveFilters ? "Žiadne aktivity podľa filtrov" : "Žiadna aktivita"}
+              </p>
+              <p className="text-sm">
+                {hasActiveFilters ? "Skúste zmeniť filtre" : "Začnite pracovať na úlohách"}
+              </p>
+            </div>
+          ) : (
+            <div className="relative">
+              {/* Timeline Line - positioned at 16px from left */}
+              <div className="absolute left-4 top-0 bottom-0 w-px bg-[#e2e8f0] dark:bg-slate-700"></div>
+              
+              {/* Activity Items */}
+              <div className="flex flex-col gap-8 pb-6">
+                {filteredActivities.map((activity, index) => {
+                  const indicator = getActivityIndicator(activity.type, activity.metadata);
+                  const IndicatorIcon = indicator.icon;
+                  const timeStr = format(new Date(activity.created_at), 'HH:mm', { locale: sk });
+                  
+                  return (
+                    <div 
+                      key={activity.id} 
+                      className={cn(
+                        "relative pl-12",
+                        activity.task_id && activity.project_id ? "cursor-pointer" : ""
                       )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(activity.created_at), 'dd.MM.yyyy HH:mm', { locale: sk })}
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
+                      onClick={() => handleActivityClick(activity)}
+                      role={activity.task_id && activity.project_id ? "button" : undefined}
+                      tabIndex={activity.task_id && activity.project_id ? 0 : undefined}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && activity.task_id && activity.project_id) {
+                          handleActivityClick(activity);
+                        }
+                      }}
+                    >
+                      {/* Timeline Dot - centered exactly on the line at left-4 (16px) */}
+                      <div 
+                        className="absolute top-[2px] h-2.5 w-2.5 rounded-full bg-[#cad5e2] dark:bg-slate-600 border-2 border-white dark:border-slate-900 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+                        style={{ 
+                          left: '16px',
+                          transform: 'translateX(-50%)',
+                          boxSizing: 'border-box'
+                        }}
+                      ></div>
+                      
+                      {/* Activity Content */}
+                      <div className="flex flex-col gap-1">
+                        {/* User Name and Time */}
+                        <div className="flex items-start justify-between">
+                          <p className="text-[14px] font-bold leading-[20px] text-[#0f172b] dark:text-foreground tracking-[-0.15px]">
+                            {activity.user_name || activity.user || 'Neznámy používateľ'}
+                          </p>
+                          <div className="h-[21px] px-2 rounded-full bg-[#f8fafc] dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 flex items-center">
+                            <p className="text-[10px] font-medium leading-[15px] text-[#90a1b9] dark:text-slate-400 tracking-[0.12px]">
+                              {timeStr}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Activity Description */}
+                        <div className="flex items-start gap-1.5">
+                          <p className="text-[14px] font-normal leading-[22.75px] text-[#45556c] dark:text-slate-300 tracking-[-0.15px]">
+                            {formatActivityDescription(activity)}
+                          </p>
+                          {activity.project && (
+                            <p className="text-[14px] font-semibold leading-[22.75px] text-[#1d293d] dark:text-foreground tracking-[-0.15px]">
+                              {activity.project}
+                            </p>
+                          )}
+                        </div>
+                        
+                        {/* Project Code and Indicator */}
+                        <div className="flex items-center gap-3 mt-1">
+                          {activity.project_code && (
+                            <div className="h-[25px] px-2 rounded bg-[#f8fafc] dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 flex items-center gap-2">
+                              <FileText className="h-2.5 w-2.5 text-[#62748e] dark:text-slate-400" />
+                              <p className="text-[10px] font-medium leading-[15px] text-[#62748e] dark:text-slate-400 tracking-[0.12px]">
+                                {activity.project_code}
+                              </p>
+                            </div>
+                          )}
+                          {/* Activity Indicator Badge */}
+                          <div className={cn(
+                            "h-5 w-5 rounded-full flex items-center justify-center",
+                            indicator.bgColor
+                          )}>
+                            <IndicatorIcon className={cn("h-2.5 w-2.5", indicator.iconColor)} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-        {/* Load More Button */}
-        {hasMore && !loading && activities.length > 0 && !hasActiveFilters && (
-          <div className="p-4 border-t border-border">
-            <Button
-              variant="outline"
-              onClick={loadMore}
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? "Načítavam..." : "Načítať viac"}
-            </Button>
-          </div>
-        )}
+          {/* Load More Button */}
+          {hasMore && !loading && activities.length > 0 && !hasActiveFilters && (
+            <div className="pt-6 pb-6 border-t border-[#cad5e2] dark:border-slate-700">
+              <Button
+                variant="outline"
+                onClick={loadMore}
+                className="w-full h-8 border border-[#cad5e2] dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 hover:bg-muted"
+                disabled={loading}
+              >
+                <span className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-slate-400">
+                  {loading ? "Načítavam..." : "Zobraziť staršie aktivity"}
+                </span>
+              </Button>
+            </div>
+          )}
 
-        {loading && activities.length > 0 && (
-          <div className="p-4 border-t border-border text-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-4 border-primary border-t-transparent mx-auto"></div>
-          </div>
-        )}
-      </div>
+          {loading && activities.length > 0 && (
+            <div className="pt-6 pb-6 border-t border-[#cad5e2] dark:border-slate-700 text-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-4 border-primary border-t-transparent mx-auto"></div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -406,4 +558,3 @@ export default function ActivityPage() {
     </AuthGuard>
   );
 }
-

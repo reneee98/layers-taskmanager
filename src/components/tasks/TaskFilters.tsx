@@ -11,6 +11,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { getTaskStatusLabel } from "@/lib/task-status";
 
 export interface TaskFilter {
   status: string[];
@@ -27,12 +28,12 @@ interface TaskFiltersProps {
 }
 
 const statusOptions = [
-  { value: "todo", label: "Na spracovanie" },
-  { value: "in_progress", label: "V procese" },
-  { value: "review", label: "Na kontrole" },
-  { value: "sent_to_client", label: "Odoslané klientovi" },
-  { value: "done", label: "Dokončené" },
-  { value: "cancelled", label: "Zrušené" },
+  { value: "todo", label: getTaskStatusLabel("todo") },
+  { value: "in_progress", label: getTaskStatusLabel("in_progress") },
+  { value: "review", label: getTaskStatusLabel("review") },
+  { value: "sent_to_client", label: getTaskStatusLabel("sent_to_client") },
+  { value: "done", label: getTaskStatusLabel("done") },
+  { value: "cancelled", label: getTaskStatusLabel("cancelled") },
 ];
 
 const priorityOptions = [

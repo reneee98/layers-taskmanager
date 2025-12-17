@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
     const isOwner = workspace.owner_id === user.id || member?.role === 'owner';
     
     if (!isOwner && !member) {
-      console.log(`SECURITY: User ${user.email} has no access to workspace ${workspaceId}`);
       return NextResponse.json({ success: false, error: "Access denied - not a member of this workspace" }, { status: 403 });
     }
     
@@ -56,7 +55,6 @@ export async function GET(request: NextRequest) {
       .eq('workspace_id', workspaceId);
     
     if (membersError) {
-      console.error("Error fetching workspace members:", membersError);
       return NextResponse.json({ success: false, error: "Failed to fetch workspace members" }, { status: 500 });
     }
     
@@ -87,7 +85,6 @@ export async function GET(request: NextRequest) {
       .in('id', userIdsArray);
     
     if (profilesError) {
-      console.error("Error fetching profiles:", profilesError);
       return NextResponse.json({ success: false, error: "Failed to fetch profiles" }, { status: 500 });
     }
     
@@ -200,7 +197,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: users });
   } catch (error) {
-    console.error("Error in workspace-users GET:", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

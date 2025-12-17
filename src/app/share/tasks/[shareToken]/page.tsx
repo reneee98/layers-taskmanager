@@ -40,6 +40,7 @@ import {
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { getTaskStatusLabel } from "@/lib/task-status";
 import { getAppVersion } from "@/lib/version";
 import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
@@ -96,42 +97,42 @@ interface SharedTask {
 const statusOptions = [
   { 
     value: "todo", 
-    label: "To Do", 
+    label: getTaskStatusLabel("todo"), 
     icon: Circle,
     color: "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200",
     iconColor: "text-slate-500"
   },
   { 
     value: "in_progress", 
-    label: "In Progress", 
+    label: getTaskStatusLabel("in_progress"), 
     icon: Play,
     color: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200",
     iconColor: "text-blue-500"
   },
   { 
     value: "review", 
-    label: "Review", 
+    label: getTaskStatusLabel("review"), 
     icon: Eye,
     color: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200",
     iconColor: "text-amber-500"
   },
   { 
     value: "sent_to_client", 
-    label: "Sent to Client", 
+    label: getTaskStatusLabel("sent_to_client"), 
     icon: Send,
     color: "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200",
     iconColor: "text-purple-500"
   },
   { 
     value: "done", 
-    label: "Done", 
+    label: getTaskStatusLabel("done"), 
     icon: CheckCircle2,
     color: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200",
     iconColor: "text-emerald-500"
   },
   { 
     value: "cancelled", 
-    label: "Cancelled", 
+    label: getTaskStatusLabel("cancelled"), 
     icon: XCircle,
     color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200",
     iconColor: "text-red-500"

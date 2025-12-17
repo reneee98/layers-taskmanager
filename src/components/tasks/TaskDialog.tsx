@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { X } from "lucide-react";
+import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 
 interface TaskDialogProps {
   projectId?: string | null; // Optional - if null, task will be created without project
@@ -56,13 +57,25 @@ export function TaskDialog({
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId || null);
   const [projects, setProjects] = useState<Project[]>([]);
   
+  // Get workspace users from context
+  const { users: contextUsers } = useWorkspaceUsers();
+  const workspaceUsers = useMemo(() => {
+    return contextUsers
+      .filter(wu => wu.profiles)
+      .map(wu => ({
+        id: wu.profiles.id,
+        display_name: wu.profiles.display_name,
+        email: wu.profiles.email,
+        role: wu.role,
+      }));
+  }, [contextUsers]);
+  
   // Reset selectedProjectId when projectId prop changes
   useEffect(() => {
     if (open && !task) {
       setSelectedProjectId(projectId || null);
     }
   }, [projectId, open, task]);
-  const [workspaceUsers, setWorkspaceUsers] = useState<Array<{ id: string; display_name: string; email: string; role: string }>>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [isBudgetAutoCalculated, setIsBudgetAutoCalculated] = useState(false);
   const [userSettings, setUserSettings] = useState<{ default_hourly_rate?: number | null } | null>(null);
@@ -88,7 +101,7 @@ export function TaskDialog({
   }, [task, open]);
 
   useEffect(() => {
-    // Fetch projects and workspace users when dialog is open (both for creating and editing)
+    // Fetch projects and user settings when dialog is open (workspace users come from context)
     if (open) {
       const fetchProjects = async () => {
         try {
@@ -99,18 +112,6 @@ export function TaskDialog({
           }
         } catch (error) {
           console.error("Failed to fetch projects:", error);
-        }
-      };
-      
-      const fetchWorkspaceUsers = async () => {
-        try {
-          const response = await fetch("/api/workspace-users");
-          const result = await response.json();
-          if (result.success) {
-            setWorkspaceUsers(result.data);
-          }
-        } catch (error) {
-          console.error("Failed to fetch workspace users:", error);
         }
       };
 
@@ -127,7 +128,6 @@ export function TaskDialog({
       };
       
       fetchProjects();
-      fetchWorkspaceUsers();
       fetchUserSettings();
     }
   }, [open]);

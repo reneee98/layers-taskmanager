@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, X, Clock, FolderKanban, Building2, FileText, User, Calendar } from "lucide-react";
+import { Search, X, Clock, FolderKanban, Building2, FileText, User, Calendar, Command } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -150,20 +150,25 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
   };
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full max-w-[384px]">
       {/* Search Input */}
       <div className="relative w-full">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#90a1b9]" />
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Hľadať projekty, úlohy, klientov... (Ctrl+K)"
+          placeholder="Hľadať projekty..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          className="pl-12 pr-12 w-full h-12 text-base bg-background/80 border-border focus:bg-background focus:border-border focus:ring-2 focus:ring-ring transition-all duration-200 rounded-xl shadow-sm"
+          className="pl-9 pr-[100px] h-9 text-sm bg-[rgba(241,245,249,0.5)] dark:bg-slate-800/50 border-0 focus:bg-[rgba(241,245,249,0.8)] dark:focus:bg-slate-800/80 focus:ring-0 focus-visible:ring-0 rounded-[10px] text-[#90a1b9] placeholder:text-[#90a1b9]"
         />
+        {/* Keyboard shortcut badge */}
+        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 h-[21px] px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded shadow-sm">
+          <Command className="h-2.5 w-2.5 text-[#90a1b9]" />
+          <span className="text-[10px] font-bold leading-[15px] text-[#90a1b9]">K</span>
+        </div>
         {query && (
           <Button
             variant="ghost"
@@ -173,9 +178,9 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
               setResults([]);
               setSelectedIndex(-1);
             }}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-accent rounded-lg"
+            className="absolute right-[45px] top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-transparent"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3 text-[#90a1b9]" />
           </Button>
         )}
       </div>

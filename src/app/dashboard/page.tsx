@@ -73,12 +73,6 @@ import { formatCurrency, formatHours } from "@/lib/format";
 import { format, isAfter, isBefore, addDays, isToday, parse, startOfWeek, getDay } from "date-fns";
 import { sk } from "date-fns/locale";
 import dynamic from 'next/dynamic';
-
-const Calendar = dynamic(
-  () => import('react-big-calendar').then(mod => mod.Calendar),
-  { ssr: false }
-);
-
 import { dateFnsLocalizer } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { getDeadlineStatus, getDeadlineRowClass, getDeadlineDotClass } from "@/lib/deadline-utils";
@@ -87,16 +81,17 @@ import type { Task } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDashboardPermissions } from "@/hooks/useDashboardPermissions";
+import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 
-// Lazy load heavy components
-const WorkspaceInvitations = dynamic(() => import("@/components/workspace/WorkspaceInvitations").then(mod => ({ default: mod.WorkspaceInvitations })), {
-  loading: () => <div className="h-20 bg-muted animate-pulse rounded"></div>,
-});
+// Direct imports for faster initial load (these are small components)
+import { WorkspaceInvitations } from "@/components/workspace/WorkspaceInvitations";
+import { TaskDialog } from "@/components/tasks/TaskDialog";
 
-const TaskDialog = dynamic(() => import("@/components/tasks/TaskDialog").then(mod => ({ default: mod.TaskDialog })), {
-  loading: () => null,
-  ssr: false,
-});
+// Only lazy load truly heavy components
+const Calendar = dynamic(
+  () => import('react-big-calendar').then(mod => mod.Calendar),
+  { ssr: false, loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div> }
+);
 import {
   Select,
   SelectContent,
@@ -106,6 +101,7 @@ import {
 } from "@/components/ui/select";
 import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
 import { cn, stripHtml, truncateTaskTitle } from "@/lib/utils";
+import { formatTextWithTaskStatusLabels, getTaskStatusLabel } from "@/lib/task-status";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { toast } from "@/hooks/use-toast";
@@ -129,9 +125,16 @@ interface DashboardAssigneeCellProps {
 }
 
 function DashboardAssigneeCell({ task, onTaskUpdate }: DashboardAssigneeCellProps) {
-  const [users, setUsers] = useState<Profile[]>([]);
+  const { users: workspaceUsers } = useWorkspaceUsers();
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Map workspace users to Profile format
+  const users = useMemo(() => {
+    return workspaceUsers
+      .filter(wu => wu.profiles) // Filter out entries without profiles
+      .map(wu => wu.profiles as Profile);
+  }, [workspaceUsers]);
 
   const getInitials = (name?: string) => {
     if (!name) return "?";
@@ -142,21 +145,6 @@ function DashboardAssigneeCell({ task, onTaskUpdate }: DashboardAssigneeCellProp
       .toUpperCase()
       .slice(0, 2);
   };
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch("/api/workspace-users");
-        const result = await response.json();
-        if (result.success) {
-          setUsers(result.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch workspace users:", error);
-      }
-    };
-    fetchUsers();
-  }, []);
 
   const handleAddAssignee = async (userId: string) => {
     if (userId === "none") return;
@@ -420,6 +408,7 @@ interface Activity {
   project_code?: string;
   task_id?: string;
   task_title?: string;
+  metadata?: any;
   client?: string;
   description?: string;
   content?: string;
@@ -441,27 +430,14 @@ export default function DashboardPage() {
   // Dashboard visibility permissions - don't block on this
   const { permissions: dashboardPermissions } = useDashboardPermissions();
   
-  // Debug: Log permissions
-  useEffect(() => {
-    console.log('[Dashboard Page] Current dashboard permissions:', {
-      show_stats_overview: dashboardPermissions.show_stats_overview,
-      show_tasks_section: dashboardPermissions.show_tasks_section,
-      show_activities_section: dashboardPermissions.show_activities_section,
-    });
-    console.log('[Dashboard Page] Full permissions object:', dashboardPermissions);
-  }, [dashboardPermissions]);
-  
-  // Debug: Log when component renders
-  useEffect(() => {
-    console.log('[Dashboard Page] Component rendered/re-rendered');
-  });
-  
   const isLoadingPermissions = isLoadingProjectsPermission || isLoadingTasksPermission || isLoadingReadProjectsPermission || isLoadingReadTasksPermission;
   const [tasks, setTasks] = useState<AssignedTask[]>([]); // Priradené používateľovi
   const [allActiveTasks, setAllActiveTasks] = useState<AssignedTask[]>([]); // Všetky aktívne v workspace
   const [unassignedTasks, setUnassignedTasks] = useState<AssignedTask[]>([]); // Nepriradené
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const isFetchingRef = useRef(false); // Prevent duplicate fetches
+  const lastFetchWorkspaceIdRef = useRef<string | null>(null);
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [showLoadMore, setShowLoadMore] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTabType>("today");
@@ -481,7 +457,19 @@ export default function DashboardPage() {
   const [moreEventsModalOpen, setMoreEventsModalOpen] = useState(false);
   const [moreEventsDate, setMoreEventsDate] = useState<Date | null>(null);
   const [moreEventsTasks, setMoreEventsTasks] = useState<AssignedTask[]>([]);
-  const [workspaceUsers, setWorkspaceUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  
+  // Get workspace users from context for the user filter dropdown
+  const { users: contextWorkspaceUsers } = useWorkspaceUsers();
+  const workspaceUsers = useMemo(() => {
+    return contextWorkspaceUsers
+      .filter(wu => wu.profiles) // Filter out entries without profiles
+      .map(wu => ({
+        id: wu.profiles.id,
+        name: wu.profiles.display_name || wu.profiles.email,
+        email: wu.profiles.email,
+      }));
+  }, [contextWorkspaceUsers]);
+  
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null); // null = všetci používatelia
 
   type ViewMode = "list" | "calendar";
@@ -856,152 +844,71 @@ export default function DashboardPage() {
     const fetchData = async () => {
       if (!workspace || isLoadingPermissions) return;
       
+      // Prevent duplicate fetches
+      if (isFetchingRef.current || lastFetchWorkspaceIdRef.current === workspace.id) {
+        return;
+      }
+      
+      isFetchingRef.current = true;
+      lastFetchWorkspaceIdRef.current = workspace.id;
       setIsLoading(true);
+      
       try {
-        // Optimalizácia: Načítaj najdôležitejšie dáta najprv (assigned tasks)
-        // Potom načítaj ostatné dáta na pozadí
+        // OPTIMIZED: Use mega-batch endpoint - loads everything in 1 request
+        const initResult = await fetch(`/api/dashboard/init?workspace_id=${workspace.id}`).then(r => r.json());
         
-        // Priority 1: Assigned tasks (najdôležitejšie pre dashboard)
-        if (canReadTasks || canViewTasks) {
-          try {
-            const assignedTasksResponse = await fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=false`);
-            const assignedTasksResult = await assignedTasksResponse.json();
-            if (assignedTasksResult.success) {
-              setTasks(assignedTasksResult.data);
-              setIsLoading(false); // Zobraz dashboard hneď po načítaní tasks
+        if (initResult?.success && initResult.data) {
+          // Process tasks
+          if (canReadTasks || canViewTasks) {
+            setTasks(initResult.data.tasks?.assigned || []);
+            setAllActiveTasks(initResult.data.tasks?.allActive || []);
+            setUnassignedTasks(initResult.data.tasks?.unassigned || []);
+          }
+          
+          // Process activities
+          if (canReadTasks || canViewTasks || canReadProjects || canViewProjects) {
+            setActivities(initResult.data.activities || []);
+          }
+          
+          // Process projects
+          if (canReadProjects || canViewProjects) {
+            const projects = initResult.data.projects || [];
+            const personalProject = projects.find((p: any) => 
+              p.name === "Osobné úlohy" || (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
+            );
+            if (personalProject) {
+              setPersonalProjectId(personalProject.id);
             }
-          } catch (error) {
-            console.error("Failed to fetch assigned tasks:", error);
           }
-        }
-        
-        // Priority 2: Načítaj ostatné dáta na pozadí (paralelne)
-        const backgroundPromises: Promise<Response>[] = [];
-        
-        // Tasks - ostatné typy
-        if (canReadTasks || canViewTasks) {
-          backgroundPromises.push(
-            fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=false&show_all=true`),
-            fetch(`/api/dashboard/assigned-tasks?workspace_id=${workspace.id}&show_unassigned=true`)
-          );
-        }
-        
-        // Activities - len ak má permission na tasks alebo projects
-        if (canReadTasks || canViewTasks || canReadProjects || canViewProjects) {
-          backgroundPromises.push(
-            fetch(`/api/dashboard/activity?workspace_id=${workspace.id}&only_today=true`)
-          );
-        }
-        
-        // Projects - len ak má permission
-        if (canReadProjects || canViewProjects) {
-          backgroundPromises.push(
-            fetch(`/api/projects`)
-          );
-        }
-        
-        // Users - vždy (pre workspace)
-        backgroundPromises.push(
-          fetch(`/api/workspace-users?workspace_id=${workspace.id}`)
-        );
-        
-        const responses = await Promise.all(backgroundPromises);
-        
-        let responseIndex = 0;
-        let allActiveTasksResponse: Response | null = null;
-        let unassignedTasksResponse: Response | null = null;
-        let activitiesResponse: Response | null = null;
-        let projectsResponse: Response | null = null;
-        let usersResponse: Response | null = null;
-        
-        if (canReadTasks || canViewTasks) {
-          allActiveTasksResponse = responses[responseIndex++];
-          unassignedTasksResponse = responses[responseIndex++];
-        }
-        
-        if (canReadTasks || canViewTasks || canReadProjects || canViewProjects) {
-          activitiesResponse = responses[responseIndex++];
-        }
-        
-        if (canReadProjects || canViewProjects) {
-          projectsResponse = responses[responseIndex++];
-        }
-        
-        usersResponse = responses[responseIndex++];
 
-        // Process responses based on permissions (assigned tasks už boli spracované vyššie)
-        if (allActiveTasksResponse) {
-          const allActiveTasksResult = await allActiveTasksResponse.json();
-          if (allActiveTasksResult.success) {
-            setAllActiveTasks(allActiveTasksResult.data);
-          } else {
-            console.error("Failed to fetch all active tasks:", allActiveTasksResult.error);
-          }
-        }
-
-        if (unassignedTasksResponse) {
-          const unassignedTasksResult = await unassignedTasksResponse.json();
-          if (unassignedTasksResult.success) {
-            setUnassignedTasks(unassignedTasksResult.data);
-          } else {
-            console.error("Failed to fetch unassigned tasks:", unassignedTasksResult.error);
-          }
-        }
-
-        if (activitiesResponse) {
-          const activitiesResult = await activitiesResponse.json();
-          if (activitiesResult.success) {
-            setActivities(activitiesResult.data);
-          } else {
-            console.error("Failed to fetch activities:", activitiesResult.error);
-          }
-        }
-
-        // Find or create personal project - only if user has permission to view projects
-        // Optimalizácia: Toto sa môže robiť na pozadí, nie je kritické pre zobrazenie dashboardu
-        if (projectsResponse) {
-          projectsResponse.json().then((projectsResult: any) => {
-            if (projectsResult.success && projectsResult.data) {
-              // Hľadáme projekt podľa názvu "Osobné úlohy" alebo kódu začínajúceho sa na "PERSONAL-"
-              const personalProject = projectsResult.data.find((p: any) => 
-                p.name === "Osobné úlohy" || (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
-              );
-              
-              if (personalProject) {
-                setPersonalProjectId(personalProject.id);
-              }
-              // Nevyhľadávame v ostatných statusoch a nevytvárame automaticky - to môže byť pomalé
-              // Personal project sa vytvorí pri prvom použití
+          // OPTIMIZED: Share data with contexts via custom event to avoid duplicate requests
+          window.dispatchEvent(new CustomEvent('dashboard-init-data', {
+            detail: {
+              workspaceId: workspace.id,
+              workspaceUsers: initResult.data.workspaceUsers || [],
+              invitations: initResult.data.invitations || []
             }
-          }).catch((error: any) => {
-            console.error("Failed to handle personal project:", error);
-          });
+          }));
         }
-
-        // Load workspace users
-        if (usersResponse) {
-          const usersResult = await usersResponse.json();
-          if (usersResult.success && usersResult.data) {
-            // Map users to ensure we have id, name, and email
-            const mappedUsers = usersResult.data.map((user: any) => ({
-              id: user.id || user.user_id,
-              name: user.name || user.display_name || user.email?.split('@')[0] || 'Neznámy',
-              email: user.email || ''
-            }));
-            setWorkspaceUsers(mappedUsers);
-          } else {
-            console.error("Failed to fetch workspace users:", usersResult?.error || "Unknown error");
-          }
-        }
+        
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching dashboard data:", error);
       } finally {
         setIsLoading(false);
+        isFetchingRef.current = false;
       }
     };
 
     fetchData();
-  }, [workspace, canReadTasks, canViewTasks, canReadProjects, canViewProjects, isLoadingPermissions]);
+  }, [workspace?.id, isLoadingPermissions, canReadTasks, canViewTasks, canReadProjects, canViewProjects]);
+
+  // Reset fetch ref when workspace changes (to allow refetch on workspace switch)
+  useEffect(() => {
+    if (workspace?.id !== lastFetchWorkspaceIdRef.current) {
+      lastFetchWorkspaceIdRef.current = null;
+    }
+  }, [workspace?.id]);
+
 
   // Listen for task status changes to refresh stats
   useEffect(() => {
@@ -1067,14 +974,7 @@ export default function DashboardPage() {
   };
 
   const getStatusText = (status: string) => {
-    const statusMap: { [key: string]: string } = {
-      'todo': 'To Do',
-      'in_progress': 'In Progress',
-      'review': 'Review',
-      'done': 'Done',
-      'cancelled': 'Cancelled'
-    };
-    return statusMap[status] || status;
+    return getTaskStatusLabel(status) || status;
   };
 
   const getPriorityText = (priority: string) => {
@@ -1122,8 +1022,8 @@ export default function DashboardPage() {
     const labels: Record<DashboardTabType, string> = {
       'all_active': 'Všetky aktívne',
       'today': 'Úlohy dnes',
-      'sent_to_client': 'Poslané klientovi',
-      'in_progress': 'In progress',
+      'sent_to_client': 'Odoslané klientovi',
+      'in_progress': 'V procese',
       'unassigned': 'Nepriradené',
       'no_project': 'Bez projektu',
     };
@@ -1296,6 +1196,86 @@ export default function DashboardPage() {
     }
   };
 
+  const getStatusIndicator = (status?: string | null) => {
+    switch (status) {
+      case "todo":
+        return { icon: Circle, bgColor: "bg-slate-500", iconColor: "text-white" };
+      case "in_progress":
+        return { icon: Play, bgColor: "bg-blue-600", iconColor: "text-white" };
+      case "review":
+        return { icon: Eye, bgColor: "bg-amber-500", iconColor: "text-white" };
+      case "sent_to_client":
+        return { icon: Send, bgColor: "bg-purple-600", iconColor: "text-white" };
+      case "done":
+        return { icon: CheckCircle2, bgColor: "bg-emerald-600", iconColor: "text-white" };
+      case "cancelled":
+        return { icon: XCircle, bgColor: "bg-red-600", iconColor: "text-white" };
+      default:
+        return null;
+    }
+  };
+
+  const getPriorityIndicator = (priority?: string | null) => {
+    switch (priority) {
+      case "low":
+        return { icon: ArrowDown, bgColor: "bg-emerald-600", iconColor: "text-white" };
+      case "medium":
+        return { icon: ArrowUp, bgColor: "bg-amber-500", iconColor: "text-white" };
+      case "high":
+        return { icon: ArrowUpRight, bgColor: "bg-orange-600", iconColor: "text-white" };
+      case "urgent":
+        return { icon: Flame, bgColor: "bg-red-600", iconColor: "text-white" };
+      default:
+        return null;
+    }
+  };
+
+  // Small indicator badge for activities in the dashboard timeline
+  const getActivityIndicator = (type: string, metadata?: any) => {
+    // Status changes: icon = new status
+    if (type === "task_status_changed" || type.includes("status")) {
+      const statusFromMetadata = metadata?.new_status || metadata?.status || metadata?.to_status || null;
+      return (
+        getStatusIndicator(statusFromMetadata) ?? {
+          icon: ArrowRight,
+          bgColor: "bg-[#fe9a00]",
+          iconColor: "text-white",
+        }
+      );
+    }
+
+    // Priority changes: icon = new priority
+    if (type === "task_priority_changed" || type.includes("priority")) {
+      const priorityFromMetadata = metadata?.new_priority || metadata?.priority || null;
+      return (
+        getPriorityIndicator(priorityFromMetadata) ?? {
+          icon: Flag,
+          bgColor: "bg-[#fb2c36]",
+          iconColor: "text-white",
+        }
+      );
+    }
+
+    // Time/date related events
+    if (
+      type.includes("due_date") ||
+      type.includes("date") ||
+      type === "time_entry" ||
+      type === "time_added" ||
+      type.startsWith("timer_")
+    ) {
+      return { icon: Clock, bgColor: "bg-[#2b7fff]", iconColor: "text-white" };
+    }
+
+    // Comments
+    if (type.includes("comment")) {
+      return { icon: MessageSquare, bgColor: "bg-purple-600", iconColor: "text-white" };
+    }
+
+    // Default
+    return { icon: getActivityIcon(type), bgColor: "bg-slate-500", iconColor: "text-white" };
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -1307,37 +1287,37 @@ export default function DashboardPage() {
 
   const statusConfig = {
     todo: { 
-      label: "Todo", 
+      label: getTaskStatusLabel("todo"), 
       icon: Circle, 
       color: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700", 
       iconColor: "text-slate-500" 
     },
     in_progress: { 
-      label: "In Progress", 
+      label: getTaskStatusLabel("in_progress"), 
       icon: Play, 
       color: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800", 
       iconColor: "text-blue-500" 
     },
     review: { 
-      label: "Review", 
+      label: getTaskStatusLabel("review"), 
       icon: Eye, 
       color: "bg-amber-100 text-amber-700 border-amber-200", 
       iconColor: "text-amber-500" 
     },
     sent_to_client: { 
-      label: "Sent to Client", 
+      label: getTaskStatusLabel("sent_to_client"), 
       icon: Send, 
       color: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800", 
       iconColor: "text-purple-500" 
     },
     done: { 
-      label: "Done", 
+      label: getTaskStatusLabel("done"), 
       icon: CheckCircle, 
       color: "bg-emerald-100 text-emerald-700 border-emerald-200", 
       iconColor: "text-emerald-500" 
     },
     cancelled: { 
-      label: "Cancelled", 
+      label: getTaskStatusLabel("cancelled"), 
       icon: XCircle, 
       color: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800", 
       iconColor: "text-red-500" 
@@ -1399,14 +1379,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="w-full space-y-8">
+    <div className="w-full space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-4xl font-bold text-foreground">
             Dashboard
           </h1>
-          <p className="text-muted-foreground text-base mt-2">
+          <p className="text-muted-foreground text-base mt-1">
             Prehľad vašich projektov a úloh
           </p>
         </div>
@@ -1416,7 +1396,7 @@ export default function DashboardPage() {
               setIsQuickTaskOpen(true);
             }}
             disabled={!personalProjectId}
-            className="bg-gray-900 text-white hover:bg-gray-800"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4"
             title={personalProjectId ? "Vytvoriť rýchlu úlohu" : "Čaká sa na vytvorenie osobného projektu..."}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -1428,53 +1408,113 @@ export default function DashboardPage() {
       {/* Workspace Invitations */}
       <WorkspaceInvitations />
 
-      {/* Stats Overview */}
-      {(() => {
-        console.log('[Dashboard Page] Rendering stats overview, permission:', dashboardPermissions.show_stats_overview);
-        return dashboardPermissions.show_stats_overview;
-      })() && (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-card border border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Na spracovanie</CardTitle>
-            <FolderKanban className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{todoTasks.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Úlohy na začiatok</p>
+      {/* Stats Overview - Figma Design */}
+      {dashboardPermissions.show_stats_overview && (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Úlohy na začiatok */}
+        <Card className="bg-white/60 dark:bg-slate-900/60 border-0 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+          <CardContent className="pt-5 px-5 pb-5">
+            <div className="flex items-start justify-between mb-3">
+              {/* Icon container */}
+              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
+                <FolderKanban className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+              </div>
+              {/* Badge */}
+              {todoTasks.length > 0 && (
+                <div className="h-[25px] px-2 rounded-full bg-[#f8fafc] dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 flex items-center gap-1.5">
+                  <ArrowUp className="h-2.5 w-2.5 text-[#62748e] dark:text-slate-400" />
+                  <span className="text-[10px] font-bold leading-[15px] text-[#62748e] dark:text-slate-400 tracking-[0.12px]">
+                    +{todoTasks.length} nové
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <div className="text-[24px] font-bold leading-[32px] text-[#0f172b] dark:text-foreground tracking-[-0.53px]">
+                {todoTasks.length}
+              </div>
+              <p className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-muted-foreground">
+                Úlohy na začiatok
+              </p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card border border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">V procese</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{inProgressTasks.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Aktívne úlohy</p>
+        {/* Card 2: Aktívne úlohy */}
+        <Card className="bg-white/60 dark:bg-slate-900/60 border-0 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+          <CardContent className="pt-5 px-5 pb-5">
+            <div className="flex items-start justify-between mb-3">
+              {/* Icon container */}
+              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
+                <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              {/* Badge */}
+              {inProgressTasks.length > 0 && (
+                <div className="h-[25px] px-2 rounded-full bg-[#f8fafc] dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 flex items-center gap-1.5">
+                  <ArrowDown className="h-2.5 w-2.5 text-[#62748e] dark:text-slate-400" />
+                  <span className="text-[10px] font-bold leading-[15px] text-[#62748e] dark:text-slate-400 tracking-[0.12px]">
+                    -1 od včera
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <div className="text-[24px] font-bold leading-[32px] text-[#0f172b] dark:text-foreground tracking-[-0.53px]">
+                {inProgressTasks.length}
+              </div>
+              <p className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-muted-foreground">
+                Aktívne úlohy
+              </p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card border border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Prešli deadline</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{overdueTasks.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Potrebujú pozornosť</p>
+        {/* Card 3: Potrebujú pozornosť - s červeným tintom */}
+        <Card className="bg-[rgba(254,242,242,0.3)] dark:bg-red-950/20 border-0 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+          <CardContent className="pt-5 px-5 pb-5">
+            <div className="flex items-start justify-between mb-3">
+              {/* Icon container */}
+              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              {/* Badge - červený */}
+              {overdueTasks.length > 0 && (
+                <div className="h-[25px] px-2 rounded-full bg-[#fef2f2] dark:bg-red-950/40 border border-[#ffe2e2] dark:border-red-900/50 flex items-center gap-1.5">
+                  <ArrowUp className="h-2.5 w-2.5 text-[#e7000b] dark:text-red-400" />
+                  <span className="text-[10px] font-bold leading-[15px] text-[#e7000b] dark:text-red-400 tracking-[0.12px]">
+                    +{overdueTasks.length} kritická
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <div className="text-[24px] font-bold leading-[32px] text-[#0f172b] dark:text-foreground tracking-[-0.53px]">
+                {overdueTasks.length}
+              </div>
+              <p className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-muted-foreground">
+                Potrebujú pozornosť
+              </p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card border border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Blížia sa</CardTitle>
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{upcomingTasks.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Do 7 dní</p>
+        {/* Card 4: Do 7 dní */}
+        <Card className="bg-white/60 dark:bg-slate-900/60 border-0 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+          <CardContent className="pt-5 px-5 pb-5">
+            <div className="flex items-start justify-between mb-3">
+              {/* Icon container */}
+              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
+                <CalendarIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <div className="text-[24px] font-bold leading-[32px] text-[#0f172b] dark:text-foreground tracking-[-0.53px]">
+                {upcomingTasks.length}
+              </div>
+              <p className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-muted-foreground">
+                Do 7 dní
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -1483,31 +1523,30 @@ export default function DashboardPage() {
       {/* Main Content - Single Column */}
       <div className="w-full">
         {/* Tasks and Activity Section - show if dashboard permission allows it */}
-        {(() => {
-          const shouldShow = dashboardPermissions.show_tasks_section;
-          console.log('[Dashboard Page] Rendering tasks section, permission:', dashboardPermissions.show_tasks_section, 'shouldShow:', shouldShow);
-          return shouldShow;
-        })() && (
+        {dashboardPermissions.show_tasks_section && (
           <div className="w-full">
             {/* Combined Tasks and Activity Block */}
-            <Card className="bg-card border border-border shadow-sm rounded-xl overflow-hidden">
+            <Card className="bg-card border border-border">
           <CardContent className="p-0">
             <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] divide-x divide-border">
                   {/* Tasks Section */}
                   <div>
-                  <div className="px-6 py-4 bg-muted/50 border-b border-border/50">
+                  <div className="px-6 py-5 border-b border-border">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 text-lg font-semibold text-foreground">
-                        <div className="p-2 bg-primary rounded-lg">
-                          <User className="h-5 w-5 text-primary-foreground" />
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-lg bg-slate-900 dark:bg-slate-100 flex items-center justify-center">
+                          <List className="h-5 w-5 text-white dark:text-slate-900" />
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span>Moje úlohy</span>
-                          {filteredTasks.length > 0 && (
-                            <Badge variant="outline" className="px-3 py-1 text-sm font-medium bg-background border-border text-foreground">
-                              {filteredTasks.length}
-                            </Badge>
-                          )}
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <h2 className="text-lg font-semibold text-foreground">Moje úlohy</h2>
+                            {filteredTasks.length > 0 && (
+                              <Badge variant="secondary" className="px-2 py-0.5 text-xs font-medium rounded-full">
+                                {filteredTasks.length}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">Prehľad vašej agendy na dnes</p>
                         </div>
                       </div>
                       {/* Zoznam / Kalendár prepínač */}
@@ -1519,14 +1558,14 @@ export default function DashboardPage() {
                           setActiveTab("all_active");
                         }
                       }} className="w-auto">
-                        <TabsList className="inline-flex h-9 items-center justify-center rounded-md bg-background p-1 text-muted-foreground border border-border">
-                          <TabsTrigger value="list" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-muted data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                            <List className="h-4 w-4" />
-                            <span className="ml-2">Zoznam</span>
+                        <TabsList className="inline-flex h-9 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+                          <TabsTrigger value="list" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                            <List className="h-4 w-4 mr-2" />
+                            Zoznam
                           </TabsTrigger>
-                          <TabsTrigger value="calendar" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-muted data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-                            <CalendarIcon className="h-4 w-4" />
-                            <span className="ml-2">Kalendár</span>
+                          <TabsTrigger value="calendar" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                            <CalendarIcon className="h-4 w-4 mr-2" />
+                            Kalendár
                           </TabsTrigger>
                         </TabsList>
                       </Tabs>
@@ -1592,7 +1631,7 @@ export default function DashboardPage() {
                             <Icon className="h-4 w-4 mr-2" />
                             <span>{getTabLabel(tab)}</span>
                             {taskCounts[tab] > 0 && (
-                              <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                              <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-muted text-foreground">
                                 {taskCounts[tab]}
                               </Badge>
                             )}
@@ -1622,12 +1661,12 @@ export default function DashboardPage() {
                 <div className="overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-muted/80 hover:bg-muted border-b border-border">
-                        <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Úloha</TableHead>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+                        <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Klient / Úloha</TableHead>
                         <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Status</TableHead>
                         <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Assignee</TableHead>
                         <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Priorita</TableHead>
-                        <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Čas</TableHead>
+                        <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Budget / Realita</TableHead>
                         <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Deadline</TableHead>
                         <TableHead className="w-[40px]"></TableHead>
                       </TableRow>
@@ -1643,7 +1682,7 @@ export default function DashboardPage() {
                       return (
                     <TableRow 
                       key={task.id} 
-                      className="hover:bg-accent/50 cursor-pointer group border-b border-border/50 transition-all duration-200"
+                      className="hover:bg-muted/50 cursor-pointer group border-b border-border transition-colors"
                       onClick={() => {
                         if (task.project?.id) {
                           window.location.href = `/projects/${task.project.id}/tasks/${task.id}`;
@@ -1654,14 +1693,10 @@ export default function DashboardPage() {
                     >
                           <TableCell className="py-4 pl-6 pr-2">
                             <div className="min-w-0 space-y-1">
-                              <div className="flex items-center">
-                                <h3 className="font-semibold truncate text-sm group-hover:text-foreground text-foreground" title={stripHtml(task.title)}>
-                                  {truncateTaskTitle(task.title, 50)}
-                                </h3>
-                              </div>
+                              {/* Project name and code - first line */}
                               {task.project && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  {task.project.name}
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  <span className="font-medium">{task.project.name}</span>
                                   {task.project.code && (
                                     <>
                                       <span>•</span>
@@ -1670,6 +1705,10 @@ export default function DashboardPage() {
                                   )}
                                 </div>
                               )}
+                              {/* Task title - second line */}
+                              <h3 className="font-medium truncate text-sm text-foreground" title={stripHtml(task.title)}>
+                                {truncateTaskTitle(task.title, 50)}
+                              </h3>
                             </div>
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2">
@@ -1697,54 +1736,39 @@ export default function DashboardPage() {
                             {(() => {
                               const actualHours = task.actual_hours || 0;
                               const estimatedHours = task.estimated_hours || 0;
-                              const isOverBudget = estimatedHours > 0 && actualHours > estimatedHours;
                               
                               // If both are 0, show nothing
                               if (actualHours === 0 && estimatedHours === 0) {
                                 return <span className="text-xs text-muted-foreground italic">—</span>;
                               }
                               
+                              // Calculate progress percentage
+                              const progress = estimatedHours > 0 ? Math.min((actualHours / estimatedHours) * 100, 100) : 0;
+                              
                               return (
-                                <div className="flex items-center gap-1.5 text-xs">
-                                  {/* Estimated Hours (nabudgetovaný) - only show if > 0 */}
-                                  {estimatedHours > 0 && (
-                                    <>
-                                      <div className="flex items-center gap-1">
-                                        <Euro className={cn(
-                                          "h-3.5 w-3.5",
-                                          isOverBudget ? "text-red-500" : "text-muted-foreground"
-                                        )} />
-                                        <span className={cn(
-                                          isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
-                                        )}>
-                                          {formatHours(estimatedHours)}
-                                        </span>
-                                </div>
-                                      
-                                      {/* Separator - only show if both values exist */}
-                                      {actualHours > 0 && (
-                                        <span className={cn(
-                                          isOverBudget ? "text-red-500" : "text-muted-foreground"
-                                        )}>/</span>
-                                      )}
-                                    </>
-                                  )}
-                                  
-                                  {/* Actual Hours (natrackovaný) - always show if > 0 */}
-                                  {actualHours > 0 && (
-                                    <div className="flex items-center gap-1">
-                                      <Timer className={cn(
-                                        "h-3.5 w-3.5",
-                                        isOverBudget ? "text-red-500" : "text-muted-foreground"
-                                      )} />
-                                      <span className={cn(
-                                        isOverBudget ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
-                                      )}>
-                                        {formatHours(actualHours)}
+                                <div className="flex flex-col gap-1 w-[96px]">
+                                  {/* Text row: actual hours (left, bold) + "/ estimated hours" (right, lighter) */}
+                                  <div className="flex items-end justify-between w-full">
+                                    <span className="text-[11px] font-bold leading-[11px] text-[#314158] dark:text-foreground">
+                                      {formatHours(actualHours)}
+                                    </span>
+                                    {estimatedHours > 0 && (
+                                      <span className="text-[10px] font-normal leading-[10px] text-[#90a1b9] dark:text-muted-foreground">
+                                        / {formatHours(estimatedHours)}
                                       </span>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Progress bar */}
+                                  {estimatedHours > 0 && (
+                                    <div className="h-1.5 w-full rounded-full bg-[#f1f5f9] dark:bg-slate-800 overflow-hidden">
+                                      <div 
+                                        className="h-full rounded-full bg-[#ff8904] dark:bg-orange-500 transition-all"
+                                        style={{ width: `${progress}%` }}
+                                      />
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
                               );
                             })()}
                           </TableCell>
@@ -1752,7 +1776,7 @@ export default function DashboardPage() {
                             <div>
                               {task.due_date ? (
                                 <div className="text-xs flex items-center gap-1 text-muted-foreground whitespace-nowrap">
-                                  <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                                  <CalendarIcon className="h-3 w-3" />
                                   <span>{format(new Date(task.due_date), 'dd.MM.yyyy', { locale: sk })}</span>
                                 </div>
                               ) : (
@@ -1763,7 +1787,7 @@ export default function DashboardPage() {
                           <TableCell className="py-4 px-6">
                             <div className="flex justify-center">
                               <div className="p-1 rounded group-hover:bg-muted">
-                                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-muted-foreground" />
+                                <ArrowRight className="h-4 w-4 text-muted-foreground" />
                               </div>
                             </div>
                           </TableCell>
@@ -2406,34 +2430,24 @@ export default function DashboardPage() {
               </div>
                 
                 {/* Activity Section - show if dashboard permission allows it */}
-                {(() => {
-                  const shouldShow = dashboardPermissions.show_activities_section;
-                  console.log('[Dashboard Page] Rendering activities section, permission:', dashboardPermissions.show_activities_section, 'shouldShow:', shouldShow);
-                  return shouldShow;
-                })() && (
+                {dashboardPermissions.show_activities_section && (
                   <div className="h-full flex flex-col">
-                  <div className="px-6 py-4 bg-muted/50 border-b border-border/50">
+                  <div className="px-6 py-5 border-b border-border">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 text-lg font-semibold text-foreground">
-                        <div className="p-2 bg-gray-900 rounded-lg">
-                          <Activity className="h-5 w-5 text-white" />
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-lg bg-slate-900 dark:bg-slate-100 flex items-center justify-center">
+                          <Activity className="h-5 w-5 text-white dark:text-slate-900" />
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span>Posledná aktivita</span>
-                          {activities.length > 0 && (
-                            <Badge variant="outline" className="px-3 py-1 text-sm font-medium bg-card border-border text-foreground">
-                              {activities.length}
-                            </Badge>
-                          )}
+                        <div>
+                          <h2 className="text-lg font-semibold text-foreground">Aktivita</h2>
+                          <p className="text-sm text-muted-foreground">Posledné zmeny</p>
                         </div>
                       </div>
-                      <Link
-                        href="/activity"
-                        className="text-sm text-primary hover:underline flex items-center gap-1"
-                      >
-                        Zobraziť celú aktivitu
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link href="/activity">
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      </Button>
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto max-h-[600px]">
@@ -2445,86 +2459,93 @@ export default function DashboardPage() {
                   <p className="text-sm mt-2">Začnite pracovať na úlohách</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {activities.map((activity) => {
-                    const Icon = getActivityIcon(activity.type);
-                    const handleActivityClick = () => {
-                      // Ak má aktivita task_id a project_id, presmeruj na detail úlohy
-                      if (activity.task_id && activity.project_id) {
-                        window.location.href = `/projects/${activity.project_id}/tasks/${activity.task_id}`;
-                      }
-                    };
-                    
-                    const getInitials = (name?: string, email?: string) => {
-                      if (name) {
-                        return name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                          .slice(0, 2);
-                      }
-                      if (email) {
-                        return email[0].toUpperCase();
-                      }
-                      return "U";
-                    };
+                <div className="relative">
+                  {/* Timeline line */}
+                  <div className="absolute left-4 top-2 bottom-2 w-px bg-border" />
+                  
+                  <div className="space-y-6">
+                    {activities.map((activity, index) => {
+                      const Icon = getActivityIcon(activity.type);
+                      const indicator = getActivityIndicator(activity.type, activity.metadata);
+                      const IndicatorIcon = indicator.icon;
+                      const handleActivityClick = () => {
+                        if (activity.task_id && activity.project_id) {
+                          window.location.href = `/projects/${activity.project_id}/tasks/${activity.task_id}`;
+                        }
+                      };
+                      
+                      const getInitials = (name?: string, email?: string) => {
+                        if (name) {
+                          return name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()
+                            .slice(0, 2);
+                        }
+                        if (email) {
+                          return email[0].toUpperCase();
+                        }
+                        return "U";
+                      };
 
-                    return (
-                      <div 
-                        key={activity.id} 
-                        onClick={handleActivityClick}
-                        className={cn(
-                          "flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border",
-                          activity.task_id && activity.project_id ? "cursor-pointer" : ""
-                        )}
-                        title={activity.task_id && activity.project_id ? "Kliknite pre zobrazenie detailu úlohy" : ""}
-                      >
-                        <div className="relative flex-shrink-0">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={activity.user_avatar_url || undefined} alt={activity.user} />
-                            <AvatarFallback className="text-base font-semibold bg-muted">
-                              {getInitials(activity.user_name || activity.user, activity.user_email)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className={cn(
-                            "absolute -bottom-1 -right-1 p-1 rounded-full border-2 border-background bg-black"
-                          )}>
-                            <Icon className="h-2.5 w-2.5 text-white" />
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1 gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
+                      return (
+                        <div 
+                          key={activity.id} 
+                          onClick={handleActivityClick}
+                          className={cn(
+                            "relative flex items-start gap-4 pl-10",
+                            activity.task_id && activity.project_id ? "cursor-pointer hover:bg-muted/30 rounded-lg py-2 pr-2 transition-colors" : ""
+                          )}
+                          title={activity.task_id && activity.project_id ? "Kliknite pre zobrazenie detailu úlohy" : ""}
+                        >
+                          {/* Timeline dot */}
+                          <div className="absolute left-4 top-1 h-3 w-3 -translate-x-1/2 rounded-full bg-slate-400 dark:bg-slate-500 border-2 border-background z-10" />
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1 gap-2">
                               <span className="text-sm font-medium text-foreground truncate">
-                                {activity.user || 'Neznámy používateľ'}
+                                {activity.user_name || activity.user || 'Neznámy používateľ'}
+                              </span>
+                              <span className="text-xs text-muted-foreground flex-shrink-0 bg-muted px-2 py-0.5 rounded">
+                                {format(new Date(activity.created_at), 'HH:mm', { locale: sk })}
                               </span>
                             </div>
-                            <span className="text-xs text-muted-foreground flex-shrink-0">
-                              {format(new Date(activity.created_at), 'dd.MM.yyyy HH:mm', { locale: sk })}
-                            </span>
-                          </div>
-                          <p className="text-sm text-foreground mb-1 break-words">
-                            <span className="font-medium">{activity.action}</span>
-                            {activity.details && <span className="ml-1">{activity.details}</span>}
-                          </p>
-                          {activity.project && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <FolderKanban className="h-3 w-3" />
-                              <span className="truncate">
-                                {activity.project} {activity.project_code && `(${activity.project_code})`}
-                              </span>
-                            </div>
-                          )}
-                          {activity.description && (
-                            <p className="text-xs text-muted-foreground mt-1 italic line-clamp-2">
-                              "{activity.description}"
+                            <p className="text-sm text-muted-foreground mb-2">
+                              {formatTextWithTaskStatusLabels(activity.action)}
+                              {activity.details && (
+                                <span className="text-primary font-medium ml-1">{formatTextWithTaskStatusLabels(activity.details)}</span>
+                              )}
                             </p>
-                          )}
+                            {(activity.project_code || activity.task_id) && (
+                              <div className="flex items-center gap-2">
+                                {activity.project_code && (
+                                  <Badge variant="outline" className="text-xs font-normal">
+                                    <FolderKanban className="h-3 w-3 mr-1" />
+                                    {activity.project_code}
+                                  </Badge>
+                                )}
+                                {activity.task_id && (
+                                  <div className={cn("h-5 w-5 rounded-full flex items-center justify-center", indicator.bgColor)} aria-hidden="true">
+                                    <IndicatorIcon className={cn("h-3 w-3", indicator.iconColor)} />
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                  
+                  {/* View more button */}
+                  <div className="mt-6 pt-4 border-t border-border">
+                    <Button variant="ghost" className="w-full text-muted-foreground hover:text-foreground" asChild>
+                      <Link href="/activity">
+                        Zobraziť staršie aktivity
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
               )}
                     </div>

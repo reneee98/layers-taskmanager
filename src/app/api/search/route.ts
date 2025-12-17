@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
+import { getTaskStatusLabel } from "@/lib/task-status";
 
 /**
  * Removes HTML tags from a string (server-side version)
@@ -94,14 +95,6 @@ export async function GET(request: NextRequest) {
 
     if (tasks) {
       tasks.forEach(task => {
-        const statusMap = {
-          'todo': 'Na spracovanie',
-          'in_progress': 'V procese',
-          'review': 'Na kontrole',
-          'done': 'Hotové',
-          'sent_to_client': 'Odoslané klientovi'
-        };
-
         // project is an object, not an array
         const project = task.project as any;
         // Ensure projectId is not empty string - use 'unknown' if null, undefined, or empty
@@ -116,7 +109,7 @@ export async function GET(request: NextRequest) {
           id: task.id,
           type: 'task',
           title: stripHtml(task.title),
-          subtitle: `${projectName} • ${statusMap[task.status as keyof typeof statusMap] || task.status}`,
+          subtitle: `${projectName} • ${getTaskStatusLabel(task.status as string) || task.status}`,
           description: stripHtml(task.description),
           url: `/projects/${projectId}/tasks/${task.id}`,
           icon: 'Clock',

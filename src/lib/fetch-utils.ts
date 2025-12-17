@@ -33,8 +33,7 @@ export function getCachedData<T>(key: string, expiry: number = DEFAULT_CACHE_EXP
     // Cache expired, remove it
     localStorage.removeItem(key);
     return null;
-  } catch (error) {
-    console.error(`Error loading cache for ${key}:`, error);
+  } catch {
     return null;
   }
 }
@@ -49,8 +48,8 @@ export function setCachedData<T>(key: string, value: T): void {
       timestamp: Date.now(),
     };
     localStorage.setItem(key, JSON.stringify(cacheData));
-  } catch (error) {
-    console.error(`Error saving cache for ${key}:`, error);
+  } catch {
+    // Ignore cache errors
   }
 }
 
@@ -60,8 +59,8 @@ export function setCachedData<T>(key: string, value: T): void {
 export function clearCache(key: string): void {
   try {
     localStorage.removeItem(key);
-  } catch (error) {
-    console.error(`Error clearing cache for ${key}:`, error);
+  } catch {
+    // Ignore cache errors
   }
 }
 
@@ -72,8 +71,6 @@ export async function optimizedFetch<T = any>(
   url: string,
   options: FetchOptions = {}
 ): Promise<T> {
-  console.log(`[optimizedFetch] Fetching URL: ${url}`);
-  
   const cacheOptions = options.cache;
   const cacheKey = cacheOptions?.key;
   const useCache = cacheOptions?.useCache !== false;
@@ -83,7 +80,6 @@ export async function optimizedFetch<T = any>(
   if (useCache && cacheKey) {
     const cached = getCachedData<T>(cacheKey, cacheExpiry);
     if (cached !== null) {
-      console.log(`[optimizedFetch] Returning cached data for ${url}`);
       // Return cached data immediately, but continue fetching in background
       optimizedFetch(url, { ...options, cache: { ...cacheOptions, useCache: false } }).catch(() => {
         // Silently fail background refresh
@@ -95,30 +91,25 @@ export async function optimizedFetch<T = any>(
   // Prevent duplicate calls
   const fetchKey = `${url}:${JSON.stringify(options)}`;
   if (activeFetches.has(fetchKey)) {
-    console.log(`[optimizedFetch] Duplicate call detected, reusing existing fetch for ${url}`);
     const response = await activeFetches.get(fetchKey)!;
     const data = await response.json();
     return data as T;
   }
   
-  console.log(`[optimizedFetch] Making fetch call to ${url}`);
   // Remove our custom cache property before passing to fetch API
   // (fetch API has its own cache property which is a string enum)
   const { cache: _customCache, ...fetchOptions } = options;
   // Make the fetch call
   const fetchPromise = fetch(url, fetchOptions)
     .then(async (response) => {
-      console.log(`[optimizedFetch] Response for ${url}: status ${response.status}, ok: ${response.ok}`);
     // Remove from active fetches
     activeFetches.delete(fetchKey);
     
     if (!response.ok) {
-        console.error(`[optimizedFetch] HTTP error for ${url}: status ${response.status}`);
       // If we have cache, return it instead of throwing
       if (useCache && cacheKey) {
         const cached = getCachedData<T>(cacheKey, cacheExpiry);
         if (cached !== null) {
-            console.log(`[optimizedFetch] Returning cached data due to error for ${url}`);
           return new Response(JSON.stringify(cached), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -126,9 +117,8 @@ export async function optimizedFetch<T = any>(
         }
       }
       
-        const errorText = await response.text().catch(() => 'Unable to read error response');
-        console.error(`[optimizedFetch] Error response body: ${errorText}`);
-        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+      const errorText = await response.text().catch(() => 'Unable to read error response');
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
     
     // Check if response is JSON
@@ -140,7 +130,6 @@ export async function optimizedFetch<T = any>(
     return response;
     })
     .catch((error) => {
-      console.error(`[optimizedFetch] Fetch error for ${url}:`, error);
       activeFetches.delete(fetchKey);
       throw error;
   });
@@ -191,9 +180,7 @@ export function useOptimizedFetch<T = any>(
     
     try {
       return await optimizedFetch<T>(url, options);
-    } catch (error) {
-      console.error(`Error fetching ${url}:`, error);
-      
+    } catch {
       // Try to return cached data on error
       if (cacheKey) {
         const cached = getCachedData<T>(cacheKey, options.cache?.expiry || DEFAULT_CACHE_EXPIRY);
@@ -206,4 +193,3 @@ export function useOptimizedFetch<T = any>(
     }
   };
 }
-

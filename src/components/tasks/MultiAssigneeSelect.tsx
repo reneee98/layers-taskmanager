@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { TaskAssignee } from "@/types/database";
 import { X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 
 interface WorkspaceUser {
   id: string;
@@ -37,8 +38,21 @@ export function MultiAssigneeSelect({
   onAssigneesChange,
   disabled = false,
 }: MultiAssigneeSelectProps) {
-  const [users, setUsers] = useState<WorkspaceUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { users: workspaceUsers, loading: isLoading } = useWorkspaceUsers();
+  
+  // Map workspace users to the expected format
+  const users = useMemo<WorkspaceUser[]>(() => {
+    return workspaceUsers
+      .filter(wu => wu.profiles)
+      .map(wu => ({
+        id: wu.profiles.id,
+        email: wu.profiles.email,
+        name: wu.profiles.display_name,
+        display_name: wu.profiles.display_name,
+        avatar_url: wu.profiles.avatar_url,
+        role: wu.role,
+      }));
+  }, [workspaceUsers]);
 
   const getInitials = (name: string | undefined) => {
     if (!name) return "?";
@@ -48,26 +62,6 @@ export function MultiAssigneeSelect({
       .join("")
       .toUpperCase();
   };
-
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch("/api/workspace-users");
-      const result = await response.json();
-      if (result.success) {
-        setUsers(result.data);
-      } else {
-        console.error("[MultiAssigneeSelect] API error:", result.error);
-      }
-    } catch (error) {
-      console.error("Failed to fetch workspace users:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
 
   const handleAddAssignee = async (userId: string) => {
     if (userId === "none") return;

@@ -141,57 +141,26 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         const startedAt = new Date(activeTimer.started_at);
         const now = new Date();
         const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
-        const trackedHours = Number((duration / 3600).toFixed(3));
-        
-        if (trackedHours > 0) {
-          // Vypočítaj start a end time pre časovač
-          const endTime = now.toTimeString().slice(0, 8); // HH:mm:ss format
-          const startTime = startedAt.toTimeString().slice(0, 8); // HH:mm:ss format
-          
-          try {
-            // Automaticky zapísať čas do úlohy
-            const payload = {
-              hours: trackedHours,
-              date: now.toISOString().split("T")[0],
-              description: `Časovač - ${formatTime(duration)}`,
-              start_time: startTime,
-              end_time: endTime,
-            };
 
-            const response = await fetch(`/api/tasks/${activeTimer.task_id}/time`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-              toast({
-                title: "Predchádzajúci časovač uložený",
-                description: `Zapísaných ${formatTime(duration)} do úlohy "${activeTimer.task_name}".`,
-              });
-              
-              // Refresh entries
-              fetchTimeEntries();
-              
-              // Notify parent component
-              if (onTimeEntryAdded) {
-                onTimeEntryAdded();
-              }
-            }
-          } catch (error) {
-            console.error("Error saving previous timer:", error);
-            toast({
-              title: "Chyba",
-              description: "Nepodarilo sa uložiť predchádzajúci časovač",
-              variant: "destructive",
-            });
-          }
-        }
-        
+        // Stop the previous timer (stop endpoint creates time entry server-side)
         // Stop the previous timer
         await stopTimer();
+
+        if (duration > 0) {
+          toast({
+            title: "Predchádzajúci časovač uložený",
+            description: `Zapísaných ${formatTime(duration)} do úlohy "${activeTimer.task_name}".`,
+          });
+        }
+
+        // Refresh entries
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        fetchTimeEntries();
+
+        // Notify parent component
+        if (onTimeEntryAdded) {
+          onTimeEntryAdded();
+        }
       }
       
       await startTimer(selectedTaskId, selectedTask.title, selectedTask.project_id || projectId, selectedTask.project_name || "Neznámy projekt");
@@ -210,53 +179,21 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
     const startedAt = new Date(activeTimer.started_at);
     const now = new Date();
     const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
-    const trackedHours = Number((duration / 3600).toFixed(3));
-
-    if (trackedHours > 0) {
-      const endTime = now.toTimeString().slice(0, 8);
-      const startTime = startedAt.toTimeString().slice(0, 8);
-      
-      try {
-        const payload = {
-          hours: trackedHours,
-          date: now.toISOString().split("T")[0],
-          description: "",
-          start_time: startTime,
-          end_time: endTime,
-        };
-
-        const response = await fetch(`/api/tasks/${activeTimer.task_id}/time`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-          toast({
-            title: "Časovač zastavený",
-            description: `Zapísaných ${formatTime(duration)} do úlohy.`,
-          });
-
-          fetchTimeEntries();
-          
-          if (onTimeEntryAdded) {
-            onTimeEntryAdded();
-          }
-        } else {
-          throw new Error(result.error);
-        }
-      } catch (error) {
-        console.error("Error saving time entry:", error);
-        toast({
-          title: "Chyba",
-          description: error instanceof Error ? error.message : "Nepodarilo sa uložiť čas do úlohy",
-          variant: "destructive",
-        });
-      }
-    }
     await stopTimer();
+
+    if (duration > 0) {
+      toast({
+        title: "Časovač zastavený",
+        description: `Zapísaných ${formatTime(duration)} do úlohy.`,
+      });
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    fetchTimeEntries();
+    
+    if (onTimeEntryAdded) {
+      onTimeEntryAdded();
+    }
   };
 
   const handleManualEntry = async () => {

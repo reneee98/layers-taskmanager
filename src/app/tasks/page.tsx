@@ -70,8 +70,8 @@ export default function TasksPage() {
   const getTabLabel = (tab: TasksPageTabType) => {
     const labels: Record<TasksPageTabType, string> = {
       'all_active': 'Všetky aktívne',
-      'sent_to_client': 'Poslané klientovi',
-      'in_progress': 'In progress',
+      'sent_to_client': 'Odoslané klientovi',
+      'in_progress': 'V procese',
       'unassigned': 'Nepriradené',
       'no_project': 'Bez projektu',
     };
@@ -231,7 +231,6 @@ export default function TasksPage() {
     // Reordering is not supported on the global tasks page
     // as it would require complex logic across projects.
     // This function is a no-op here.
-    console.log("Reordering not supported on global tasks page.");
   };
 
   if (isLoading) {
@@ -342,7 +341,7 @@ export default function TasksPage() {
               </TabsTrigger>
               <TabsTrigger value="sent_to_client" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                 <Send className="h-4 w-4 mr-2" />
-                <span>Poslané klientovi</span>
+                <span>Odoslané klientovi</span>
                 {taskCounts.sent_to_client > 0 && (
                   <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
                     {taskCounts.sent_to_client}
@@ -351,7 +350,7 @@ export default function TasksPage() {
               </TabsTrigger>
               <TabsTrigger value="in_progress" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                 <Play className="h-4 w-4 mr-2" />
-                <span>In progress</span>
+                <span>V procese</span>
                 {taskCounts.in_progress > 0 && (
                   <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
                     {taskCounts.in_progress}

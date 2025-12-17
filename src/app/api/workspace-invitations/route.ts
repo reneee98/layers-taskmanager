@@ -25,13 +25,11 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error("Error fetching invitations:", error);
       return NextResponse.json({ success: false, error: "Failed to fetch invitations" }, { status: 500 });
     }
     
     return NextResponse.json({ success: true, data: invitations || [] });
   } catch (error) {
-    console.error("Error in workspace invitations GET:", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

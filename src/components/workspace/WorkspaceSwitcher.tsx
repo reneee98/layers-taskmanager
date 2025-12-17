@@ -43,17 +43,29 @@ export function WorkspaceSwitcher() {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-             <Button
-               variant="ghost"
-               className="flex items-center gap-2 px-3 py-2 h-auto text-sm font-normal hover:bg-accent rounded-lg transition-colors"
-             >
-               <div className="w-6 h-6 bg-gray-900 rounded-md flex items-center justify-center">
-                 <Building2 className="h-3 w-3 text-white" />
-               </div>
-          <span className="truncate max-w-[200px] font-medium text-foreground">
-            {workspace.name}
-          </span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        <Button
+          variant="ghost"
+          className="flex items-center gap-3 px-2 py-0 h-10 hover:bg-transparent rounded-[10px] transition-colors"
+        >
+          {/* Purple gradient avatar */}
+          <div 
+            className="w-8 h-8 rounded-lg flex items-center justify-center shadow-sm"
+            style={{ backgroundImage: "linear-gradient(135deg, rgba(97, 95, 255, 1) 0%, rgba(152, 16, 250, 1) 100%)" }}
+          >
+            <Building2 className="h-3.5 w-3.5 text-white" />
+          </div>
+          
+          {/* Workspace name and plan */}
+          <div className="flex flex-col items-start gap-0.5">
+            <span className="text-sm font-semibold leading-[14px] text-[#314158] dark:text-foreground tracking-[-0.15px]">
+              {workspace.name}
+            </span>
+            <span className="text-[10px] font-medium leading-[12.5px] text-[#90a1b9] dark:text-muted-foreground tracking-[0.12px]">
+              Enterprise
+            </span>
+          </div>
+          
+          <ChevronDown className="h-3.5 w-3.5 text-[#90a1b9] dark:text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72 p-2">

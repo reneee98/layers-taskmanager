@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from "react";
 import { ActiveTimer, TimerContextType } from "@/types/timer";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -11,16 +11,26 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [currentDuration, setCurrentDuration] = useState(0);
   const { user } = useAuth();
   const endpointNotFoundRef = useRef(false); // Track if endpoint doesn't exist
+  const isFetchingRef = useRef(false); // Prevent duplicate fetches
+  const lastUserIdRef = useRef<string | null>(null); // Track last user ID to prevent duplicate calls
+  const isStoppingRef = useRef(false); // Prevent duplicate stop calls across components
 
   // Check for active timer on mount (only if user is logged in)
   useEffect(() => {
+    // Skip if same user already fetched
+    if (user?.id === lastUserIdRef.current) {
+      return;
+    }
+    
     if (user && !endpointNotFoundRef.current) {
+      lastUserIdRef.current = user.id;
       refreshTimer();
     } else {
       setActiveTimer(null);
       setCurrentDuration(0);
+      lastUserIdRef.current = null;
     }
-  }, [user]);
+  }, [user?.id]);
 
   // Update duration every second when there's an active timer
   useEffect(() => {
@@ -37,13 +47,14 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     }
   }, [activeTimer]);
 
-  const refreshTimer = async () => {
-    if (!user || endpointNotFoundRef.current) {
-      setActiveTimer(null);
+  const refreshTimer = useCallback(async () => {
+    if (!user || endpointNotFoundRef.current || isFetchingRef.current) {
+      if (!user) setActiveTimer(null);
       return;
     }
 
     try {
+      isFetchingRef.current = true;
       const response = await fetch("/api/timers/active");
       if (response.ok) {
         const data = await response.json();
@@ -79,8 +90,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         console.error("Error refreshing timer:", error);
       }
       setActiveTimer(null);
+    } finally {
+      isFetchingRef.current = false;
     }
-  };
+  }, [user]);
 
   const startTimer = async (taskId: string, taskName: string, projectId: string, projectName: string) => {
     try {
@@ -115,7 +128,12 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   };
 
   const stopTimer = async () => {
+    if (isStoppingRef.current) {
+      return;
+    }
+
     try {
+      isStoppingRef.current = true;
       const response = await fetch("/api/timers/stop", {
         method: "POST",
       });
@@ -136,6 +154,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       // On error, still clear the timer state to prevent UI issues
       setActiveTimer(null);
       setCurrentDuration(0);
+    } finally {
+      isStoppingRef.current = false;
     }
   };
 

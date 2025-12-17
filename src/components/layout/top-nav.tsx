@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Bell, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlobalTimer } from "@/components/timer/GlobalTimer";
 import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
@@ -23,7 +23,10 @@ export const TopNav = ({ onMenuClick, onToggleSidebar, isSidebarCollapsed = fals
         </div>
 
         {/* Right side - Actions and user menu */}
-        <div className="flex items-center gap-0 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Global timer (shows only when a timer is active) */}
+          <GlobalTimer />
+
           {/* Notification bell */}
           <Button
             variant="ghost"

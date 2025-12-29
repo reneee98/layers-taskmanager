@@ -1541,7 +1541,7 @@ export default function TaskDetailPage() {
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">Natrackovaný čas</label>
                       <div className="px-3 py-2 bg-muted rounded-md text-sm text-foreground">
-                        {task?.actual_hours ? `${task.actual_hours}h` : '0h'}
+                        {task?.actual_hours ? `${task?.actual_hours}h` : '0h'}
                       </div>
                     </div>
 
@@ -1550,7 +1550,7 @@ export default function TaskDetailPage() {
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">Hodinovka projektu</label>
                         <div className="px-3 py-2 bg-muted rounded-md text-sm text-foreground">
-                          {task?.project?.hourly_rate ? `${task.project.hourly_rate.toFixed(2)}€/h` : 'Nenastavené'}
+                          {task?.project?.hourly_rate ? `${(task?.project?.hourly_rate as number).toFixed(2)}€/h` : 'Nenastavené'}
                         </div>
                       </div>
                     )}
@@ -1575,7 +1575,7 @@ export default function TaskDetailPage() {
                         type="number"
                         step="0.01"
                         min="0"
-                        value={task?.budget_cents ? (task.budget_cents / 100).toString() : ''}
+                        value={task?.budget_cents ? ((task?.budget_cents ?? 0) / 100).toString() : ''}
                         onChange={(e) => {
                           const value = e.target.value ? parseFloat(e.target.value) : null;
                           const budgetCents = value ? Math.round(value * 100) : null;
@@ -1606,8 +1606,8 @@ export default function TaskDetailPage() {
                 <CardContent className="pt-0">
                   <div className="space-y-3">
                     <div>
-                      <div className="text-sm font-medium text-foreground">{task.project?.name}</div>
-                      <div className="text-xs text-muted-foreground font-mono">{task.project?.code}</div>
+                      <div className="text-sm font-medium text-foreground">{task?.project?.name}</div>
+                      <div className="text-xs text-muted-foreground font-mono">{task?.project?.code}</div>
                     </div>
                     <Button 
                       variant="outline" 

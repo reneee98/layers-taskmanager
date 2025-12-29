@@ -618,7 +618,7 @@ export function TaskSettingsPanel({
           ) : (
             <div className="flex flex-col">
               {assignees.map((assignee, index) => {
-                const user = assignee.user || users.find(u => u.id === assignee.user_id);
+                const user = assignee.user;
                 const color = user ? getAvatarColor(user.name) : { bg: "bg-gray-100", text: "text-gray-600" };
                 const hourlyRate = assignee.hourly_rate_cents ? (assignee.hourly_rate_cents / 100).toString() : "";
                 

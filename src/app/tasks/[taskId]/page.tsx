@@ -2104,6 +2104,7 @@ export default function TaskDetailPage() {
           </Tabs>
         </div>
       </div>
+      </div>
     </div>
   );
 }

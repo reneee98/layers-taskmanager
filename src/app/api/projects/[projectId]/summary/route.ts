@@ -1,0 +1,152 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { projectId: string } }
+) {
+  try {
+    const supabase = createClient();
+    const projectId = params.projectId;
+
+    // Get project details
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("name, status")
+      .eq("id", projectId)
+      .single();
+
+    if (projectError || !project) {
+      console.error("Project not found:", projectError);
+      return NextResponse.json(
+        { success: false, error: "Project not found" },
+        { status: 404 }
+      );
+    }
+
+    // Get tasks count and completion
+    const { data: tasks, error: tasksError } = await supabase
+      .from("tasks")
+      .select("id, status, budget_cents")
+      .eq("project_id", projectId);
+
+    if (tasksError) {
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch tasks" },
+        { status: 500 }
+      );
+    }
+
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(task => task.status === "done").length;
+    
+    // Filter only done tasks for profit/loss calculation
+    const doneTasks = tasks.filter(task => task.status === "done");
+    const doneTaskIds = doneTasks.map(task => task.id);
+    
+    // Calculate total budget from done tasks
+    // If budget_cents is set, use it. Otherwise, calculate from time entries (hours * hourly_rate)
+    const totalBudget = await Promise.all(
+      doneTasks.map(async (task) => {
+        if (task.budget_cents && task.budget_cents > 0) {
+          return task.budget_cents / 100;
+        } else {
+          // Calculate from time entries: sum(hours * hourly_rate)
+          const { data: timeEntries } = await supabase
+            .from("time_entries")
+            .select("hours, hourly_rate")
+            .eq("task_id", task.id);
+          
+          if (!timeEntries || timeEntries.length === 0) {
+            return 0;
+          }
+          
+          return timeEntries.reduce((sum, entry) => {
+            return sum + ((entry.hours || 0) * (entry.hourly_rate || 0));
+          }, 0);
+        }
+      })
+    ).then(results => results.reduce((sum, val) => sum + val, 0));
+
+    // Get time entries (labor cost) - only for done tasks
+    let laborCost = 0;
+    
+    if (doneTaskIds.length > 0) {
+      try {
+        const { data: timeEntries, error: timeError } = await supabase
+          .from("time_entries")
+          .select("amount")
+          .in("task_id", doneTaskIds);
+
+        if (!timeError && timeEntries) {
+          laborCost = timeEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+        }
+      } catch (error) {
+        // Table doesn't exist, use 0
+        laborCost = 0;
+      }
+    }
+
+    // Get cost items (external cost) - only for done tasks
+    let externalCost = 0;
+    try {
+      const { data: costItems, error: costError } = await supabase
+        .from("cost_items")
+        .select("amount")
+        .in("task_id", doneTaskIds);
+
+      if (!costError && costItems) {
+        externalCost = costItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+      }
+    } catch (error) {
+      // Table doesn't exist, use 0
+      externalCost = 0;
+    }
+
+    // Get total hours - get task IDs first (all tasks for hours display)
+    const taskIds = tasks.map(task => task.id);
+    let totalHours = 0;
+    
+    if (taskIds.length > 0) {
+      try {
+        const { data: hoursData, error: hoursError } = await supabase
+          .from("time_entries")
+          .select("hours")
+          .in("task_id", taskIds);
+
+        if (!hoursError && hoursData) {
+          totalHours = hoursData.reduce((sum, entry) => sum + (entry.hours || 0), 0);
+        }
+      } catch (error) {
+        // Table doesn't exist, use 0
+        totalHours = 0;
+      }
+    }
+
+    // Calculate totals - labor + budget is profit, external costs are losses (only for done tasks)
+    const totalCost = externalCost; // Only external costs count as costs
+    const totalRevenue = laborCost + totalBudget; // Labor + budget is revenue/profit
+    const profit = totalRevenue - totalCost; // Revenue minus costs
+    const profitPct = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+
+    const summary = {
+      totalTasks,
+      completedTasks,
+      totalHours,
+      totalBudget,
+      totalCost,
+      profit,
+      profitPct,
+    };
+
+    return NextResponse.json({ success: true, data: summary });
+  } catch (error) {
+    console.error("Error in project summary API:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

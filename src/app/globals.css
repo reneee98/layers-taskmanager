@@ -1,0 +1,544 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+        --primary: 0 0% 9%;
+        --primary-foreground: 0 0% 98%;
+        --secondary: 240 4.8% 95.9%;
+        --secondary-foreground: 240 5.9% 10%;
+        --muted: 240 4.8% 96%;
+        --muted-foreground: 240 3.8% 46.1%;
+        --accent: 240 4.8% 95.9%;
+        --accent-foreground: 240 5.9% 10%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 240 5.9% 90%;
+        --input: 240 5.9% 90%;
+        --ring: 0 0% 9%;
+    --radius: 0.75rem;
+    --chart-1: 262 83% 58%;
+    --chart-2: 197 37% 24%;
+    --chart-3: 43 74% 66%;
+    --chart-4: 12 76% 61%;
+    --chart-5: 173 58% 39%;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+        --primary: 0 0% 9%;
+        --primary-foreground: 0 0% 98%;
+        --secondary: 240 3.7% 15.9%;
+        --secondary-foreground: 0 0% 98%;
+        --muted: 240 3.7% 15.9%;
+        --muted-foreground: 240 5% 64.9%;
+        --accent: 240 3.7% 15.9%;
+        --accent-foreground: 0 0% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 240 3.7% 15.9%;
+        --input: 240 3.7% 15.9%;
+        --ring: 0 0% 9%;
+    --chart-1: 262 83% 58%;
+    --chart-2: 197 37% 24%;
+    --chart-3: 43 74% 66%;
+    --chart-4: 12 76% 61%;
+    --chart-5: 173 58% 39%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Modern Print styles for PDF export */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+    @top-center {
+      content: "Layers - Report";
+      font-size: 8pt;
+      color: #6b7280;
+    }
+    @bottom-center {
+      content: "Layers";
+      font-size: 8pt;
+      color: #6b7280;
+    }
+  }
+
+  body {
+    background: #fff !important;
+    color: #111 !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    font-size: 9pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print,
+  nav,
+  header,
+  footer,
+  button,
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  .page-break {
+    break-before: page;
+  }
+
+  section,
+  .card {
+    break-inside: avoid;
+    margin-bottom: 2mm !important;
+  }
+
+  /* Print mode styles */
+  body.print-mode {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  body.print-mode .no-print,
+  body.print-mode nav,
+  body.print-mode header,
+  body.print-mode footer,
+  body.print-mode button {
+    display: none !important;
+  }
+
+  /* Container and spacing */
+  .print-mode .container {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-mode .space-y-8 > * + * {
+    margin-top: 2mm !important;
+  }
+
+  .print-mode .space-y-4 > * + * {
+    margin-top: 1mm !important;
+  }
+
+  .print-mode .space-y-2mm > * + * {
+    margin-top: 2mm !important;
+  }
+
+  .print-mode .space-y-1mm > * + * {
+    margin-top: 1mm !important;
+  }
+
+  /* Typography - compact and smaller fonts */
+  .print-mode h1 {
+    font-size: 14pt !important;
+    font-weight: 700 !important;
+    color: #111 !important;
+    margin: 0 0 0.5mm 0 !important;
+  }
+
+  .print-mode h2 {
+    font-size: 12pt !important;
+    font-weight: 600 !important;
+    color: #2563eb !important;
+    margin: 0 0 1mm 0 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    padding-bottom: 0.5mm !important;
+  }
+
+  .print-mode h3 {
+    font-size: 10pt !important;
+    font-weight: 600 !important;
+    color: #374151 !important;
+    margin: 0 !important;
+  }
+
+  .print-mode p {
+    font-size: 8pt !important;
+    color: #6b7280 !important;
+    margin: 0 0 0.5mm 0 !important;
+  }
+
+  /* Tables - compact */
+  .print-mode table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border: none !important;
+    margin: 2mm 0 !important;
+    table-layout: fixed !important;
+  }
+
+  .print-mode th {
+    background-color: #fff !important;
+    color: #374151 !important;
+    font-weight: 600 !important;
+    font-size: 8pt !important;
+    padding: 0.5mm 0.5mm !important;
+    border: none !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    text-align: left !important;
+  }
+
+  .print-mode th.text-right {
+    text-align: right !important;
+  }
+
+  .print-mode td {
+    padding: 0.8mm 0.5mm !important;
+    border: none !important;
+    border-bottom: 1px solid #f3f4f6 !important;
+    font-size: 8pt !important;
+    color: #111 !important;
+    vertical-align: top !important;
+  }
+
+  .print-mode td.text-right {
+    text-align: right !important;
+  }
+
+  .print-mode tr:last-child td {
+    border-bottom: none !important;
+  }
+
+  .print-mode tr:nth-child(even) {
+    background-color: #fff !important;
+  }
+
+  /* Cards - no background colors */
+  .print-mode .card {
+    border: none !important;
+    background: white !important;
+    box-shadow: none !important;
+    border-radius: 0.5rem !important;
+    margin-bottom: 2mm !important;
+  }
+
+  .print-mode .card-header {
+    background-color: #fff !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    padding: 1mm 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-mode .card-content {
+    padding: 0.5mm 1.5mm !important;
+  }
+  
+  .print-mode .p-0 {
+    padding: 0 !important;
+  }
+
+  .print-mode .card-title {
+    font-size: 10pt !important;
+    font-weight: 600 !important;
+    color: #2563eb !important;
+    margin: 0 !important;
+  }
+
+  /* Badges */
+  .print-mode .badge {
+    border: 1px solid #e5e7eb !important;
+    background: #fff !important;
+    color: #374151 !important;
+    font-size: 8pt !important;
+    padding: 1mm 2mm !important;
+    border-radius: 1mm !important;
+  }
+
+  /* Summary cards */
+  .print-mode .grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 3mm !important;
+    margin: 3mm 0 !important;
+  }
+
+  .print-mode .grid .card {
+    margin-bottom: 0 !important;
+  }
+
+
+  /* Footer */
+  .print-mode .text-center {
+    text-align: center !important;
+  }
+
+  .print-mode .text-muted-foreground {
+    color: #6b7280 !important;
+  }
+
+  /* Hide icons in print */
+  .print-mode svg {
+    display: none !important;
+  }
+
+  /* Remove all background colors */
+  .print-mode [class*="bg-"]:not(.bg-white) {
+    background: white !important;
+  }
+
+  /* Page numbers */
+  @page :first {
+    @top-center {
+      content: "Laydo - Project Report (Alpha v1.0)";
+      font-size: 8pt;
+      color: #6b7280;
+    }
+  }
+}
+
+/* Theme switcher button height override */
+.theme-switcher-btn {
+  height: 2.5rem !important;
+  width: 2.5rem !important;
+}
+
+/* Login page animations */
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
+  50% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  75% {
+    transform: translate(20px, 30px) scale(1.05);
+  }
+}
+
+@keyframes wave {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateX(0) scaleY(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translateX(-50px) scaleY(1.2);
+  }
+}
+
+@keyframes grid {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 14px 24px;
+  }
+}
+
+@keyframes particle {
+  0% {
+    transform: translateY(0) translateX(0) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(50px) scale(0);
+    opacity: 0;
+  }
+}
+
+.animate-float {
+  animation: float 20s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: float 25s ease-in-out infinite reverse;
+}
+
+.animate-wave {
+  animation: wave 8s ease-in-out infinite;
+}
+
+.animate-grid {
+  animation: grid 20s linear infinite;
+}
+
+.animate-particle {
+  animation: particle 20s linear infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+    opacity: 1;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.8;
+  }
+}
+
+@keyframes gradient-shift-reverse {
+  0%, 100% {
+    background-position: 100% 50%;
+    opacity: 0.8;
+  }
+  50% {
+    background-position: 0% 50%;
+    opacity: 1;
+  }
+}
+
+@keyframes color-shift {
+  0% {
+    background-color: rgba(168, 85, 247, 0.3);
+  }
+  25% {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    background-color: rgba(139, 92, 246, 0.3);
+  }
+  75% {
+    background-color: rgba(236, 72, 153, 0.3);
+  }
+  100% {
+    background-color: rgba(168, 85, 247, 0.3);
+  }
+}
+
+@keyframes color-shift-reverse {
+  0% {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+  25% {
+    background-color: rgba(236, 72, 153, 0.3);
+  }
+  50% {
+    background-color: rgba(168, 85, 247, 0.3);
+  }
+  75% {
+    background-color: rgba(139, 92, 246, 0.3);
+  }
+  100% {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+}
+
+@keyframes color-shift-dark {
+  0% {
+    background-color: rgba(147, 51, 234, 0.15);
+  }
+  25% {
+    background-color: rgba(37, 99, 235, 0.15);
+  }
+  50% {
+    background-color: rgba(99, 102, 241, 0.15);
+  }
+  75% {
+    background-color: rgba(219, 39, 119, 0.12);
+  }
+  100% {
+    background-color: rgba(147, 51, 234, 0.15);
+  }
+}
+
+@keyframes color-shift-dark-reverse {
+  0% {
+    background-color: rgba(37, 99, 235, 0.15);
+  }
+  25% {
+    background-color: rgba(219, 39, 119, 0.12);
+  }
+  50% {
+    background-color: rgba(147, 51, 234, 0.15);
+  }
+  75% {
+    background-color: rgba(99, 102, 241, 0.15);
+  }
+  100% {
+    background-color: rgba(37, 99, 235, 0.15);
+  }
+}
+
+.animate-gradient-shift {
+  animation: gradient-shift 15s ease-in-out infinite;
+  background-size: 200% 200%;
+}
+
+.animate-gradient-shift-reverse {
+  animation: gradient-shift-reverse 20s ease-in-out infinite;
+  background-size: 200% 200%;
+}
+
+.animate-color-shift {
+  animation: color-shift 10s ease-in-out infinite;
+}
+
+.animate-color-shift-reverse {
+  animation: color-shift-reverse 12s ease-in-out infinite;
+}
+
+.animate-color-shift-dark {
+  animation: color-shift-dark 10s ease-in-out infinite;
+}
+
+.animate-color-shift-dark-reverse {
+  animation: color-shift-dark-reverse 12s ease-in-out infinite;
+}
+
+/* Ensure Tiptap BubbleMenu is clickable and above everything, including fixed/sticky sidebar (z-40) */
+[role="toolbar"] {
+  position: fixed !important;
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+  isolation: isolate !important;
+}
+
+[role="toolbar"] * {
+  pointer-events: auto !important;
+  position: relative !important;
+}
+
+/* Shift BubbleMenu to the right if it's too close to left edge (sidebar area) */
+[role="toolbar"] {
+  min-width: fit-content;
+}
+
+/* If toolbar is positioned too far left (within sidebar width), ensure it shifts right */
+[role="toolbar"][style*="left"] {
+  left: max(300px, var(--toolbar-left, 0px)) !important;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+

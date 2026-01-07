@@ -1421,18 +1421,18 @@ export default function TaskDetailPage() {
             {/* Date badge and Status/Priority badges */}
             <div className="content-stretch flex flex-wrap gap-1.5 sm:gap-2 md:gap-3 lg:gap-[12px] items-center relative shrink-0">
               {/* Date badge */}
-              <div className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border border-solid content-stretch flex gap-1 sm:gap-1.5 md:gap-2 lg:gap-[8px] h-[28px] sm:h-[32px] md:h-[36px] items-center px-1.5 sm:px-2 md:px-3 lg:px-[13px] py-px relative rounded-full shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0">
-                <Calendar className="relative shrink-0 size-2.5 sm:size-3 md:size-3.5 lg:size-[14px] text-[#62748e] dark:text-muted-foreground" />
-                <span className="font-medium leading-tight sm:leading-[18px] md:leading-[20px] lg:leading-[24px] relative shrink-0 text-[#314158] dark:text-foreground text-[9px] sm:text-[10px] md:text-[11px] lg:text-[12px] text-center tracking-[-0.3125px] whitespace-nowrap">
-                  {task.start_date && task.due_date
-                    ? `${format(new Date(task.start_date), "d.M.", { locale: sk }).replace(/\. /g, ".")} - ${format(new Date(task.due_date), "d.M.", { locale: sk }).replace(/\. /g, ".")}`
-                    : task.start_date
-                    ? `${format(new Date(task.start_date), "d.M.", { locale: sk }).replace(/\. /g, ".")}`
-                    : task.due_date
-                    ? `${format(new Date(task.due_date), "d.M.", { locale: sk }).replace(/\. /g, ".")}`
-                    : "Nastaviť dátum"}
-                </span>
-              </div>
+              <DateRangePicker
+                startDate={task.start_date}
+                endDate={task.due_date}
+                onSave={async (startDate, endDate) => {
+                  await Promise.all([
+                    handleStartDateChange(startDate),
+                    handleDueDateChange(endDate),
+                  ]);
+                }}
+                placeholder="Nastaviť dátum"
+                disabled={!canUpdateTasks}
+              />
               {/* Status badge */}
               {canUpdateTasks ? (
                 <StatusSelect
@@ -1500,7 +1500,7 @@ export default function TaskDetailPage() {
           {/* Tabs */}
           <div className="flex-1 w-full">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="overflow-x-auto -mx-3 sm:-mx-4 md:mx-0 px-3 sm:px-4 md:px-0 scrollbar-hide">
+            <div className="overflow-x-auto -mx-3 sm:-mx-4 md:mx-0 px-3 sm:px-4 md:px-0 scrollbar-hide mt-3">
               <TabsList className="inline-flex h-[34px] sm:h-[38px] items-center justify-center rounded-[10px] bg-[rgba(241,245,249,0.8)] dark:bg-muted p-[3px] sm:p-[5px] border border-[rgba(226,232,240,0.5)] dark:border-border min-w-max">
               <TabsTrigger 
                 value="overview" 

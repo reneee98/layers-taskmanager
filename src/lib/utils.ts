@@ -79,16 +79,16 @@ export const truncateTaskTitle = (title: string | null | undefined, maxLength: n
 export const getMarginColor = (marginValue: number): string => {
   if (marginValue < 0) {
     // Negative margin - red
-    return "text-[#e7000b] dark:text-red-500";
+    return "text-red-600 dark:text-red-500";
   } else if (marginValue >= 0 && marginValue < 15) {
     // Low margin (0-15%) - orange
-    return "text-[#e17100] dark:text-orange-500";
+    return "text-orange-600 dark:text-orange-500";
   } else if (marginValue >= 15 && marginValue < 30) {
-    // Medium margin (15-30%) - yellow/orange
-    return "text-[#f59e0b] dark:text-yellow-500";
+    // Medium margin (15-30%) - yellow/amber
+    return "text-amber-600 dark:text-yellow-500";
   } else {
     // High margin (>= 30%) - green
-    return "text-[#10b981] dark:text-green-500";
+    return "text-green-600 dark:text-green-500";
   }
 };
 

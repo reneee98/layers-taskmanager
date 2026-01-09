@@ -184,17 +184,21 @@ export async function POST(
     console.log(`Time entry calculation: total=${validatedData.hours}h, hourly_rate=${hourlyRate}€/h (source: ${rateSource}), within_budget=${newHoursWithinBudget}h, over_budget=${hoursOverBudget}h, amount=${amount}€`);
 
 
+    // Check if this is an extra time entry (from body, not validated schema)
+    const isExtraTime = body.billing_type === 'extra' || body.is_billable === false;
+    
     // Insert time entry
     // Only include project_id if task has a project
-    const timeEntryData: any = {
+    const timeEntryData: Record<string, unknown> = {
       task_id: taskId,
       user_id: userId,
       hours: validatedData.hours,
       date: validatedData.date,
       description: validatedData.description || null,
       hourly_rate: hourlyRate,
-      amount: amount,
-      is_billable: validatedData.is_billable ?? true,
+      amount: isExtraTime ? 0 : amount, // Extra time has no amount
+      is_billable: isExtraTime ? false : (validatedData.is_billable ?? true),
+      billing_type: isExtraTime ? 'extra' : 'budget',
       start_time: validatedData.start_time || null,
       end_time: validatedData.end_time || null,
       workspace_id: workspaceId,

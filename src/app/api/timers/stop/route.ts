@@ -184,19 +184,22 @@ export async function POST(request: NextRequest) {
       budgetHoursLimit = taskDetails.estimated_hours;
     }
 
-    // Check if this is extra (non-billable) time
-    // Try to get is_extra separately if column exists
+    // Check if this is extra (non-billable) time and get description
+    // Try to get is_extra and description separately if columns exist
     let isExtra = false;
+    let timerDescription = "";
     try {
       const { data: timerWithExtra } = await supabase
         .from("task_timers")
-        .select("is_extra")
+        .select("is_extra, description")
         .eq("id", activeTimer.id)
         .single();
       isExtra = timerWithExtra?.is_extra || false;
+      timerDescription = timerWithExtra?.description || "";
     } catch (e) {
-      // Column doesn't exist yet, use default false
+      // Columns don't exist yet, use defaults
       isExtra = false;
+      timerDescription = "";
     }
     
     // For extra time, amount is always 0 and is_billable is false
@@ -211,21 +214,26 @@ export async function POST(request: NextRequest) {
       amount = hoursOverBudget * hourlyRate;
     }
 
-    // Check if timer was already stopped (race condition protection)
-    const { data: timerCheck, error: timerCheckError } = await supabase
+    // ATOMIC: First stop the timer (only if not already stopped)
+    // This prevents race conditions and duplicate time entries
+    const stoppedAtTime = new Date().toISOString();
+    const { data: stoppedTimer, error: atomicStopError } = await supabase
       .from("task_timers")
-      .select("stopped_at")
+      .update({ stopped_at: stoppedAtTime })
       .eq("id", activeTimer.id)
-      .single();
+      .eq("user_id", user.id)
+      .is("stopped_at", null) // Only update if not already stopped
+      .select("id")
+      .maybeSingle();
 
-    if (timerCheckError) {
-      console.error("Error checking timer status:", timerCheckError);
-      return NextResponse.json({ success: false, error: "Failed to verify timer status" }, { status: 500 });
+    if (atomicStopError) {
+      console.error("Error atomically stopping timer:", atomicStopError);
+      return NextResponse.json({ success: false, error: "Failed to stop timer" }, { status: 500 });
     }
 
-    // If timer is already stopped, don't create duplicate time entry
-    if (timerCheck.stopped_at) {
-      console.log("Timer already stopped, skipping time entry creation");
+    // If no rows were updated, timer was already stopped - don't create duplicate
+    if (!stoppedTimer) {
+      console.log("Timer already stopped by another request, skipping time entry creation");
       return NextResponse.json({ 
         success: true, 
         message: "Timer was already stopped",
@@ -236,16 +244,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create time entry
-    const timeEntryData: any = {
+    // Timer was successfully stopped, now create time entry
+    const timeEntryData: Record<string, unknown> = {
       task_id: activeTimer.task_id,
       user_id: user.id,
       hours: trackedHours,
       date: date,
-      description: "",
+      description: timerDescription,
       hourly_rate: hourlyRate,
-      amount: amount,
+      amount: isExtra ? 0 : amount, // Extra time has no amount
       is_billable: !isExtra, // Extra time is not billable
+      billing_type: isExtra ? 'extra' : 'budget', // Set billing type
       start_time: startTime,
       end_time: endTime,
       workspace_id: activeTimer.workspace_id,
@@ -277,17 +286,7 @@ export async function POST(request: NextRequest) {
       console.warn("Failed to update task actual_hours:", updateTaskError);
     }
 
-    // Now stop the timer
-    const { data: success, error: stopError } = await supabase.rpc("stop_timer", {
-      p_timer_id: activeTimer.id,
-      p_user_id: user.id,
-    });
-
-    if (stopError || !success) {
-      console.error("Error stopping timer:", stopError);
-      // Time entry was already saved, so we still return success
-      console.warn("Time entry was saved but timer stop failed");
-    }
+    // Timer was already stopped atomically above, no need to call stop_timer RPC
 
     // Log activity - timer stopped
     const userDisplayName = await getUserDisplayName(user.id);

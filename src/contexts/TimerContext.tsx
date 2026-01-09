@@ -95,7 +95,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const startTimer = async (taskId: string, taskName: string, projectId: string, projectName: string, isExtra: boolean = false) => {
+  const startTimer = async (taskId: string, taskName: string, projectId: string, projectName: string, isExtra: boolean = false, description?: string) => {
     try {
       const response = await fetch("/api/timers/start", {
         method: "POST",
@@ -108,6 +108,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
           projectId,
           projectName,
           isExtra,
+          description,
         }),
       });
 

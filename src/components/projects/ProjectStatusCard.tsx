@@ -23,6 +23,24 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
     fetchFinanceData();
   }, [projectId, taskId]);
 
+  // Listen for timer stopped and time entry added events to refresh data
+  useEffect(() => {
+    const handleRefresh = () => {
+      // Small delay to ensure backend has processed the changes
+      setTimeout(() => {
+        fetchFinanceData();
+      }, 600);
+    };
+
+    window.addEventListener('timerStopped', handleRefresh);
+    window.addEventListener('timeEntryAdded', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('timerStopped', handleRefresh);
+      window.removeEventListener('timeEntryAdded', handleRefresh);
+    };
+  }, [projectId, taskId]);
+
   const fetchFinanceData = async () => {
     // If taskId is provided, use task-specific finance endpoint
     if (taskId) {

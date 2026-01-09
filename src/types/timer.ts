@@ -18,12 +18,13 @@ export interface ActiveTimer {
   started_at: string;
   duration: number; // in seconds
   is_extra?: boolean; // indicates if timer is tracking extra (non-billable) time
+  description?: string; // optional description of what user is working on
 }
 
 export interface TimerContextType {
   activeTimer: ActiveTimer | null;
   currentDuration: number;
-  startTimer: (taskId: string, taskName: string, projectId: string, projectName: string, isExtra?: boolean) => Promise<void>;
+  startTimer: (taskId: string, taskName: string, projectId: string, projectName: string, isExtra?: boolean, description?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
   refreshTimer: () => Promise<void>;
 }

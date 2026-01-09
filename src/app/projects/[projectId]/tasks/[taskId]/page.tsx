@@ -214,7 +214,7 @@ export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const taskId = Array.isArray(params.taskId) ? params.taskId[0] : params.taskId;
-  const { activeTimer, startTimer, stopTimer } = useTimer();
+  const { activeTimer, currentDuration, startTimer, stopTimer, refreshTimer } = useTimer();
   const { hasPermission: canReadTasks } = usePermission('tasks', 'read');
   const { hasPermission: canViewHourlyRates } = usePermission('financial', 'view_hourly_rates');
   const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
@@ -242,6 +242,9 @@ export default function TaskDetailPage() {
   const [isStartingTimer, setIsStartingTimer] = useState(false);
   const prevActiveTimerRef = useRef<typeof activeTimer>(null);
   const [projectSelectOpen, setProjectSelectOpen] = useState(false);
+  const [timerDescription, setTimerDescription] = useState("");
+  const [isExtraMode, setIsExtraMode] = useState(false);
+  const descriptionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { users: workspaceUsers, loading: workspaceUsersLoading } = useWorkspaceUsers();
 
   const getInitials = (name: string | undefined) => {
@@ -414,6 +417,18 @@ export default function TaskDetailPage() {
     prevActiveTimerRef.current = activeTimer;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTimer]);
+
+  // Sync description and extra mode from active timer
+  useEffect(() => {
+    if (activeTimer && task && String(activeTimer.task_id) === String(task.id)) {
+      // Timer is running for this task - sync description and extra mode
+      if (activeTimer.description && timerDescription !== activeTimer.description) {
+        setTimerDescription(activeTimer.description);
+      }
+      setIsExtraMode(activeTimer.is_extra === true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTimer?.id, task?.id]);
 
   useEffect(() => {
     return () => {
@@ -923,27 +938,33 @@ export default function TaskDetailPage() {
   const handleTimerToggle = async () => {
     if (!task) return;
 
-    // If this task is currently being tracked, stop it and save time entry
-    if (activeTimer && activeTimer.task_id === task.id) {
+    // Check if timer is running for this task (either regular or extra)
+    const isTimerRunningForThisTask = activeTimer && String(activeTimer.task_id) === String(task.id);
+
+    // If timer is running for this task, stop it
+    if (isTimerRunningForThisTask) {
       try {
-        // Vypočítať trvanie priamo z activeTimer.started_at
         const startedAt = new Date(activeTimer.started_at);
         const now = new Date();
         const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
-
         const trackedHours = duration > 0 ? Number((duration / 3600).toFixed(3)) : 0;
+        const wasExtra = activeTimer.is_extra === true;
+        
         await stopTimer();
+        setTimerDescription("");
 
         if (trackedHours > 0) {
           toast({
-            title: "Časovač zastavený",
-            description: `Zapísaných ${formatHours(trackedHours)} do úlohy.`,
+            title: wasExtra ? "Extra časovač zastavený" : "Časovač zastavený",
+            description: `Zapísaných ${formatHours(trackedHours)} do ${wasExtra ? "extra času" : "úlohy"}.`,
           });
         }
 
-        // Refresh task to update actual_hours (API updates it server-side)
         await new Promise((resolve) => setTimeout(resolve, 300));
         fetchTask();
+        
+        // Dispatch event to refresh time entries in TaskTimeTab
+        window.dispatchEvent(new CustomEvent('timerStopped'));
       } catch (error) {
         toast({
           title: "Chyba",
@@ -954,10 +975,9 @@ export default function TaskDetailPage() {
       return;
     }
 
-    // If another task is being tracked, stop it first and save time entry
+    // If another task is being tracked, stop it first
     if (activeTimer) {
       try {
-        // Vypočítať trvanie priamo z activeTimer.started_at
         const startedAt = new Date(activeTimer.started_at);
         const now = new Date();
         const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
@@ -976,23 +996,336 @@ export default function TaskDetailPage() {
       }
     }
 
-    // Start tracking this task
+    // Start tracking this task with current mode (extra or regular)
     try {
       setIsStartingTimer(true);
       await startTimer(
         task.id,
         task.title,
         task.project_id,
-        task.project?.name || "Neznámy projekt"
+        task.project?.name || "Neznámy projekt",
+        isExtraMode, // Pass extra mode
+        timerDescription || undefined // Pass description
       );
       toast({
-        title: "Časovač spustený",
-        description: `Začal som trackovať čas pre úlohu "${task.title}"`,
+        title: isExtraMode ? "Extra časovač spustený" : "Časovač spustený",
+        description: `Začal som trackovať ${isExtraMode ? "extra " : ""}čas pre úlohu "${task.title}"`,
       });
     } catch (error) {
       toast({
         title: "Chyba",
         description: "Nepodarilo sa spustiť časovač",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStartingTimer(false);
+    }
+  };
+
+  // Update timer's extra mode while running
+  const handleToggleExtraMode = async () => {
+    const isTimerRunning = activeTimer && task && String(activeTimer.task_id) === String(task.id);
+    
+    if (isTimerRunning) {
+      // Timer is running - update it in database
+      const newExtraMode = !(activeTimer.is_extra === true);
+      try {
+        const response = await fetch("/api/timers/update", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_extra: newExtraMode }),
+        });
+        
+        if (response.ok) {
+          await refreshTimer();
+          toast({
+            title: newExtraMode ? "Prepnuté na extra čas" : "Prepnuté na normálny čas",
+            description: newExtraMode ? "Čas sa zapíše ako extra (mimo scope)" : "Čas sa zapíše do úlohy",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to update timer mode:", error);
+      }
+    } else {
+      // Timer not running - just toggle local state
+      setIsExtraMode(!isExtraMode);
+    }
+  };
+
+  // Update timer's description while running (debounced)
+  const handleDescriptionChange = (value: string) => {
+    setTimerDescription(value);
+    
+    const isTimerRunning = activeTimer && task && String(activeTimer.task_id) === String(task.id);
+    
+    if (isTimerRunning) {
+      // Debounce the API call
+      if (descriptionUpdateTimeoutRef.current) {
+        clearTimeout(descriptionUpdateTimeoutRef.current);
+      }
+      
+      descriptionUpdateTimeoutRef.current = setTimeout(async () => {
+        try {
+          await fetch("/api/timers/update", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ description: value }),
+          });
+        } catch (error) {
+          console.error("Failed to update timer description:", error);
+        }
+      }, 500);
+    }
+  };
+
+  const handleExtraTimerToggle = async () => {
+    if (!task) return;
+
+    // If extra time is currently being tracked for this task, stop it
+    if (activeTimer && String(activeTimer.task_id) === String(task.id) && activeTimer.is_extra === true) {
+      try {
+        const startedAt = new Date(activeTimer.started_at);
+        const now = new Date();
+        const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+        const trackedHours = duration > 0 ? Number((duration / 3600).toFixed(3)) : 0;
+        await stopTimer();
+
+        if (trackedHours > 0) {
+          toast({
+            title: "Extra časovač zastavený",
+            description: `Zapísaných ${formatHours(trackedHours)} extra času do úlohy.`,
+          });
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        fetchTask();
+      } catch (error) {
+        toast({
+          title: "Chyba",
+          description: "Nepodarilo sa zastaviť extra časovač",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    // If regular timer is active for this task, convert it to extra time
+    if (activeTimer && String(activeTimer.task_id) === String(task.id) && !(activeTimer.is_extra === true)) {
+      try {
+        setIsStartingTimer(true);
+        
+        // Convert current timer to extra time using special endpoint
+        const convertResponse = await fetch('/api/timers/convert-to-extra', {
+          method: 'POST',
+        });
+
+        const convertResult = await convertResponse.json();
+        
+        if (!convertResult.success) {
+          throw new Error(convertResult.error || "Failed to convert timer to extra");
+        }
+
+        const trackedHours = convertResult.data?.hours || 0;
+
+        // Wait a bit for timer to stop
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await refreshTimer();
+
+        // Start new extra timer
+        await startTimer(
+          task.id,
+          task.title,
+          task.project_id || "",
+          task.project?.name || "Neznámy projekt",
+          true // Extra time
+        );
+        await refreshTimer();
+        
+        if (trackedHours > 0) {
+          toast({
+            title: "Čas uložený ako extra",
+            description: `Zapísaných ${formatHours(trackedHours)} ako extra čas a spustený nový extra časovač.`,
+          });
+        } else {
+          toast({
+            title: "Extra časovač spustený",
+            description: `Začal som trackovať extra čas pre úlohu "${task.title}"`,
+          });
+        }
+
+        await fetchTask();
+      } catch (error) {
+        console.error("Error converting timer to extra:", error);
+        toast({
+          title: "Chyba",
+          description: error instanceof Error ? error.message : "Nepodarilo sa previesť časovač na extra",
+          variant: "destructive",
+        });
+      } finally {
+        setIsStartingTimer(false);
+      }
+      return;
+    }
+
+    // If another timer is active (different task), stop it first
+    if (activeTimer) {
+      try {
+        const startedAt = new Date(activeTimer.started_at);
+        const now = new Date();
+        const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+        const trackedHours = Number((duration / 3600).toFixed(3));
+        await stopTimer();
+
+        if (trackedHours > 0) {
+          const timerType = activeTimer.is_extra === true ? "extra časovač" : "časovač";
+          toast({
+            title: `Predchádzajúci ${timerType} uložený`,
+            description: `Zapísaných ${formatHours(trackedHours)} do úlohy "${activeTimer.task_name}".`,
+          });
+        }
+      } catch (error) {
+        console.error("Error stopping previous timer:", error);
+      }
+    }
+
+    // Start tracking extra time
+    try {
+      setIsStartingTimer(true);
+      await startTimer(
+        task.id,
+        task.title,
+        task.project_id || "",
+        task.project?.name || "Neznámy projekt",
+        true // Extra time
+      );
+      await refreshTimer();
+      toast({
+        title: "Extra časovač spustený",
+        description: `Začal som trackovať extra čas pre úlohu "${task.title}"`,
+      });
+    } catch (error) {
+      console.error("Error in handleExtraTimerToggle:", error);
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa spustiť extra časovač",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStartingTimer(false);
+    }
+  };
+
+  const handleStartExtraTimer = async () => {
+    if (!task) return;
+
+    // If extra timer is already running for this task, do nothing
+    if (activeTimer && String(activeTimer.task_id) === String(task.id) && activeTimer.is_extra === true) {
+      toast({
+        title: "Extra časovač už beží",
+        description: "Extra časovač pre túto úlohu už beží.",
+      });
+      return;
+    }
+
+    // If regular timer is active for this task, convert it to extra time
+    if (activeTimer && String(activeTimer.task_id) === String(task.id) && !(activeTimer.is_extra === true)) {
+      try {
+        setIsStartingTimer(true);
+        
+        // Convert current timer to extra time using special endpoint
+        const convertResponse = await fetch('/api/timers/convert-to-extra', {
+          method: 'POST',
+        });
+
+        const convertResult = await convertResponse.json();
+        
+        if (!convertResult.success) {
+          throw new Error(convertResult.error || "Failed to convert timer to extra");
+        }
+
+        const trackedHours = convertResult.data?.hours || 0;
+
+        // Wait a bit for timer to stop
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await refreshTimer();
+
+        // Start new extra timer
+        await startTimer(
+          task.id,
+          task.title,
+          task.project_id || "",
+          task.project?.name || "Neznámy projekt",
+          true // Extra time
+        );
+        await refreshTimer();
+        
+        if (trackedHours > 0) {
+          toast({
+            title: "Čas uložený ako extra",
+            description: `Zapísaných ${formatHours(trackedHours)} ako extra čas a spustený nový extra časovač.`,
+          });
+        } else {
+          toast({
+            title: "Extra časovač spustený",
+            description: `Začal som trackovať extra čas pre úlohu "${task.title}"`,
+          });
+        }
+
+        await fetchTask();
+      } catch (error) {
+        console.error("Error converting timer to extra:", error);
+        toast({
+          title: "Chyba",
+          description: error instanceof Error ? error.message : "Nepodarilo sa previesť časovač na extra",
+          variant: "destructive",
+        });
+      } finally {
+        setIsStartingTimer(false);
+      }
+      return;
+    }
+
+    // If another timer is active (different task), stop it first
+    if (activeTimer) {
+      try {
+        const startedAt = new Date(activeTimer.started_at);
+        const now = new Date();
+        const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+        const trackedHours = Number((duration / 3600).toFixed(3));
+        await stopTimer();
+
+        if (trackedHours > 0) {
+          const timerType = activeTimer.is_extra === true ? "extra časovač" : "časovač";
+          toast({
+            title: `Predchádzajúci ${timerType} uložený`,
+            description: `Zapísaných ${formatHours(trackedHours)} do úlohy "${activeTimer.task_name}".`,
+          });
+        }
+      } catch (error) {
+        console.error("Error stopping previous timer:", error);
+      }
+    }
+
+    // Start tracking extra time
+    try {
+      setIsStartingTimer(true);
+      await startTimer(
+        task.id,
+        task.title,
+        task.project_id || "",
+        task.project?.name || "Neznámy projekt",
+        true // Extra time
+      );
+      await refreshTimer();
+      toast({
+        title: "Extra časovač spustený",
+        description: `Začal som trackovať extra čas pre úlohu "${task.title}"`,
+      });
+    } catch (error) {
+      console.error("Error starting extra timer:", error);
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa spustiť extra časovač",
         variant: "destructive",
       });
     } finally {
@@ -1212,42 +1545,79 @@ export default function TaskDetailPage() {
 
           {/* Right side - Timer, Share, Save */}
           <div className="flex gap-3 items-center h-8">
-            {/* Timer Widget */}
-            <div className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] h-8 flex items-center overflow-hidden flex-1 min-w-[140px]">
-              {/* Timer icon section */}
-              <div className="h-[30px] w-[35px] border-r border-[#f1f5f9] dark:border-border flex items-center justify-center shrink-0">
-                <Timer className="h-3.5 w-3.5 text-[#62748e] dark:text-muted-foreground" />
-              </div>
+            {/* Timer Widget - Redesigned */}
+            <div className="flex items-center gap-2">
+              {/* Description Input */}
+              <input
+                type="text"
+                value={timerDescription}
+                onChange={(e) => handleDescriptionChange(e.target.value)}
+                placeholder="Čo práve robíš..."
+                className="h-8 px-3 text-xs bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary w-[180px] placeholder:text-muted-foreground"
+                aria-label="Popis práce"
+              />
+              
+              {/* Timer Controls */}
+              <div className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] h-8 flex items-center overflow-hidden">
+                {/* Extra mode toggle (Zap) */}
+                <button
+                  onClick={handleToggleExtraMode}
+                  className={`h-[30px] w-[35px] border-r border-[#f1f5f9] dark:border-border flex items-center justify-center shrink-0 transition-colors hover:bg-[#f1f5f9] dark:hover:bg-muted ${
+                    isExtraMode || (activeTimer && String(activeTimer.task_id) === String(task?.id) && activeTimer.is_extra === true)
+                      ? "bg-[#f5f3ff] dark:bg-purple-900/30 hover:bg-[#ede9fe]"
+                      : ""
+                  }`}
+                  aria-label={isExtraMode ? "Extra mód zapnutý - čas sa zapíše do extra" : "Normálny mód - čas sa zapíše do úlohy"}
+                  title={isExtraMode || (activeTimer && String(activeTimer.task_id) === String(task?.id) && activeTimer.is_extra === true) ? "Extra mód (čas mimo scope) - klikni pre prepnutie" : "Normálny mód - klikni pre prepnutie na extra"}
+                  tabIndex={0}
+                  type="button"
+                >
+                  <Zap className={`h-3.5 w-3.5 ${
+                    isExtraMode || (activeTimer && String(activeTimer.task_id) === String(task?.id) && activeTimer.is_extra === true)
+                      ? "text-[#7f22fe] dark:text-purple-400"
+                      : "text-[#62748e] dark:text-muted-foreground"
+                  }`} />
+                </button>
 
-              {/* Time display */}
-              <div className="flex-1 flex items-center px-3">
-                <span className="text-xs font-bold text-[#314158] dark:text-foreground leading-4 tabular-nums">
-                  {activeTimer && activeTimer.task_id === task.id 
-                    ? (() => {
-                        const seconds = Math.floor((Date.now() - new Date(activeTimer.started_at).getTime()) / 1000);
-                        const hrs = Math.floor(seconds / 3600);
-                        const mins = Math.floor((seconds % 3600) / 60);
-                        const secs = seconds % 60;
-                        return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-                      })()
-                    : "0:00:00"}
-                </span>
-              </div>
+                {/* Time display */}
+                <div className="flex items-center px-3 min-w-[70px]">
+                  <span className={`text-xs font-bold leading-4 tabular-nums ${
+                    activeTimer && String(activeTimer.task_id) === String(task?.id)
+                      ? activeTimer.is_extra === true
+                        ? "text-[#7f22fe] dark:text-purple-400"
+                        : "text-[#314158] dark:text-foreground"
+                      : "text-[#314158] dark:text-foreground"
+                  }`}>
+                    {activeTimer && String(activeTimer.task_id) === String(task?.id)
+                      ? (() => {
+                          const hrs = Math.floor(currentDuration / 3600);
+                          const mins = Math.floor((currentDuration % 3600) / 60);
+                          const secs = currentDuration % 60;
+                          return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+                        })()
+                      : "0:00:00"}
+                  </span>
+                </div>
 
-              {/* Play/Stop button section */}
-              <button
-                onClick={handleTimerToggle}
-                disabled={isStartingTimer}
-                className="h-[30px] w-[37px] border-l border-[#f1f5f9] dark:border-border flex items-center justify-center shrink-0 hover:bg-[#f1f5f9] dark:hover:bg-muted transition-colors disabled:opacity-50"
-                aria-label={activeTimer && activeTimer.task_id === task.id ? "Zastaviť časovač" : "Spustiť časovač"}
-                tabIndex={0}
-              >
-                {activeTimer && activeTimer.task_id === task.id ? (
-                  <Square className="h-3 w-3 text-[#62748e] dark:text-muted-foreground" />
-                ) : (
-                  <Play className="h-3 w-3 text-[#62748e] dark:text-muted-foreground" />
-                )}
-              </button>
+                {/* Play/Stop button */}
+                <button
+                  onClick={handleTimerToggle}
+                  disabled={isStartingTimer || !task}
+                  className={`h-[30px] w-[37px] border-l border-[#f1f5f9] dark:border-border flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 ${
+                    activeTimer && String(activeTimer.task_id) === String(task?.id)
+                      ? "bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30"
+                      : "bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30"
+                  }`}
+                  aria-label={activeTimer && String(activeTimer.task_id) === String(task?.id) ? "Zastaviť časovač" : "Spustiť časovač"}
+                  tabIndex={0}
+                >
+                  {activeTimer && String(activeTimer.task_id) === String(task?.id) ? (
+                    <Square className="h-3 w-3 text-red-600 dark:text-red-500" />
+                  ) : (
+                    <Play className="h-3 w-3 text-green-600 dark:text-green-500" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Share button - Figma 1:1 */}

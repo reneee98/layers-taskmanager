@@ -435,7 +435,7 @@ export function TaskRow({
           {/* Task title - second line (larger, bold) */}
           <div className="flex items-center">
             <Link 
-              href={task.project_id ? `/projects/${task.project_id}/tasks/${task.id}` : `/tasks/${task.id}`}
+              href={task.project_id ? `/projects/${task.project_id}/tasks/${task.id}` : `/tasks`}
               className="font-bold text-sm leading-5 text-[#0f172b] hover:text-[#0f172b]/80 hover:underline inline-flex items-center gap-1 group/link tracking-[-0.1504px]"
               title={stripHtml(task.title)}
             >

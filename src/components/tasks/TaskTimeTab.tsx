@@ -21,7 +21,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Plus, Activity, Trash2 } from "lucide-react";
+import { Plus, Activity, Trash2, Zap } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatHours, formatCurrency } from "@/lib/format";
 import { format, subDays, parseISO, startOfDay, isWithinInterval } from "date-fns";
@@ -96,6 +96,15 @@ const getShortName = (name: string | undefined) => {
 // Day labels in Slovak
 const DAY_LABELS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"];
 
+// Convert decimal hours to HH:MM:SS format
+const formatHoursToTime = (decimalHours: number): string => {
+  const totalSeconds = Math.round(decimalHours * 3600);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+};
+
 export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTabProps) {
   const { hasPermission: canViewHourlyRates } = usePermission('financial', 'view_hourly_rates');
   const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
@@ -107,6 +116,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
   const [hourlyRate, setHourlyRate] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isManualEntryOpen, setIsManualEntryOpen] = useState(false);
+  const [isExtraEntry, setIsExtraEntry] = useState(false);
 
   // Fetch time entries for the task
   const fetchTimeEntries = async () => {
@@ -133,16 +143,20 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
     }
   }, [taskId]);
 
-  // Calculate totals
-  const totalHours = useMemo(() => {
-    return timeEntries.reduce((sum, entry) => sum + entry.hours, 0);
-  }, [timeEntries]);
+  // Listen for timer stopped event to refresh entries
+  useEffect(() => {
+    const handleTimerStopped = () => {
+      // Small delay to ensure backend has saved the time entry
+      setTimeout(() => {
+        fetchTimeEntries();
+      }, 500);
+    };
 
-  const extraAmount = useMemo(() => {
-    return timeEntries
-      .filter(entry => entry.billing_type === 'extra' || entry.billing_type === 'tm')
-      .reduce((sum, entry) => sum + entry.amount, 0);
-  }, [timeEntries]);
+    window.addEventListener('timerStopped', handleTimerStopped);
+    return () => {
+      window.removeEventListener('timerStopped', handleTimerStopped);
+    };
+  }, [taskId]);
 
   // User breakdown type for chart
   interface UserBreakdown {
@@ -266,6 +280,12 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
         }
       }
 
+      // Add billing_type for extra time
+      if (isExtraEntry) {
+        payload.billing_type = 'extra';
+        payload.is_billable = false;
+      }
+
       const response = await fetch(`/api/tasks/${taskId}/time`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -277,14 +297,20 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
       if (result.success) {
         toast({
           title: "Úspech",
-          description: `Pridaných ${formatHours(hoursValue)}`,
+          description: isExtraEntry 
+            ? `Pridaných ${formatHours(hoursValue)} extra času`
+            : `Pridaných ${formatHours(hoursValue)}`,
         });
 
         setHours("");
         setDescription("");
         setHourlyRate("");
+        setIsExtraEntry(false);
         setIsManualEntryOpen(false);
         fetchTimeEntries();
+        
+        // Dispatch event for other components to refresh
+        window.dispatchEvent(new CustomEvent('timeEntryAdded'));
         
         if (onTimeEntryAdded) {
           onTimeEntryAdded();
@@ -377,7 +403,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                             >
                               {day.extraHours > 0 && (
                                 <div 
-                                  className="bg-[#22c55e] w-full transition-colors group-hover:bg-[#16a34a]" 
+                                  className="bg-[#7f22fe] w-full transition-colors group-hover:bg-[#6b1fd4]" 
                                   style={{ height: `${extraRatio * 100}%`, minHeight: '4px' }}
                                 />
                               )}
@@ -471,7 +497,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                               </div>
                               {day.extraHours > 0 && (
                                 <div className="flex items-center gap-1.5">
-                                  <div className="w-2 h-2 rounded-sm bg-[#22c55e]" />
+                                  <div className="w-2 h-2 rounded-sm bg-[#7f22fe]" />
                                   <span className="text-muted-foreground">Extra: {day.extraHours.toFixed(1)}h</span>
                                 </div>
                               )}
@@ -492,45 +518,13 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                 <span className="text-xs text-muted-foreground">Budget</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-[#22c55e]" />
+                <div className="w-3 h-3 rounded-sm bg-[#7f22fe]" />
                 <span className="text-xs text-muted-foreground">Extra (T&M)</span>
               </div>
             </div>
           </div>
         </Card>
 
-        {/* Stats Cards */}
-        <div className="flex flex-col gap-4 min-w-[200px]">
-          {/* Total Hours Card */}
-          <Card className="bg-[rgba(239,246,255,0.5)] dark:bg-blue-950/20 border border-[#dbeafe] dark:border-blue-900/50 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] overflow-hidden">
-            <div className="bg-[#eff6ff]/50 dark:bg-blue-950/30 p-6 flex flex-col items-center justify-center gap-2">
-              <span className="font-bold text-xs text-[#155dfc] dark:text-blue-400 tracking-[0.6px] uppercase">
-                Total Hours
-              </span>
-              <span className="font-bold text-4xl text-[#0f172b] dark:text-foreground tracking-[0.37px]">
-                {totalHours.toFixed(1)}
-              </span>
-              <span className="text-xs text-[#62748e] dark:text-muted-foreground">
-                odpracované
-              </span>
-            </div>
-          </Card>
-
-          {/* Extra T&M Card */}
-          <Card className="bg-[rgba(245,243,255,0.5)] dark:bg-purple-950/20 border border-[#ede9fe] dark:border-purple-900/50 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] overflow-hidden">
-            <div className="bg-[#f5f3ff]/50 dark:bg-purple-950/30 p-6 flex flex-col items-center justify-center gap-2">
-              <span className="font-bold text-xs text-[#7f22fe] dark:text-purple-400 tracking-[0.6px] uppercase">
-                Extra (T&M)
-              </span>
-              <span className="font-bold text-4xl text-[#0f172b] dark:text-foreground tracking-[0.37px]">
-                {Math.round(extraAmount)}€
-              </span>
-              <span className="text-xs text-[#62748e] dark:text-muted-foreground">
-                fakturované navyše
-              </span>
-            </div>
-          </Card>
-        </div>
       </div>
 
       {/* Detailed Time Entries */}
@@ -612,6 +606,54 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                     className="resize-none"
                   />
                 </div>
+
+                {/* Extra time toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsExtraEntry(!isExtraEntry)}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                    isExtraEntry 
+                      ? "bg-[#f5f3ff] border-[#ede9fe] dark:bg-purple-950/30 dark:border-purple-900/50" 
+                      : "bg-muted/30 border-border hover:bg-muted/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      isExtraEntry 
+                        ? "bg-[#ede9fe] dark:bg-purple-900/50" 
+                        : "bg-muted dark:bg-muted"
+                    }`}>
+                      <Zap className={`h-4 w-4 ${
+                        isExtraEntry 
+                          ? "text-[#7f22fe] dark:text-purple-400" 
+                          : "text-muted-foreground"
+                      }`} />
+                    </div>
+                    <div className="text-left">
+                      <div className={`text-sm font-medium ${
+                        isExtraEntry 
+                          ? "text-[#7f22fe] dark:text-purple-400" 
+                          : "text-foreground"
+                      }`}>
+                        Extra čas
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Čas mimo scope projektu
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`w-10 h-6 rounded-full transition-colors relative ${
+                    isExtraEntry 
+                      ? "bg-[#7f22fe]" 
+                      : "bg-muted-foreground/30"
+                  }`}>
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                      isExtraEntry 
+                        ? "translate-x-5" 
+                        : "translate-x-1"
+                    }`} />
+                  </div>
+                </button>
 
                 <div className="flex justify-end gap-3 pt-2">
                   <Button
@@ -708,17 +750,12 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
 
                   {/* Right Section - Hours and Amount */}
                   <div className="flex flex-col items-end min-w-[80px]">
-                    <div className="flex items-baseline gap-0.5">
-                      <span className="font-bold text-sm text-[#0f172b] dark:text-foreground tracking-[-0.15px]">
-                        {entry.hours.toFixed(1)}
-                      </span>
-                      <span className="text-xs text-[#90a1b9] dark:text-muted-foreground">
-                        h
-                      </span>
-                    </div>
+                    <span className="font-bold text-sm text-[#0f172b] dark:text-foreground tracking-[-0.15px] tabular-nums">
+                      {formatHoursToTime(entry.hours)}
+                    </span>
                     {canViewPrices && (
                       <span className="text-[10px] text-[#90a1b9] dark:text-muted-foreground">
-                        {Math.round(entry.amount)} €
+                        {entry.amount.toFixed(2)} €
                       </span>
                     )}
                   </div>

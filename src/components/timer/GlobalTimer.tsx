@@ -86,16 +86,12 @@ export function GlobalTimer() {
   };
 
   const handleClick = () => {
-    if (activeTimer.task_id) {
-      if (activeTimer.project_id) {
-        // Task with project - go to project task detail
-        const url = `/projects/${activeTimer.project_id}/tasks/${activeTimer.task_id}`;
-        router.push(url);
-      } else {
-        // Task without project - go to task detail
-        const url = `/tasks/${activeTimer.task_id}`;
-        router.push(url);
-      }
+    if (activeTimer.task_id && activeTimer.project_id) {
+      const url = `/projects/${activeTimer.project_id}/tasks/${activeTimer.task_id}`;
+      router.push(url);
+    } else if (activeTimer.task_id) {
+      // Task without project - go to tasks list
+      router.push('/tasks');
     }
   };
 

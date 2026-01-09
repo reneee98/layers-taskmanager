@@ -54,18 +54,21 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
 
-    // Try to get is_extra separately if column exists
+    // Try to get is_extra and description separately if columns exist
     let isExtra = false;
+    let description = "";
     try {
       const { data: timerWithExtra } = await supabase
         .from("task_timers")
-        .select("is_extra")
+        .select("is_extra, description")
         .eq("id", timer.id)
         .single();
       isExtra = timerWithExtra?.is_extra || false;
+      description = timerWithExtra?.description || "";
     } catch (e) {
-      // Column doesn't exist yet, use default false
+      // Columns don't exist yet, use defaults
       isExtra = false;
+      description = "";
     }
 
     const activeTimer = {
@@ -77,6 +80,7 @@ export async function GET(request: NextRequest) {
       started_at: timer.started_at,
       duration,
       is_extra: isExtra,
+      description,
     };
 
     return NextResponse.json({ success: true, data: activeTimer });

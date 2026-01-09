@@ -1687,7 +1687,7 @@ export default function DashboardPage() {
                         if (task.project?.id) {
                           window.location.href = `/projects/${task.project.id}/tasks/${task.id}`;
                         } else {
-                          window.location.href = `/tasks/${task.id}`;
+                          window.location.href = `/tasks`;
                         }
                       }}
                     >
@@ -2257,7 +2257,7 @@ export default function DashboardPage() {
                           if (task.project?.id) {
                             window.location.href = `/projects/${task.project.id}/tasks/${task.id}`;
                           } else {
-                            window.location.href = `/tasks/${task.id}`;
+                            window.location.href = `/tasks`;
                           }
                         }}
                       />
@@ -2316,7 +2316,7 @@ export default function DashboardPage() {
                         if (event.resource.project?.id) {
                           window.location.href = `/projects/${event.resource.project.id}/tasks/${event.resource.id}`;
                         } else {
-                          window.location.href = `/tasks/${event.resource.id}`;
+                          window.location.href = `/tasks`;
                         }
                       }}
                       eventPropGetter={(event: any) => {
@@ -2398,7 +2398,7 @@ export default function DashboardPage() {
                                   if (event.resource?.project?.id) {
                                     window.location.href = `/projects/${event.resource.project.id}/tasks/${event.resource.id}`;
                                   } else {
-                                    window.location.href = `/tasks/${event.resource.id}`;
+                                    window.location.href = `/tasks`;
                                   }
                                 }}
                                 className="cursor-pointer"

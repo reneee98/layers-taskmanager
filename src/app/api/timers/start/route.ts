@@ -17,9 +17,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { taskId, taskName, projectId, projectName, isExtra = false } = body;
+    const { taskId, taskName, projectId, projectName, isExtra = false, description } = body;
 
-    console.log("Timer start request:", { taskId, taskName, projectId, projectName, userId: user.id });
+    console.log("Timer start request:", { taskId, taskName, projectId, projectName, userId: user.id, isExtra, description });
 
     if (!taskId) {
       return NextResponse.json({ success: false, error: "Task ID is required" }, { status: 400 });
@@ -55,10 +55,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Start new timer
-    console.log("Inserting new timer", { isExtra });
+    console.log("Inserting new timer", { isExtra, description });
     
     // Try to insert with is_extra, but handle case where column doesn't exist yet
-    const insertData: any = {
+    const insertData: Record<string, unknown> = {
       task_id: taskId,
       user_id: user.id,
       workspace_id: task.workspace_id,
@@ -69,6 +69,11 @@ export async function POST(request: NextRequest) {
     // If false, we can skip it since default is false
     if (isExtra) {
       insertData.is_extra = true;
+    }
+    
+    // Add description if provided
+    if (description) {
+      insertData.description = description;
     }
     
     const { data: newTimer, error } = await supabase

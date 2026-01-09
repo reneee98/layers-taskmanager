@@ -247,6 +247,7 @@ export default function TaskDetailPage() {
   const [isStartingTimer, setIsStartingTimer] = useState(false);
   const prevActiveTimerRef = useRef<typeof activeTimer>(null);
   const [projectSelectOpen, setProjectSelectOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   const fetchTask = async () => {
     try {
@@ -415,6 +416,16 @@ export default function TaskDetailPage() {
       }
     }
   }, [task?.budget_cents, task?.hourly_rate_cents, task?.project?.hourly_rate, userSettings?.default_hourly_rate]);
+
+  // Update current time every second when timer is active
+  useEffect(() => {
+    if (activeTimer && task && activeTimer.task_id === task.id) {
+      const interval = setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTimer, task?.id]);
 
   useEffect(() => {
     // Load critical data first (task), then load other non-critical data in parallel
@@ -1336,11 +1347,16 @@ export default function TaskDetailPage() {
     }
   };
 
+  // Calculate timer display - use direct calculation from started_at for better reliability
   // Show timer only if it's regular time (not extra) for this task
   // If is_extra is undefined (old timers), treat as regular time
-  const timerSeconds = activeTimer && activeTimer.task_id === task.id && !(activeTimer.is_extra === true) ? currentDuration : 0;
+  const timerSeconds = activeTimer && task && activeTimer.task_id === task.id && !(activeTimer.is_extra === true) 
+    ? Math.floor((currentTime - new Date(activeTimer.started_at).getTime()) / 1000)
+    : 0;
   // Show extra timer separately
-  const extraTimerSeconds = activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra === true ? currentDuration : 0;
+  const extraTimerSeconds = activeTimer && task && activeTimer.task_id === task.id && activeTimer.is_extra === true 
+    ? Math.floor((currentTime - new Date(activeTimer.started_at).getTime()) / 1000)
+    : 0;
 
   return (
     <div className="relative min-h-screen -mx-3 sm:-mx-4 md:-mx-6">

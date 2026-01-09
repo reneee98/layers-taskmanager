@@ -1025,8 +1025,9 @@ export default function TaskDetailPage() {
   const handleTimerToggle = async () => {
     if (!task) return;
 
-    // If this task is currently being tracked, stop it and save time entry
-    if (activeTimer && activeTimer.task_id === task.id && !activeTimer.is_extra) {
+    // If this task is currently being tracked (regular time), stop it and save time entry
+    // If is_extra is undefined (old timers), treat as regular time
+    if (activeTimer && activeTimer.task_id === task.id && !(activeTimer.is_extra === true)) {
       try {
         // Vypočítať trvanie priamo z activeTimer.started_at
         const startedAt = new Date(activeTimer.started_at);
@@ -1056,8 +1057,9 @@ export default function TaskDetailPage() {
       return;
     }
 
-    // If another task is being tracked, stop it first and save time entry
-    if (activeTimer && !activeTimer.is_extra) {
+    // If another task is being tracked (regular time), stop it first and save time entry
+    // If is_extra is undefined (old timers), treat as regular time
+    if (activeTimer && !(activeTimer.is_extra === true)) {
       try {
         // Vypočítať trvanie priamo z activeTimer.started_at
         const startedAt = new Date(activeTimer.started_at);
@@ -1110,7 +1112,7 @@ export default function TaskDetailPage() {
     if (!task) return;
 
     // If extra time is currently being tracked for this task, stop it
-    if (activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra) {
+    if (activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra === true) {
       try {
         const startedAt = new Date(activeTimer.started_at);
         const now = new Date();
@@ -1147,7 +1149,7 @@ export default function TaskDetailPage() {
         await stopTimer();
 
         if (trackedHours > 0) {
-          const timerType = activeTimer.is_extra ? "extra časovač" : "časovač";
+          const timerType = activeTimer.is_extra === true ? "extra časovač" : "časovač";
           toast({
             title: `Predchádzajúci ${timerType} uložený`,
             description: `Zapísaných ${formatHours(trackedHours)} do úlohy "${activeTimer.task_name}".`,
@@ -1335,9 +1337,10 @@ export default function TaskDetailPage() {
   };
 
   // Show timer only if it's regular time (not extra) for this task
-  const timerSeconds = activeTimer && activeTimer.task_id === task.id && !activeTimer.is_extra ? currentDuration : 0;
+  // If is_extra is undefined (old timers), treat as regular time
+  const timerSeconds = activeTimer && activeTimer.task_id === task.id && !(activeTimer.is_extra === true) ? currentDuration : 0;
   // Show extra timer separately
-  const extraTimerSeconds = activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra ? currentDuration : 0;
+  const extraTimerSeconds = activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra === true ? currentDuration : 0;
 
   return (
     <div className="relative min-h-screen -mx-3 sm:-mx-4 md:-mx-6">
@@ -1406,15 +1409,15 @@ export default function TaskDetailPage() {
                 onClick={handleExtraTimerToggle}
                 disabled={isStartingTimer}
                 className={`h-[30px] w-[35px] border-r border-[#f1f5f9] dark:border-border flex items-center justify-center shrink-0 hover:bg-[#f1f5f9] dark:hover:bg-muted transition-colors disabled:opacity-50 ${
-                  activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra
+                  activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra === true
                     ? "bg-[#fef3c7] dark:bg-yellow-900/20 border-r-yellow-300 dark:border-r-yellow-800"
                     : ""
                 }`}
-                aria-label={activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra ? "Zastaviť extra časovač" : "Spustiť extra časovač"}
+                aria-label={activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra === true ? "Zastaviť extra časovač" : "Spustiť extra časovač"}
                 tabIndex={0}
               >
                 <Zap className={`h-3.5 w-3.5 ${
-                  activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra
+                  activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra === true
                     ? "text-yellow-600 dark:text-yellow-500"
                     : "text-[#62748e] dark:text-muted-foreground"
                 }`} />
@@ -1436,10 +1439,10 @@ export default function TaskDetailPage() {
                 onClick={handleTimerToggle}
                 disabled={isStartingTimer}
                 className="h-[30px] w-[37px] border-l border-[#f1f5f9] dark:border-border flex items-center justify-center shrink-0 hover:bg-[#f1f5f9] dark:hover:bg-muted transition-colors disabled:opacity-50"
-                aria-label={activeTimer && activeTimer.task_id === task.id ? "Zastaviť časovač" : "Spustiť časovač"}
+                aria-label={activeTimer && activeTimer.task_id === task.id && !(activeTimer.is_extra === true) ? "Zastaviť časovač" : "Spustiť časovač"}
                 tabIndex={0}
               >
-                {activeTimer && activeTimer.task_id === task.id ? (
+                {activeTimer && activeTimer.task_id === task.id && !(activeTimer.is_extra === true) ? (
                   <Square className="h-3 w-3 text-[#62748e] dark:text-muted-foreground" />
                 ) : (
                   <Play className="h-3 w-3 text-[#62748e] dark:text-muted-foreground" />

@@ -21,7 +21,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Plus, Activity, Trash2, Zap } from "lucide-react";
+import { Plus, Activity, Trash2, Zap, Pencil, Check, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatHours, formatCurrency } from "@/lib/format";
 import { format, subDays, parseISO, startOfDay, isWithinInterval } from "date-fns";
@@ -117,6 +117,8 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
   const [isLoading, setIsLoading] = useState(false);
   const [isManualEntryOpen, setIsManualEntryOpen] = useState(false);
   const [isExtraEntry, setIsExtraEntry] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editingDescription, setEditingDescription] = useState("");
 
   // Fetch time entries for the task
   const fetchTimeEntries = async () => {
@@ -327,6 +329,45 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleStartEditDescription = (entry: TimeEntry) => {
+    setEditingEntryId(entry.id);
+    setEditingDescription(entry.description || "");
+  };
+
+  const handleSaveDescription = async () => {
+    if (!editingEntryId) return;
+    
+    try {
+      const response = await fetch(`/api/time-entries/${editingEntryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: editingDescription }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({ title: "Úspech", description: "Popis bol aktualizovaný" });
+        fetchTimeEntries();
+        setEditingEntryId(null);
+        setEditingDescription("");
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa aktualizovať popis",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingEntryId(null);
+    setEditingDescription("");
   };
 
   const handleDeleteEntry = async (id: string) => {
@@ -726,26 +767,54 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
 
                   {/* Middle Section - Description and Badge */}
                   <div className="flex-1 flex flex-col gap-1.5 pl-4">
-                    <span className="font-medium text-xs text-[#1d293d] dark:text-foreground line-clamp-1">
-                      {entry.description || '—'}
-                    </span>
-                    <div className="flex gap-2 items-center">
-                      {entry.description && (
-                        <Badge 
-                          variant="outline" 
-                          className="h-4 px-2 py-0 text-[9px] font-medium text-[#62748e] dark:text-muted-foreground border-[#e2e8f0] dark:border-border rounded-lg"
+                    {editingEntryId === entry.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editingDescription}
+                          onChange={(e) => setEditingDescription(e.target.value)}
+                          placeholder="Popis práce..."
+                          className="h-7 text-xs flex-1"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveDescription();
+                            if (e.key === "Escape") handleCancelEdit();
+                          }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleSaveDescription}
+                          className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                         >
-                          Práca
-                        </Badge>
-                      )}
-                      {isExtra && (
-                        <Badge 
-                          className="h-4 px-2 py-0 text-[9px] font-bold bg-[#f5f3ff] text-[#7f22fe] dark:bg-purple-950/50 dark:text-purple-400 border border-[#ede9fe] dark:border-purple-900/50 rounded-lg"
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCancelEdit}
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                         >
-                          EXTRA
-                        </Badge>
-                      )}
-                    </div>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div 
+                        className="flex items-center gap-2 group/desc cursor-pointer"
+                        onClick={() => handleStartEditDescription(entry)}
+                      >
+                        <span className="font-medium text-xs text-[#1d293d] dark:text-foreground line-clamp-1">
+                          {entry.description || '—'}
+                        </span>
+                        <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/desc:opacity-100 transition-opacity" />
+                      </div>
+                    )}
+                    {isExtra && (
+                      <Badge 
+                        className="h-4 px-2 py-0 text-[9px] font-bold bg-[#f5f3ff] text-[#7f22fe] dark:bg-purple-950/50 dark:text-purple-400 border border-[#ede9fe] dark:border-purple-900/50 rounded-lg"
+                      >
+                        EXTRA
+                      </Badge>
+                    )}
                   </div>
 
                   {/* Right Section - Hours and Amount */}

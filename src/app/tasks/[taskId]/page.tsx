@@ -1097,7 +1097,7 @@ export default function TaskDetailPage() {
       await startTimer(
         task.id,
         task.title,
-        task.project_id,
+        task.project_id || "",
         task.project?.name || "Neznámy projekt",
         false // Regular time, not extra
       );
@@ -1177,7 +1177,7 @@ export default function TaskDetailPage() {
       await startTimer(
         task.id,
         task.title,
-        task.project_id,
+        task.project_id || "",
         task.project?.name || "Neznámy projekt",
         true // Extra time
       );

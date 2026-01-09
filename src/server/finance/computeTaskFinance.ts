@@ -120,6 +120,7 @@ export const computeTaskFinance = async (
     
     totalCost,
     budgetAmount,
+    revenue,
     
     profit,
     profitPct,

@@ -71,3 +71,24 @@ export const truncateTaskTitle = (title: string | null | undefined, maxLength: n
   return finalText + '...';
 };
 
+/**
+ * Returns the appropriate color class for margin value (4 color states)
+ * @param marginValue - Margin percentage value
+ * @returns Tailwind CSS classes for the margin color
+ */
+export const getMarginColor = (marginValue: number): string => {
+  if (marginValue < 0) {
+    // Negative margin - red
+    return "text-[#e7000b] dark:text-red-500";
+  } else if (marginValue >= 0 && marginValue < 15) {
+    // Low margin (0-15%) - orange
+    return "text-[#e17100] dark:text-orange-500";
+  } else if (marginValue >= 15 && marginValue < 30) {
+    // Medium margin (15-30%) - yellow/orange
+    return "text-[#f59e0b] dark:text-yellow-500";
+  } else {
+    // High margin (>= 30%) - green
+    return "text-[#10b981] dark:text-green-500";
+  }
+};
+

@@ -49,7 +49,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatHours } from "@/lib/format";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, getMarginColor } from "@/lib/utils";
 import type { Task, TaskAssignee } from "@/types/database";
 import { getDeadlineStatus, getDeadlineBadge } from "@/lib/deadline-utils";
 import { useTimer } from "@/contexts/TimerContext";
@@ -1680,7 +1680,13 @@ export default function TaskDetailPage() {
                                 Marža
                               </span>
                             </div>
-                            <div className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-[#e17100] dark:text-orange-500 tracking-[-0.5297px] leading-tight sm:leading-6 md:leading-7 lg:leading-8">
+                            <div className={`text-base sm:text-lg md:text-xl lg:text-2xl font-bold tracking-[-0.5297px] leading-tight sm:leading-6 md:leading-7 lg:leading-8 ${
+                              getMarginColor(
+                                task.project && task.project.budget && task.budget_cents && task.project.budget > 0
+                                  ? (((task.project.budget - (task.budget_cents / 100)) / task.project.budget) * 100)
+                                  : 0
+                              )
+                            }`}>
                               {task.project && task.project.budget && task.budget_cents && task.project.budget > 0
                                 ? `${(((task.project.budget - (task.budget_cents / 100)) / task.project.budget) * 100).toFixed(1)}%`
                                 : '0%'}

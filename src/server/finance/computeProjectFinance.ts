@@ -18,9 +18,10 @@ export interface ProjectFinance {
   // Totals
   totalCost: number;        // laborCost + externalCost
   budgetAmount: number;
+  revenue: number;          // Sum of (hours * hourly_rate) from billable time entries
   
   // Profit/Loss
-  profit: number;           // budgetAmount - totalCost
+  profit: number;           // revenue - totalCost (or budgetAmount - totalCost)
   profitPct: number;        // (profit / budgetAmount) × 100
   
   // Time series data for charts
@@ -380,6 +381,7 @@ export const computeProjectFinance = async (
     externalCost,
     totalCost,
     budgetAmount,
+    revenue,
     profit,
     profitPct,
     dailyData,

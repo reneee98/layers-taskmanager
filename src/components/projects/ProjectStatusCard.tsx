@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { usePermission } from "@/hooks/usePermissions";
 import { Briefcase } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/format";
+import { getMarginColor } from "@/lib/utils";
 import type { ProjectFinance } from "@/server/finance/computeProjectFinance";
 import type { TaskAssignee } from "@/types/database";
 
@@ -110,7 +111,10 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
   // Calculate profit and margin
   // Profit is already calculated correctly in computeTaskFinance/computeProjectFinance
   const profit = finance.profit || 0;
-  const margin = budgetTotal > 0 ? ((profit / budgetTotal) * 100) : 0;
+  const revenue = finance.revenue || 0;
+  // Margin should be calculated as profit / revenue, not profit / budgetTotal
+  // Revenue represents the actual amount billed for work (hours * hourly_rate)
+  const margin = revenue > 0 ? ((profit / revenue) * 100) : 0;
   
   // Get assignees from props
   const displayAssignees = assignees
@@ -204,7 +208,7 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
                 </span>
               </div>
               <div className="flex-1">
-                <span className="font-bold leading-8 text-[#e17100] dark:text-orange-500 text-2xl tracking-[-0.5297px]">
+                <span className={`font-bold leading-8 text-2xl tracking-[-0.5297px] ${getMarginColor(margin)}`}>
                   {margin.toFixed(1)}%
                 </span>
               </div>

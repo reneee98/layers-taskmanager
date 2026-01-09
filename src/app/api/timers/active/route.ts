@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     // First get timer without joins to avoid RLS issues
     const { data: timer, error } = await supabase
       .from("task_timers")
-      .select("id, task_id, started_at")
+      .select("id, task_id, started_at, is_extra")
       .eq("user_id", user.id)
       .is("stopped_at", null)
       .single();
@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
       project_id: taskData?.project_id || '',
       started_at: timer.started_at,
       duration,
+      is_extra: timer.is_extra || false,
     };
 
     return NextResponse.json({ success: true, data: activeTimer });

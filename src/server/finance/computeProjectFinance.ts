@@ -258,9 +258,23 @@ export const computeProjectFinance = async (
     }))
   });
 
-  const externalCost = doneCostItems
+  // Calculate external cost from cost items
+  const externalCostFromItems = doneCostItems
     ?.filter((ci) => ci.is_billable)
     .reduce((sum, ci) => sum + (ci.amount || 0), 0) || 0;
+
+  // Calculate extra time cost (non-billable time entries)
+  // Extra time entries have is_billable = false and amount = 0
+  // We calculate the cost as hours * hourly_rate even though it's not billable
+  const extraTimeCost = doneTimeEntries
+    ?.filter((te) => !te.is_billable)
+    .reduce((sum, te) => {
+      const extraCost = (te.hours || 0) * (te.hourly_rate || 0);
+      return sum + extraCost;
+    }, 0) || 0;
+
+  // Total external cost includes both cost items and extra time
+  const externalCost = externalCostFromItems + extraTimeCost;
 
   // 6. Get total budget from done tasks only (this is "Spolu k fakturácií")
   // If budget_cents is set, use it. Otherwise, calculate from time entries (hours * hourly_rate)

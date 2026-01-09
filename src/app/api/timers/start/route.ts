@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { taskId, taskName, projectId, projectName } = body;
+    const { taskId, taskName, projectId, projectName, isExtra = false } = body;
 
     console.log("Timer start request:", { taskId, taskName, projectId, projectName, userId: user.id });
 
@@ -55,14 +55,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Start new timer
-    console.log("Inserting new timer");
+    console.log("Inserting new timer", { isExtra });
     const { data: newTimer, error } = await supabase
       .from("task_timers")
       .insert({
         task_id: taskId,
         user_id: user.id,
         workspace_id: task.workspace_id,
-        started_at: new Date().toISOString()
+        started_at: new Date().toISOString(),
+        is_extra: isExtra || false
       })
       .select()
       .single();

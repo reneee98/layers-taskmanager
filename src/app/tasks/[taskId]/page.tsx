@@ -1026,7 +1026,7 @@ export default function TaskDetailPage() {
     if (!task) return;
 
     // If this task is currently being tracked, stop it and save time entry
-    if (activeTimer && activeTimer.task_id === task.id) {
+    if (activeTimer && activeTimer.task_id === task.id && !activeTimer.is_extra) {
       try {
         // Vypočítať trvanie priamo z activeTimer.started_at
         const startedAt = new Date(activeTimer.started_at);
@@ -1057,7 +1057,7 @@ export default function TaskDetailPage() {
     }
 
     // If another task is being tracked, stop it first and save time entry
-    if (activeTimer) {
+    if (activeTimer && !activeTimer.is_extra) {
       try {
         // Vypočítať trvanie priamo z activeTimer.started_at
         const startedAt = new Date(activeTimer.started_at);
@@ -1085,7 +1085,8 @@ export default function TaskDetailPage() {
         task.id,
         task.title,
         task.project_id,
-        task.project?.name || "Neznámy projekt"
+        task.project?.name || "Neznámy projekt",
+        false // Regular time, not extra
       );
       // Refresh timer state after starting
       await refreshTimer();
@@ -1098,6 +1099,85 @@ export default function TaskDetailPage() {
       toast({
         title: "Chyba",
         description: error instanceof Error ? error.message : "Nepodarilo sa spustiť časovač",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStartingTimer(false);
+    }
+  };
+
+  const handleExtraTimerToggle = async () => {
+    if (!task) return;
+
+    // If extra time is currently being tracked for this task, stop it
+    if (activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra) {
+      try {
+        const startedAt = new Date(activeTimer.started_at);
+        const now = new Date();
+        const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+        const trackedHours = duration > 0 ? Number((duration / 3600).toFixed(3)) : 0;
+        await stopTimer();
+
+        if (trackedHours > 0) {
+          toast({
+            title: "Extra časovač zastavený",
+            description: `Zapísaných ${formatHours(trackedHours)} extra času do úlohy.`,
+          });
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        fetchTask();
+      } catch (error) {
+        toast({
+          title: "Chyba",
+          description: "Nepodarilo sa zastaviť extra časovač",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    // If another timer is active, stop it first
+    if (activeTimer) {
+      try {
+        const startedAt = new Date(activeTimer.started_at);
+        const now = new Date();
+        const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+        const trackedHours = Number((duration / 3600).toFixed(3));
+        await stopTimer();
+
+        if (trackedHours > 0) {
+          const timerType = activeTimer.is_extra ? "extra časovač" : "časovač";
+          toast({
+            title: `Predchádzajúci ${timerType} uložený`,
+            description: `Zapísaných ${formatHours(trackedHours)} do úlohy "${activeTimer.task_name}".`,
+          });
+        }
+      } catch (error) {
+        console.error("Error stopping previous timer:", error);
+      }
+    }
+
+    // Start tracking extra time
+    try {
+      setIsStartingTimer(true);
+      await startTimer(
+        task.id,
+        task.title,
+        task.project_id,
+        task.project?.name || "Neznámy projekt",
+        true // Extra time
+      );
+      await refreshTimer();
+      toast({
+        title: "Extra časovač spustený",
+        description: `Začal som trackovať extra čas pre úlohu "${task.title}"`,
+      });
+    } catch (error) {
+      console.error("Error in handleExtraTimerToggle:", error);
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa spustiť extra časovač",
         variant: "destructive",
       });
     } finally {
@@ -1254,7 +1334,10 @@ export default function TaskDetailPage() {
     }
   };
 
-  const timerSeconds = activeTimer && activeTimer.task_id === task.id ? currentDuration : 0;
+  // Show timer only if it's regular time (not extra) for this task
+  const timerSeconds = activeTimer && activeTimer.task_id === task.id && !activeTimer.is_extra ? currentDuration : 0;
+  // Show extra timer separately
+  const extraTimerSeconds = activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra ? currentDuration : 0;
 
   return (
     <div className="relative min-h-screen -mx-3 sm:-mx-4 md:-mx-6">
@@ -1318,6 +1401,24 @@ export default function TaskDetailPage() {
           <div className="flex gap-3 items-center h-8">
             {/* Timer Widget */}
             <div className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] h-8 flex items-center overflow-hidden flex-1 min-w-[140px]">
+              {/* Extra timer icon section */}
+              <button
+                onClick={handleExtraTimerToggle}
+                disabled={isStartingTimer}
+                className={`h-[30px] w-[35px] border-r border-[#f1f5f9] dark:border-border flex items-center justify-center shrink-0 hover:bg-[#f1f5f9] dark:hover:bg-muted transition-colors disabled:opacity-50 ${
+                  activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra
+                    ? "bg-[#fef3c7] dark:bg-yellow-900/20 border-r-yellow-300 dark:border-r-yellow-800"
+                    : ""
+                }`}
+                aria-label={activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra ? "Zastaviť extra časovač" : "Spustiť extra časovač"}
+                tabIndex={0}
+              >
+                <Zap className={`h-3.5 w-3.5 ${
+                  activeTimer && activeTimer.task_id === task.id && activeTimer.is_extra
+                    ? "text-yellow-600 dark:text-yellow-500"
+                    : "text-[#62748e] dark:text-muted-foreground"
+                }`} />
+              </button>
               {/* Timer icon section */}
               <div className="h-[30px] w-[35px] border-r border-[#f1f5f9] dark:border-border flex items-center justify-center shrink-0">
                 <Timer className="h-3.5 w-3.5 text-[#62748e] dark:text-muted-foreground" />

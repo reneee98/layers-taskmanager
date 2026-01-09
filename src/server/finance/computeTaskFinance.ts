@@ -46,8 +46,18 @@ export const computeTaskFinance = async (
   // 4. Calculate labor cost (sum of time_entries.amount)
   const laborCost = timeEntries?.reduce((sum, te) => sum + (te.amount || 0), 0) || 0;
 
-  // 5. No external costs for tasks without projects (cost_items are project-level)
-  const externalCost = 0;
+  // 5. Calculate external cost
+  // For tasks: external cost includes extra time (non-billable time entries)
+  // Extra time entries have is_billable = false
+  const extraTimeCost = timeEntries
+    ?.filter((te) => !te.is_billable)
+    .reduce((sum, te) => {
+      const extraCost = (te.hours || 0) * (te.hourly_rate || 0);
+      return sum + extraCost;
+    }, 0) || 0;
+
+  // No cost_items for tasks without projects (cost_items are project-level)
+  const externalCost = extraTimeCost;
 
   // 6. Calculate budget amount
   let budgetAmount = 0;

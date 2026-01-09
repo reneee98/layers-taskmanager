@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
         task_id,
         workspace_id,
         started_at,
+        is_extra,
         tasks(
           title,
           project_id,
@@ -183,12 +184,20 @@ export async function POST(request: NextRequest) {
       budgetHoursLimit = taskDetails.estimated_hours;
     }
 
-    const currentActualHours = taskDetails.actual_hours || 0;
-    const hoursWithinBudget = Math.max(0, Math.min(currentActualHours, budgetHoursLimit));
-    const remainingBudgetHours = Math.max(0, budgetHoursLimit - hoursWithinBudget);
-    const newHoursWithinBudget = Math.min(trackedHours, remainingBudgetHours);
-    const hoursOverBudget = Math.max(0, trackedHours - newHoursWithinBudget);
-    const amount = hoursOverBudget * hourlyRate;
+    // Check if this is extra (non-billable) time
+    const isExtra = activeTimer.is_extra || false;
+    
+    // For extra time, amount is always 0 and is_billable is false
+    // For regular time, calculate amount based on budget
+    let amount = 0;
+    if (!isExtra) {
+      const currentActualHours = taskDetails.actual_hours || 0;
+      const hoursWithinBudget = Math.max(0, Math.min(currentActualHours, budgetHoursLimit));
+      const remainingBudgetHours = Math.max(0, budgetHoursLimit - hoursWithinBudget);
+      const newHoursWithinBudget = Math.min(trackedHours, remainingBudgetHours);
+      const hoursOverBudget = Math.max(0, trackedHours - newHoursWithinBudget);
+      amount = hoursOverBudget * hourlyRate;
+    }
 
     // Check if timer was already stopped (race condition protection)
     const { data: timerCheck, error: timerCheckError } = await supabase
@@ -224,7 +233,7 @@ export async function POST(request: NextRequest) {
       description: "",
       hourly_rate: hourlyRate,
       amount: amount,
-      is_billable: true,
+      is_billable: !isExtra, // Extra time is not billable
       start_time: startTime,
       end_time: endTime,
       workspace_id: activeTimer.workspace_id,

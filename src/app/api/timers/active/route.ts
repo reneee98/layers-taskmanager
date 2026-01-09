@@ -13,9 +13,10 @@ export async function GET(request: NextRequest) {
 
     // Get active timer for current user
     // First get timer without joins to avoid RLS issues
+    // Try to select is_extra, but handle case where column doesn't exist yet
     const { data: timer, error } = await supabase
       .from("task_timers")
-      .select("id, task_id, started_at, is_extra")
+      .select("id, task_id, started_at")
       .eq("user_id", user.id)
       .is("stopped_at", null)
       .single();
@@ -53,6 +54,20 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
 
+    // Try to get is_extra separately if column exists
+    let isExtra = false;
+    try {
+      const { data: timerWithExtra } = await supabase
+        .from("task_timers")
+        .select("is_extra")
+        .eq("id", timer.id)
+        .single();
+      isExtra = timerWithExtra?.is_extra || false;
+    } catch (e) {
+      // Column doesn't exist yet, use default false
+      isExtra = false;
+    }
+
     const activeTimer = {
       id: timer.id,
       task_id: timer.task_id,
@@ -61,7 +76,7 @@ export async function GET(request: NextRequest) {
       project_id: taskData?.project_id || '',
       started_at: timer.started_at,
       duration,
-      is_extra: timer.is_extra || false,
+      is_extra: isExtra,
     };
 
     return NextResponse.json({ success: true, data: activeTimer });

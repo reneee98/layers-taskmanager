@@ -56,15 +56,24 @@ export async function POST(request: NextRequest) {
 
     // Start new timer
     console.log("Inserting new timer", { isExtra });
+    
+    // Try to insert with is_extra, but handle case where column doesn't exist yet
+    const insertData: any = {
+      task_id: taskId,
+      user_id: user.id,
+      workspace_id: task.workspace_id,
+      started_at: new Date().toISOString(),
+    };
+    
+    // Only add is_extra if we're trying to set it to true (column might not exist)
+    // If false, we can skip it since default is false
+    if (isExtra) {
+      insertData.is_extra = true;
+    }
+    
     const { data: newTimer, error } = await supabase
       .from("task_timers")
-      .insert({
-        task_id: taskId,
-        user_id: user.id,
-        workspace_id: task.workspace_id,
-        started_at: new Date().toISOString(),
-        is_extra: isExtra || false
-      })
+      .insert(insertData)
       .select()
       .single();
 

@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get active timer for current user with task info
+    // Don't select is_extra directly - handle it separately if column exists
     const { data: activeTimer, error: fetchError } = await supabase
       .from("task_timers")
       .select(`
@@ -20,7 +21,6 @@ export async function POST(request: NextRequest) {
         task_id,
         workspace_id,
         started_at,
-        is_extra,
         tasks(
           title,
           project_id,
@@ -185,7 +185,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if this is extra (non-billable) time
-    const isExtra = activeTimer.is_extra || false;
+    // Try to get is_extra separately if column exists
+    let isExtra = false;
+    try {
+      const { data: timerWithExtra } = await supabase
+        .from("task_timers")
+        .select("is_extra")
+        .eq("id", activeTimer.id)
+        .single();
+      isExtra = timerWithExtra?.is_extra || false;
+    } catch (e) {
+      // Column doesn't exist yet, use default false
+      isExtra = false;
+    }
     
     // For extra time, amount is always 0 and is_billable is false
     // For regular time, calculate amount based on budget

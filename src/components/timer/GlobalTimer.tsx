@@ -5,16 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Square } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 
 export function GlobalTimer() {
   const { activeTimer, currentDuration, stopTimer, refreshTimer } = useTimer();
   const router = useRouter();
+  const pathname = usePathname();
   const isStoppingRef = useRef(false); // Prevent multiple simultaneous stop calls
   const [isStopping, setIsStopping] = useState(false); // For UI disabled state
 
-  if (!activeTimer) {
+  // Hide timer on task detail pages
+  const isTaskDetailPage = pathname?.match(/^\/tasks\/[^/]+$/) || pathname?.match(/^\/projects\/[^/]+\/tasks\/[^/]+$/);
+
+  if (!activeTimer || isTaskDetailPage) {
     return null;
   }
 

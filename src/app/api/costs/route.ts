@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const { data: costItem, error: insertError } = await supabase
       .from("cost_items")
       .insert({
-        project_id: validatedData.project_id,
+        project_id: validatedData.project_id || null,
         task_id: validatedData.task_id || null,
         name: validatedData.name,
         description: validatedData.description || null,
@@ -92,15 +92,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get updated project finance snapshot
-    const { data: financeSnapshot, error: financeError } = await supabase
-      .from("project_finance_view")
-      .select("*")
-      .eq("project_id", validatedData.project_id)
-      .single();
+    // Get updated project finance snapshot (only if project_id exists)
+    let financeSnapshot = null;
+    if (validatedData.project_id) {
+      const { data, error: financeError } = await supabase
+        .from("project_finance_view")
+        .select("*")
+        .eq("project_id", validatedData.project_id)
+        .single();
 
-    if (financeError) {
-      console.warn("Failed to get finance snapshot:", financeError);
+      if (financeError) {
+        console.warn("Failed to get finance snapshot:", financeError);
+      } else {
+        financeSnapshot = data;
+      }
     }
 
     return NextResponse.json({

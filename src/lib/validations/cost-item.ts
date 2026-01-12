@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 export const costItemSchema = z.object({
-  project_id: z.string().uuid("Neplatné ID projektu"),
+  project_id: z.union([
+    z.string().uuid("Neplatné ID projektu"),
+    z.null(),
+    z.undefined(),
+    z.literal("")
+  ]).transform((val) => val === "" || val === undefined ? null : val).optional().nullable(),
   task_id: z.union([
     z.string().uuid("Neplatné ID úlohy"),
     z.null(),

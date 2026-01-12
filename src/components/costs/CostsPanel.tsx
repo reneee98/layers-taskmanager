@@ -134,16 +134,6 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
       return;
     }
 
-    // Validate projectId
-    if (!projectId || projectId === "unknown" || !projectId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      toast({
-        title: "Chyba",
-        description: "Neplatné ID projektu",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsLoading(true);
     try {
       // Determine task_id: if defaultTaskId is set, use it; otherwise use taskId from form (if not empty)
@@ -154,8 +144,11 @@ export function CostsPanel({ projectId, tasks, defaultTaskId, onCostAdded }: Cos
         finalTaskId = taskId;
       }
 
+      // Validate projectId - if invalid UUID, use null
+      const isValidProjectId = projectId && projectId !== "unknown" && projectId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+
       const payload = {
-        project_id: projectId,
+        project_id: isValidProjectId ? projectId : null,
         task_id: finalTaskId,
         name,
         description: description || null,

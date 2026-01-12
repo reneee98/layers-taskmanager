@@ -1548,7 +1548,7 @@ export default function TaskDetailPage() {
               <TabsContent value="time" className="mt-4">
                 <TaskTimeTab 
                   taskId={task.id}
-                  projectId={task.project_id || undefined}
+                  projectId={task.project_id || ""}
                       onTimeEntryAdded={() => {
                         fetchTask();
                         window.dispatchEvent(new CustomEvent('timeEntryAdded'));

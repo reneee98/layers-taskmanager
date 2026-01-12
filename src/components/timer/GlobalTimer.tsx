@@ -90,8 +90,8 @@ export function GlobalTimer() {
       const url = `/projects/${activeTimer.project_id}/tasks/${activeTimer.task_id}`;
       router.push(url);
     } else if (activeTimer.task_id) {
-      // Task without project - go to tasks list
-      router.push('/tasks');
+      // Task without project - go to task detail
+      router.push(`/tasks/${activeTimer.task_id}`);
     }
   };
 

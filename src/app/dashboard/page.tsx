@@ -1687,7 +1687,7 @@ export default function DashboardPage() {
                         if (task.project?.id) {
                           window.location.href = `/projects/${task.project.id}/tasks/${task.id}`;
                         } else {
-                          window.location.href = `/tasks`;
+                          window.location.href = `/tasks/${task.id}`;
                         }
                       }}
                     >
@@ -2257,7 +2257,7 @@ export default function DashboardPage() {
                           if (task.project?.id) {
                             window.location.href = `/projects/${task.project.id}/tasks/${task.id}`;
                           } else {
-                            window.location.href = `/tasks`;
+                            window.location.href = `/tasks/${task.id}`;
                           }
                         }}
                       />
@@ -2316,7 +2316,7 @@ export default function DashboardPage() {
                         if (event.resource.project?.id) {
                           window.location.href = `/projects/${event.resource.project.id}/tasks/${event.resource.id}`;
                         } else {
-                          window.location.href = `/tasks`;
+                          window.location.href = `/tasks/${event.resource.id}`;
                         }
                       }}
                       eventPropGetter={(event: any) => {
@@ -2398,7 +2398,7 @@ export default function DashboardPage() {
                                   if (event.resource?.project?.id) {
                                     window.location.href = `/projects/${event.resource.project.id}/tasks/${event.resource.id}`;
                                   } else {
-                                    window.location.href = `/tasks`;
+                                    window.location.href = `/tasks/${event.resource?.id}`;
                                   }
                                 }}
                                 className="cursor-pointer"

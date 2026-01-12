@@ -38,3 +38,4 @@ GRANT EXECUTE ON FUNCTION exec_sql(text) TO service_role;
 -- Add comment
 COMMENT ON FUNCTION exec_sql(text) IS 'Executes SQL query dynamically. WARNING: Use with extreme caution! Only accessible via service role key.';
 
+

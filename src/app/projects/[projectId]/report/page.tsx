@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, Download, Loader2, Clock, Euro, Users, FileText, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatHours } from "@/lib/format";
@@ -67,7 +69,13 @@ export default function ProjectReportPage() {
   const [timeEntries, setTimeEntries] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  /** Task IDs for which hours (and time entries) should be hidden in the generated PDF */
+  const [taskIdsHideHoursInPdf, setTaskIdsHideHoursInPdf] = useState<Record<string, boolean>>({});
   const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
+
+  const handleToggleHideHoursInPdf = (taskId: string, hide: boolean) => {
+    setTaskIdsHideHoursInPdf((prev) => ({ ...prev, [taskId]: hide }));
+  };
 
   // Add CSS for better PDF formatting
   useEffect(() => {
@@ -387,6 +395,10 @@ export default function ProjectReportPage() {
         margin: [0, 0, 0, 10]
       });
 
+      // PDF totals: hours only from tasks that show hours; price from all tasks
+      const tasksVisibleHoursInPdf = tasks.filter((t) => !taskIdsHideHoursInPdf[t.id]);
+      const pdfTotalHours = tasksVisibleHoursInPdf.reduce((sum, t) => sum + (t.actual_hours || 0), 0);
+
       // Summary cards
       if (showSummary) {
         docDefinition.content.push({
@@ -407,7 +419,7 @@ export default function ProjectReportPage() {
             {
               stack: [
                 { text: 'Hodiny', style: 'cardTitle' },
-                { text: formatHours(totalHours), style: 'cardValue' },
+                { text: formatHours(pdfTotalHours), style: 'cardValue' },
                 { text: 'Odpracované hodiny', style: 'cardSubtitle' }
               ],
               border: [true, true, true, true],
@@ -446,10 +458,11 @@ export default function ProjectReportPage() {
         ];
 
         tasks.forEach((task) => {
+          const hideHours = !!taskIdsHideHoursInPdf[task.id];
           tasksTableBody.push([
             { text: task.title, style: 'tableCell' },
             { 
-              text: task.actual_hours ? formatHours(task.actual_hours) : '—', 
+              text: hideHours ? '—' : (task.actual_hours ? formatHours(task.actual_hours) : '—'), 
               style: 'tableCell', 
               alignment: 'right' 
             },
@@ -487,10 +500,10 @@ export default function ProjectReportPage() {
         });
       }
 
-      // Time entries
+      // Time entries (only for tasks that don't have "hide hours in PDF" toggled)
       if (showTimeEntries && timeEntries.some(({ timeEntries: entries }) => entries.length > 0)) {
         timeEntries
-          .filter(({ timeEntries: entries }) => entries.length > 0)
+          .filter(({ taskId, timeEntries: entries }) => entries.length > 0 && !taskIdsHideHoursInPdf[taskId])
           .forEach(({ taskTitle, timeEntries: entries }) => {
             docDefinition.content.push({
               text: taskTitle,
@@ -780,9 +793,10 @@ export default function ProjectReportPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50 print:bg-transparent">
-                    <TableHead className="w-[60%] print:w-[60%] print:text-xs print:font-semibold text-foreground">Úloha</TableHead>
-                    <TableHead className="w-[20%] text-right print:w-[20%] print:text-right print:text-xs print:font-semibold text-foreground">Hodiny</TableHead>
-                    <TableHead className="w-[20%] text-right print:w-[20%] print:text-right print:text-xs print:font-semibold text-foreground">Cena</TableHead>
+                    <TableHead className="w-[50%] print:w-[60%] print:text-xs print:font-semibold text-foreground">Úloha</TableHead>
+                    <TableHead className="w-[18%] text-right print:w-[20%] print:text-right print:text-xs print:font-semibold text-foreground">Hodiny</TableHead>
+                    <TableHead className="w-[18%] text-right print:w-[20%] print:text-right print:text-xs print:font-semibold text-foreground">Cena</TableHead>
+                    <TableHead className="w-[14%] print:hidden text-left text-xs font-semibold text-foreground">V PDF skryť hodiny</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -794,6 +808,22 @@ export default function ProjectReportPage() {
                       </TableCell>
                       <TableCell className="text-right text-sm font-semibold print:text-xs print:text-right print:font-semibold text-foreground">
                         {task.budget_cents ? formatCurrency(task.budget_cents / 100) : (task.calculated_price ? formatCurrency(task.calculated_price) : '—')}
+                      </TableCell>
+                      <TableCell className="print:hidden">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id={`hide-hours-${task.id}`}
+                            checked={!!taskIdsHideHoursInPdf[task.id]}
+                            onCheckedChange={(checked) => handleToggleHideHoursInPdf(task.id, checked)}
+                            aria-label={`Skryť hodiny úlohy "${task.title}" v PDF`}
+                          />
+                          <Label
+                            htmlFor={`hide-hours-${task.id}`}
+                            className="text-xs text-muted-foreground cursor-pointer"
+                          >
+                            {taskIdsHideHoursInPdf[task.id] ? "Skryté" : "Zobraziť"}
+                          </Label>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

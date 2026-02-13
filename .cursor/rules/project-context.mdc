@@ -1,0 +1,16 @@
+---
+description: Používaj projektovú dokumentáciu (must-have pre AI)
+alwaysApply: true
+---
+
+# Kontext projektu – vždy používaj tieto súbory
+
+Pri práci v tomto repozitári **vždy** ber do úvahy (a podľa potreby načítaj):
+
+1. **AGENTS.md** (root) – hlavný kontext pre AI: stack, kde čo je, konvencie, API pattern, čo nerobiť.
+2. **README.md** (root) – prehľad projektu, setup, skripty, env.
+3. **docs/ARCHITECTURE.md** – routes, API skupiny, dátový model, dátový tok, kde rozširovať.
+
+- Pri úpravách kódu dodržiavať konvencie z AGENTS.md (Tailwind, názvy, early returns, slovenský UI).
+- Pri nových featuroch najprv zistiť z AGENTS.md / ARCHITECTURE.md, kde pridať stránku, API alebo komponent.
+- Pri otázkach o štruktúre alebo “kde je X” hľadať v týchto súboroch pred odpoveďou.

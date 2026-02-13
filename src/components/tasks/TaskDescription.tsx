@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/react/menus";
+import { posToDOMRect } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
@@ -14,7 +14,6 @@ import {
   Code,
   List,
   ListOrdered,
-  Link as LinkIcon,
   Heading1,
   Heading2,
   Heading3,
@@ -78,6 +77,12 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
   const channelRef = useRef<any>(null);
   const isSavingRef = useRef(false);
   const lastSelectionRef = useRef<{ from: number; to: number } | null>(null);
+  const bubbleMenuRef = useRef<HTMLDivElement | null>(null);
+  const [bubbleMenuState, setBubbleMenuState] = useState({
+    isVisible: false,
+    left: 0,
+    top: 0,
+  });
 
   // Initialize Tiptap editor
   const editor = useEditor({
@@ -112,7 +117,6 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
     },
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
-      const text = editor.getText();
       
       // Save to localStorage
       if (!isInitialMount.current) {
@@ -138,7 +142,7 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
     if (isInitialMount.current && editor) {
       const draft = localStorage.getItem(draftKey);
       if (draft) {
-        editor.commands.setContent(draft);
+        editor.commands.setContent(draft, { emitUpdate: false });
         setStatus("idle");
       }
       isInitialMount.current = false;
@@ -147,18 +151,26 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
 
   // Update editor when initialDescription changes externally
   useEffect(() => {
-    if (editor && initialDescription !== lastSavedDescription.current) {
-      editor.commands.setContent(initialDescription || "");
-      lastSavedDescription.current = initialDescription;
+    if (!editor) return;
+
+    const nextDescription = initialDescription || "";
+    if (nextDescription === lastSavedDescription.current) {
+      return;
     }
+
+    // Don't replace content while user actively edits/has selection.
+    if (editor.isFocused) {
+      return;
+    }
+
+    editor.commands.setContent(nextDescription, { emitUpdate: false });
+    lastSavedDescription.current = nextDescription;
   }, [editor, initialDescription]);
 
 
   // Save function - use API endpoint instead of direct Supabase client to handle RLS properly
   const saveDescriptionFn = useCallback(
     async (html: string) => {
-      // Get editor from closure
-      const currentEditor = editor;
       if (html === lastSavedDescription.current) {
         setStatus("saved");
         return;
@@ -228,11 +240,22 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
           filter: `id=eq.${taskId}`,
         },
         (payload) => {
-          const newDescription = payload.new.description as string;
-          if (newDescription !== lastSavedDescription.current) {
-            lastSavedDescription.current = newDescription;
-            editor.commands.setContent(newDescription || "");
+          const incomingDescription = (payload.new.description as string) || "";
+          const currentContent = editor.getHTML();
+
+          // Typical local-save echo from realtime channel; don't reset selection/content.
+          if (incomingDescription === currentContent) {
+            lastSavedDescription.current = incomingDescription;
+            return;
           }
+
+          // Avoid replacing document while user is focused in editor.
+          if (editor.isFocused || isSavingRef.current) {
+            return;
+          }
+
+          lastSavedDescription.current = incomingDescription;
+          editor.commands.setContent(incomingDescription, { emitUpdate: false });
         }
       )
       .subscribe();
@@ -269,6 +292,84 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [editor, draftKey]);
+
+  const updateBubbleMenuState = useCallback(() => {
+    if (!editor) return;
+
+    const { from, to } = editor.state.selection;
+    const hasSelection = editor.isEditable && from !== to;
+
+    if (!hasSelection) {
+      lastSelectionRef.current = null;
+      setBubbleMenuState((prev) => (prev.isVisible ? { ...prev, isVisible: false } : prev));
+      return;
+    }
+
+    lastSelectionRef.current = { from, to };
+    const selectionRect = posToDOMRect(editor.view, from, to);
+
+    setBubbleMenuState({
+      isVisible: true,
+      left: selectionRect.left + selectionRect.width / 2,
+      top: selectionRect.top - 8,
+    });
+  }, [editor]);
+
+  const handleBubbleMenuMouseDown = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      // Keep text selection active while interacting with toolbar buttons.
+      event.preventDefault();
+
+      if (editor && lastSelectionRef.current) {
+        editor.commands.setTextSelection(lastSelectionRef.current);
+      }
+    },
+    [editor]
+  );
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleBlur = ({ event }: { event: FocusEvent }) => {
+      const relatedTarget = event?.relatedTarget;
+      if (relatedTarget instanceof Node && bubbleMenuRef.current?.contains(relatedTarget)) {
+        return;
+      }
+
+      setBubbleMenuState((prev) => (prev.isVisible ? { ...prev, isVisible: false } : prev));
+    };
+
+    const handleDocumentMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+
+      if (bubbleMenuRef.current?.contains(target)) return;
+      if (editor.view.dom.contains(target)) return;
+
+      lastSelectionRef.current = null;
+      setBubbleMenuState((prev) => (prev.isVisible ? { ...prev, isVisible: false } : prev));
+    };
+
+    editor.on("selectionUpdate", updateBubbleMenuState);
+    editor.on("transaction", updateBubbleMenuState);
+    editor.on("focus", updateBubbleMenuState);
+    editor.on("blur", handleBlur);
+    window.addEventListener("resize", updateBubbleMenuState);
+    document.addEventListener("scroll", updateBubbleMenuState, true);
+    document.addEventListener("mousedown", handleDocumentMouseDown, true);
+
+    updateBubbleMenuState();
+
+    return () => {
+      editor.off("selectionUpdate", updateBubbleMenuState);
+      editor.off("transaction", updateBubbleMenuState);
+      editor.off("focus", updateBubbleMenuState);
+      editor.off("blur", handleBlur);
+      window.removeEventListener("resize", updateBubbleMenuState);
+      document.removeEventListener("scroll", updateBubbleMenuState, true);
+      document.removeEventListener("mousedown", handleDocumentMouseDown, true);
+    };
+  }, [editor, updateBubbleMenuState]);
 
   if (!editor) {
     return <div className="h-32 bg-muted animate-pulse rounded"></div>;
@@ -377,17 +478,16 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
         }
       `}</style>
       {/* Bubble Menu - appears when text is selected */}
-      {editor && (
-        <BubbleMenu
-          editor={editor}
-          appendTo={() => document.body}
-          shouldShow={({ state }) => {
-            const { from, to } = state.selection;
-            return from !== to;
-          }}
-          options={{
-            placement: "top-start",
-            strategy: "fixed",
+      {bubbleMenuState.isVisible && (
+        <div
+          ref={bubbleMenuRef}
+          onMouseDown={handleBubbleMenuMouseDown}
+          onMouseDownCapture={handleBubbleMenuMouseDown}
+          style={{
+            position: "fixed",
+            left: `${bubbleMenuState.left}px`,
+            top: `${bubbleMenuState.top}px`,
+            transform: "translate(-50%, -100%)",
           }}
           className="flex items-center gap-1 p-1 bg-background border border-border rounded-lg shadow-lg z-[10000]"
         >
@@ -563,7 +663,7 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
           >
             <Code2 className="h-4 w-4" />
           </Button>
-        </BubbleMenu>
+        </div>
       )}
     </div>
   );

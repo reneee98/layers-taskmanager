@@ -77,6 +77,7 @@ export interface Task {
   description: string | null;
   status: 'todo' | 'in_progress' | 'review' | 'sent_to_client' | 'done' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
+  color?: string | null;
   due_date: string | null;
   created_at: string;
   updated_at: string;

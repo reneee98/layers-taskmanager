@@ -45,6 +45,7 @@ import { getTextPreview } from "@/lib/utils/html";
 import { getDeadlineStatus, getDeadlineDotClass } from "@/lib/deadline-utils";
 import { isProjectArchived } from "@/lib/project-utils";
 import { getTaskStatusLabel } from "@/lib/task-status";
+import { normalizeTaskColor, taskColorToRgba } from "@/lib/task-colors";
 import type { Project } from "@/types/database";
 import { usePermission } from "@/hooks/usePermissions";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
@@ -399,6 +400,13 @@ export function TaskRow({
                           task.status !== "done" && 
                           task.status !== "cancelled" && 
                           !isTaskInArchivedProject;
+  const taskColor = normalizeTaskColor(task.color);
+  const rowStyle = taskColor
+    ? {
+        boxShadow: `inset 3px 0 0 ${taskColor}`,
+        backgroundImage: `linear-gradient(90deg, ${taskColorToRgba(taskColor, 0.08)} 0, transparent 180px)`,
+      }
+    : undefined;
 
   return (
     <TableRow
@@ -408,6 +416,7 @@ export function TaskRow({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
       onClick={handleRowClick}
+      style={rowStyle}
       className={cn(
         "group cursor-pointer bg-card hover:bg-muted/50 border-b border-border",
         isDragging && "opacity-50",
@@ -433,7 +442,14 @@ export function TaskRow({
             </div>
           )}
           {/* Task title - second line (larger, bold) */}
-          <div className="flex items-center">
+          <div className="flex items-center gap-2 min-w-0">
+            {taskColor && (
+              <span
+                className="h-2.5 w-2.5 rounded-full shrink-0 ring-1 ring-black/5"
+                style={{ backgroundColor: taskColor }}
+                aria-label={`Farba úlohy ${taskColor}`}
+              />
+            )}
             <Link 
               href={task.project_id ? `/projects/${task.project_id}/tasks/${task.id}` : `/tasks/${task.id}`}
               className="font-bold text-sm leading-5 text-[#0f172b] hover:text-[#0f172b]/80 hover:underline inline-flex items-center gap-1 group/link tracking-[-0.1504px]"
@@ -697,4 +713,3 @@ export function TaskRow({
     </TableRow>
   );
 }
-

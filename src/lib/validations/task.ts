@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TASK_STATUSES } from "@/lib/task-status";
+import { TASK_COLOR_REGEX } from "@/lib/task-colors";
 
 export const taskStatusEnum = z.enum(TASK_STATUSES);
 
@@ -22,6 +23,17 @@ export const taskSchema = z.object({
   description: z.string().optional().or(z.literal("")).nullable(),
   status: taskStatusEnum.default("todo").optional(),
   priority: taskPriorityEnum.default("medium").optional(),
+  color: z.union([
+    z
+      .string()
+      .regex(TASK_COLOR_REGEX, "Farba musí byť vo formáte #RRGGBB"),
+    z.null(),
+    z.undefined(),
+    z.literal(""),
+  ])
+    .transform((val) => (val === "" || val === undefined || val === null ? null : val.toUpperCase()))
+    .optional()
+    .nullable(),
   assigned_to: z.string().uuid("Neplatné ID používateľa").optional().nullable(),
   assignee_id: z.string().uuid("Neplatné ID používateľa").optional().nullable(),
   estimated_hours: z.number().min(0, "Odhad musí byť kladný").optional().nullable(),
@@ -62,4 +74,3 @@ export type UpdateTaskData = z.infer<typeof updateTaskSchema>;
 export type TaskStatus = z.infer<typeof taskStatusEnum>;
 export type TaskPriority = z.infer<typeof taskPriorityEnum>;
 export type ReorderTasksData = z.infer<typeof reorderTasksSchema>;
-

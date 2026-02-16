@@ -101,6 +101,7 @@ import {
 import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
 import { cn, stripHtml, truncateTaskTitle } from "@/lib/utils";
 import { formatTextWithTaskStatusLabels, getTaskStatusLabel } from "@/lib/task-status";
+import { normalizeTaskColor, taskColorToRgba } from "@/lib/task-colors";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { toast } from "@/hooks/use-toast";
@@ -360,6 +361,7 @@ interface AssignedTask {
   description: string | null;
   status: string;
   priority: string;
+  color?: string | null;
   estimated_hours: number | null;
   actual_hours: number | null;
   due_date: string | null;
@@ -1674,11 +1676,19 @@ export default function DashboardPage() {
                       const StatusIcon = statusInfo.icon;
                       const PriorityIcon = priorityInfo.icon;
                       const deadlineStatus = getDeadlineStatus(task.due_date);
+                      const taskColor = normalizeTaskColor(task.color);
+                      const rowStyle = taskColor
+                        ? {
+                            boxShadow: `inset 3px 0 0 ${taskColor}`,
+                            backgroundImage: `linear-gradient(90deg, ${taskColorToRgba(taskColor, 0.08)} 0, transparent 160px)`,
+                          }
+                        : undefined;
                       
                       return (
                     <TableRow 
                       key={task.id} 
                       className="hover:bg-muted/50 cursor-pointer group border-b border-border transition-colors"
+                      style={rowStyle}
                       onClick={() => {
                         if (task.project?.id) {
                           window.location.href = `/projects/${task.project.id}/tasks/${task.id}`;
@@ -1700,9 +1710,18 @@ export default function DashboardPage() {
                                 </div>
                               )}
                               {/* Task title - second line (larger, bold) */}
-                              <h3 className="font-bold truncate text-sm leading-5 text-[#0f172b] tracking-[-0.1504px]" title={stripHtml(task.title)}>
-                                {truncateTaskTitle(task.title, 50)}
-                              </h3>
+                              <div className="flex items-center gap-2 min-w-0">
+                                {taskColor && (
+                                  <span
+                                    className="h-2.5 w-2.5 rounded-full shrink-0 ring-1 ring-black/5"
+                                    style={{ backgroundColor: taskColor }}
+                                    aria-label={`Farba úlohy ${taskColor}`}
+                                  />
+                                )}
+                                <h3 className="font-bold truncate text-sm leading-5 text-[#0f172b] tracking-[-0.1504px]" title={stripHtml(task.title)}>
+                                  {truncateTaskTitle(task.title, 50)}
+                                </h3>
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell className="py-4 pl-6 pr-2">
@@ -2318,6 +2337,24 @@ export default function DashboardPage() {
                       eventPropGetter={(event: any) => {
                         // Check if dark mode is active
                         const isDarkMode = document.documentElement.classList.contains('dark');
+                        const taskColor = normalizeTaskColor(event.resource?.color);
+
+                        if (taskColor) {
+                          return {
+                            style: {
+                              backgroundColor: isDarkMode
+                                ? taskColorToRgba(taskColor, 0.22)
+                                : taskColorToRgba(taskColor, 0.12),
+                              color: isDarkMode ? '#f1f5f9' : '#0f172a',
+                              border: `1px solid ${taskColorToRgba(taskColor, isDarkMode ? 0.45 : 0.3)}`,
+                              borderLeft: `3px solid ${taskColor}`,
+                              borderRadius: '6px',
+                              padding: '2px 8px',
+                              fontSize: '13px',
+                              fontWeight: '500',
+                            }
+                          };
+                        }
                         
                         // Generate consistent color based on task ID hash - soft tints with base color text
                         const colorSchemes = isDarkMode ? [

@@ -3,6 +3,7 @@
 import { format, startOfWeek, addDays, isToday, eachDayOfInterval } from "date-fns";
 import { sk } from "date-fns/locale";
 import { cn, stripHtml } from "@/lib/utils";
+import { normalizeTaskColor, taskColorToRgba } from "@/lib/task-colors";
 import type { AssignedTask } from "./types";
 
 interface WeekCalendarProps {
@@ -11,34 +12,43 @@ interface WeekCalendarProps {
   onTaskClick: (task: AssignedTask) => void;
 }
 
-const getTaskColor = (taskId: string, isDarkMode: boolean) => {
+const getTaskColor = (task: AssignedTask, isDarkMode: boolean) => {
+  const explicitColor = normalizeTaskColor(task.color);
+  if (explicitColor) {
+    return {
+      bg: isDarkMode ? taskColorToRgba(explicitColor, 0.22) : taskColorToRgba(explicitColor, 0.12),
+      text: isDarkMode ? "#f1f5f9" : "#0f172a",
+      border: explicitColor,
+    };
+  }
+
   const colorSchemes = isDarkMode ? [
-    { bg: 'rgba(30, 64, 175, 0.15)', text: '#93c5fd' },
-    { bg: 'rgba(6, 95, 70, 0.15)', text: '#6ee7b7' },
-    { bg: 'rgba(146, 64, 14, 0.15)', text: '#fbbf24' },
-    { bg: 'rgba(91, 33, 182, 0.15)', text: '#c4b5fd' },
-    { bg: 'rgba(159, 18, 57, 0.15)', text: '#f9a8d4' },
-    { bg: 'rgba(14, 116, 144, 0.15)', text: '#67e8f9' },
-    { bg: 'rgba(55, 48, 163, 0.15)', text: '#a5b4fc' },
-    { bg: 'rgba(19, 78, 74, 0.15)', text: '#5eead4' },
-    { bg: 'rgba(154, 52, 18, 0.15)', text: '#fb923c' },
-    { bg: 'rgba(107, 33, 168, 0.15)', text: '#c084fc' },
+    { bg: 'rgba(30, 64, 175, 0.15)', text: '#93c5fd', border: '#3B82F6' },
+    { bg: 'rgba(6, 95, 70, 0.15)', text: '#6ee7b7', border: '#10B981' },
+    { bg: 'rgba(146, 64, 14, 0.15)', text: '#fbbf24', border: '#F59E0B' },
+    { bg: 'rgba(91, 33, 182, 0.15)', text: '#c4b5fd', border: '#8B5CF6' },
+    { bg: 'rgba(159, 18, 57, 0.15)', text: '#f9a8d4', border: '#EC4899' },
+    { bg: 'rgba(14, 116, 144, 0.15)', text: '#67e8f9', border: '#06B6D4' },
+    { bg: 'rgba(55, 48, 163, 0.15)', text: '#a5b4fc', border: '#6366F1' },
+    { bg: 'rgba(19, 78, 74, 0.15)', text: '#5eead4', border: '#14B8A6' },
+    { bg: 'rgba(154, 52, 18, 0.15)', text: '#fb923c', border: '#F97316' },
+    { bg: 'rgba(107, 33, 168, 0.15)', text: '#c084fc', border: '#A855F7' },
   ] : [
-    { bg: '#dbeafe', text: '#1e40af' },
-    { bg: '#d1fae5', text: '#065f46' },
-    { bg: '#fef3c7', text: '#92400e' },
-    { bg: '#e9d5ff', text: '#5b21b6' },
-    { bg: '#fce7f3', text: '#9f1239' },
-    { bg: '#cffafe', text: '#0e7490' },
-    { bg: '#e0e7ff', text: '#3730a3' },
-    { bg: '#ccfbf1', text: '#134e4a' },
-    { bg: '#fed7aa', text: '#9a3412' },
-    { bg: '#f3e8ff', text: '#6b21a8' },
+    { bg: '#dbeafe', text: '#1e40af', border: '#3B82F6' },
+    { bg: '#d1fae5', text: '#065f46', border: '#10B981' },
+    { bg: '#fef3c7', text: '#92400e', border: '#F59E0B' },
+    { bg: '#e9d5ff', text: '#5b21b6', border: '#8B5CF6' },
+    { bg: '#fce7f3', text: '#9f1239', border: '#EC4899' },
+    { bg: '#cffafe', text: '#0e7490', border: '#06B6D4' },
+    { bg: '#e0e7ff', text: '#3730a3', border: '#6366F1' },
+    { bg: '#ccfbf1', text: '#134e4a', border: '#14B8A6' },
+    { bg: '#fed7aa', text: '#9a3412', border: '#F97316' },
+    { bg: '#f3e8ff', text: '#6b21a8', border: '#A855F7' },
   ];
   
   let hash = 0;
-  for (let i = 0; i < taskId.length; i++) {
-    hash = taskId.charCodeAt(i) + ((hash << 5) - hash);
+  for (let i = 0; i < task.id.length; i++) {
+    hash = task.id.charCodeAt(i) + ((hash << 5) - hash);
   }
   const colorIndex = Math.abs(hash) % colorSchemes.length;
   return colorSchemes[colorIndex];
@@ -127,7 +137,7 @@ export const WeekCalendar = ({ date, tasks, onTaskClick }: WeekCalendarProps) =>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {dayTasks.map((task) => {
-                      const colorScheme = getTaskColor(task.id, isDarkMode);
+                      const colorScheme = getTaskColor(task, isDarkMode);
                       return (
                         <div
                           key={task.id}
@@ -139,6 +149,7 @@ export const WeekCalendar = ({ date, tasks, onTaskClick }: WeekCalendarProps) =>
                           style={{
                             backgroundColor: colorScheme.bg,
                             color: colorScheme.text,
+                            borderLeft: `3px solid ${colorScheme.border}`,
                           }}
                           title={`${stripHtml(task.title)}${task.project ? ` - ${task.project.name}` : ''}`}
                         >
@@ -163,4 +174,3 @@ export const WeekCalendar = ({ date, tasks, onTaskClick }: WeekCalendarProps) =>
     </div>
   );
 };
-

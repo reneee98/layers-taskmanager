@@ -6,6 +6,7 @@ export interface AssignedTask {
   description: string | null;
   status: string;
   priority: string;
+  color?: string | null;
   estimated_hours: number | null;
   actual_hours: number | null;
   due_date: string | null;

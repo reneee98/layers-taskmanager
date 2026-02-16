@@ -28,6 +28,7 @@ import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { X } from "lucide-react";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
+import { TASK_COLOR_PALETTE, normalizeTaskColor } from "@/lib/task-colors";
 
 interface TaskDialogProps {
   projectId?: string | null; // Optional - if null, task will be created without project
@@ -49,6 +50,7 @@ export function TaskDialog({
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<Task["status"]>("todo");
   const [priority, setPriority] = useState<Task["priority"]>("medium");
+  const [taskColor, setTaskColor] = useState<string | null>(null);
   const [estimatedHours, setEstimatedHours] = useState("");
   const [budgetAmount, setBudgetAmount] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
@@ -86,6 +88,7 @@ export function TaskDialog({
       setDescription(task.description || "");
       setStatus(task.status);
       setPriority(task.priority);
+      setTaskColor(normalizeTaskColor(task.color) || null);
       setEstimatedHours(task.estimated_hours?.toString() || "");
       // Use task's budget_cents (individual budget for this task)
       setBudgetAmount(task.budget_cents ? (task.budget_cents / 100).toString() : "");
@@ -191,6 +194,7 @@ export function TaskDialog({
     setDescription("");
     setStatus("todo");
     setPriority("medium");
+    setTaskColor(null);
     setEstimatedHours("");
     setBudgetAmount("");
     setHourlyRate("");
@@ -231,6 +235,7 @@ export function TaskDialog({
         description: description.trim() || null,
         status,
         priority,
+        color: taskColor,
         due_date: dueDate || null,
         start_date: startDate || null,
       };
@@ -391,6 +396,51 @@ export function TaskDialog({
             </div>
 
             <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="taskColor">Farba úlohy</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => setTaskColor(null)}
+                >
+                  Bez farby
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {TASK_COLOR_PALETTE.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setTaskColor(color)}
+                    className={`h-7 w-7 rounded-full border transition-all ${
+                      taskColor === color
+                        ? "ring-2 ring-offset-2 ring-slate-400 border-transparent"
+                        : "border-border hover:scale-105"
+                    }`}
+                    style={{ backgroundColor: color }}
+                    aria-label={`Vybrať farbu ${color}`}
+                    title={color}
+                  />
+                ))}
+                <div className="relative h-7 w-9 overflow-hidden rounded border border-border">
+                  <input
+                    id="taskColor"
+                    type="color"
+                    value={taskColor || TASK_COLOR_PALETTE[0]}
+                    onChange={(e) => setTaskColor(normalizeTaskColor(e.target.value))}
+                    className="h-7 w-9 cursor-pointer border-0 bg-transparent p-0"
+                    aria-label="Vlastná farba úlohy"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Jemné farebné zvýraznenie v dashboarde a v zozname úloh.
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label>Dátum</Label>
               <DateRangePicker
                 startDate={startDate}
@@ -540,4 +590,3 @@ export function TaskDialog({
     </Dialog>
   );
 }
-

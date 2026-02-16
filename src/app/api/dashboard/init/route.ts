@@ -209,7 +209,7 @@ export async function GET(req: NextRequest) {
     let allActiveTasksQuery = supabase
       .from("tasks")
       .select(
-        `id, title, description, status, priority, color, estimated_hours, actual_hours, start_date, end_date, due_date, created_at, updated_at, project_id, assignee_id, assigned_to, budget_cents, workspace_id, project:projects(id, name, code, workspace_id, client:clients(name))`
+        `*, project:projects(id, name, code, workspace_id, client:clients(name))`
       )
       .eq("workspace_id", workspaceId)
       .neq("status", "done")

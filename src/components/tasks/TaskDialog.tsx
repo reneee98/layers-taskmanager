@@ -235,10 +235,15 @@ export function TaskDialog({
         description: description.trim() || null,
         status,
         priority,
-        color: taskColor,
         due_date: dueDate || null,
         start_date: startDate || null,
       };
+
+      if (taskColor) {
+        payload.color = taskColor;
+      } else if (task?.color) {
+        payload.color = null;
+      }
 
       // Include project_id only if a project is selected
       if (selectedProjectId) {

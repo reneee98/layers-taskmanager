@@ -19,6 +19,7 @@ import { toast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/usePermissions";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 import { formatCurrency } from "@/lib/format";
+import { TASK_COLOR_PALETTE, normalizeTaskColor } from "@/lib/task-colors";
 
 interface TaskSettingsPanelProps {
   taskId: string;
@@ -26,6 +27,7 @@ interface TaskSettingsPanelProps {
     id: string;
     title: string;
     project_id: string | null;
+    color?: string | null;
     budget_cents: number | null;
     sales_commission_enabled?: boolean;
     sales_commission_user_id?: string | null;
@@ -61,6 +63,7 @@ export function TaskSettingsPanel({
   // Form state
   const [title, setTitle] = useState(task?.title || "");
   const [projectId, setProjectId] = useState(task?.project_id || "none");
+  const [taskColor, setTaskColor] = useState<string | null>(normalizeTaskColor(task?.color) || null);
   const [budget, setBudget] = useState(task?.budget_cents ? (task.budget_cents / 100).toString() : "");
   const [salesCommissionEnabled, setSalesCommissionEnabled] = useState(task?.sales_commission_enabled || false);
   const [salesCommissionUserId, setSalesCommissionUserId] = useState(
@@ -95,6 +98,7 @@ export function TaskSettingsPanel({
     if (task) {
       setTitle(task.title || "");
       setProjectId(task.project_id || "none");
+      setTaskColor(normalizeTaskColor(task.color) || null);
       setBudget(task.budget_cents ? (task.budget_cents / 100).toString() : "");
       // Only update commission settings if they are explicitly provided (not undefined)
       // This prevents resetting to default values when task is refetched
@@ -173,7 +177,7 @@ export function TaskSettingsPanel({
     }
   };
 
-  const handleSaveGeneral = async () => {
+  const handleSaveGeneral = async (nextColor?: string | null) => {
     if (!canUpdateTasks) {
       toast({
         title: "Chyba",
@@ -185,13 +189,23 @@ export function TaskSettingsPanel({
 
     setIsLoading(true);
     try {
+      const selectedColor = nextColor !== undefined ? normalizeTaskColor(nextColor) : taskColor;
+      const originalColor = normalizeTaskColor(task?.color) || null;
+      const hasColorChanged = selectedColor !== originalColor;
+
+      const requestBody: any = {
+        title: title.trim(),
+        project_id: projectId && projectId !== "none" ? projectId : null,
+      };
+
+      if (hasColorChanged) {
+        requestBody.color = selectedColor;
+      }
+
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          project_id: projectId && projectId !== "none" ? projectId : null,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const result = await response.json();
@@ -392,7 +406,9 @@ export function TaskSettingsPanel({
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                onBlur={handleSaveGeneral}
+                onBlur={() => {
+                  void handleSaveGeneral();
+                }}
                 disabled={!canUpdateTasks || isLoading}
                 className="bg-[#f3f3f5] dark:bg-muted border-0 h-9 rounded-[8px] text-[14px] tracking-[-0.1504px]"
               />
@@ -426,6 +442,64 @@ export function TaskSettingsPanel({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex flex-col gap-2 md:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[14px] font-medium text-[#0a0a0a] dark:text-foreground tracking-[-0.1504px]">
+                  Farba úlohy
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => {
+                    setTaskColor(null);
+                    void handleSaveGeneral(null);
+                  }}
+                  disabled={!canUpdateTasks || isLoading}
+                >
+                  Bez farby
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {TASK_COLOR_PALETTE.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => {
+                      setTaskColor(color);
+                      void handleSaveGeneral(color);
+                    }}
+                    className={`h-7 w-7 rounded-full border transition-all ${
+                      taskColor === color
+                        ? "ring-2 ring-offset-2 ring-slate-400 border-transparent"
+                        : "border-border hover:scale-105"
+                    }`}
+                    style={{ backgroundColor: color }}
+                    aria-label={`Vybrať farbu ${color}`}
+                    title={color}
+                    disabled={!canUpdateTasks || isLoading}
+                  />
+                ))}
+                <div className="relative h-7 w-9 overflow-hidden rounded border border-border">
+                  <input
+                    type="color"
+                    value={taskColor || TASK_COLOR_PALETTE[0]}
+                    onChange={(e) => {
+                      const selected = normalizeTaskColor(e.target.value);
+                      setTaskColor(selected);
+                      void handleSaveGeneral(selected);
+                    }}
+                    disabled={!canUpdateTasks || isLoading}
+                    className="h-7 w-9 cursor-pointer border-0 bg-transparent p-0"
+                    aria-label="Vlastná farba úlohy"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-[#717182] dark:text-muted-foreground">
+                Farba sa zobrazí jemne v dashboarde a zoznamoch úloh.
+              </p>
             </div>
           </div>
         </CardContent>
@@ -678,4 +752,3 @@ export function TaskSettingsPanel({
     </div>
   );
 }
-

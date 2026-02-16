@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@/lib/supabase/service";
 import { isWorkspaceOwner } from "@/lib/auth/workspace-security";
 
 export const dynamic = "force-dynamic";
@@ -24,8 +25,15 @@ export async function GET(
     if (!isOwner) {
       return NextResponse.json({ success: false, error: "Only workspace owners can view roles" }, { status: 403 });
     }
-    
-    const { data: roles, error } = await supabase
+
+    const serviceClient = createServiceClient();
+    const dataClient = serviceClient ?? supabase;
+
+    if (!serviceClient) {
+      console.warn("Service role client unavailable in GET /workspaces/[workspaceId]/roles - using session client");
+    }
+
+    const { data: roles, error } = await dataClient
       .from('roles')
       .select('*')
       .order('name', { ascending: true });
@@ -44,7 +52,6 @@ export async function GET(
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
-
 
 
 

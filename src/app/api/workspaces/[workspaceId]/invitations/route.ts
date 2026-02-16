@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/admin";
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { workspaceId: string } }
@@ -48,7 +50,30 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Failed to fetch invitations" }, { status: 500 });
     }
     
-    return NextResponse.json({ success: true, data: invitations || [] });
+    const rawInvitations = invitations || [];
+    const customRoleIds = Array.from(
+      new Set(
+        rawInvitations
+          .map((invitation) => invitation.role)
+          .filter((roleValue): roleValue is string => UUID_REGEX.test(String(roleValue || "")))
+      )
+    );
+
+    const roleNamesById = new Map<string, string>();
+    if (customRoleIds.length > 0) {
+      const { data: roles } = await supabase.from("roles").select("id, name").in("id", customRoleIds);
+      (roles || []).forEach((role) => {
+        roleNamesById.set(role.id, role.name);
+      });
+    }
+
+    const enrichedInvitations = rawInvitations.map((invitation) => ({
+      ...invitation,
+      role_display: roleNamesById.get(String(invitation.role || "")) || invitation.role,
+      role_id: UUID_REGEX.test(String(invitation.role || "")) ? invitation.role : null,
+    }));
+
+    return NextResponse.json({ success: true, data: enrichedInvitations });
   } catch (error) {
     console.error("Error in workspace invitations GET:", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });

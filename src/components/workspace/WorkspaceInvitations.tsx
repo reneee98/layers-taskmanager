@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Check, X, Clock } from "lucide-react";
+import { Mail, Check, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -12,6 +12,7 @@ interface WorkspaceInvitation {
   id: string;
   email: string;
   role: string;
+  role_display?: string;
   status: string;
   expires_at: string;
   created_at: string;
@@ -20,6 +21,8 @@ interface WorkspaceInvitation {
     name: string;
     description: string;
   };
+  project_ids?: string[];
+  project_names?: string[];
 }
 
 export function WorkspaceInvitations() {
@@ -38,7 +41,7 @@ export function WorkspaceInvitations() {
       isFetchingRef.current = true;
       const response = await fetch("/api/workspace-invitations");
       const result = await response.json();
-      
+
       if (result.success) {
         setInvitations(result.data);
       } else {
@@ -66,9 +69,9 @@ export function WorkspaceInvitations() {
       const response = await fetch(`/api/workspace-invitations/${invitationId}/accept`, {
         method: "POST",
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         toast({
           title: "Úspech",
@@ -76,7 +79,7 @@ export function WorkspaceInvitations() {
         });
         // Refresh invitations
         await fetchInvitations();
-        // TODO: Refresh workspace switcher
+        window.location.reload();
       } else {
         throw new Error(result.error);
       }
@@ -87,6 +90,47 @@ export function WorkspaceInvitations() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleDeclineInvitation = async (invitationId: string) => {
+    try {
+      const response = await fetch(`/api/workspace-invitations/${invitationId}/decline`, {
+        method: "POST",
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Pozvánka odmietnutá",
+          description: "Pozvánka bola úspešne odmietnutá",
+        });
+        await fetchInvitations();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa odmietnuť pozvánku",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getInvitationScopeText = (invitation: WorkspaceInvitation) => {
+    const projectNames = invitation.project_names || [];
+    const projectIds = invitation.project_ids || [];
+
+    if (projectNames.length > 0) {
+      return `Prístup iba do projektov: ${projectNames.join(", ")}`;
+    }
+
+    if (projectIds.length > 0) {
+      return "Prístup iba do vybraných projektov";
+    }
+
+    return "Prístup do celého workspace";
   };
 
   // Listen for dashboard init data
@@ -100,8 +144,8 @@ export function WorkspaceInvitations() {
       }
     };
 
-    window.addEventListener('dashboard-init-data' as any, handleDashboardInit as EventListener);
-    
+    window.addEventListener("dashboard-init-data" as any, handleDashboardInit as EventListener);
+
     // Fallback: fetch if no data received after 2 seconds
     const timeout = setTimeout(() => {
       if (!hasFetchedRef.current && !isFetchingRef.current) {
@@ -110,7 +154,10 @@ export function WorkspaceInvitations() {
     }, 2000);
 
     return () => {
-      window.removeEventListener('dashboard-init-data' as any, handleDashboardInit as EventListener);
+      window.removeEventListener(
+        "dashboard-init-data" as any,
+        handleDashboardInit as EventListener
+      );
       clearTimeout(timeout);
     };
   }, []);
@@ -128,9 +175,7 @@ export function WorkspaceInvitations() {
           <Mail className="h-5 w-5" />
           Pozvánky do workspace
         </CardTitle>
-        <CardDescription>
-          Máte {invitations.length} nevybavených pozvánok
-        </CardDescription>
+        <CardDescription>Máte {invitations.length} nevybavených pozvánok</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {invitations.map((invitation) => (
@@ -143,8 +188,11 @@ export function WorkspaceInvitations() {
               <div className="text-sm text-muted-foreground">
                 {invitation.workspace.description}
               </div>
+              <div className="text-xs text-muted-foreground">
+                {getInvitationScopeText(invitation)}
+              </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline">{invitation.role}</Badge>
+                <Badge variant="outline">{invitation.role_display || invitation.role}</Badge>
                 <span className="text-xs text-muted-foreground">
                   Vyprší: {format(new Date(invitation.expires_at), "dd.MM.yyyy HH:mm")}
                 </span>
@@ -162,13 +210,7 @@ export function WorkspaceInvitations() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // TODO: Implement decline functionality
-                  toast({
-                    title: "Funkcia zatiaľ nie je implementovaná",
-                    description: "Odmietnutie pozvánky zatiaľ nie je možné",
-                  });
-                }}
+                onClick={() => handleDeclineInvitation(invitation.id)}
               >
                 <X className="h-4 w-4 mr-1" />
                 Odmietnuť

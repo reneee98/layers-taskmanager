@@ -5,6 +5,7 @@ import { validateSchema } from "@/lib/zod-helpers";
 import { getServerUser } from "@/lib/auth";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 import { generateProjectCode, generateUniqueProjectCode } from "@/lib/generate-project-code";
+import { getProjectAccessContext } from "@/lib/auth/project-access";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +14,7 @@ export async function GET(request: NextRequest) {
     // Check authentication
     const user = await getServerUser();
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Nie ste prihlásený" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Nie ste prihlásený" }, { status: 401 });
     }
 
     // Get user's workspace ID
@@ -26,17 +24,30 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createClient();
+    const projectAccess = await getProjectAccessContext(workspaceId, user.id);
+    const restrictedProjectIds = projectAccess.hasFullProjectAccess
+      ? null
+      : projectAccess.accessibleProjectIds;
+
+    if (restrictedProjectIds && restrictedProjectIds.length === 0) {
+      return NextResponse.json({ success: true, data: [] });
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const clientId = searchParams.get("client_id");
     const excludeStatus = searchParams.get("exclude_status");
 
     // Check if we're requesting archived projects (completed/cancelled)
-    const isArchivedRequest = status && (
-      status === 'completed' || 
-      status === 'cancelled' || 
-      (status.includes(',') && status.split(',').map(s => s.trim()).every(s => s === 'completed' || s === 'cancelled'))
-    );
+    const isArchivedRequest =
+      status &&
+      (status === "completed" ||
+        status === "cancelled" ||
+        (status.includes(",") &&
+          status
+            .split(",")
+            .map((s) => s.trim())
+            .every((s) => s === "completed" || s === "cancelled")));
 
     let finalProjects: any[] = [];
 
@@ -53,11 +64,14 @@ export async function GET(request: NextRequest) {
           .from("projects")
           .select("*, client:clients(*)")
           .eq("workspace_id", workspaceId)
-          .in("status", ["completed", "cancelled"])
+          .in("status", ["completed", "cancelled"]),
       ]);
 
       if (invoicedTasksResult.error) {
-        return NextResponse.json({ success: false, error: invoicedTasksResult.error.message }, { status: 400 });
+        return NextResponse.json(
+          { success: false, error: invoicedTasksResult.error.message },
+          { status: 400 }
+        );
       }
 
       // Get unique projects from invoiced tasks (filter out null project_id)
@@ -85,7 +99,6 @@ export async function GET(request: NextRequest) {
       if (clientId) {
         finalProjects = finalProjects.filter((p: any) => p.client_id === clientId);
       }
-
     } else {
       // For active projects, use normal filtering
       let query = supabase
@@ -96,8 +109,8 @@ export async function GET(request: NextRequest) {
 
       if (status) {
         // Handle multiple statuses separated by comma
-        if (status.includes(',')) {
-          const statuses = status.split(',');
+        if (status.includes(",")) {
+          const statuses = status.split(",");
           query = query.in("status", statuses);
         } else {
           query = query.eq("status", status);
@@ -121,11 +134,11 @@ export async function GET(request: NextRequest) {
       // Apply excludeStatus filtering if needed
       let filteredProjects = allProjects;
       if (excludeStatus) {
-        const statusesToExclude = excludeStatus.includes(',') 
-          ? excludeStatus.split(',') 
+        const statusesToExclude = excludeStatus.includes(",")
+          ? excludeStatus.split(",")
           : [excludeStatus];
-        filteredProjects = allProjects.filter(project => 
-          !statusesToExclude.includes(project.status)
+        filteredProjects = allProjects.filter(
+          (project) => !statusesToExclude.includes(project.status)
         );
       }
 
@@ -141,27 +154,27 @@ export async function GET(request: NextRequest) {
       }
 
       const invoicedProjectIds = new Set(
-        (invoicedTasks || []).map(task => task.project_id).filter(Boolean)
+        (invoicedTasks || []).map((task) => task.project_id).filter(Boolean)
       );
 
-      finalProjects = filteredProjects.filter(project => 
-        !invoicedProjectIds.has(project.id)
-      );
+      finalProjects = filteredProjects.filter((project) => !invoicedProjectIds.has(project.id));
+    }
+
+    if (restrictedProjectIds) {
+      const allowedProjectIdSet = new Set(restrictedProjectIds);
+      finalProjects = finalProjects.filter((project) => allowedProjectIdSet.has(project.id));
     }
 
     // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
-    const projectsWithHourlyRate = finalProjects.map(project => ({
+    const projectsWithHourlyRate = finalProjects.map((project) => ({
       ...project,
       hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
-      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null
+      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null,
     }));
 
     return NextResponse.json({ success: true, data: projectsWithHourlyRate });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -170,10 +183,7 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const user = await getServerUser();
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Nie ste prihlásený" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Nie ste prihlásený" }, { status: 401 });
     }
 
     // Get user's workspace ID
@@ -184,7 +194,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     console.log("Project creation request body:", body);
-    
+
     const validation = validateSchema(projectSchema, body);
 
     if (!validation.success) {
@@ -193,6 +203,13 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createClient();
+    const projectAccess = await getProjectAccessContext(workspaceId, user.id);
+    if (!projectAccess.hasFullProjectAccess) {
+      return NextResponse.json(
+        { success: false, error: "Nemáte oprávnenie vytvárať projekty v tomto workspace" },
+        { status: 403 }
+      );
+    }
 
     // Get all existing project codes in this workspace to ensure uniqueness
     const { data: existingProjects, error: fetchError } = await supabase
@@ -207,62 +224,64 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existingCodes = (existingProjects || []).map(p => p.code).filter(Boolean) as string[];
+    const existingCodes = (existingProjects || []).map((p) => p.code).filter(Boolean) as string[];
 
     // Check if this is a personal project (name is "Osobné úlohy" or code is explicitly null/empty)
-    const isPersonalProject = validation.data.name === "Osobné úlohy" || 
-                              (validation.data.code === null || validation.data.code === "" || 
-                               (typeof validation.data.code === 'string' && validation.data.code.trim() === ""));
-    
+    const isPersonalProject =
+      validation.data.name === "Osobné úlohy" ||
+      validation.data.code === null ||
+      validation.data.code === "" ||
+      (typeof validation.data.code === "string" && validation.data.code.trim() === "");
+
     let projectCode: string | null = null;
-    
+
     // For personal projects, code is null
     if (!isPersonalProject) {
       projectCode = validation.data.code ?? null;
-    
-    // If no code provided, generate one from name
-    if (!projectCode) {
-      if (validation.data.name) {
-        projectCode = generateUniqueProjectCode(validation.data.name, existingCodes);
-      } else {
+
+      // If no code provided, generate one from name
+      if (!projectCode) {
+        if (validation.data.name) {
+          projectCode = generateUniqueProjectCode(validation.data.name, existingCodes);
+        } else {
+          return NextResponse.json(
+            { success: false, error: "Kód projektu alebo názov je povinný" },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Ensure projectCode is a string
+      if (!projectCode) {
         return NextResponse.json(
-          { success: false, error: "Kód projektu alebo názov je povinný" },
+          { success: false, error: "Nepodarilo sa vygenerovať kód projektu" },
           { status: 400 }
         );
       }
-    }
-    
-    // Ensure projectCode is a string
-    if (!projectCode) {
-      return NextResponse.json(
-        { success: false, error: "Nepodarilo sa vygenerovať kód projektu" },
-        { status: 400 }
-      );
-    }
-    
-    if (existingCodes.includes(projectCode)) {
-      // Code already exists, generate a unique one automatically
-      if (validation.data.name) {
-        // Generate unique code based on project name
-        projectCode = generateUniqueProjectCode(validation.data.name, existingCodes);
-      } else {
-        // If no name, try to generate from existing code pattern
-        const baseCode = projectCode.split('-')[0];
-        const pattern = new RegExp(`^${baseCode}-(\\d+)$`);
-        let maxNumber = 0;
 
-        for (const code of existingCodes) {
-          const match = code.match(pattern);
-          if (match) {
-            const number = parseInt(match[1], 10);
-            if (number > maxNumber) {
-              maxNumber = number;
+      if (existingCodes.includes(projectCode)) {
+        // Code already exists, generate a unique one automatically
+        if (validation.data.name) {
+          // Generate unique code based on project name
+          projectCode = generateUniqueProjectCode(validation.data.name, existingCodes);
+        } else {
+          // If no name, try to generate from existing code pattern
+          const baseCode = projectCode.split("-")[0];
+          const pattern = new RegExp(`^${baseCode}-(\\d+)$`);
+          let maxNumber = 0;
+
+          for (const code of existingCodes) {
+            const match = code.match(pattern);
+            if (match) {
+              const number = parseInt(match[1], 10);
+              if (number > maxNumber) {
+                maxNumber = number;
+              }
             }
           }
-        }
 
-        const nextNumber = maxNumber + 1;
-        projectCode = `${baseCode}-${nextNumber.toString().padStart(3, "0")}`;
+          const nextNumber = maxNumber + 1;
+          projectCode = `${baseCode}-${nextNumber.toString().padStart(3, "0")}`;
         }
       }
     }
@@ -272,12 +291,14 @@ export async function POST(request: NextRequest) {
       ...validation.data,
       code: projectCode, // null for personal projects, generated code for others
       workspace_id: workspaceId,
-      client_id: isPersonalProject ? null : (validation.data.client_id || null),
+      client_id: isPersonalProject ? null : validation.data.client_id || null,
       status: isPersonalProject ? "active" : validation.data.status,
-      hourly_rate_cents: validation.data.hourly_rate ? Math.round(validation.data.hourly_rate * 100) : null,
-      budget_cents: validation.data.fixed_fee ? Math.round(validation.data.fixed_fee * 100) : null
+      hourly_rate_cents: validation.data.hourly_rate
+        ? Math.round(validation.data.hourly_rate * 100)
+        : null,
+      budget_cents: validation.data.fixed_fee ? Math.round(validation.data.fixed_fee * 100) : null,
     };
-    
+
     // Remove hourly_rate and fixed_fee from data since we're using hourly_rate_cents and budget_cents
     delete projectData.hourly_rate;
     delete projectData.fixed_fee;
@@ -296,15 +317,11 @@ export async function POST(request: NextRequest) {
     const projectWithHourlyRate = {
       ...project,
       hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
-      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null
+      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null,
     };
 
     return NextResponse.json({ success: true, data: projectWithHourlyRate }, { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
-

@@ -1,28 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/auth";
+import { canAccessProject } from "@/lib/auth/project-access";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { projectId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { projectId: string } }) {
   try {
+    const user = await getServerUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Nie ste prihlásený" }, { status: 401 });
+    }
+
     const supabase = createClient();
     const projectId = params.projectId;
 
     // Get project details
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("name, status")
+      .select("name, status, workspace_id")
       .eq("id", projectId)
       .single();
 
     if (projectError || !project) {
       console.error("Project not found:", projectError);
+      return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
+    }
+
+    const hasAccess = await canAccessProject(project.workspace_id, projectId, user.id);
+    if (!hasAccess) {
       return NextResponse.json(
-        { success: false, error: "Project not found" },
-        { status: 404 }
+        { success: false, error: "Nemáte prístup k tomuto projektu" },
+        { status: 403 }
       );
     }
 
@@ -33,19 +42,16 @@ export async function GET(
       .eq("project_id", projectId);
 
     if (tasksError) {
-      return NextResponse.json(
-        { success: false, error: "Failed to fetch tasks" },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: "Failed to fetch tasks" }, { status: 500 });
     }
 
     const totalTasks = tasks.length;
-    const completedTasks = tasks.filter(task => task.status === "done").length;
-    
+    const completedTasks = tasks.filter((task) => task.status === "done").length;
+
     // Filter only done tasks for profit/loss calculation
-    const doneTasks = tasks.filter(task => task.status === "done");
-    const doneTaskIds = doneTasks.map(task => task.id);
-    
+    const doneTasks = tasks.filter((task) => task.status === "done");
+    const doneTaskIds = doneTasks.map((task) => task.id);
+
     // Calculate total budget from done tasks
     // If budget_cents is set, use it. Otherwise, calculate from time entries (hours * hourly_rate)
     const totalBudget = await Promise.all(
@@ -58,21 +64,21 @@ export async function GET(
             .from("time_entries")
             .select("hours, hourly_rate")
             .eq("task_id", task.id);
-          
+
           if (!timeEntries || timeEntries.length === 0) {
             return 0;
           }
-          
+
           return timeEntries.reduce((sum, entry) => {
-            return sum + ((entry.hours || 0) * (entry.hourly_rate || 0));
+            return sum + (entry.hours || 0) * (entry.hourly_rate || 0);
           }, 0);
         }
       })
-    ).then(results => results.reduce((sum, val) => sum + val, 0));
+    ).then((results) => results.reduce((sum, val) => sum + val, 0));
 
     // Get time entries (labor cost) - only for done tasks
     let laborCost = 0;
-    
+
     if (doneTaskIds.length > 0) {
       try {
         const { data: timeEntries, error: timeError } = await supabase
@@ -106,9 +112,9 @@ export async function GET(
     }
 
     // Get total hours - get task IDs first (all tasks for hours display)
-    const taskIds = tasks.map(task => task.id);
+    const taskIds = tasks.map((task) => task.id);
     let totalHours = 0;
-    
+
     if (taskIds.length > 0) {
       try {
         const { data: hoursData, error: hoursError } = await supabase
@@ -144,9 +150,6 @@ export async function GET(
     return NextResponse.json({ success: true, data: summary });
   } catch (error) {
     console.error("Error in project summary API:", error);
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

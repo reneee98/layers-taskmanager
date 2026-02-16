@@ -84,7 +84,6 @@ import { useDashboardPermissions } from "@/hooks/useDashboardPermissions";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 
 // Direct imports for faster initial load (these are small components)
-import { WorkspaceInvitations } from "@/components/workspace/WorkspaceInvitations";
 import { TaskDialog } from "@/components/tasks/TaskDialog";
 
 // Only lazy load truly heavy components
@@ -1404,9 +1403,6 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
-
-      {/* Workspace Invitations */}
-      <WorkspaceInvitations />
 
       {/* Stats Overview - Figma Design */}
       {dashboardPermissions.show_stats_overview && (

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { updateProjectSchema } from "@/lib/validations/project";
 import { validateSchema } from "@/lib/zod-helpers";
+import { getServerUser } from "@/lib/auth";
+import { canAccessProject, getProjectAccessContext } from "@/lib/auth/project-access";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,11 @@ export async function GET(
   try {
     const { projectId } = await params;
     const supabase = createClient();
+    const user = await getServerUser();
+
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Nie ste prihlásený" }, { status: 401 });
+    }
 
     const { data: project, error } = await supabase
       .from("projects")
@@ -23,19 +30,24 @@ export async function GET(
       return NextResponse.json({ success: false, error: error.message }, { status: 404 });
     }
 
+    const hasAccess = await canAccessProject(project.workspace_id, projectId, user.id);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { success: false, error: "Nemáte prístup k tomuto projektu" },
+        { status: 403 }
+      );
+    }
+
     // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
     const projectWithHourlyRate = {
       ...project,
       hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
-      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null
+      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null,
     };
 
     return NextResponse.json({ success: true, data: projectWithHourlyRate });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -46,7 +58,12 @@ export async function PATCH(
   try {
     const { projectId } = await params;
     const body = await request.json();
-    
+    const user = await getServerUser();
+
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Nie ste prihlásený" }, { status: 401 });
+    }
+
     const validation = validateSchema(updateProjectSchema, body);
 
     if (!validation.success) {
@@ -58,12 +75,20 @@ export async function PATCH(
     // Check if this is a personal project
     const { data: existingProject, error: projectError } = await supabase
       .from("projects")
-      .select("name, code")
+      .select("name, code, workspace_id")
       .eq("id", projectId)
       .single();
 
     if (projectError || !existingProject) {
       return NextResponse.json({ success: false, error: "Projekt nebol nájdený" }, { status: 404 });
+    }
+
+    const projectAccess = await getProjectAccessContext(existingProject.workspace_id, user.id);
+    if (!projectAccess.hasFullProjectAccess) {
+      return NextResponse.json(
+        { success: false, error: "Nemáte oprávnenie upravovať tento projekt" },
+        { status: 403 }
+      );
     }
 
     // Only check by name, not by missing code
@@ -78,7 +103,11 @@ export async function PATCH(
     }
 
     // Prevent client assignment for personal project
-    if (isPersonalProject && validation.data.client_id !== undefined && validation.data.client_id !== null) {
+    if (
+      isPersonalProject &&
+      validation.data.client_id !== undefined &&
+      validation.data.client_id !== null
+    ) {
       return NextResponse.json(
         { success: false, error: "Osobný projekt nemôže mať klienta" },
         { status: 400 }
@@ -105,14 +134,18 @@ export async function PATCH(
     // Convert hourly_rate to hourly_rate_cents and fixed_fee to budget_cents if provided
     const updateData = { ...validation.data };
     if (updateData.hourly_rate !== undefined) {
-      updateData.hourly_rate_cents = updateData.hourly_rate ? Math.round(updateData.hourly_rate * 100) : null;
+      updateData.hourly_rate_cents = updateData.hourly_rate
+        ? Math.round(updateData.hourly_rate * 100)
+        : null;
       delete updateData.hourly_rate;
     }
     if (updateData.fixed_fee !== undefined) {
-      updateData.budget_cents = updateData.fixed_fee ? Math.round(updateData.fixed_fee * 100) : null;
+      updateData.budget_cents = updateData.fixed_fee
+        ? Math.round(updateData.fixed_fee * 100)
+        : null;
       delete updateData.fixed_fee;
     }
-    
+
     const { data: project, error } = await supabase
       .from("projects")
       .update(updateData)
@@ -129,15 +162,12 @@ export async function PATCH(
     const projectWithHourlyRate = {
       ...project,
       hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
-      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null
+      fixed_fee: project.budget_cents ? project.budget_cents / 100 : null,
     };
 
     return NextResponse.json({ success: true, data: projectWithHourlyRate });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -148,16 +178,29 @@ export async function DELETE(
   try {
     const { projectId } = await params;
     const supabase = createClient();
+    const user = await getServerUser();
+
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Nie ste prihlásený" }, { status: 401 });
+    }
 
     // Check if this is a personal project
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("name, code")
+      .select("name, code, workspace_id")
       .eq("id", projectId)
       .single();
 
     if (projectError || !project) {
       return NextResponse.json({ success: false, error: "Projekt nebol nájdený" }, { status: 404 });
+    }
+
+    const projectAccess = await getProjectAccessContext(project.workspace_id, user.id);
+    if (!projectAccess.hasFullProjectAccess) {
+      return NextResponse.json(
+        { success: false, error: "Nemáte oprávnenie odstrániť tento projekt" },
+        { status: 403 }
+      );
     }
 
     // Only check by name, not by missing code
@@ -179,10 +222,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, data: null });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
-

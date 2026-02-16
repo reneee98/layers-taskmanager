@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@/lib/supabase/service";
 import { getServerUser } from "@/lib/auth/admin";
 import { isWorkspaceOwner } from "@/lib/auth/workspace-security";
 
+function getSupabaseErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const errorCode = (error as { code?: unknown }).code;
+  return typeof errorCode === "string" ? errorCode : null;
+}
+
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { workspaceId: string; userId: string } }
 ) {
   try {
@@ -21,6 +31,12 @@ export async function DELETE(
     }
 
     const supabase = createClient();
+    const serviceClient = createServiceClient();
+    const dataClient = serviceClient ?? supabase;
+
+    if (!serviceClient) {
+      console.warn("Service role client unavailable in DELETE /users/[userId] - using session client");
+    }
 
     // Check if user is trying to remove themselves
     if (userId === user.id) {
@@ -28,27 +44,60 @@ export async function DELETE(
     }
 
     // Check if user is trying to remove another owner
-    const { data: targetUser, error: targetUserError } = await supabase
-      .from('workspaces')
-      .select('owner_id')
-      .eq('id', workspaceId)
-      .single();
+    const { data: workspaceData, error: workspaceError } = await dataClient
+      .from("workspaces")
+      .select("owner_id")
+      .eq("id", workspaceId)
+      .maybeSingle();
 
-    if (targetUserError) {
-      console.error("Error checking workspace owner:", targetUserError);
-      return NextResponse.json({ success: false, error: "Failed to check workspace owner" }, { status: 500 });
+    const workspace = workspaceData as { owner_id: string } | null;
+
+    if (workspaceError && getSupabaseErrorCode(workspaceError) !== "PGRST116") {
+      console.error("Error checking workspace owner:", workspaceError);
+      return NextResponse.json({ success: false, error: "Failed to verify workspace" }, { status: 500 });
     }
 
-    if (targetUser?.owner_id === userId) {
+    if (!workspace) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
+
+    if (workspace.owner_id === userId) {
       return NextResponse.json({ success: false, error: "Cannot remove workspace owner" }, { status: 400 });
     }
 
-    // Remove user from workspace
-    const { error: removeError } = await supabase
-      .from('workspace_members')
+    const { data: existingMembershipData, error: existingMembershipError } = await dataClient
+      .from("workspace_members")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const existingMembership = existingMembershipData as { id: string } | null;
+
+    if (existingMembershipError && getSupabaseErrorCode(existingMembershipError) !== "PGRST116") {
+      console.error("Error checking existing membership before delete:", existingMembershipError);
+      return NextResponse.json({ success: false, error: "Failed to verify workspace membership" }, { status: 500 });
+    }
+
+    if (!existingMembership) {
+      return NextResponse.json({ success: false, error: "User is not a member of this workspace" }, { status: 404 });
+    }
+
+    const { error: deleteCustomRoleError } = await dataClient
+      .from("user_roles")
       .delete()
-      .eq('workspace_id', workspaceId)
-      .eq('user_id', userId);
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", userId);
+
+    if (deleteCustomRoleError) {
+      console.error("Error deleting custom role assignment during user removal:", deleteCustomRoleError);
+    }
+
+    const { error: removeError } = await dataClient
+      .from("workspace_members")
+      .delete()
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", userId);
 
     if (removeError) {
       console.error("Error removing user from workspace:", removeError);

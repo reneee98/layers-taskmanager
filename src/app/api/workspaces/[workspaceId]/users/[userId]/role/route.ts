@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@/lib/supabase/service";
 import { isWorkspaceOwner } from "@/lib/auth/workspace-security";
+
+const SYSTEM_ROLES = new Set(["owner", "member"]);
+
+function getSupabaseErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const errorCode = (error as { code?: unknown }).code;
+  return typeof errorCode === "string" ? errorCode : null;
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -19,30 +31,10 @@ export async function PATCH(
     const body = await request.json();
     const { role } = body;
 
-    if (!role) {
+    if (!role || typeof role !== "string") {
       return NextResponse.json({ success: false, error: "Role is required" }, { status: 400 });
     }
 
-    // Check if it's a system role (owner, member) or custom role (UUID)
-    const isSystemRole = ['owner', 'member'].includes(role);
-    
-    // If it's a custom role, verify it exists
-    if (!isSystemRole) {
-      const { data: customRole, error: roleError } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('id', role)
-        .single();
-      
-      if (roleError || !customRole) {
-        return NextResponse.json({ 
-          success: false, 
-          error: "Invalid role. Role not found" 
-        }, { status: 400 });
-      }
-    }
-
-    // Check if current user is owner of the workspace
     const isOwner = await isWorkspaceOwner(workspaceId, user.id);
     if (!isOwner) {
       return NextResponse.json({ success: false, error: "Only workspace owners can change user roles" }, { status: 403 });
@@ -53,84 +45,120 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: "Cannot change your own role" }, { status: 400 });
     }
 
-    // Prevent changing the role of another owner
-    const { data: workspace } = await supabase
-      .from('workspaces')
-      .select('owner_id')
-      .eq('id', workspaceId)
-      .single();
+    const serviceClient = createServiceClient();
+    const dataClient = serviceClient ?? supabase;
 
-    if (workspace?.owner_id === userId) {
+    if (!serviceClient) {
+      console.warn("Service role client unavailable in PATCH /users/[userId]/role - using session client");
+    }
+
+    const { data: workspaceData, error: workspaceError } = await dataClient
+      .from("workspaces")
+      .select("owner_id")
+      .eq("id", workspaceId)
+      .maybeSingle();
+
+    const workspace = workspaceData as { owner_id: string } | null;
+
+    if (workspaceError && getSupabaseErrorCode(workspaceError) !== "PGRST116") {
+      console.error("Error checking workspace owner:", workspaceError);
+      return NextResponse.json({ success: false, error: "Failed to verify workspace" }, { status: 500 });
+    }
+
+    if (!workspace) {
+      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    }
+
+    if (workspace.owner_id === userId) {
       return NextResponse.json({ success: false, error: "Cannot change the role of another workspace owner" }, { status: 400 });
     }
 
+    const { data: targetMembershipData, error: targetMembershipError } = await dataClient
+      .from("workspace_members")
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const targetMembership = targetMembershipData as { id: string } | null;
+
+    if (targetMembershipError && getSupabaseErrorCode(targetMembershipError) !== "PGRST116") {
+      console.error("Error checking target user membership:", targetMembershipError);
+      return NextResponse.json({ success: false, error: "Failed to verify target user membership" }, { status: 500 });
+    }
+
+    if (!targetMembership) {
+      return NextResponse.json({ success: false, error: "User is not a member of this workspace" }, { status: 404 });
+    }
+
+    const isSystemRole = SYSTEM_ROLES.has(role);
+    if (!isSystemRole) {
+      const { data: customRole, error: customRoleError } = await dataClient
+        .from("roles")
+        .select("id")
+        .eq("id", role)
+        .maybeSingle();
+
+      if (customRoleError && getSupabaseErrorCode(customRoleError) !== "PGRST116") {
+        console.error("Error validating custom role:", customRoleError);
+        return NextResponse.json({ success: false, error: "Failed to validate role" }, { status: 500 });
+      }
+
+      if (!customRole) {
+        return NextResponse.json({
+          success: false,
+          error: "Invalid role. Role not found"
+        }, { status: 400 });
+      }
+    }
+
     if (isSystemRole) {
-      // System role: update workspace_members.role
-      const { error: updateError } = await supabase
-        .from('workspace_members')
+      const { error: updateError } = await dataClient
+        .from("workspace_members")
         .update({ role: role })
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', userId);
+        .eq("workspace_id", workspaceId)
+        .eq("user_id", userId);
 
       if (updateError) {
         console.error("Error updating user role:", updateError);
         return NextResponse.json({ success: false, error: "Failed to update user role" }, { status: 500 });
       }
 
-      // Remove custom role if exists
-      await supabase
-        .from('user_roles')
+      const { error: cleanupRoleError } = await dataClient
+        .from("user_roles")
         .delete()
-        .eq('user_id', userId)
-        .eq('workspace_id', workspaceId);
+        .eq("user_id", userId)
+        .eq("workspace_id", workspaceId);
+
+      if (cleanupRoleError) {
+        console.error("Error clearing custom role after system role update:", cleanupRoleError);
+      }
     } else {
-      // Custom role: update user_roles table
-      // First, set workspace_members.role to 'member' (default)
-      const { error: updateMemberError } = await supabase
-        .from('workspace_members')
-        .update({ role: 'member' })
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', userId);
+      const { error: updateMemberError } = await dataClient
+        .from("workspace_members")
+        .update({ role: "member" })
+        .eq("workspace_id", workspaceId)
+        .eq("user_id", userId);
 
       if (updateMemberError) {
         console.error("Error updating workspace member role:", updateMemberError);
         return NextResponse.json({ success: false, error: "Failed to update user role" }, { status: 500 });
       }
 
-      // Check if user_roles entry already exists
-      const { data: existingUserRole } = await supabase
-        .from('user_roles')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('workspace_id', workspaceId)
-        .single();
-
-      if (existingUserRole) {
-        // Update existing user_roles entry
-        const { error: updateUserRoleError } = await supabase
-          .from('user_roles')
-          .update({ role_id: role })
-          .eq('user_id', userId)
-          .eq('workspace_id', workspaceId);
-
-        if (updateUserRoleError) {
-          console.error("Error updating user role:", updateUserRoleError);
-          return NextResponse.json({ success: false, error: "Failed to update user role" }, { status: 500 });
-        }
-      } else {
-        // Create new user_roles entry
-        const { error: insertUserRoleError } = await supabase
-          .from('user_roles')
-          .insert({
+      const { error: upsertUserRoleError } = await dataClient
+        .from("user_roles")
+        .upsert(
+          {
             user_id: userId,
             role_id: role,
             workspace_id: workspaceId
-          });
+          },
+          { onConflict: "workspace_id,user_id" }
+        );
 
-        if (insertUserRoleError) {
-          console.error("Error creating user role:", insertUserRoleError);
-          return NextResponse.json({ success: false, error: "Failed to update user role" }, { status: 500 });
-        }
+      if (upsertUserRoleError) {
+        console.error("Error creating/updating user role:", upsertUserRoleError);
+        return NextResponse.json({ success: false, error: "Failed to update user role" }, { status: 500 });
       }
     }
 

@@ -606,7 +606,7 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
 
       {/* Bottom Section - Transactions Table */}
       <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
-        <CardHeader className="border-b border-[#f1f5f9] dark:border-border h-[65px] pb-0 pt-0 px-6 flex items-center justify-between">
+        <CardHeader className="border-b border-[#f1f5f9] dark:border-border h-[65px] px-6 py-0 flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-[14px] font-bold text-[#1d293d] dark:text-foreground tracking-[-0.1504px]">
             Transakcie & Náklady
           </CardTitle>
@@ -701,18 +701,18 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             {/* Table Header */}
-            <div className="bg-[rgba(248,250,252,0.5)] dark:bg-muted/30 border-b border-[#f1f5f9] dark:border-border px-6 py-3 flex items-center justify-between">
-              <div className="w-[214px]">
+            <div className="bg-[rgba(248,250,252,0.5)] dark:bg-muted/30 border-b border-[#f1f5f9] dark:border-border px-6 py-3 grid grid-cols-[minmax(260px,1fr)_minmax(220px,0.8fr)_minmax(140px,0.45fr)] gap-6 items-center min-w-[760px]">
+              <div>
                 <p className="text-[10px] font-bold text-[#90a1b9] dark:text-muted-foreground tracking-[0.6172px] uppercase">
                   Položka
                 </p>
               </div>
-              <div className="w-[214px] text-right">
+              <div className="text-right">
                 <p className="text-[10px] font-bold text-[#90a1b9] dark:text-muted-foreground tracking-[0.6172px] uppercase">
                   Množstvo / Sadzba
                 </p>
               </div>
-              <div className="w-[214px] text-right">
+              <div className="text-right">
                 <p className="text-[10px] font-bold text-[#90a1b9] dark:text-muted-foreground tracking-[0.6172px] uppercase">
                   Spolu
                 </p>
@@ -729,15 +729,15 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
                 {transactions.map((transaction) => (
                   <div
                     key={transaction.id}
-                    className={`border-b border-[#f1f5f9] dark:border-border px-6 py-4 flex items-center justify-between ${getTransactionRowClass(transaction.type)}`}
+                    className={`border-b border-[#f1f5f9] dark:border-border px-6 py-4 grid grid-cols-[minmax(260px,1fr)_minmax(220px,0.8fr)_minmax(140px,0.45fr)] gap-6 items-center min-w-[760px] ${getTransactionRowClass(transaction.type)}`}
                   >
-                    <div className="w-[214px] flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       {getTransactionIcon(transaction.type)}
-                      <div>
-                        <p className="text-[14px] font-medium text-[#0f172b] dark:text-foreground tracking-[-0.1504px]">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-medium text-[#0f172b] dark:text-foreground tracking-[-0.1504px] truncate">
                           {transaction.name}
                         </p>
-                        <p className="text-[11px] text-[#90a1b9] dark:text-muted-foreground tracking-[0.0645px]">
+                        <p className="text-[11px] text-[#90a1b9] dark:text-muted-foreground tracking-[0.0645px] truncate">
                           {transaction.description}
                         </p>
                         {transaction.date && (
@@ -747,12 +747,12 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
                         )}
                       </div>
                     </div>
-                    <div className="w-[214px] text-right">
+                    <div className="text-right">
                       <p className="text-[12px] text-[#45556c] dark:text-foreground">
                         {transaction.quantity}
                       </p>
                     </div>
-                    <div className="w-[214px] text-right flex items-center justify-end gap-2">
+                    <div className="text-right flex items-center justify-end gap-2">
                       <p className={`text-[14px] font-bold tracking-[-0.1504px] ${
                         transaction.type === 'extra' 
                           ? 'text-[#7008e7] dark:text-purple-500' 
@@ -775,14 +775,14 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
                 ))}
 
                 {/* Total Row */}
-                <div className="bg-[rgba(248,250,252,0.3)] dark:bg-muted/30 border-t border-[#e2e8f0] dark:border-border px-6 py-4 flex items-center justify-between">
-                  <div className="w-[214px]">
+                <div className="bg-[rgba(248,250,252,0.3)] dark:bg-muted/30 border-t border-[#e2e8f0] dark:border-border px-6 py-4 grid grid-cols-[minmax(260px,1fr)_minmax(220px,0.8fr)_minmax(140px,0.45fr)] gap-6 items-center min-w-[760px]">
+                  <div>
                     <p className="text-[14px] font-bold text-[#0f172b] dark:text-foreground tracking-[-0.1504px]">
                       SPOLU NÁKLADY
                     </p>
                   </div>
-                  <div className="w-[214px]" />
-                  <div className="w-[214px] text-right">
+                  <div />
+                  <div className="text-right">
                     <p className="text-[18px] font-bold text-[#0f172b] dark:text-foreground tracking-[-0.4395px]">
                       {formatCurrency(totalCosts)}
                     </p>

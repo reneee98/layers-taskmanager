@@ -579,6 +579,7 @@ export default function SharedTaskPage() {
                 width={120}
                 height={40}
                 className="object-contain"
+                style={{ width: "auto", height: "auto" }}
                 priority
               />
             </div>

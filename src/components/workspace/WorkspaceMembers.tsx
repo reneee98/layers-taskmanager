@@ -45,6 +45,7 @@ interface WorkspaceInvitation {
   id: string;
   email: string;
   role: string;
+  role_display?: string;
   status: string;
   expires_at: string;
   created_at: string;
@@ -325,7 +326,7 @@ export function WorkspaceMembers({ workspaceId }: WorkspaceMembersProps) {
                       <div>
                         <p className="font-medium">{invitation.email}</p>
                         <p className="text-sm text-muted-foreground">
-                          Rola: {invitation.role} • 
+                          Rola: {invitation.role_display || invitation.role} • 
                           Vyprší: {new Date(invitation.expires_at).toLocaleDateString("sk-SK")}
                         </p>
                       </div>

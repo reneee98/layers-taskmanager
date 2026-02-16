@@ -127,6 +127,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
   const workspace = workspaceContext?.workspace || null;
   const workspaceRole = useWorkspaceRole();
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [visibleProjectsCount, setVisibleProjectsCount] = useState<number | null>(null);
   
   // Check permissions for pages
   const { hasPermission: canViewDashboard } = usePermission('pages', 'view_dashboard');
@@ -150,6 +151,55 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
     'pages.view_admin_roles': canViewAdminRoles,
     'pages.view_admin_bugs': canViewAdminBugs,
   };
+
+  useEffect(() => {
+    if (!workspace?.id || !canViewProjects) {
+      setVisibleProjectsCount(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    let isActive = true;
+
+    const fetchVisibleProjectsCount = async () => {
+      try {
+        const response = await fetch(
+          `/api/projects?workspace_id=${workspace.id}&exclude_status=completed,cancelled`,
+          {
+            cache: "no-store",
+            signal: controller.signal,
+          }
+        );
+
+        const result = await response.json();
+        if (!isActive) {
+          return;
+        }
+
+        if (response.ok && result?.success && Array.isArray(result.data)) {
+          setVisibleProjectsCount(result.data.length);
+          return;
+        }
+
+        setVisibleProjectsCount(0);
+      } catch (error) {
+        if ((error as Error).name === "AbortError") {
+          return;
+        }
+        console.error("Error fetching visible projects count for sidebar:", error);
+        if (isActive) {
+          setVisibleProjectsCount(0);
+        }
+      }
+    };
+
+    void fetchVisibleProjectsCount();
+
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, [workspace?.id, canViewProjects]);
 
   const handleSignOut = async () => {
     try {
@@ -250,6 +300,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                 width={isCollapsed ? 40 : 18}
                 height={isCollapsed ? 40 : 18}
                 className="object-contain"
+                style={{ width: "auto", height: "auto" }}
                 priority
               />
             </div>
@@ -330,7 +381,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
                         <div className="flex items-center gap-2">
                           <div className="bg-[#f1f5f9] dark:bg-muted h-[19px] rounded-[8px] px-3 flex items-center justify-center">
                             <span className="font-bold text-[10px] leading-[15px] text-[#62748e] dark:text-muted-foreground tracking-[0.1172px]">
-                              12
+                              {visibleProjectsCount === null ? "..." : visibleProjectsCount}
                             </span>
                           </div>
                           <ChevronRight className="h-[14px] w-[14px] text-[#62748e] dark:text-muted-foreground" />
@@ -497,4 +548,3 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse
     </>
   );
 };
-

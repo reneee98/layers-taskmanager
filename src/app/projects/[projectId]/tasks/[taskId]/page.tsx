@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -214,6 +214,7 @@ export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const taskId = Array.isArray(params.taskId) ? params.taskId[0] : params.taskId;
+  const timerDescriptionDraftKey = `active-timer-description-${taskId || "unknown-task"}`;
   const { activeTimer, currentDuration, startTimer, stopTimer, refreshTimer } = useTimer();
   const { hasPermission: canReadTasks } = usePermission('tasks', 'read');
   const { hasPermission: canViewHourlyRates } = usePermission('financial', 'view_hourly_rates');
@@ -246,6 +247,22 @@ export default function TaskDetailPage() {
   const [isExtraMode, setIsExtraMode] = useState(false);
   const descriptionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { users: workspaceUsers, loading: workspaceUsersLoading } = useWorkspaceUsers();
+  const persistTimerDescription = useCallback(async (description: string, keepalive = false) => {
+    try {
+      const response = await fetch("/api/timers/update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+        keepalive,
+      });
+
+      if (!response.ok) {
+        console.error("Failed to persist timer description:", response.status);
+      }
+    } catch (error) {
+      console.error("Failed to update timer description:", error);
+    }
+  }, []);
 
   const getInitials = (name: string | undefined) => {
     if (!name) return "?";
@@ -420,23 +437,79 @@ export default function TaskDetailPage() {
 
   // Sync description and extra mode from active timer
   useEffect(() => {
-    if (activeTimer && task && String(activeTimer.task_id) === String(task.id)) {
-      // Timer is running for this task - sync description and extra mode
-      if (activeTimer.description && timerDescription !== activeTimer.description) {
-        setTimerDescription(activeTimer.description);
-      }
-      setIsExtraMode(activeTimer.is_extra === true);
+    if (!activeTimer || !task || String(activeTimer.task_id) !== String(task.id)) {
+      return;
     }
+
+    const serverDescription = activeTimer.description || "";
+    const draftDescription = localStorage.getItem(timerDescriptionDraftKey) || "";
+    const resolvedDescription = draftDescription || serverDescription;
+
+    if (resolvedDescription !== timerDescription) {
+      setTimerDescription(resolvedDescription);
+    }
+
+    // Push local draft to backend if it's newer than server value.
+    if (draftDescription && draftDescription !== serverDescription) {
+      void persistTimerDescription(draftDescription);
+    }
+
+    setIsExtraMode(activeTimer.is_extra === true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTimer?.id, task?.id]);
+  }, [activeTimer?.id, activeTimer?.description, task?.id, timerDescriptionDraftKey]);
+
+  useEffect(() => {
+    const isTimerRunningForTask = !!(
+      activeTimer &&
+      task &&
+      String(activeTimer.task_id) === String(task.id)
+    );
+
+    if (!isTimerRunningForTask && !activeTimer) {
+      localStorage.removeItem(timerDescriptionDraftKey);
+      setTimerDescription("");
+    }
+  }, [activeTimer?.id, task?.id, timerDescriptionDraftKey]);
 
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
+      if (descriptionUpdateTimeoutRef.current) {
+        clearTimeout(descriptionUpdateTimeoutRef.current);
+      }
     };
   }, []);
+
+  // Flush pending timer description before page refresh/navigation.
+  useEffect(() => {
+    const isTimerRunningForTask = !!(
+      activeTimer &&
+      task &&
+      String(activeTimer.task_id) === String(task.id)
+    );
+
+    if (!isTimerRunningForTask) {
+      return;
+    }
+
+    const handleBeforeUnload = () => {
+      if (descriptionUpdateTimeoutRef.current) {
+        clearTimeout(descriptionUpdateTimeoutRef.current);
+      }
+
+      const serverDescription = activeTimer.description || "";
+      if (timerDescription !== serverDescription) {
+        void persistTimerDescription(timerDescription, true);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [activeTimer?.id, activeTimer?.description, task?.id, timerDescription, persistTimerDescription]);
 
   // Listen for time entry added events to refresh task
   useEffect(() => {
@@ -952,6 +1025,7 @@ export default function TaskDetailPage() {
         
         await stopTimer();
         setTimerDescription("");
+        localStorage.removeItem(timerDescriptionDraftKey);
 
         if (trackedHours > 0) {
           toast({
@@ -1055,8 +1129,13 @@ export default function TaskDetailPage() {
   // Update timer's description while running (debounced)
   const handleDescriptionChange = (value: string) => {
     setTimerDescription(value);
+    localStorage.setItem(timerDescriptionDraftKey, value);
     
-    const isTimerRunning = activeTimer && task && String(activeTimer.task_id) === String(task.id);
+    const isTimerRunning = !!(
+      activeTimer &&
+      task &&
+      String(activeTimer.task_id) === String(task.id)
+    );
     
     if (isTimerRunning) {
       // Debounce the API call
@@ -1065,15 +1144,7 @@ export default function TaskDetailPage() {
       }
       
       descriptionUpdateTimeoutRef.current = setTimeout(async () => {
-        try {
-          await fetch("/api/timers/update", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ description: value }),
-          });
-        } catch (error) {
-          console.error("Failed to update timer description:", error);
-        }
+        await persistTimerDescription(value);
       }, 500);
     }
   };

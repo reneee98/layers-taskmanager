@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -31,37 +32,63 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { 
-  Users, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import {
+  Users,
+  Plus,
+  Edit,
+  Trash2,
   Mail,
   Crown,
   Shield,
   User,
   AlertTriangle,
-  Settings2
+  Settings2,
 } from "lucide-react";
 import { DashboardPermissionsDialog } from "@/components/dashboard/DashboardPermissionsDialog";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { getRoleLabel, getRoleDisplayName } from "@/lib/role-utils";
+import { toast } from "@/hooks/use-toast";
 
 interface WorkspaceUser {
   user_id: string;
-  role: string; // System role name or custom role name for display
-  role_id?: string; // Custom role ID if user has custom role
+  role: string;
+  role_id?: string;
   email: string;
   display_name: string;
   is_owner: boolean;
   joined_at: string;
 }
 
+interface RoleOption {
+  id: string;
+  name: string;
+  is_system_role: boolean;
+}
+
+interface FetchUsersResponse {
+  success: boolean;
+  data?: WorkspaceUser[];
+  error?: string;
+  can_manage_users?: boolean;
+  current_user_id?: string;
+}
+
+interface ProjectOption {
+  id: string;
+  name: string;
+  code: string | null;
+}
+
+const SYSTEM_ROLE_ORDER = ["owner", "member"];
+
+const SYSTEM_ROLE_OPTIONS: RoleOption[] = [
+  { id: "owner", name: "owner", is_system_role: true },
+  { id: "member", name: "member", is_system_role: true },
+];
+
 export default function WorkspaceUsersPage() {
   const params = useParams();
   const workspaceId = params.workspaceId as string;
-  const { workspace } = useWorkspace();
-  
+
   const [users, setUsers] = useState<WorkspaceUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,554 +96,283 @@ export default function WorkspaceUsersPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDashboardPermissionsOpen, setIsDashboardPermissionsOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<WorkspaceUser | null>(null);
-  const [availableRoles, setAvailableRoles] = useState<Array<{id: string, name: string, is_system_role: boolean}>>([]);
-  
-  // Add user form
+  const [availableRoles, setAvailableRoles] = useState<RoleOption[]>(SYSTEM_ROLE_OPTIONS);
+  const [canManageUsers, setCanManageUsers] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [availableProjects, setAvailableProjects] = useState<ProjectOption[]>([]);
+
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserRole, setNewUserRole] = useState("member");
-  
-  // Edit user form
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+  const [isInviting, setIsInviting] = useState(false);
+
   const [editUserRole, setEditUserRole] = useState("member");
 
   useEffect(() => {
     if (workspaceId) {
-      fetchUsers();
-      fetchAvailableRoles();
+      void fetchUsers();
+      void fetchProjects();
     }
   }, [workspaceId]);
 
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch(
+        `/api/projects?workspace_id=${workspaceId}&exclude_status=completed,cancelled`,
+        { cache: "no-store" }
+      );
+
+      const result = await response.json();
+      if (!response.ok || !result?.success || !Array.isArray(result.data)) {
+        setAvailableProjects([]);
+        return;
+      }
+
+      const projects = result.data.map((project: any) => ({
+        id: project.id,
+        name: project.name,
+        code: project.code || null,
+      }));
+
+      setAvailableProjects(projects);
+    } catch (fetchError) {
+      console.error("Error fetching projects for invitation:", fetchError);
+      setAvailableProjects([]);
+    }
+  };
+
   const fetchAvailableRoles = async () => {
     try {
-      const response = await fetch(`/api/workspaces/${workspaceId}/roles`);
+      const response = await fetch(`/api/workspaces/${workspaceId}/roles`, {
+        cache: "no-store",
+      });
+
       const result = await response.json();
-      if (result.success) {
-        setAvailableRoles(result.data);
+      if (!response.ok || !result?.success || !Array.isArray(result.data)) {
+        setAvailableRoles(SYSTEM_ROLE_OPTIONS);
+        return;
       }
-    } catch (error) {
-      console.error("Error fetching roles:", error);
+
+      const systemRoleMap = new Map<string, RoleOption>();
+      SYSTEM_ROLE_OPTIONS.forEach((role) => {
+        systemRoleMap.set(role.name, role);
+      });
+
+      const customRoleMap = new Map<string, RoleOption>();
+
+      result.data.forEach((role: any) => {
+        if (!role || typeof role.id !== "string" || typeof role.name !== "string") {
+          return;
+        }
+
+        const normalizedRole: RoleOption = {
+          id: role.id,
+          name: role.name,
+          is_system_role: Boolean(role.is_system_role),
+        };
+
+        if (normalizedRole.is_system_role && SYSTEM_ROLE_ORDER.includes(normalizedRole.name)) {
+          systemRoleMap.set(normalizedRole.name, normalizedRole);
+          return;
+        }
+
+        if (!normalizedRole.is_system_role) {
+          customRoleMap.set(normalizedRole.id, normalizedRole);
+        }
+      });
+
+      const orderedSystemRoles = SYSTEM_ROLE_ORDER.map((systemRoleName) =>
+        systemRoleMap.get(systemRoleName)
+      ).filter((role): role is RoleOption => Boolean(role));
+
+      const orderedCustomRoles = Array.from(customRoleMap.values()).sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+
+      setAvailableRoles([...orderedSystemRoles, ...orderedCustomRoles]);
+    } catch (fetchError) {
+      console.error("Error fetching available roles:", fetchError);
+      setAvailableRoles(SYSTEM_ROLE_OPTIONS);
     }
   };
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      console.log("=== FRONTEND FETCH USERS ===");
-      
-      const { createClient } = await import('@/lib/supabase/client');
-      const supabase = createClient();
-      
-      // Get current user
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      console.log("Frontend User:", user ? { id: user.id, email: user.email } : "null");
-      console.log("Frontend Auth error:", authError);
-      
-      if (authError || !user) {
-        setError("Not authenticated");
-        return;
-      }
+      setError(null);
 
-      // Check if current user has access to the workspace
-      const { data: workspace, error: workspaceError } = await supabase
-        .from('workspaces')
-        .select('owner_id, created_at')
-        .eq('id', workspaceId)
-        .single();
-
-      if (workspaceError || !workspace) {
-        setError("Workspace not found");
-        return;
-      }
-
-      // Check if user is owner or member
-      const isWorkspaceOwner = workspace.owner_id === user.id;
-      const { data: member } = await supabase
-        .from('workspace_members')
-        .select('id, role')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', user.id)
-        .single();
-
-      const isOwner = isWorkspaceOwner || member?.role === 'owner';
-
-      if (!isOwner && !member) {
-        setError("Access denied - not a member of this workspace");
-        return;
-      }
-
-      // Get workspace members
-      const { data: members, error: membersError } = await supabase
-        .from('workspace_members')
-        .select('user_id, role, created_at')
-        .eq('workspace_id', workspaceId);
-
-      if (membersError) {
-        console.error("Error fetching workspace members:", membersError);
-        setError("Failed to fetch workspace members");
-        return;
-      }
-
-      // Collect all user IDs (members + owner if not in members)
-      const memberUserIds = members.map(m => m.user_id);
-      const allUserIdsSet = new Set([...memberUserIds, workspace.owner_id]);
-      const allUserIds = Array.from(allUserIdsSet);
-
-      // Get profiles for all users (members + owner)
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, display_name, email')
-        .in('id', allUserIds);
-
-      if (profilesError) {
-        console.error("Error fetching profiles:", profilesError);
-        setError("Failed to fetch user profiles");
-        return;
-      }
-
-      // Get custom roles for all users
-      const { data: userRoles, error: userRolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role_id, roles!inner(name)')
-        .eq('workspace_id', workspaceId);
-
-      if (userRolesError) {
-        console.error("Error fetching user roles:", userRolesError);
-      }
-
-      // Create maps for custom roles
-      const customRoleNameMap = new Map<string, string>(); // user_id -> role name
-      const customRoleIdMap = new Map<string, string>(); // user_id -> role_id
-      if (userRoles) {
-        userRoles.forEach(ur => {
-          const role = ur.roles as any;
-          customRoleNameMap.set(ur.user_id, role.name);
-          customRoleIdMap.set(ur.user_id, ur.role_id);
-        });
-      }
-
-      // Create a map of user_id -> profile for quick lookup
-      const profileMap = new Map(profiles.map(p => [p.id, p]));
-      
-      // Create a map of user_id -> member data for quick lookup
-      const memberMap = new Map(members.map(m => [m.user_id, m]));
-
-      // Format all users (owner + members)
-      const formattedMembers: WorkspaceUser[] = [];
-      
-      // Add owner first (if exists and has profile)
-      if (workspace.owner_id) {
-        const ownerProfile = profileMap.get(workspace.owner_id);
-        if (ownerProfile) {
-          const ownerMember = memberMap.get(workspace.owner_id);
-          const customRoleName = customRoleNameMap.get(workspace.owner_id);
-          const customRoleId = customRoleIdMap.get(workspace.owner_id);
-          formattedMembers.push({
-            user_id: workspace.owner_id,
-            role: customRoleName || ownerMember?.role || 'owner',
-            role_id: customRoleId,
-            display_name: ownerProfile.display_name || ownerProfile.email || 'Unknown User',
-            email: ownerProfile.email,
-            is_owner: true,
-            joined_at: ownerMember?.created_at || workspace.created_at || new Date().toISOString(),
-          });
-        }
-      }
-
-      // Add other members (excluding owner if already added)
-      members.forEach(m => {
-        if (m.user_id !== workspace.owner_id) {
-          const profile = profileMap.get(m.user_id);
-          if (profile) {
-            const customRoleName = customRoleNameMap.get(m.user_id);
-            const customRoleId = customRoleIdMap.get(m.user_id);
-            formattedMembers.push({
-              user_id: m.user_id,
-              role: customRoleName || m.role,
-              role_id: customRoleId,
-              display_name: profile.display_name || profile.email || 'Unknown User',
-              email: profile.email,
-              is_owner: false,
-              joined_at: m.created_at,
-            });
-          }
-        }
+      const response = await fetch(`/api/workspaces/${workspaceId}/users`, {
+        cache: "no-store",
       });
 
-      console.log("Frontend Members:", formattedMembers);
-      setUsers(formattedMembers);
-    } catch (err) {
+      const result = (await response.json()) as FetchUsersResponse;
+
+      if (!response.ok || !result.success) {
+        setUsers([]);
+        setCanManageUsers(false);
+        setCurrentUserId(null);
+        setAvailableRoles(SYSTEM_ROLE_OPTIONS);
+        setError(result.error || "Failed to fetch users");
+        return;
+      }
+
+      setUsers(result.data || []);
+      setCanManageUsers(Boolean(result.can_manage_users));
+      setCurrentUserId(result.current_user_id || null);
+
+      if (result.can_manage_users) {
+        await fetchAvailableRoles();
+      } else {
+        setAvailableRoles(SYSTEM_ROLE_OPTIONS);
+      }
+    } catch (fetchError) {
+      setUsers([]);
+      setCanManageUsers(false);
+      setCurrentUserId(null);
+      setAvailableRoles(SYSTEM_ROLE_OPTIONS);
       setError("Failed to fetch users");
-      console.error("Error fetching users:", err);
+      console.error("Error fetching users:", fetchError);
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddUser = async () => {
-    if (!newUserEmail.trim()) return;
+    if (!newUserEmail.trim()) {
+      setError("Email je povinný");
+      toast({
+        title: "Chyba",
+        description: "Email je povinný",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-      console.log("=== FRONTEND ADD USER ===");
-      
-      const { createClient } = await import('@/lib/supabase/client');
-      const supabase = createClient();
-      
-      // Get current user
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
-        setError("Not authenticated");
-        return;
-      }
+      setIsInviting(true);
+      setError(null);
 
-      // Check if current user is owner of the workspace
-      const { data: workspace, error: workspaceError } = await supabase
-        .from('workspaces')
-        .select('owner_id')
-        .eq('id', workspaceId)
-        .single();
+      const response = await fetch(`/api/workspaces/${workspaceId}/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: newUserEmail.trim(),
+          role: newUserRole,
+          project_ids: selectedProjectIds,
+        }),
+      });
 
-      if (workspaceError || !workspace) {
-        setError("Workspace not found");
-        return;
-      }
+      const result = await response.json();
 
-      // Check if current user is owner (either workspace owner or has owner role)
-      const { data: currentMember } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', user.id)
-        .single();
-
-      const isCurrentUserOwner = workspace.owner_id === user.id || currentMember?.role === 'owner';
-
-      if (!isCurrentUserOwner) {
-        setError("Only workspace owners can add users");
-        return;
-      }
-
-      // Find user by email
-      const { data: targetUser, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', newUserEmail.trim())
-        .single();
-
-      if (userError || !targetUser) {
-        setError("User with this email not found");
-        return;
-      }
-
-      // Check if user is already a member
-      const { data: existingMember } = await supabase
-        .from('workspace_members')
-        .select('id')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', targetUser.id)
-        .single();
-
-      if (existingMember) {
-        setError("User is already a member of this workspace");
-        return;
-      }
-
-      // Check if it's a system role (owner, member) or custom role (UUID)
-      const isSystemRole = ['owner', 'member'].includes(newUserRole);
-      
-      // Add user to workspace_members
-      const memberRole = isSystemRole ? newUserRole : 'member';
-      const { error: insertError } = await supabase
-        .from('workspace_members')
-        .insert({
-          workspace_id: workspaceId,
-          user_id: targetUser.id,
-          role: memberRole
+      if (!response.ok || !result?.success) {
+        setError(result?.error || "Failed to add user");
+        toast({
+          title: "Chyba",
+          description: result?.error || "Nepodarilo sa odoslať pozvánku",
+          variant: "destructive",
         });
-
-      if (insertError) {
-        console.error("Error adding user to workspace:", insertError);
-        setError("Failed to add user to workspace");
         return;
       }
 
-      // If custom role, also add to user_roles table
-      if (!isSystemRole) {
-        const { error: insertUserRoleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: targetUser.id,
-            role_id: newUserRole,
-            workspace_id: workspaceId
-          });
-
-        if (insertUserRoleError) {
-          console.error("Error adding user role:", insertUserRoleError);
-          // Don't fail completely, just log the error
-        }
-      }
+      toast({
+        title: "Pozvánka odoslaná",
+        description: result?.message || "Používateľ dostane pozvánku v zvončeku.",
+      });
 
       setNewUserEmail("");
       setNewUserRole("member");
+      setSelectedProjectIds([]);
       setIsAddDialogOpen(false);
-      fetchUsers();
-    } catch (err) {
-      setError("Failed to add user");
-      console.error("Error adding user:", err);
+      await fetchUsers();
+    } catch (addError) {
+      setError("Nepodarilo sa odoslať pozvánku");
+      console.error("Error adding user:", addError);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa odoslať pozvánku",
+        variant: "destructive",
+      });
+    } finally {
+      setIsInviting(false);
     }
   };
 
   const handleEditUser = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser) {
+      return;
+    }
 
     try {
-      console.log("=== FRONTEND EDIT USER ===");
-      
-      const { createClient } = await import('@/lib/supabase/client');
-      const supabase = createClient();
-      
-      // Get current user
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
-        setError("Not authenticated");
-        return;
-      }
+      setError(null);
 
-      // Check if current user is owner of the workspace
-      const { data: workspace, error: workspaceError } = await supabase
-        .from('workspaces')
-        .select('owner_id')
-        .eq('id', workspaceId)
-        .single();
-
-      if (workspaceError || !workspace) {
-        setError("Workspace not found");
-        return;
-      }
-
-      // Check if current user is owner (either workspace owner or has owner role)
-      const { data: currentMember } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', user.id)
-        .single();
-
-      const isCurrentUserOwner = workspace.owner_id === user.id || currentMember?.role === 'owner';
-
-      if (!isCurrentUserOwner) {
-        setError("Only workspace owners can change user roles");
-        return;
-      }
-
-      // Prevent owner from changing their own role
-      if (selectedUser.user_id === user.id) {
-        setError("Cannot change your own role");
-        return;
-      }
-
-      // Prevent changing the role of another owner
-      if (workspace.owner_id === selectedUser.user_id) {
-        setError("Cannot change the role of another workspace owner");
-        return;
-      }
-
-      // Check if it's a system role (owner, member) or custom role (UUID)
-      const isSystemRole = ['owner', 'member'].includes(editUserRole);
-      
-      if (isSystemRole) {
-        // System role: update workspace_members.role
-        const { error: updateError } = await supabase
-          .from('workspace_members')
-          .update({ role: editUserRole })
-          .eq('workspace_id', workspaceId)
-          .eq('user_id', selectedUser.user_id);
-
-        if (updateError) {
-          console.error("Error updating user role:", updateError);
-          setError("Failed to update user role");
-          return;
+      const response = await fetch(
+        `/api/workspaces/${workspaceId}/users/${selectedUser.user_id}/role`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ role: editUserRole }),
         }
+      );
 
-        // Remove custom role if exists
-        const { data: existingUserRole } = await supabase
-          .from('user_roles')
-          .select('id')
-          .eq('user_id', selectedUser.user_id)
-          .eq('workspace_id', workspaceId)
-          .single();
+      const result = await response.json();
 
-        if (existingUserRole) {
-          await supabase
-            .from('user_roles')
-            .delete()
-            .eq('user_id', selectedUser.user_id)
-            .eq('workspace_id', workspaceId);
-        }
-      } else {
-        // Custom role: update user_roles table
-        // First, set workspace_members.role to 'member' (default)
-        const { error: updateMemberError } = await supabase
-          .from('workspace_members')
-          .update({ role: 'member' })
-          .eq('workspace_id', workspaceId)
-          .eq('user_id', selectedUser.user_id);
-
-        if (updateMemberError) {
-          console.error("Error updating workspace member role:", updateMemberError);
-          setError("Failed to update user role");
-          return;
-        }
-
-        // Check if user_roles entry already exists
-        const { data: existingUserRole } = await supabase
-          .from('user_roles')
-          .select('id')
-          .eq('user_id', selectedUser.user_id)
-          .eq('workspace_id', workspaceId)
-          .single();
-
-        if (existingUserRole) {
-          // Update existing user_roles entry
-          const { error: updateUserRoleError } = await supabase
-            .from('user_roles')
-            .update({ role_id: editUserRole })
-            .eq('user_id', selectedUser.user_id)
-            .eq('workspace_id', workspaceId);
-
-          if (updateUserRoleError) {
-            console.error("Error updating user role:", updateUserRoleError);
-            setError("Failed to update user role");
-            return;
-          }
-        } else {
-          // Create new user_roles entry
-          const { error: insertUserRoleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: selectedUser.user_id,
-              role_id: editUserRole,
-              workspace_id: workspaceId
-            });
-
-          if (insertUserRoleError) {
-            console.error("Error creating user role:", insertUserRoleError);
-            setError("Failed to update user role");
-            return;
-          }
-        }
+      if (!response.ok || !result?.success) {
+        setError(result?.error || "Failed to update user role");
+        return;
       }
 
       setSelectedUser(null);
       setEditUserRole("member");
       setIsEditDialogOpen(false);
-      fetchUsers();
-    } catch (err) {
+      await fetchUsers();
+    } catch (editError) {
       setError("Failed to update user role");
-      console.error("Error updating user role:", err);
+      console.error("Error updating user role:", editError);
     }
   };
 
-  const handleRemoveUser = async (user: WorkspaceUser) => {
-    if (!confirm(`Naozaj chcete odstrániť používateľa ${user.display_name}?`)) return;
+  const handleRemoveUser = async (targetUser: WorkspaceUser) => {
+    if (!confirm(`Naozaj chcete odstrániť používateľa ${targetUser.display_name}?`)) {
+      return;
+    }
 
     try {
-      console.log("=== FRONTEND REMOVE USER ===");
-      
-      const { createClient } = await import('@/lib/supabase/client');
-      const supabase = createClient();
-      
-      // Get current user
-      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !currentUser) {
-        setError("Not authenticated");
+      setError(null);
+
+      const response = await fetch(`/api/workspaces/${workspaceId}/users/${targetUser.user_id}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result?.success) {
+        setError(result?.error || "Failed to remove user");
         return;
       }
 
-      // Check if current user is owner of the workspace
-      const { data: workspace, error: workspaceError } = await supabase
-        .from('workspaces')
-        .select('owner_id')
-        .eq('id', workspaceId)
-        .single();
-
-      if (workspaceError || !workspace) {
-        setError("Workspace not found");
-        return;
-      }
-
-      // Check if current user is owner (either workspace owner or has owner role)
-      const { data: currentMember } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', currentUser.id)
-        .single();
-
-      const isCurrentUserOwner = workspace.owner_id === currentUser.id || currentMember?.role === 'owner';
-
-      if (!isCurrentUserOwner) {
-        setError("Only workspace owners can remove users");
-        return;
-      }
-
-      // Prevent owner from removing themselves
-      if (user.user_id === currentUser.id) {
-        setError("Cannot remove yourself");
-        return;
-      }
-
-      // Prevent removing another owner
-      if (workspace.owner_id === user.user_id) {
-        setError("Nie je možné odstrániť vlastníka workspace");
-        return;
-      }
-
-      // Check if user is actually a member (not just owner without membership record)
-      const { data: memberCheck } = await supabase
-        .from('workspace_members')
-        .select('id')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', user.user_id)
-        .single();
-
-      if (!memberCheck) {
-        setError("Používateľ nie je členom workspace, takže sa nedá odstrániť");
-        return;
-      }
-
-      // Remove user from workspace
-      const { error: deleteError } = await supabase
-        .from('workspace_members')
-        .delete()
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', user.user_id);
-
-      if (deleteError) {
-        console.error("Error removing user from workspace:", deleteError);
-        setError(`Chyba pri odstraňovaní: ${deleteError.message || "Nepodarilo sa odstrániť používateľa z workspace"}`);
-        return;
-      }
-
-      fetchUsers();
-    } catch (err) {
+      await fetchUsers();
+    } catch (removeError) {
       setError("Failed to remove user");
-      console.error("Error removing user:", err);
+      console.error("Error removing user:", removeError);
     }
   };
 
   const openEditDialog = (user: WorkspaceUser) => {
     setSelectedUser(user);
-    
-    // If user has custom role, use role_id, otherwise use system role name
-    if (user.role_id) {
-      setEditUserRole(user.role_id);
-    } else {
-      setEditUserRole(user.role);
-    }
-    
+    setEditUserRole(user.role_id || user.role);
     setIsEditDialogOpen(true);
+  };
+
+  const toggleSelectedProject = (projectId: string) => {
+    setSelectedProjectIds((previous) =>
+      previous.includes(projectId)
+        ? previous.filter((id) => id !== projectId)
+        : [...previous, projectId]
+    );
   };
 
   const getRoleIcon = (role: string, isOwner: boolean) => {
@@ -631,7 +387,6 @@ export default function WorkspaceUsersPage() {
     return "outline";
   };
 
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -645,72 +400,123 @@ export default function WorkspaceUsersPage() {
 
   return (
     <div className="w-full space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Správa používateľov</h1>
           <p className="text-muted-foreground mt-1">
             Spravujte používateľov a ich roly v workspace
           </p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gray-900 text-white hover:bg-gray-800">
-              <Plus className="h-4 w-4 mr-2" />
-              Pridať používateľa
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Pridať používateľa</DialogTitle>
-              <DialogDescription>
-                Pridajte nového používateľa do workspace-u
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  placeholder="používateľ@example.com"
-                />
-              </div>
-              <div>
-                <Label htmlFor="role">Rola</Label>
-                <Select value={newUserRole} onValueChange={setNewUserRole}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableRoles
-                      .filter(role => role.is_system_role && ['owner', 'member'].includes(role.name))
-                      .map(role => (
-                        <SelectItem key={role.id} value={role.name}>
-                          {getRoleDisplayName(role.name)}
-                        </SelectItem>
-                      ))}
-                    {availableRoles
-                      .filter(role => !role.is_system_role)
-                      .map(role => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                Zrušiť
+
+        {canManageUsers && (
+          <Dialog
+            open={isAddDialogOpen}
+            onOpenChange={(open) => {
+              setIsAddDialogOpen(open);
+              if (!open) {
+                setSelectedProjectIds([]);
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button className="bg-gray-900 text-white hover:bg-gray-800">
+                <Plus className="h-4 w-4 mr-2" />
+                Pozvať používateľa
               </Button>
-              <Button onClick={handleAddUser}>Pridať</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Pozvať používateľa</DialogTitle>
+                <DialogDescription>
+                  Pozvánka sa zobrazí používateľovi v zvončeku. Voliteľne môžete obmedziť prístup
+                  len na vybrané projekty.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newUserEmail}
+                    onChange={(event) => setNewUserEmail(event.target.value)}
+                    placeholder="používateľ@example.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="role">Rola</Label>
+                  <Select value={newUserRole} onValueChange={setNewUserRole}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableRoles
+                        .filter(
+                          (role) => role.is_system_role && SYSTEM_ROLE_ORDER.includes(role.name)
+                        )
+                        .map((role) => (
+                          <SelectItem key={role.id} value={role.name}>
+                            {getRoleDisplayName(role.name)}
+                          </SelectItem>
+                        ))}
+                      {availableRoles
+                        .filter((role) => !role.is_system_role)
+                        .map((role) => (
+                          <SelectItem key={role.id} value={role.id}>
+                            {role.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Prístup k projektom (voliteľné)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Ak nevyberiete žiadny projekt, používateľ po prijatí uvidí celý workspace.
+                  </p>
+                  <div className="max-h-44 overflow-y-auto rounded-md border p-3 space-y-3">
+                    {availableProjects.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        Nenašli sa žiadne aktívne projekty.
+                      </p>
+                    )}
+                    {availableProjects.map((project) => (
+                      <label key={project.id} className="flex items-start gap-3 cursor-pointer">
+                        <Checkbox
+                          checked={selectedProjectIds.includes(project.id)}
+                          onCheckedChange={() => toggleSelectedProject(project.id)}
+                          className="mt-0.5"
+                        />
+                        <span className="text-sm">
+                          {project.name}
+                          {project.code ? (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              ({project.code})
+                            </span>
+                          ) : null}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsAddDialogOpen(false);
+                    setSelectedProjectIds([]);
+                  }}
+                >
+                  Zrušiť
+                </Button>
+                <Button onClick={handleAddUser} disabled={isInviting}>
+                  {isInviting ? "Odosielam..." : "Odoslať pozvánku"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {error && (
@@ -742,77 +548,81 @@ export default function WorkspaceUsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.user_id}>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          {getRoleIcon(user.role, user.is_owner)}
-                        </div>
-                        <div>
-                          <div className="font-medium">{user.display_name}</div>
-                          <div className="text-sm text-muted-foreground flex items-center">
-                            <Mail className="h-3 w-3 mr-1" />
-                            {user.email}
+                {users.map((user) => {
+                  const canOpenDashboardPermissions =
+                    canManageUsers || user.user_id === currentUserId;
+
+                  return (
+                    <TableRow key={user.user_id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-shrink-0">
+                            {getRoleIcon(user.role, user.is_owner)}
+                          </div>
+                          <div>
+                            <div className="font-medium">{user.display_name}</div>
+                            <div className="text-sm text-muted-foreground flex items-center">
+                              <Mail className="h-3 w-3 mr-1" />
+                              {user.email}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role, user.is_owner)}>
-                        {getRoleLabel(user.role, user.is_owner)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(user.joined_at).toLocaleDateString("sk-SK")}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setIsDashboardPermissionsOpen(true);
-                          }}
-                          title="Nastavenie viditeľnosti dashboardu"
-                        >
-                          <Settings2 className="h-4 w-4" />
-                        </Button>
-                        {!user.is_owner && (
-                          <>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getRoleBadgeVariant(user.role, user.is_owner)}>
+                          {getRoleLabel(user.role, user.is_owner)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{new Date(user.joined_at).toLocaleDateString("sk-SK")}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          {canOpenDashboardPermissions && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => openEditDialog(user)}
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsDashboardPermissionsOpen(true);
+                              }}
+                              title="Nastavenie viditeľnosti dashboardu"
                             >
-                              <Edit className="h-4 w-4" />
+                              <Settings2 className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveUser(user)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                        {user.is_owner && (
-                          <span className="text-sm text-muted-foreground">
-                            Majiteľ
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          )}
+
+                          {canManageUsers && !user.is_owner && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditDialog(user)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveUser(user)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+
+                          {user.is_owner && (
+                            <span className="text-sm text-muted-foreground">Majiteľ</span>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
 
-      {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -830,15 +640,15 @@ export default function WorkspaceUsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {availableRoles
-                    .filter(role => role.is_system_role && ['owner', 'member'].includes(role.name))
-                    .map(role => (
+                    .filter((role) => role.is_system_role && SYSTEM_ROLE_ORDER.includes(role.name))
+                    .map((role) => (
                       <SelectItem key={role.id} value={role.name}>
                         {getRoleDisplayName(role.name)}
                       </SelectItem>
                     ))}
                   {availableRoles
-                    .filter(role => !role.is_system_role)
-                    .map(role => (
+                    .filter((role) => !role.is_system_role)
+                    .map((role) => (
                       <SelectItem key={role.id} value={role.id}>
                         {role.name}
                       </SelectItem>
@@ -856,7 +666,6 @@ export default function WorkspaceUsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dashboard Permissions Dialog */}
       {selectedUser && (
         <DashboardPermissionsDialog
           open={isDashboardPermissionsOpen}

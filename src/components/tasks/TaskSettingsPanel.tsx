@@ -59,11 +59,15 @@ export function TaskSettingsPanel({
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingColor, setIsSavingColor] = useState(false);
   
   // Form state
   const [title, setTitle] = useState(task?.title || "");
   const [projectId, setProjectId] = useState(task?.project_id || "none");
   const [taskColor, setTaskColor] = useState<string | null>(normalizeTaskColor(task?.color) || null);
+  const [lastSavedTaskColor, setLastSavedTaskColor] = useState<string | null>(
+    normalizeTaskColor(task?.color) || null
+  );
   const [budget, setBudget] = useState(task?.budget_cents ? (task.budget_cents / 100).toString() : "");
   const [salesCommissionEnabled, setSalesCommissionEnabled] = useState(task?.sales_commission_enabled || false);
   const [salesCommissionUserId, setSalesCommissionUserId] = useState(
@@ -98,7 +102,9 @@ export function TaskSettingsPanel({
     if (task) {
       setTitle(task.title || "");
       setProjectId(task.project_id || "none");
-      setTaskColor(normalizeTaskColor(task.color) || null);
+      const normalizedColor = normalizeTaskColor(task.color) || null;
+      setTaskColor(normalizedColor);
+      setLastSavedTaskColor(normalizedColor);
       setBudget(task.budget_cents ? (task.budget_cents / 100).toString() : "");
       // Only update commission settings if they are explicitly provided (not undefined)
       // This prevents resetting to default values when task is refetched
@@ -177,7 +183,7 @@ export function TaskSettingsPanel({
     }
   };
 
-  const handleSaveGeneral = async (nextColor?: string | null) => {
+  const handleSaveGeneral = async (options?: { title?: string; projectId?: string }) => {
     if (!canUpdateTasks) {
       toast({
         title: "Chyba",
@@ -189,18 +195,17 @@ export function TaskSettingsPanel({
 
     setIsLoading(true);
     try {
-      const selectedColor = nextColor !== undefined ? normalizeTaskColor(nextColor) : taskColor;
-      const originalColor = normalizeTaskColor(task?.color) || null;
-      const hasColorChanged = selectedColor !== originalColor;
-
       const requestBody: any = {
-        title: title.trim(),
-        project_id: projectId && projectId !== "none" ? projectId : null,
+        title: (options?.title ?? title).trim(),
+        project_id:
+          options?.projectId !== undefined
+            ? options.projectId && options.projectId !== "none"
+              ? options.projectId
+              : null
+            : projectId && projectId !== "none"
+              ? projectId
+              : null,
       };
-
-      if (hasColorChanged) {
-        requestBody.color = selectedColor;
-      }
 
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
@@ -224,6 +229,50 @@ export function TaskSettingsPanel({
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSaveTaskColor = async (nextColor: string | null) => {
+    if (!canUpdateTasks) {
+      toast({
+        title: "Chyba",
+        description: "Nemáte oprávnenie na úpravu úlohy",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const normalizedColor = normalizeTaskColor(nextColor) || null;
+    setTaskColor(normalizedColor);
+
+    if (normalizedColor === lastSavedTaskColor) {
+      return;
+    }
+
+    setIsSavingColor(true);
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ color: normalizedColor }),
+      });
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || "Nepodarilo sa uložiť farbu");
+      }
+
+      setLastSavedTaskColor(normalizedColor);
+      onTaskUpdate?.();
+    } catch (error) {
+      setTaskColor(lastSavedTaskColor);
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa uložiť farbu",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingColor(false);
     }
   };
 
@@ -422,11 +471,7 @@ export function TaskSettingsPanel({
                 onValueChange={(value) => {
                   const newProjectId = value === "none" ? "" : value;
                   setProjectId(newProjectId);
-                  // Auto-save on change
-                  setTimeout(() => {
-                    const event = new Event('blur');
-                    document.getElementById('title')?.dispatchEvent(event);
-                  }, 100);
+                  void handleSaveGeneral({ projectId: newProjectId });
                 }}
                 disabled={!canUpdateTasks || isLoading}
               >
@@ -454,10 +499,9 @@ export function TaskSettingsPanel({
                   size="sm"
                   className="h-7 px-2 text-xs text-muted-foreground"
                   onClick={() => {
-                    setTaskColor(null);
-                    void handleSaveGeneral(null);
+                    void handleSaveTaskColor(null);
                   }}
-                  disabled={!canUpdateTasks || isLoading}
+                  disabled={!canUpdateTasks || isLoading || isSavingColor}
                 >
                   Bez farby
                 </Button>
@@ -468,8 +512,7 @@ export function TaskSettingsPanel({
                     key={color}
                     type="button"
                     onClick={() => {
-                      setTaskColor(color);
-                      void handleSaveGeneral(color);
+                      void handleSaveTaskColor(color);
                     }}
                     className={`h-7 w-7 rounded-full border transition-all ${
                       taskColor === color
@@ -479,7 +522,7 @@ export function TaskSettingsPanel({
                     style={{ backgroundColor: color }}
                     aria-label={`Vybrať farbu ${color}`}
                     title={color}
-                    disabled={!canUpdateTasks || isLoading}
+                    disabled={!canUpdateTasks || isLoading || isSavingColor}
                   />
                 ))}
                 <div className="relative h-7 w-9 overflow-hidden rounded border border-border">
@@ -489,9 +532,11 @@ export function TaskSettingsPanel({
                     onChange={(e) => {
                       const selected = normalizeTaskColor(e.target.value);
                       setTaskColor(selected);
-                      void handleSaveGeneral(selected);
                     }}
-                    disabled={!canUpdateTasks || isLoading}
+                    onBlur={() => {
+                      void handleSaveTaskColor(taskColor);
+                    }}
+                    disabled={!canUpdateTasks || isLoading || isSavingColor}
                     className="h-7 w-9 cursor-pointer border-0 bg-transparent p-0"
                     aria-label="Vlastná farba úlohy"
                   />

@@ -16,26 +16,58 @@ const TASK_PRIORITIES = ["low", "medium", "high", "urgent"];
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_LIST_LIMIT = 100;
 
-const SUPABASE_URL = getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL");
-const SUPABASE_SERVICE_ROLE_KEY = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
-const WORKSPACE_ID = getRequiredEnv("LAYERS_MCP_WORKSPACE_ID");
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
+const WORKSPACE_ID = process.env.LAYERS_MCP_WORKSPACE_ID?.trim() || "";
 const ACTOR_USER_ID = process.env.LAYERS_MCP_ACTOR_USER_ID?.trim() || null;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+let cachedSupabaseClient = null;
 
-function getRequiredEnv(name) {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
+function assertConfigured() {
+  const missing = [];
+
+  if (!SUPABASE_URL) {
+    missing.push("NEXT_PUBLIC_SUPABASE_URL");
   }
 
-  return value;
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    missing.push("SUPABASE_SERVICE_ROLE_KEY");
+  }
+
+  if (!WORKSPACE_ID) {
+    missing.push("LAYERS_MCP_WORKSPACE_ID");
+  }
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variable(s): ${missing.join(", ")}`);
+  }
 }
+
+function getSupabase() {
+  assertConfigured();
+
+  if (!cachedSupabaseClient) {
+    cachedSupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+  }
+
+  return cachedSupabaseClient;
+}
+
+const supabase = new Proxy(
+  {},
+  {
+    get(_target, property) {
+      const client = getSupabase();
+      const value = client[property];
+      return typeof value === "function" ? value.bind(client) : value;
+    },
+  }
+);
 
 function isUuid(value) {
   return UUID_REGEX.test(value);
@@ -62,6 +94,7 @@ function createErrorResult(error) {
 function tool(handler) {
   return async (input) => {
     try {
+      assertConfigured();
       return await handler(input);
     } catch (error) {
       console.error("[layers-tasks-mcp] Tool error:", error);
@@ -1627,6 +1660,7 @@ export function createLayersTaskServer() {
 }
 
 async function main() {
+  assertConfigured();
   await getWorkspace();
   await ensureActorCanAccessWorkspace();
 

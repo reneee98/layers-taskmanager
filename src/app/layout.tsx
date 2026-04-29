@@ -7,14 +7,14 @@ import { LayoutProvider } from "@/components/providers/layout-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TimerProvider } from "@/contexts/TimerContext";
-import dynamic from "next/dynamic";
+import lazyLoad from "next/dynamic";
 
 // Lazy load non-critical components
-const Toaster = dynamic(() => import("@/components/ui/toaster").then(mod => ({ default: mod.Toaster })), {
+const Toaster = lazyLoad(() => import("@/components/ui/toaster").then(mod => ({ default: mod.Toaster })), {
   ssr: false,
 });
 
-const BugReporter = dynamic(() => import("@/components/bug-reporter/BugReporter").then(mod => ({ default: mod.BugReporter })), {
+const BugReporter = lazyLoad(() => import("@/components/bug-reporter/BugReporter").then(mod => ({ default: mod.BugReporter })), {
   ssr: false,
 });
 

@@ -29,25 +29,26 @@ Aplikácia beží na **http://localhost:3001**.
 
 ## Skripty
 
-| Príkaz | Popis |
-|--------|--------|
-| `npm run dev` | Dev server (port 3001) |
-| `npm run build` | Production build |
-| `npm run start` | Spustenie production buildu |
-| `npm run lint` | ESLint |
-| `npm run format` | Prettier – formátovanie kódu |
-| `npm run test` | Vitest – unit testy |
-| `npm run test:ui` | Vitest UI |
-| `npm run test:e2e` | Playwright e2e testy |
+| Príkaz             | Popis                        |
+| ------------------ | ---------------------------- |
+| `npm run dev`      | Dev server (port 3001)       |
+| `npm run build`    | Production build             |
+| `npm run start`    | Spustenie production buildu  |
+| `npm run lint`     | ESLint                       |
+| `npm run format`   | Prettier – formátovanie kódu |
+| `npm run test`     | Vitest – unit testy          |
+| `npm run test:ui`  | Vitest UI                    |
+| `npm run test:e2e` | Playwright e2e testy         |
 
 ## Env premenné
 
 - `NEXT_PUBLIC_SUPABASE_URL` – Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` – Supabase anon (public) key  
-Ďalšie môžu byť v `.env.local` alebo v dokumentácii Supabase (`supabase/README.md`).
+  Ďalšie môžu byť v `.env.local` alebo v dokumentácii Supabase (`supabase/README.md`).
 
 ## Dôležitá dokumentácia
 
 - **Pre AI / kontext projektu:** `AGENTS.md`
 - **Architektúra a štruktúra:** `docs/ARCHITECTURE.md`
 - **Databáza a RLS:** `supabase/README.md`, `supabase/RLS_DOCUMENTATION.md`
+- **MCP task server:** `docs/MCP_TASK_SERVER.md`

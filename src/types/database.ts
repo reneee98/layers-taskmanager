@@ -37,6 +37,7 @@ export interface Project {
   name: string;
   description: string | null;
   code: string | null;
+  currency: string;
   status: 'active' | 'on_hold' | 'completed' | 'cancelled';
   start_date: string | null;
   end_date: string | null;
@@ -75,6 +76,7 @@ export interface Task {
   id: string;
   title: string;
   description: string | null;
+  currency: string;
   status: 'todo' | 'in_progress' | 'review' | 'sent_to_client' | 'done' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   color?: string | null;
@@ -99,6 +101,7 @@ export interface Task {
     id: string;
     name: string;
     code: string;
+    currency?: string;
     hourly_rate?: number | null;
     budget?: number | null;
     fixed_fee?: number | null;

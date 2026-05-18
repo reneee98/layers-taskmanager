@@ -11,6 +11,9 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/format";
+import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
+import { getEuroEquivalentLabel, normalizeCurrency } from "@/lib/currency";
+import { useUsdExchangeRate } from "@/hooks/useUsdExchangeRate";
 import {
   LineChart,
   Line,
@@ -100,6 +103,11 @@ export function TaskReport({ taskId }: TaskReportProps) {
     );
   }
 
+  const currency = normalizeCurrency(finance.currency);
+  const { rate } = useUsdExchangeRate(currency === "USD");
+  const formatMoney = (value: number) => formatCurrency(value, currency);
+  const euroEquivalent = (value: number) => getEuroEquivalentLabel(value, currency, rate?.usdPerEur);
+
   const getProfitColor = (pct: number) => {
     if (pct >= 20) return "bg-green-500/10 text-green-500 border-green-500/20";
     if (pct >= 10) return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
@@ -109,6 +117,8 @@ export function TaskReport({ taskId }: TaskReportProps) {
 
   return (
     <div className="space-y-6">
+      <ExchangeRateNotice currency={currency} />
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Hours Card */}
@@ -132,8 +142,8 @@ export function TaskReport({ taskId }: TaskReportProps) {
             <CardContent>
               <div className="text-2xl font-bold">
                 {finance.totalHours > 0
-                  ? formatCurrency(finance.budgetAmount / finance.totalHours)
-                  : formatCurrency(0)}
+                  ? formatMoney(finance.budgetAmount / finance.totalHours)
+                  : formatMoney(0)}
               </div>
             </CardContent>
           </Card>
@@ -147,7 +157,10 @@ export function TaskReport({ taskId }: TaskReportProps) {
               <Euro className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(finance.budgetAmount)}</div>
+              <div className="text-2xl font-bold">{formatMoney(finance.budgetAmount)}</div>
+              {euroEquivalent(finance.budgetAmount) && (
+                <p className="text-xs text-muted-foreground">{euroEquivalent(finance.budgetAmount)}</p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -161,7 +174,7 @@ export function TaskReport({ taskId }: TaskReportProps) {
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
-                <div className="text-2xl font-bold">{formatCurrency(finance.profit)}</div>
+                <div className="text-2xl font-bold">{formatMoney(finance.profit)}</div>
                 {finance.laborCost + finance.budgetAmount > 0 && (
                   <Badge className={getProfitColor(finance.profitPct)}>
                     {finance.profitPct >= 0 ? "+" : ""}
@@ -240,7 +253,7 @@ export function TaskReport({ taskId }: TaskReportProps) {
                     const date = new Date(value as string);
                     return date.toLocaleDateString("sk-SK");
                   }}
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value: number) => formatMoney(value)}
                 />
                 <Legend />
                 <Line 
@@ -266,5 +279,4 @@ export function TaskReport({ taskId }: TaskReportProps) {
     </div>
   );
 }
-
 

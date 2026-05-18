@@ -48,6 +48,9 @@ import {
 import type { ProjectFinance } from "@/server/finance/computeProjectFinance";
 import { toast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/usePermissions";
+import { normalizeCurrency, getEuroEquivalentLabel } from "@/lib/currency";
+import { useUsdExchangeRate } from "@/hooks/useUsdExchangeRate";
+import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
 
 interface TaskFinancePanelProps {
   taskId: string;
@@ -93,6 +96,7 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [costItems, setCostItems] = useState<CostItem[]>([]);
   const [task, setTask] = useState<{
+    currency?: string | null;
     sales_commission_enabled?: boolean;
     sales_commission_percent?: number | null;
   } | null>(null);
@@ -106,6 +110,11 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const effectiveCurrency = normalizeCurrency(task?.currency || finance?.currency);
+  const { rate } = useUsdExchangeRate(effectiveCurrency === "USD");
+  const formatMoney = (value: number) => formatCurrency(value, effectiveCurrency);
+  const euroEquivalent = (value: number) =>
+    getEuroEquivalentLabel(value, effectiveCurrency, rate?.usdPerEur);
 
   useEffect(() => {
     fetchData();
@@ -133,6 +142,7 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
       const taskResult = await taskResponse.json();
       if (taskResult.success && taskResult.data) {
         setTask({
+          currency: taskResult.data.currency || taskResult.data.project?.currency || "EUR",
           sales_commission_enabled: taskResult.data.sales_commission_enabled || false,
           sales_commission_percent: taskResult.data.sales_commission_percent || null,
         });
@@ -254,7 +264,7 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
           type: 'labor',
           name: entry.user?.name || 'Neznámy',
           description: 'Interný náklad (Labor)',
-          quantity: `${entry.hours || 0} h × ${formatCurrency(entry.hourly_rate || 0)}`,
+          quantity: `${entry.hours || 0} h × ${formatMoney(entry.hourly_rate || 0)}`,
           amount: entry.amount || 0,
           date: entry.date,
           user: entry.user,
@@ -286,7 +296,7 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
         type: 'commission',
         name: 'Provízia (Sales)',
         description: 'Automatický výpočet',
-        quantity: `${commissionPercent}% z ${formatCurrency(totalForCommission)} (${formatCurrency(fixedBudget)} + ${formatCurrency(extra)})`,
+        quantity: `${commissionPercent}% z ${formatMoney(totalForCommission)} (${formatMoney(fixedBudget)} + ${formatMoney(extra)})`,
         amount: totalForCommission * (commissionPercent / 100),
         date: new Date().toISOString().split('T')[0],
       });
@@ -341,7 +351,7 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
       if (result.success) {
         toast({
           title: "Úspech",
-          description: `Náklad pridaný • ${formatCurrency(amountValue)}`,
+          description: `Náklad pridaný • ${formatMoney(amountValue)}`,
         });
         setName("");
         setDescription("");
@@ -432,6 +442,8 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      <ExchangeRateNotice currency={effectiveCurrency} />
+
       {/* Top Section - 4 Metric Cards */}
       <div className="flex gap-4 flex-wrap">
         {/* Fixný Budget */}
@@ -444,8 +456,11 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
               <Wallet className="h-4 w-4 text-[#90a1b9] dark:text-muted-foreground" />
             </div>
             <p className="font-bold leading-[32px] text-[#0f172b] dark:text-foreground text-[24px] tracking-[0.0703px]">
-              {formatCurrency(fixedBudget)}
+              {formatMoney(fixedBudget)}
             </p>
+            {euroEquivalent(fixedBudget) && (
+              <p className="text-xs text-muted-foreground">{euroEquivalent(fixedBudget)}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -459,8 +474,11 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
               <Wallet className="h-4 w-4 text-[#90a1b9] dark:text-muted-foreground" />
             </div>
             <p className="font-bold leading-[32px] text-[#0f172b] dark:text-foreground text-[24px] tracking-[0.0703px]">
-              {formatCurrency(spent)}
+              {formatMoney(spent)}
             </p>
+            {euroEquivalent(spent) && (
+              <p className="text-xs text-muted-foreground">{euroEquivalent(spent)}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -474,8 +492,11 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
               <Clock className="h-4 w-4 text-[#90a1b9] dark:text-muted-foreground" />
             </div>
             <p className="font-bold leading-[32px] text-[#096] dark:text-green-500 text-[24px] tracking-[0.0703px]">
-              {formatCurrency(remaining)}
+              {formatMoney(remaining)}
             </p>
+            {euroEquivalent(remaining) && (
+              <p className="text-xs text-muted-foreground">{euroEquivalent(remaining)}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -489,8 +510,11 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
               <Zap className="h-4 w-4 text-[#7f22fe] dark:text-purple-400" />
             </div>
             <p className="font-bold leading-[32px] text-[#7008e7] dark:text-purple-500 text-[24px] tracking-[0.0703px]">
-              +{formatCurrency(extra)}
+              +{formatMoney(extra)}
             </p>
+            {euroEquivalent(extra) && (
+              <p className="text-xs text-muted-foreground">{euroEquivalent(extra)}</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -532,7 +556,7 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
                       border: "1px solid #e2e8f0",
                       borderRadius: "8px",
                     }}
-                    formatter={(value: number) => formatCurrency(value)}
+                    formatter={(value: number) => formatMoney(value)}
                   />
                   <Area 
                     type="monotone" 
@@ -578,7 +602,7 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Tooltip formatter={(value: number) => formatMoney(value)} />
                   </RechartsPieChart>
                 </ResponsiveContainer>
                 <div className="flex flex-col gap-2 w-full">
@@ -758,7 +782,7 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
                           ? 'text-[#7008e7] dark:text-purple-500' 
                           : 'text-[#0f172b] dark:text-foreground'
                       }`}>
-                        {transaction.type === 'extra' ? '+' : ''}{formatCurrency(transaction.amount)}
+                        {transaction.type === 'extra' ? '+' : ''}{formatMoney(transaction.amount)}
                       </p>
                       {canDeleteCosts && transaction.type === 'external' && (
                         <Button
@@ -784,7 +808,7 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
                   <div />
                   <div className="text-right">
                     <p className="text-[18px] font-bold text-[#0f172b] dark:text-foreground tracking-[-0.4395px]">
-                      {formatCurrency(totalCosts)}
+                      {formatMoney(totalCosts)}
                     </p>
                   </div>
                 </div>

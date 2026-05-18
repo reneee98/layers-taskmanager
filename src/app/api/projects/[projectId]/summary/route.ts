@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: { projectI
     // Get project details
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("name, status, workspace_id")
+      .select("name, status, workspace_id, currency")
       .eq("id", projectId)
       .single();
 
@@ -145,6 +145,7 @@ export async function GET(request: NextRequest, { params }: { params: { projectI
       totalCost,
       profit,
       profitPct,
+      currency: project.currency || "EUR",
     };
 
     return NextResponse.json({ success: true, data: summary });

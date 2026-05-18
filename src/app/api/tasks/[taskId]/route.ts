@@ -186,7 +186,7 @@ export async function GET(
     if (task.project_id) {
       const { data: projectData } = await supabase
         .from("projects")
-        .select("id, name, code, hourly_rate_cents, budget_cents")
+        .select("id, name, code, currency, hourly_rate_cents, budget_cents")
         .eq("id", task.project_id)
         .maybeSingle();
 
@@ -263,6 +263,7 @@ export async function GET(
       project: project
         ? {
             ...project,
+            currency: project.currency || "EUR",
             hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
             fixed_fee: project.budget_cents ? project.budget_cents / 100 : null,
           }
@@ -369,6 +370,18 @@ export async function PATCH(
       validation.data.project_id !== undefined
         ? validation.data.project_id
         : currentTask.project_id;
+
+    if (projectIdForBudget) {
+      const { data: projectCurrencyData } = await supabase
+        .from("projects")
+        .select("currency")
+        .eq("id", projectIdForBudget)
+        .single();
+
+      validation.data.currency = projectCurrencyData?.currency || "EUR";
+    } else if (validation.data.currency === undefined) {
+      validation.data.currency = currentTask.currency || "EUR";
+    }
 
     // Get hourly rate - priority: task.hourly_rate_cents > project.hourly_rate_cents
     let hourlyRateCents: number | null = null;
@@ -515,7 +528,7 @@ export async function PATCH(
       .select(
         `
         *,
-        project:projects(id, name, code, hourly_rate_cents, budget_cents)
+        project:projects(id, name, code, currency, hourly_rate_cents, budget_cents)
       `
       )
       .single();
@@ -658,6 +671,7 @@ export async function PATCH(
       project: task.project
         ? {
             ...task.project,
+            currency: task.project.currency || "EUR",
             hourly_rate: task.project.hourly_rate_cents
               ? task.project.hourly_rate_cents / 100
               : null,
@@ -917,7 +931,7 @@ export async function PATCH(
               .select(
                 `
                 *,
-                project:projects(id, name, code, hourly_rate_cents, budget_cents)
+                project:projects(id, name, code, currency, hourly_rate_cents, budget_cents)
               `
               )
               .eq("id", taskId)
@@ -938,6 +952,7 @@ export async function PATCH(
               taskWithHourlyRate.project = updatedTask.project
                 ? {
                     ...updatedTask.project,
+                    currency: updatedTask.project.currency || "EUR",
                     hourly_rate: updatedTask.project.hourly_rate_cents
                       ? updatedTask.project.hourly_rate_cents / 100
                       : null,

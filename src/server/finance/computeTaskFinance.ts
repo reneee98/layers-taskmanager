@@ -13,6 +13,7 @@ export const computeTaskFinance = async (
       id,
       title,
       status,
+      currency,
       budget_cents,
       estimated_hours,
       hourly_rate_cents,
@@ -121,6 +122,7 @@ export const computeTaskFinance = async (
     projectName: task.title,
     projectStatus: task.status,
     clientName: "Bez projektu",
+    currency: task.currency || "EUR",
     
     billableHours,
     totalHours,
@@ -138,4 +140,3 @@ export const computeTaskFinance = async (
     dailyData,
   };
 };
-

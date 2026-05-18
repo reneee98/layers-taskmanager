@@ -6,6 +6,7 @@ export interface ProjectFinance {
   projectName: string;
   projectStatus: string;
   clientName: string;
+  currency: string;
   
   // Hours
   billableHours: number;
@@ -47,6 +48,7 @@ export const computeProjectFinance = async (
     .from("projects")
     .select(`
       name, 
+      currency,
       client_id,
       clients!inner(name)
     `)
@@ -389,6 +391,7 @@ export const computeProjectFinance = async (
     projectName: project.name,
     projectStatus: "", // Removed status
     clientName,
+    currency: project.currency || "EUR",
     billableHours,
     totalHours,
     laborCost,
@@ -401,4 +404,3 @@ export const computeProjectFinance = async (
     dailyData,
   };
 };
-

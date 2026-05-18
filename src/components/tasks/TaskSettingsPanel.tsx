@@ -20,6 +20,8 @@ import { usePermission } from "@/hooks/usePermissions";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 import { formatCurrency } from "@/lib/format";
 import { TASK_COLOR_PALETTE, normalizeTaskColor } from "@/lib/task-colors";
+import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
+import { SUPPORTED_CURRENCIES, getCurrencySymbol, normalizeCurrency } from "@/lib/currency";
 
 interface TaskSettingsPanelProps {
   taskId: string;
@@ -28,6 +30,8 @@ interface TaskSettingsPanelProps {
     title: string;
     project_id: string | null;
     color?: string | null;
+    currency?: string | null;
+    project_currency?: string | null;
     budget_cents: number | null;
     sales_commission_enabled?: boolean;
     sales_commission_user_id?: string | null;
@@ -69,6 +73,9 @@ export function TaskSettingsPanel({
     normalizeTaskColor(task?.color) || null
   );
   const [budget, setBudget] = useState(task?.budget_cents ? (task.budget_cents / 100).toString() : "");
+  const [currency, setCurrency] = useState<"EUR" | "USD">(
+    normalizeCurrency(task?.project_currency || task?.currency)
+  );
   const [salesCommissionEnabled, setSalesCommissionEnabled] = useState(task?.sales_commission_enabled || false);
   const [salesCommissionUserId, setSalesCommissionUserId] = useState(
     task?.sales_commission_user_id && task.sales_commission_user_id !== null 
@@ -106,6 +113,7 @@ export function TaskSettingsPanel({
       setTaskColor(normalizedColor);
       setLastSavedTaskColor(normalizedColor);
       setBudget(task.budget_cents ? (task.budget_cents / 100).toString() : "");
+      setCurrency(normalizeCurrency(task.project_currency || task.currency));
       // Only update commission settings if they are explicitly provided (not undefined)
       // This prevents resetting to default values when task is refetched
       if (task.sales_commission_enabled !== undefined) {
@@ -323,6 +331,7 @@ export function TaskSettingsPanel({
 
       const requestBody = {
         budget_cents: budgetCents,
+        currency: task?.project_id ? undefined : currency,
         sales_commission_enabled: salesCommissionEnabled,
         sales_commission_user_id: commissionUserId,
         sales_commission_percent: commissionPercent,
@@ -486,7 +495,36 @@ export function TaskSettingsPanel({
                     </SelectItem>
                   ))}
                 </SelectContent>
+                </Select>
+              </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="currency" className="text-[14px] font-medium text-[#0a0a0a] dark:text-foreground tracking-[-0.1504px]">
+                Mena
+              </Label>
+              <Select
+                value={task?.project_id ? normalizeCurrency(task.project_currency) : currency}
+                onValueChange={(value) => setCurrency(value as "EUR" | "USD")}
+                disabled={Boolean(task?.project_id) || !canUpdateTasks || isLoading}
+              >
+                <SelectTrigger className="bg-[#f3f3f5] dark:bg-muted border-0 h-9 rounded-[8px] text-[14px] tracking-[-0.1504px]">
+                  <SelectValue placeholder="Vyberte menu" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_CURRENCIES.map((supportedCurrency) => (
+                    <SelectItem key={supportedCurrency} value={supportedCurrency}>
+                      {supportedCurrency}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
+              {task?.project_id && (
+                <p className="text-xs text-[#717182] dark:text-muted-foreground">
+                  Pri úlohách v projekte sa mena preberá z projektu.
+                </p>
+              )}
+              <ExchangeRateNotice
+                currency={task?.project_id ? task.project_currency : currency}
+              />
             </div>
             <div className="flex flex-col gap-2 md:col-span-2">
               <div className="flex items-center justify-between">
@@ -561,7 +599,7 @@ export function TaskSettingsPanel({
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2 w-full md:w-[309px]">
               <Label htmlFor="budget" className="text-[14px] font-medium text-[#0a0a0a] dark:text-foreground tracking-[-0.1504px]">
-                Budget (€)
+                Budget ({getCurrencySymbol(task?.project_id ? task.project_currency : currency)})
               </Label>
               <Input
                 id="budget"

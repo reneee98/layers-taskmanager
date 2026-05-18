@@ -21,6 +21,10 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
   const [finance, setFinance] = useState<ProjectFinance | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { hasPermission: canViewReports } = usePermission('financial', 'view_reports');
+  const currency = normalizeCurrency(finance?.currency);
+  const { rate } = useUsdExchangeRate(currency === "USD");
+  const formatMoney = (value: number) => formatCurrency(value, currency);
+  const euroEquivalent = (value: number) => getEuroEquivalentLabel(value, currency, rate?.usdPerEur);
 
   useEffect(() => {
     fetchFinanceData();
@@ -144,10 +148,6 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
       id: assignee.user_id,
       name: assignee.user?.name || assignee.user?.display_name || assignee.user?.email || assignee.display_name || "",
     }));
-  const currency = normalizeCurrency(finance.currency);
-  const { rate } = useUsdExchangeRate(currency === "USD");
-  const formatMoney = (value: number) => formatCurrency(value, currency);
-  const euroEquivalent = (value: number) => getEuroEquivalentLabel(value, currency, rate?.usdPerEur);
 
   return (
     <div className="bg-white dark:bg-card border-[#e2e8f0] dark:border-border border-b border-l border-r border-t-4 flex flex-col gap-3 items-start overflow-clip pb-px pt-1 px-px rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-full">

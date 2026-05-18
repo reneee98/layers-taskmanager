@@ -371,15 +371,7 @@ export async function PATCH(
         ? validation.data.project_id
         : currentTask.project_id;
 
-    if (projectIdForBudget) {
-      const { data: projectCurrencyData } = await supabase
-        .from("projects")
-        .select("currency")
-        .eq("id", projectIdForBudget)
-        .single();
-
-      validation.data.currency = projectCurrencyData?.currency || "EUR";
-    } else if (validation.data.currency === undefined) {
+    if (validation.data.currency === undefined) {
       validation.data.currency = currentTask.currency || "EUR";
     }
 

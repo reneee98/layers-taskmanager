@@ -25,6 +25,8 @@ import { toast } from "@/hooks/use-toast";
 import type { Project, Client } from "@/types/database";
 import { generateProjectCode } from "@/lib/generate-project-code";
 import { DatePicker } from "@/components/ui/date-picker";
+import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
+import { SUPPORTED_CURRENCIES, getCurrencySymbol, normalizeCurrency } from "@/lib/currency";
 
 interface ProjectFormProps {
   project?: Project;
@@ -57,6 +59,8 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
       external_costs_budget: null,
     },
   });
+  const selectedCurrency = normalizeCurrency(watch("currency"));
+  const currencySymbol = getCurrencySymbol(selectedCurrency);
 
   useEffect(() => {
     setClients(propClients);
@@ -131,7 +135,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
               code: freshProject.code || "",
               description: freshProject.description || "",
               status: freshProject.status,
-              currency: "EUR",
+              currency: freshProject.currency || "EUR",
               hourly_rate: freshProject.hourly_rate || null,
               fixed_fee: freshProject.fixed_fee || null,
               external_costs_budget: null,
@@ -149,7 +153,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
             code: project.code || "",
             description: project.description || "",
             status: project.status,
-            currency: "EUR",
+            currency: project.currency || "EUR",
             hourly_rate: project.hourly_rate || null,
             fixed_fee: project.fixed_fee || null,
             external_costs_budget: null,
@@ -203,7 +207,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
         code: data.code && data.code.trim() !== "" ? data.code : null,
         description: data.description && data.description.trim() !== "" ? data.description : null,
         notes: data.notes && data.notes.trim() !== "" ? data.notes : null,
-        currency: data.currency && data.currency.trim() !== "" ? data.currency : null,
+        currency: normalizeCurrency(data.currency),
       };
 
       // Handle number fields separately - convert empty strings to null
@@ -380,7 +384,22 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
 
             <div className="space-y-2">
               <Label htmlFor="currency">Mena</Label>
-              <Input id="currency" {...register("currency")} placeholder="EUR" />
+              <Select
+                value={selectedCurrency}
+                onValueChange={(value) => setValue("currency", value as "EUR" | "USD")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Vyberte menu" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_CURRENCIES.map((currency) => (
+                    <SelectItem key={currency} value={currency}>
+                      {currency}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <ExchangeRateNotice currency={selectedCurrency} />
             </div>
 
             <div className="space-y-2">
@@ -402,7 +421,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="hourly_rate">Hodinová sadzba (€) - voliteľné</Label>
+              <Label htmlFor="hourly_rate">Hodinová sadzba ({currencySymbol}) - voliteľné</Label>
               <Input
                 id="hourly_rate"
                 type="number"
@@ -416,7 +435,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="fixed_fee">Fixný poplatok (€) - voliteľné</Label>
+              <Label htmlFor="fixed_fee">Fixný poplatok ({currencySymbol}) - voliteľné</Label>
               <Input
                 id="fixed_fee"
                 type="number"
@@ -430,7 +449,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="external_costs_budget">Rozpočet nákladov (€) - voliteľné</Label>
+              <Label htmlFor="external_costs_budget">Rozpočet nákladov ({currencySymbol}) - voliteľné</Label>
               <Input
                 id="external_costs_budget"
                 type="number"

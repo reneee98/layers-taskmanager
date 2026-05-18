@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatHours } from "@/lib/format";
 import type { Project } from "@/types/database";
 import { usePermission } from "@/hooks/usePermissions";
+import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
+import { getEuroEquivalentLabel, normalizeCurrency } from "@/lib/currency";
+import { useUsdExchangeRate } from "@/hooks/useUsdExchangeRate";
 
 interface ProjectSummaryData {
   totalTasks: number;
@@ -15,6 +18,7 @@ interface ProjectSummaryData {
   totalBudget: number;
   profit: number;
   profitPct: number;
+  currency: string;
 }
 
 interface ProjectSummaryProps {
@@ -81,9 +85,15 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
   }
 
   const completionRate = summary.totalTasks > 0 ? (summary.completedTasks / summary.totalTasks) * 100 : 0;
+  const currency = normalizeCurrency(summary.currency);
+  const { rate } = useUsdExchangeRate(currency === "USD");
+  const formatMoney = (value: number) => formatCurrency(value, currency);
+  const euroEquivalent = (value: number) => getEuroEquivalentLabel(value, currency, rate?.usdPerEur);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-3">
+      <ExchangeRateNotice currency={currency} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Úlohy */}
       <Card>
         <CardHeader className="pb-2">
@@ -129,8 +139,11 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(summary.totalCost)}
+              {formatMoney(summary.totalCost)}
             </div>
+            {euroEquivalent(summary.totalCost) && (
+              <p className="text-xs text-muted-foreground">{euroEquivalent(summary.totalCost)}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               Externé náklady
             </p>
@@ -148,14 +161,18 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(summary.totalBudget || 0)}
+              {formatMoney(summary.totalBudget || 0)}
             </div>
+            {euroEquivalent(summary.totalBudget || 0) && (
+              <p className="text-xs text-muted-foreground">{euroEquivalent(summary.totalBudget || 0)}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               Suma na vyfakturovanie
             </p>
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 };

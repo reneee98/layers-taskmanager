@@ -21,6 +21,7 @@ export const taskSchema = z.object({
   ]).transform((val) => val === "" || val === undefined ? null : val).optional().nullable(),
   title: z.string().min(1, "Názov je povinný").max(500, "Názov je príliš dlhý"),
   description: z.string().optional().or(z.literal("")).nullable(),
+  currency: z.enum(["EUR", "USD"]).default("EUR").optional(),
   status: taskStatusEnum.default("todo").optional(),
   priority: taskPriorityEnum.default("medium").optional(),
   color: z.union([

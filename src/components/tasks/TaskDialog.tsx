@@ -29,6 +29,13 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { X } from "lucide-react";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 import { TASK_COLOR_PALETTE, normalizeTaskColor } from "@/lib/task-colors";
+import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
+import {
+  SUPPORTED_CURRENCIES,
+  getCurrencySymbol,
+  getPerHourLabel,
+  normalizeCurrency,
+} from "@/lib/currency";
 
 interface TaskDialogProps {
   projectId?: string | null; // Optional - if null, task will be created without project
@@ -54,6 +61,7 @@ export function TaskDialog({
   const [estimatedHours, setEstimatedHours] = useState("");
   const [budgetAmount, setBudgetAmount] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
+  const [currency, setCurrency] = useState<"EUR" | "USD">("EUR");
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId || null);
@@ -93,6 +101,7 @@ export function TaskDialog({
       // Use task's budget_cents (individual budget for this task)
       setBudgetAmount(task.budget_cents ? (task.budget_cents / 100).toString() : "");
       setHourlyRate(task.hourly_rate_cents ? (task.hourly_rate_cents / 100).toString() : "");
+      setCurrency(normalizeCurrency(task.currency));
       setDueDate(task.due_date || null);
       setStartDate(task.start_date || null);
       setSelectedProjectId(task.project_id);
@@ -198,6 +207,7 @@ export function TaskDialog({
     setEstimatedHours("");
     setBudgetAmount("");
     setHourlyRate("");
+    setCurrency("EUR");
     setDueDate(null);
     setStartDate(null);
     setSelectedProjectId(projectId || null);
@@ -251,6 +261,10 @@ export function TaskDialog({
       } else {
         payload.project_id = null;
       }
+
+      payload.currency = selectedProjectId
+        ? normalizeCurrency(projects.find((project) => project.id === selectedProjectId)?.currency)
+        : currency;
 
       // Only include estimated_hours if it has a value
       if (estimatedHours && estimatedHours.trim() !== "") {
@@ -372,6 +386,42 @@ export function TaskDialog({
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="currency">Mena</Label>
+              <Select
+                value={
+                  selectedProjectId
+                    ? normalizeCurrency(projects.find((project) => project.id === selectedProjectId)?.currency)
+                    : currency
+                }
+                onValueChange={(value) => setCurrency(value as "EUR" | "USD")}
+                disabled={Boolean(selectedProjectId)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Vyberte menu" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_CURRENCIES.map((supportedCurrency) => (
+                    <SelectItem key={supportedCurrency} value={supportedCurrency}>
+                      {supportedCurrency}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedProjectId && (
+                <p className="text-xs text-muted-foreground">
+                  Pri úlohách v projekte sa mena preberá z projektu.
+                </p>
+              )}
+              <ExchangeRateNotice
+                currency={
+                  selectedProjectId
+                    ? normalizeCurrency(projects.find((project) => project.id === selectedProjectId)?.currency)
+                    : currency
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="description">Popis</Label>
               <Textarea
                 id="description"
@@ -474,7 +524,7 @@ export function TaskDialog({
 
               {!selectedProjectId && (
                 <div className="space-y-2">
-                  <Label htmlFor="hourlyRate">Hodinová sadzba €/h</Label>
+                  <Label htmlFor="hourlyRate">Hodinová sadzba {getPerHourLabel(currency)}</Label>
                   <Input
                     id="hourlyRate"
                     type="number"
@@ -492,7 +542,7 @@ export function TaskDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="budgetAmount">Rozpočet €</Label>
+              <Label htmlFor="budgetAmount">Rozpočet {getCurrencySymbol(selectedProjectId ? normalizeCurrency(projects.find((project) => project.id === selectedProjectId)?.currency) : currency)}</Label>
               <Input
                 id="budgetAmount"
                 type="number"

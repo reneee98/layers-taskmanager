@@ -7,6 +7,9 @@ import { formatCurrency, formatHours } from "@/lib/format";
 import { getMarginColor } from "@/lib/utils";
 import type { ProjectFinance } from "@/server/finance/computeProjectFinance";
 import type { TaskAssignee } from "@/types/database";
+import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
+import { getEuroEquivalentLabel, normalizeCurrency } from "@/lib/currency";
+import { useUsdExchangeRate } from "@/hooks/useUsdExchangeRate";
 
 interface ProjectStatusCardProps {
   projectId: string;
@@ -141,9 +144,16 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
       id: assignee.user_id,
       name: assignee.user?.name || assignee.user?.display_name || assignee.user?.email || assignee.display_name || "",
     }));
+  const currency = normalizeCurrency(finance.currency);
+  const { rate } = useUsdExchangeRate(currency === "USD");
+  const formatMoney = (value: number) => formatCurrency(value, currency);
+  const euroEquivalent = (value: number) => getEuroEquivalentLabel(value, currency, rate?.usdPerEur);
 
   return (
-    <div className="bg-white dark:bg-card border-[#e2e8f0] dark:border-border border-b border-l border-r border-t-4 flex flex-col gap-6 items-start overflow-clip pb-px pt-1 px-px rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-full">
+    <div className="bg-white dark:bg-card border-[#e2e8f0] dark:border-border border-b border-l border-r border-t-4 flex flex-col gap-3 items-start overflow-clip pb-px pt-1 px-px rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-full">
+      <div className="px-5 pt-3">
+        <ExchangeRateNotice currency={currency} />
+      </div>
       {/* CardHeader */}
       <div className="border-b border-[#f1f5f9] dark:border-border h-[66px] w-full">
         <div className="flex items-center justify-between pb-px pt-0 px-5 h-full">
@@ -179,13 +189,16 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
               </div>
               <div className="flex items-baseline gap-1">
                 <span className="font-bold leading-5 text-[#0f172b] dark:text-foreground text-sm tracking-[-0.1504px]">
-                  {formatCurrency(budgetUsed)}
+                  {formatMoney(budgetUsed)}
                 </span>
                 <span className="font-normal leading-4 text-[#90a1b9] dark:text-muted-foreground text-xs">
-                  / {formatCurrency(budgetTotal)}
+                  / {formatMoney(budgetTotal)}
                 </span>
               </div>
             </div>
+            {euroEquivalent(budgetTotal) && (
+              <p className="text-xs text-muted-foreground">{euroEquivalent(budgetTotal)}</p>
+            )}
             <div className="bg-[#f1f5f9] dark:bg-muted flex flex-col h-[10px] items-start overflow-clip rounded-full w-full">
               <div 
                 className={`h-[10px] rounded-full ${
@@ -214,7 +227,7 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
               </div>
               <div className="flex-1">
                 <span className="font-bold leading-8 text-[#0f172b] dark:text-foreground text-2xl tracking-[-0.5297px]">
-                  {formatCurrency(profit)}
+                  {formatMoney(profit)}
                 </span>
               </div>
             </div>
@@ -257,7 +270,7 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
               </div>
               <div className="flex-1">
                 <span className="font-bold leading-7 text-[#7f22fe] dark:text-purple-500 text-2xl tracking-[-0.4492px]">
-                  {finance.externalCost > 0 ? `+${formatCurrency(finance.externalCost)}` : '+0€'}
+                  {finance.externalCost > 0 ? `+${formatMoney(finance.externalCost)}` : `+${formatMoney(0)}`}
                 </span>
               </div>
             </div>
@@ -276,7 +289,7 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
               </div>
               <div className="h-4">
                 <span className="font-bold leading-4 text-[#0f172b] dark:text-foreground text-xs">
-                  {formatCurrency(finance.laborCost || 0)}
+                  {formatMoney(finance.laborCost || 0)}
                 </span>
               </div>
             </div>

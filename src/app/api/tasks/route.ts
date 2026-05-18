@@ -6,6 +6,7 @@ import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
 import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
 import { getProjectAccessContext } from "@/lib/auth/project-access";
+import { normalizeCurrency } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
       .select(
         `
         *,
-        project:projects(id, name, code, hourly_rate_cents, budget_cents)
+        project:projects(id, name, code, currency, hourly_rate_cents, budget_cents)
       `
       )
       .eq("workspace_id", workspaceId)
@@ -191,6 +192,7 @@ export async function GET(request: NextRequest) {
       const projectWithRates = task.project
         ? {
             ...task.project,
+            currency: task.project.currency || "EUR",
             hourly_rate: task.project.hourly_rate_cents
               ? task.project.hourly_rate_cents / 100
               : null,
@@ -262,15 +264,21 @@ export async function POST(request: NextRequest) {
 
     // Get project hourly rate if available
     let projectHourlyRateCents: number | null = null;
+    let projectCurrency = "EUR";
     if (validation.data.project_id) {
       const { data: project } = await supabase
         .from("projects")
-        .select("hourly_rate_cents")
+        .select("hourly_rate_cents, currency")
         .eq("id", validation.data.project_id)
         .single();
 
       projectHourlyRateCents = project?.hourly_rate_cents || null;
+      projectCurrency = project?.currency || "EUR";
     }
+
+    validation.data.currency = normalizeCurrency(
+      validation.data.project_id ? projectCurrency : validation.data.currency || "EUR"
+    );
 
     // If budget_cents is set, automatically calculate estimated_hours = budget_cents / hourly_rate
     // Only if estimated_hours is not explicitly set (allows manual override)
@@ -339,7 +347,7 @@ export async function POST(request: NextRequest) {
         workspace_id: workspaceId,
         order_index: validation.data.order_index ?? nextOrderIndex,
       })
-      .select("*, project:projects(id, name, code)")
+      .select("*, project:projects(id, name, code, currency)")
       .single();
 
     if (error) {

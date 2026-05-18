@@ -2,6 +2,8 @@
 
 import type { Project, Task } from "@/types/database";
 import dynamic from "next/dynamic";
+import { Badge } from "@/components/ui/badge";
+import { normalizeCurrency } from "@/lib/currency";
 
 // Lazy load components
 const ProjectSummary = dynamic(() => import("./ProjectSummary").then(mod => ({ default: mod.ProjectSummary })), {
@@ -34,8 +36,9 @@ export const ProjectHeader = ({ project, tasks, onUpdate }: ProjectHeaderProps) 
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold">{project.name}</h1>
             {!isPersonalProject && project.code && (
-            <span className="font-mono text-sm text-muted-foreground">{project.code}</span>
+              <span className="font-mono text-sm text-muted-foreground">{project.code}</span>
             )}
+            <Badge variant="outline">{normalizeCurrency(project.currency)}</Badge>
           </div>
           {project.description && (
             <p className="mt-2 text-muted-foreground">{project.description}</p>
@@ -60,4 +63,3 @@ export const ProjectHeader = ({ project, tasks, onUpdate }: ProjectHeaderProps) 
     </div>
   );
 };
-

@@ -177,6 +177,7 @@ import { sk } from "date-fns/locale";
 import type { Task, TaskAssignee } from "@/types/database";
 import { cn } from "@/lib/utils";
 import { getDeadlineStatus, getDeadlineBadge } from "@/lib/deadline-utils";
+import { normalizeCurrency } from "@/lib/currency";
 import { useTimer } from "@/contexts/TimerContext";
 import { usePermission } from "@/hooks/usePermissions";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
@@ -1719,9 +1720,12 @@ export default function TaskDetailPage() {
       <div className="flex flex-col gap-5">
         {/* Title */}
         <div className="h-[37.5px] min-w-0">
-          <h1 className="font-bold leading-[37.5px] text-[#0f172b] dark:text-foreground text-[30px] tracking-[-0.3545px] truncate">
-            {task.title}
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="font-bold leading-[37.5px] text-[#0f172b] dark:text-foreground text-[30px] tracking-[-0.3545px] truncate">
+              {task.title}
+            </h1>
+            <Badge variant="outline">{normalizeCurrency(task.currency)}</Badge>
+          </div>
         </div>
 
         {/* Metadata Row - Figma Design */}

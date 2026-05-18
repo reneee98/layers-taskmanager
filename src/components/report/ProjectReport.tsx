@@ -42,6 +42,10 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
   const { hasPermission: canViewHourlyRates } = usePermission('financial', 'view_hourly_rates');
   const { hasPermission: canViewProfit } = usePermission('financial', 'view_profit');
   const { hasPermission: canViewCosts } = usePermission('financial', 'view_costs');
+  const currency = normalizeCurrency(finance?.currency);
+  const { rate } = useUsdExchangeRate(currency === "USD");
+  const formatMoney = (value: number) => formatCurrency(value, currency);
+  const euroEquivalent = (value: number) => getEuroEquivalentLabel(value, currency, rate?.usdPerEur);
 
   useEffect(() => {
     fetchFinanceData();
@@ -108,11 +112,6 @@ export function ProjectReport({ projectId, taskId }: ProjectReportProps) {
       </div>
     );
   }
-
-  const currency = normalizeCurrency(finance.currency);
-  const { rate } = useUsdExchangeRate(currency === "USD");
-  const formatMoney = (value: number) => formatCurrency(value, currency);
-  const euroEquivalent = (value: number) => getEuroEquivalentLabel(value, currency, rate?.usdPerEur);
 
   const getProfitColor = (pct: number) => {
     if (pct >= 20) return "bg-green-500/10 text-green-500 border-green-500/20";

@@ -31,6 +31,10 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
   const [isLoading, setIsLoading] = useState(true);
   const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
   const { hasPermission: canViewCosts } = usePermission('financial', 'view_costs');
+  const currency = normalizeCurrency(summary?.currency);
+  const { rate } = useUsdExchangeRate(currency === "USD");
+  const formatMoney = (value: number) => formatCurrency(value, currency);
+  const euroEquivalent = (value: number) => getEuroEquivalentLabel(value, currency, rate?.usdPerEur);
 
   const fetchSummary = useCallback(async (showLoading = false) => {
     try {
@@ -85,10 +89,6 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
   }
 
   const completionRate = summary.totalTasks > 0 ? (summary.completedTasks / summary.totalTasks) * 100 : 0;
-  const currency = normalizeCurrency(summary.currency);
-  const { rate } = useUsdExchangeRate(currency === "USD");
-  const formatMoney = (value: number) => formatCurrency(value, currency);
-  const euroEquivalent = (value: number) => getEuroEquivalentLabel(value, currency, rate?.usdPerEur);
 
   return (
     <div className="space-y-3">

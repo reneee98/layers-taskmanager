@@ -49,6 +49,7 @@ import { normalizeTaskColor, taskColorToRgba } from "@/lib/task-colors";
 import type { Project } from "@/types/database";
 import { usePermission } from "@/hooks/usePermissions";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
+import { normalizeCurrency } from "@/lib/currency";
 
 interface TaskRowProps {
   task: Task;
@@ -458,6 +459,9 @@ export function TaskRow({
               {truncateTaskTitle(task.title, 50)}
               <ExternalLink className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
             </Link>
+            <Badge variant="outline" className="text-[10px] shrink-0">
+              {normalizeCurrency(task.currency)}
+            </Badge>
           </div>
           {task.description && (
             <div className="text-xs text-muted-foreground line-clamp-1">

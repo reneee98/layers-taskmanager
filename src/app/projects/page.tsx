@@ -41,6 +41,7 @@ const ProjectForm = dynamic(() => import("@/components/projects/ProjectForm").th
 import type { Project, Client } from "@/types/database";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { normalizeCurrency } from "@/lib/currency";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string; iconColor: string }> = {
   draft: { 
@@ -458,7 +459,14 @@ function ProjectsPageContent() {
                     ) : (
                       <TableCell className="text-muted-foreground italic">—</TableCell>
                     )}
-                  <TableCell className="font-medium text-foreground">{project.name}</TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    <div className="flex items-center gap-2">
+                      <span>{project.name}</span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {normalizeCurrency(project.currency)}
+                      </Badge>
+                    </div>
+                  </TableCell>
                     {!isPersonalProject ? (
                   <TableCell className="text-muted-foreground">{project.client?.name || 'Neznámy klient'}</TableCell>
                     ) : (
@@ -578,4 +586,3 @@ export default function ProjectsPage() {
     </AuthGuard>
   );
 }
-

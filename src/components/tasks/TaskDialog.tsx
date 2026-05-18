@@ -262,9 +262,7 @@ export function TaskDialog({
         payload.project_id = null;
       }
 
-      payload.currency = selectedProjectId
-        ? normalizeCurrency(projects.find((project) => project.id === selectedProjectId)?.currency)
-        : currency;
+      payload.currency = currency;
 
       // Only include estimated_hours if it has a value
       if (estimatedHours && estimatedHours.trim() !== "") {
@@ -388,13 +386,8 @@ export function TaskDialog({
             <div className="space-y-2">
               <Label htmlFor="currency">Mena</Label>
               <Select
-                value={
-                  selectedProjectId
-                    ? normalizeCurrency(projects.find((project) => project.id === selectedProjectId)?.currency)
-                    : currency
-                }
+                value={currency}
                 onValueChange={(value) => setCurrency(value as "EUR" | "USD")}
-                disabled={Boolean(selectedProjectId)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Vyberte menu" />
@@ -407,18 +400,7 @@ export function TaskDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {selectedProjectId && (
-                <p className="text-xs text-muted-foreground">
-                  Pri úlohách v projekte sa mena preberá z projektu.
-                </p>
-              )}
-              <ExchangeRateNotice
-                currency={
-                  selectedProjectId
-                    ? normalizeCurrency(projects.find((project) => project.id === selectedProjectId)?.currency)
-                    : currency
-                }
-              />
+              <ExchangeRateNotice currency={currency} />
             </div>
 
             <div className="space-y-2">
@@ -542,7 +524,7 @@ export function TaskDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="budgetAmount">Rozpočet {getCurrencySymbol(selectedProjectId ? normalizeCurrency(projects.find((project) => project.id === selectedProjectId)?.currency) : currency)}</Label>
+              <Label htmlFor="budgetAmount">Rozpočet {getCurrencySymbol(currency)}</Label>
               <Input
                 id="budgetAmount"
                 type="number"

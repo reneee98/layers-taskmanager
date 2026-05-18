@@ -264,21 +264,17 @@ export async function POST(request: NextRequest) {
 
     // Get project hourly rate if available
     let projectHourlyRateCents: number | null = null;
-    let projectCurrency = "EUR";
     if (validation.data.project_id) {
       const { data: project } = await supabase
         .from("projects")
-        .select("hourly_rate_cents, currency")
+        .select("hourly_rate_cents")
         .eq("id", validation.data.project_id)
         .single();
 
       projectHourlyRateCents = project?.hourly_rate_cents || null;
-      projectCurrency = project?.currency || "EUR";
     }
 
-    validation.data.currency = normalizeCurrency(
-      validation.data.project_id ? projectCurrency : validation.data.currency || "EUR"
-    );
+    validation.data.currency = normalizeCurrency(validation.data.currency || "EUR");
 
     // If budget_cents is set, automatically calculate estimated_hours = budget_cents / hourly_rate
     // Only if estimated_hours is not explicitly set (allows manual override)

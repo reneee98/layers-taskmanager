@@ -1940,7 +1940,6 @@ export default function TaskDetailPage() {
                     project_id: task.project_id || null,
                     color: task.color || null,
                     currency: task.currency || "EUR",
-                    project_currency: task.project?.currency || null,
                     budget_cents: task.budget_cents || null,
                     sales_commission_enabled: (task as any).sales_commission_enabled,
                     sales_commission_user_id: (task as any).sales_commission_user_id || null,

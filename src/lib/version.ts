@@ -1,3 +1,5 @@
+import packageJson from "../../package.json";
+
 // Utility to get app version from package.json
 // This will be resolved at build time
 
@@ -16,17 +18,10 @@ export const getAppVersion = (): string => {
 
   // Fallback to reading package.json (only works in Node.js, not in browser)
   if (typeof window === 'undefined') {
-    try {
-      const packageJson = require('../../package.json');
-      cachedVersion = packageJson.version || '1.0.0';
-      return cachedVersion;
-    } catch (error) {
-      cachedVersion = '1.0.0';
-      return cachedVersion;
-    }
+    cachedVersion = packageJson.version || '1.0.0';
+    return cachedVersion;
   }
 
   // Browser fallback
   return cachedVersion;
 };
-

@@ -2,7 +2,6 @@
 
 import { useTimer } from "@/contexts/TimerContext";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Square } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useRouter, usePathname } from "next/navigation";

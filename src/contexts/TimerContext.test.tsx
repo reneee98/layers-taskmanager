@@ -2,6 +2,7 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { TimerProvider, useTimer } from "@/contexts/TimerContext";
+import type { TimerContextType } from "@/types/timer";
 
 vi.mock("@/contexts/AuthContext", () => {
   return {
@@ -23,25 +24,23 @@ describe("TimerContext", () => {
       ok: true,
       json: async () => ({ success: true }),
     });
-    // @ts-expect-error - override fetch in test env
-    global.fetch = fetchMock;
+    vi.stubGlobal("fetch", fetchMock);
 
-    let ctx: ReturnType<typeof useTimer> | null = null;
+    let resolveContext: ((value: TimerContextType) => void) | null = null;
+    const timerContextPromise = new Promise<TimerContextType>((resolve) => {
+      resolveContext = resolve;
+    });
 
     render(
       <TimerProvider>
-        <TimerConsumer onReady={(c) => (ctx = c)} />
+        <TimerConsumer onReady={(c) => resolveContext?.(c)} />
       </TimerProvider>
     );
 
-    // wait a microtask for effect to run
-    await Promise.resolve();
+    const timerContext = await timerContextPromise;
 
-    expect(ctx).not.toBeNull();
-    if (!ctx) return;
-
-    const first = ctx.stopTimer();
-    const second = ctx.stopTimer();
+    const first = timerContext.stopTimer();
+    const second = timerContext.stopTimer();
 
     await Promise.all([first, second]);
 
@@ -49,5 +48,4 @@ describe("TimerContext", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/timers/stop", { method: "POST" });
   });
 });
-
 

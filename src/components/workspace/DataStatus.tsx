@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Database, CheckCircle, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-interface DataStatusProps {}
-
 interface DataCounts {
   clients: number;
   projects: number;
@@ -30,7 +28,7 @@ interface WorkspaceData {
   needsMigration: boolean;
 }
 
-export function DataStatus({}: DataStatusProps) {
+export function DataStatus() {
   const [data, setData] = useState<WorkspaceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

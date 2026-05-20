@@ -91,7 +91,7 @@ export async function POST(
               .or(`user_id.eq.${userId},project_id.eq.${task.project_id}`)
               .lte("valid_from", today)
               .or(`valid_to.is.null,valid_to.gte.${today}`)
-              .order("is_default", { ascending: false })
+              .order("is_default", { ascending: true })
               .order("valid_from", { ascending: false });
 
             if (rates && rates.length > 0) {
@@ -120,7 +120,7 @@ export async function POST(
             .eq("user_id", userId)
             .lte("valid_from", today)
             .or(`valid_to.is.null,valid_to.gte.${today}`)
-            .order("is_default", { ascending: false })
+            .order("is_default", { ascending: true })
             .order("valid_from", { ascending: false });
 
           if (rates && rates.length > 0) {
@@ -166,7 +166,6 @@ export async function POST(
 
     // Calculate amount - budget covers hours up to limit, extra hours are billed
     const currentActualHours = task.actual_hours || 0;
-    const totalHoursAfterEntry = currentActualHours + validatedData.hours;
     
     // Calculate how many hours from the new entry are within the budget limit
     const hoursWithinBudget = Math.max(0, Math.min(currentActualHours, budgetHoursLimit));
@@ -349,4 +348,3 @@ export async function GET(
     );
   }
 }
-

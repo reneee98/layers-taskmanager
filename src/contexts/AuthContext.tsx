@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useRef } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -32,9 +32,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isFetchingProfileRef = useRef(false);
   const lastFetchedUserIdRef = useRef<string | null>(null);
 
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
-  const refreshProfile = async (force = false) => {
+  const refreshProfile = useCallback(async (force = false) => {
     if (!user?.id) {
       setProfile(null);
       return;
@@ -69,9 +69,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error && error.code === 'PGRST116') {
         // Profile doesn't exist, create it
         // Get display_name from user metadata (from registration form) if available
-        let displayName = user.user_metadata?.display_name || 
-                          user.email?.split('@')[0] || 
-                          'User';
+        const displayName = user.user_metadata?.display_name ||
+          user.email?.split('@')[0] ||
+          'User';
         
         const { data: newProfile, error: createError } = await supabase
           .from("profiles")
@@ -93,12 +93,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (error) {
         setProfile(null);
       }
-    } catch (error) {
+    } catch {
       setProfile(null);
     } finally {
       isFetchingProfileRef.current = false;
     }
-  };
+  }, [profile, supabase, user]);
 
   useEffect(() => {
     // Check if we're on a share route - don't block rendering for public pages
@@ -147,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => subscription.unsubscribe();
-  }, [user?.id]);
+  }, [refreshProfile, supabase]);
 
   const signOut = async () => {
     try {

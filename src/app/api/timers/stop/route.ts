@@ -1,9 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth";
-import { logActivity, ActivityTypes, getUserDisplayName, getTaskTitle } from "@/lib/activity-logger";
+import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
 
-export async function POST(request: NextRequest) {
+type ActiveTimerTask = {
+  title?: string | null;
+  project_id?: string | null;
+  estimated_hours?: number | null;
+  budget_cents?: number | null;
+  actual_hours?: number | null;
+  projects?: {
+    name?: string | null;
+    hourly_rate_cents?: number | null;
+  } | null;
+};
+
+export async function POST() {
   try {
     const supabase = createClient();
     const user = await getServerUser();
@@ -46,7 +58,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Failed to fetch active timer" }, { status: 500 });
     }
 
-    const task = activeTimer.tasks as any;
+    const task = activeTimer.tasks as ActiveTimerTask | null;
     const taskTitle = task?.title || "Neznáma úloha";
     const projectId = task?.project_id;
     const projectName = task?.projects?.name || "";
@@ -125,7 +137,7 @@ export async function POST(request: NextRequest) {
             .or(`user_id.eq.${user.id},project_id.eq.${taskDetails.project_id}`)
             .lte("valid_from", today)
             .or(`valid_to.is.null,valid_to.gte.${today}`)
-            .order("is_default", { ascending: false })
+            .order("is_default", { ascending: true })
             .order("valid_from", { ascending: false });
 
           if (rates && rates.length > 0) {
@@ -150,7 +162,7 @@ export async function POST(request: NextRequest) {
           .eq("user_id", user.id)
           .lte("valid_from", today)
           .or(`valid_to.is.null,valid_to.gte.${today}`)
-          .order("is_default", { ascending: false })
+          .order("is_default", { ascending: true })
           .order("valid_from", { ascending: false });
 
         if (rates && rates.length > 0) {
@@ -196,7 +208,7 @@ export async function POST(request: NextRequest) {
         .single();
       isExtra = timerWithExtra?.is_extra || false;
       timerDescription = timerWithExtra?.description || "";
-    } catch (e) {
+    } catch {
       // Columns don't exist yet, use defaults
       isExtra = false;
       timerDescription = "";
@@ -298,7 +310,7 @@ export async function POST(request: NextRequest) {
       type: ActivityTypes.TIMER_STOPPED,
       action: `Zastavil timer a uložil ${durationHours}h`,
       details: taskTitle,
-      projectId: projectId,
+      projectId: projectId ?? undefined,
       taskId: activeTimer.task_id,
       metadata: {
         timer_id: activeTimer.id,

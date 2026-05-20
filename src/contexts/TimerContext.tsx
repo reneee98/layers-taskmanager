@@ -15,38 +15,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const lastUserIdRef = useRef<string | null>(null); // Track last user ID to prevent duplicate calls
   const isStoppingRef = useRef(false); // Prevent duplicate stop calls across components
 
-  // Check for active timer on mount (only if user is logged in)
-  useEffect(() => {
-    // Skip if same user already fetched
-    if (user?.id === lastUserIdRef.current) {
-      return;
-    }
-    
-    if (user && !endpointNotFoundRef.current) {
-      lastUserIdRef.current = user.id;
-      refreshTimer();
-    } else {
-      setActiveTimer(null);
-      setCurrentDuration(0);
-      lastUserIdRef.current = null;
-    }
-  }, [user?.id]);
-
-  // Update duration every second when there's an active timer
-  useEffect(() => {
-    if (activeTimer) {
-      const interval = setInterval(() => {
-        const startedAt = new Date(activeTimer.started_at);
-        const now = new Date();
-        const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
-        setCurrentDuration(duration);
-      }, 1000);
-      return () => clearInterval(interval);
-    } else {
-      setCurrentDuration(0);
-    }
-  }, [activeTimer]);
-
   const refreshTimer = useCallback(async () => {
     if (!user || endpointNotFoundRef.current || isFetchingRef.current) {
       if (!user) setActiveTimer(null);
@@ -94,6 +62,38 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       isFetchingRef.current = false;
     }
   }, [user]);
+
+  // Check for active timer on mount (only if user is logged in)
+  useEffect(() => {
+    // Skip if same user already fetched
+    if (user?.id === lastUserIdRef.current) {
+      return;
+    }
+    
+    if (user && !endpointNotFoundRef.current) {
+      lastUserIdRef.current = user.id;
+      refreshTimer();
+    } else {
+      setActiveTimer(null);
+      setCurrentDuration(0);
+      lastUserIdRef.current = null;
+    }
+  }, [refreshTimer, user]);
+
+  // Update duration every second when there's an active timer
+  useEffect(() => {
+    if (activeTimer) {
+      const interval = setInterval(() => {
+        const startedAt = new Date(activeTimer.started_at);
+        const now = new Date();
+        const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+        setCurrentDuration(duration);
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setCurrentDuration(0);
+    }
+  }, [activeTimer]);
 
   const startTimer = async (taskId: string, taskName: string, projectId: string, projectName: string, isExtra: boolean = false, description?: string) => {
     try {

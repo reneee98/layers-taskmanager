@@ -75,6 +75,28 @@ describe("resolveHourlyRate", () => {
   });
 
   describe("Priority 2: rates table", () => {
+    it("should use project hourly rate before rates table", () => {
+      const project = { hourly_rate_cents: 12500 };
+      const rates = [
+        {
+          id: "rate-1",
+          name: "User Rate",
+          hourly_rate: 110,
+          user_id: userId,
+          project_id: null,
+          valid_from: "2024-01-01",
+          valid_to: null,
+          is_default: false,
+        },
+      ];
+
+      const result = resolveHourlyRateSync(userId, projectId, null, project, rates);
+
+      expect(result.hourlyRate).toBe(125);
+      expect(result.source).toBe("project_member");
+      expect(result.rateId).toBeUndefined();
+    });
+
     it("should use user-specific rate when no project_member rate", () => {
       const rates = [
         {
@@ -312,4 +334,3 @@ describe("resolveHourlyRate", () => {
     });
   });
 });
-

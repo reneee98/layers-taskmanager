@@ -20,6 +20,21 @@ export interface ResolveRateResult {
   rateName?: string;
 }
 
+type ProjectRateData = {
+  hourly_rate_cents?: number | null;
+};
+
+type RateCandidate = {
+  id: string;
+  name: string;
+  hourly_rate: number;
+  user_id?: string | null;
+  project_id?: string | null;
+  valid_from: string;
+  valid_to?: string | null;
+  is_default: boolean;
+};
+
 /**
  * Resolve hourly rate for a user in a project
  * 
@@ -73,7 +88,7 @@ export async function resolveHourlyRate(
     .or(`user_id.eq.${userId},project_id.eq.${projectId}`)
     .lte("valid_from", today)
     .or(`valid_to.is.null,valid_to.gte.${today}`)
-    .order("is_default", { ascending: false }) // Prefer non-default
+    .order("is_default", { ascending: true }) // Prefer non-default
     .order("valid_from", { ascending: false }); // Latest first
 
   if (!ratesError && rates && rates.length > 0) {
@@ -109,18 +124,12 @@ export function resolveHourlyRateSync(
   userId: string,
   projectId: string,
   projectMember?: { hourly_rate?: number | null } | null,
-  project?: { hourly_rate_cents?: number | null } | null,
-  rates?: Array<{
-    id: string;
-    name: string;
-    hourly_rate: number;
-    user_id?: string | null;
-    project_id?: string | null;
-    valid_from: string;
-    valid_to?: string | null;
-    is_default: boolean;
-  }> | null
+  projectOrRates?: ProjectRateData | Array<RateCandidate> | null,
+  ratesArg?: Array<RateCandidate> | null
 ): ResolveRateResult {
+  const project = Array.isArray(projectOrRates) ? null : projectOrRates;
+  const rates = Array.isArray(projectOrRates) ? projectOrRates : ratesArg;
+
   // Priority 1: project_members.hourly_rate
   if (projectMember?.hourly_rate != null) {
     return {
@@ -178,4 +187,3 @@ export function resolveHourlyRateSync(
     source: "fallback",
   };
 }
-

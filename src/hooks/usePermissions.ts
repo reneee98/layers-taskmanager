@@ -77,6 +77,7 @@ export function usePermission(resource: string, action: string) {
 export function usePermissions(permissions: Array<{ resource: string; action: string }>) {
   const permissionContext = useContext(PermissionContext);
   const workspaceContext = useContext(WorkspaceContext);
+  const { profile } = useAuth();
   const workspace = workspaceContext?.workspace || null;
   
   const [fallbackPermissionMap, setFallbackPermissionMap] = useState<Record<string, boolean>>({});
@@ -109,7 +110,6 @@ export function usePermissions(permissions: Array<{ resource: string; action: st
   if (permissionContext) {
     const workspaceRole = workspaceContext?.workspaceRole;
     const workspace = workspaceContext?.workspace;
-    const { profile } = useAuth();
     const isOwner = workspaceRole?.role === 'owner' || (workspace && workspace.owner_id === profile?.id);
     const isAdmin = profile?.role === 'admin';
     
@@ -131,4 +131,3 @@ export function usePermissions(permissions: Array<{ resource: string; action: st
 
   return { hasPermission, isLoading: fallbackLoading };
 }
-

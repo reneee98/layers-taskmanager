@@ -131,7 +131,8 @@ export function TaskSettingsPanel({
         setSalesCommissionPercent(salesCommissionPercent || "10");
       }
     }
-  }, [task]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task?.id, task?.title, task?.project_id, task?.color, task?.budget_cents, task?.currency, task?.sales_commission_enabled, task?.sales_commission_user_id, task?.sales_commission_percent]);
 
   useEffect(() => {
     fetchAssignees();

@@ -252,7 +252,7 @@ export const DashboardWorkspace = ({
         <section className="surface-panel overflow-hidden">
           <div
             className={cn(
-              "flex flex-col gap-4 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between",
+              "flex flex-col gap-3 px-3 py-2.5 sm:px-4 lg:flex-row lg:items-center lg:justify-between",
               !isFocusCollapsed && "border-b border-border"
             )}
           >
@@ -261,7 +261,7 @@ export const DashboardWorkspace = ({
               onClick={() => setIsFocusCollapsed((current) => !current)}
               aria-expanded={!isFocusCollapsed}
               aria-controls="dashboard-focus-tasks"
-              className="group flex min-h-11 min-w-0 items-center gap-3 rounded-lg text-left outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+              className="group flex min-h-10 min-w-0 items-center gap-2.5 rounded-lg text-left outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
             >
               <ChevronDown
                 className={cn(
@@ -276,7 +276,7 @@ export const DashboardWorkspace = ({
                     {focusTasks.length}
                   </span>
                 </span>
-                <span className="mt-1 block truncate text-xs text-muted-foreground">
+                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
                   {focusFilterDescription}
                 </span>
               </span>
@@ -351,9 +351,9 @@ export const DashboardWorkspace = ({
 
       {showProjects && (
         <section className="surface-panel overflow-hidden">
-          <div className="border-b border-border px-4 py-4 sm:px-5">
+          <div className="border-b border-border px-3 py-3 sm:px-4">
             <h2 className="text-sm font-semibold text-foreground">Projekty a ich úlohy</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
               Rozbaľte projekt a zobrazte jeho aktívne úlohy priamo na dashboarde.
             </p>
           </div>
@@ -369,8 +369,8 @@ export const DashboardWorkspace = ({
                   <div key={project.id} className="border-b border-border/70 last:border-b-0">
                     <div
                       className={cn(
-                        "flex items-center gap-2 px-3 py-2 sm:px-4",
-                        isExpanded && "bg-muted/20"
+                        "flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3",
+                        isExpanded && "bg-muted/25"
                       )}
                     >
                       <button
@@ -378,7 +378,7 @@ export const DashboardWorkspace = ({
                         onClick={() => handleToggleProject(project.id)}
                         aria-expanded={isExpanded}
                         aria-controls={taskContainerId}
-                        className="group flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg px-1 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                        className="group flex min-h-10 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1 text-left outline-none transition-colors hover:bg-muted/45 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
                       >
                         <ChevronDown
                           className={cn(
@@ -386,8 +386,8 @@ export const DashboardWorkspace = ({
                             !isExpanded && "-rotate-90"
                           )}
                         />
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-xs">
-                          <FolderKanban className="h-4 w-4" />
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-sky-500/[0.08] text-sky-600 dark:text-sky-400">
+                          <FolderKanban className="h-3.5 w-3.5" />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex min-w-0 items-center gap-2">
@@ -400,7 +400,7 @@ export const DashboardWorkspace = ({
                               </span>
                             )}
                           </span>
-                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
                             {project.client?.name || "Interný projekt"} ·{" "}
                             {getActiveTaskLabel(projectTasks.length)}
                           </span>
@@ -410,7 +410,7 @@ export const DashboardWorkspace = ({
                       <Link
                         href={`/projects/${project.id}`}
                         aria-label={`Otvoriť projekt ${project.name}`}
-                        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:px-3"
+                        className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:px-2.5"
                       >
                         <span className="hidden sm:inline">Otvoriť</span>
                         <ArrowRight className="h-3.5 w-3.5" />
@@ -420,7 +420,7 @@ export const DashboardWorkspace = ({
                     {isExpanded && (
                       <div
                         id={taskContainerId}
-                        className="border-t border-border/70 bg-muted/10 pl-3 sm:pl-8"
+                        className="border-t border-border/60 bg-muted/[0.06] pl-2 sm:pl-6"
                       >
                         {projectTasks.map((task) => (
                           <DashboardTaskRow

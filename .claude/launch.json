@@ -3,8 +3,13 @@
   "configurations": [
     {
       "name": "layers-studio",
-      "runtimeExecutable": "/Users/renemoravec/.nvm/versions/node/v20.20.0/bin/npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "/Users/renemoravec/.nvm/versions/node/v20.20.0/bin/node",
+      "runtimeArgs": [
+        "/Users/renemoravec/Documents/layers-studio/node_modules/next/dist/bin/next",
+        "dev",
+        "-p",
+        "3001"
+      ],
       "port": 3001,
       "autoPort": false
     }

@@ -17,7 +17,6 @@ import Link from "next/link";
 
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -81,6 +80,29 @@ const priorityLabels: Record<string, string> = {
   medium: "Stredná",
   high: "Vysoká",
   urgent: "Urgentná",
+};
+
+const priorityToneClasses: Record<string, string> = {
+  low: "text-slate-500 dark:text-slate-400",
+  medium: "text-sky-600 dark:text-sky-400",
+  high: "text-orange-600 dark:text-orange-400",
+  urgent: "text-rose-600 dark:text-rose-400",
+};
+
+const taskAccentClasses: Record<string, string> = {
+  todo: "bg-slate-300 dark:bg-slate-600",
+  in_progress: "bg-sky-400 dark:bg-sky-500",
+  review: "bg-amber-400 dark:bg-amber-500",
+  sent_to_client: "bg-violet-400 dark:bg-violet-500",
+  done: "bg-emerald-400 dark:bg-emerald-500",
+  cancelled: "bg-rose-400 dark:bg-rose-500",
+};
+
+const taskSurfaceClasses: Record<string, string> = {
+  in_progress: "bg-sky-500/[0.025] hover:bg-sky-500/[0.055]",
+  review: "bg-amber-500/[0.025] hover:bg-amber-500/[0.055]",
+  sent_to_client: "bg-violet-500/[0.025] hover:bg-violet-500/[0.055]",
+  done: "bg-emerald-500/[0.02] hover:bg-emerald-500/[0.05]",
 };
 
 const getTaskHref = (task: DashboardTaskItem) => {
@@ -176,8 +198,9 @@ const DashboardDueDateControl = ({
             dueDate ? `Zmeniť termín úlohy ${taskTitle}` : `Nastaviť termín úlohy ${taskTitle}`
           }
           className={cn(
-            "inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-            deadline?.urgent && "border-destructive/25 text-destructive"
+            "inline-flex h-11 w-[72px] shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent bg-muted/55 px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:h-8",
+            deadline?.urgent &&
+              "bg-rose-500/[0.08] text-rose-600 hover:bg-rose-500/[0.13] dark:text-rose-400"
           )}
         >
           {isSaving ? (
@@ -295,18 +318,27 @@ export const DashboardTaskRow = ({
   return (
     <div
       className={cn(
-        "group flex min-h-16 flex-col gap-2 border-b border-border/70 px-4 py-3 last:border-b-0 sm:px-5 lg:flex-row lg:items-center lg:gap-4",
-        isTimerActive && "bg-emerald-500/[0.04]"
+        "group relative flex min-h-[52px] flex-col gap-2 border-b border-border/60 px-3 py-2.5 transition-colors duration-150 last:border-b-0 hover:bg-muted/35 sm:px-4 lg:flex-row lg:items-center lg:gap-3 lg:py-2",
+        taskSurfaceClasses[task.status],
+        isTimerActive && "bg-emerald-500/[0.055] hover:bg-emerald-500/[0.08]"
       )}
     >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute inset-y-2 left-0 w-0.5 rounded-r-full opacity-70",
+          taskAccentClasses[task.status] || taskAccentClasses.todo,
+          isTimerActive && "bg-emerald-500 opacity-100"
+        )}
+      />
       <div className="min-w-0 flex-1">
         <Link
           href={taskHref}
-          className="block truncate text-sm font-medium text-foreground outline-none transition-colors hover:text-foreground/75 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring/30"
+          className="block truncate text-[13px] font-medium leading-5 text-foreground outline-none transition-colors hover:text-foreground/70 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring/30"
         >
           {taskTitle}
         </Link>
-        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+        <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
           {showProject && task.project && (
             <span className="max-w-48 truncate">
               {task.project.name}
@@ -317,12 +349,10 @@ export const DashboardTaskRow = ({
             <Circle
               className={cn(
                 "h-1.5 w-1.5 fill-current",
-                task.priority === "urgent" || task.priority === "high"
-                  ? "text-orange-500"
-                  : "text-muted-foreground/70"
+                priorityToneClasses[task.priority] || "text-muted-foreground/70"
               )}
             />
-            {priorityLabel}
+            <span className={priorityToneClasses[task.priority]}>{priorityLabel}</span>
           </span>
           <span className="inline-flex items-center gap-1 lg:hidden">
             <Clock3 className="h-3 w-3" />
@@ -333,7 +363,7 @@ export const DashboardTaskRow = ({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">
+      <div className="flex min-w-0 flex-nowrap items-center gap-1.5 lg:grid lg:flex-none lg:grid-cols-[144px_72px_128px_56px_32px_32px] lg:gap-2">
         <StatusSelect
           status={
             task.status as
@@ -357,15 +387,15 @@ export const DashboardTaskRow = ({
         />
 
         <div
-          className="hidden w-36 shrink-0 flex-col gap-1 lg:flex"
+          className="hidden w-32 shrink-0 flex-col gap-0.5 lg:flex"
           title={`Odpracované ${formatHours(actualHours)}, odhad ${
             estimatedHours > 0 ? formatHours(estimatedHours) : "nie je nastavený"
           }, ${timeStatusLabel}`}
         >
-          <div className="flex items-center gap-1.5 whitespace-nowrap text-[11px]">
+          <div className="flex items-center gap-1 whitespace-nowrap text-[10px]">
             <Clock3
               className={cn(
-                "h-3.5 w-3.5 shrink-0",
+                "h-3 w-3 shrink-0",
                 isTimerActive ? "text-emerald-500" : "text-muted-foreground"
               )}
             />
@@ -384,7 +414,7 @@ export const DashboardTaskRow = ({
                 aria-valuemin={0}
                 aria-valuemax={estimatedHours}
                 aria-valuenow={actualHours}
-                className="h-1 min-w-8 flex-1 overflow-hidden rounded-full bg-muted"
+                className="h-0.5 min-w-8 flex-1 overflow-hidden rounded-full bg-muted"
               >
                 <div
                   className={cn(
@@ -403,7 +433,7 @@ export const DashboardTaskRow = ({
             )}
             <span
               className={cn(
-                "whitespace-nowrap text-[9px] tabular-nums text-muted-foreground",
+                "whitespace-nowrap text-[8px] tabular-nums text-muted-foreground",
                 exceededHours > 0 && "font-medium text-destructive"
               )}
             >
@@ -412,29 +442,32 @@ export const DashboardTaskRow = ({
           </div>
         </div>
 
-        {task.assignees && task.assignees.length > 0 && (
-          <div className="flex -space-x-1.5" role="group" aria-label="Priradení používatelia">
-            {task.assignees.slice(0, 3).map((assignee) => {
-              const name = assignee.user?.name || assignee.user?.email || "Používateľ";
-              return (
-                <Avatar key={assignee.id} className="h-7 w-7 border border-card">
-                  <AvatarFallback className="bg-muted text-[9px] font-medium text-muted-foreground">
-                    {getInitials(name)}
-                  </AvatarFallback>
-                </Avatar>
-              );
-            })}
-          </div>
-        )}
-
-        {getDeadline(task.due_date)?.urgent && (
-          <Badge
-            variant="outline"
-            className="hidden border-destructive/20 text-destructive 2xl:inline-flex"
-          >
-            Pozornosť
-          </Badge>
-        )}
+        <div
+          className="flex w-10 shrink-0 justify-center lg:w-14"
+          role="group"
+          aria-label={
+            task.assignees && task.assignees.length > 0
+              ? "Priradení používatelia"
+              : "Bez priradeného používateľa"
+          }
+        >
+          {task.assignees && task.assignees.length > 0 ? (
+            <div className="flex -space-x-1.5">
+              {task.assignees.slice(0, 2).map((assignee) => {
+                const name = assignee.user?.name || assignee.user?.email || "Používateľ";
+                return (
+                  <Avatar key={assignee.id} className="h-6 w-6 border border-card">
+                    <AvatarFallback className="bg-muted text-[8px] font-medium text-muted-foreground">
+                      {getInitials(name)}
+                    </AvatarFallback>
+                  </Avatar>
+                );
+              })}
+            </div>
+          ) : (
+            <span aria-hidden="true" className="h-6 w-6" />
+          )}
+        </div>
 
         <button
           type="button"
@@ -446,20 +479,14 @@ export const DashboardTaskRow = ({
               : `Spustiť časovač úlohy ${taskTitle}`
           }
           className={cn(
-            "inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2 text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-            isTimerActive &&
-              "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-transparent bg-emerald-500/[0.07] text-emerald-600 outline-none transition-colors hover:bg-emerald-500/[0.13] focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8 dark:text-emerald-400",
+            isTimerActive && "bg-emerald-500/[0.14] text-emerald-700 dark:text-emerald-300"
           )}
         >
           {isTimerUpdating ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : isTimerActive ? (
-            <>
-              <Square className="h-3.5 w-3.5 fill-current" />
-              <span className="font-mono text-[11px] font-medium tabular-nums">
-                {formatTimerDuration(currentDuration)}
-              </span>
-            </>
+            <Square className="h-3.5 w-3.5 fill-current" />
           ) : (
             <Play className="h-4 w-4" />
           )}
@@ -468,7 +495,7 @@ export const DashboardTaskRow = ({
         <Link
           href={taskHref}
           aria-label={`Otvoriť úlohu ${taskTitle}`}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+          className="hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 sm:flex"
         >
           <ArrowRight className="h-4 w-4" />
         </Link>

@@ -69,6 +69,16 @@ const statusOptions = [
   },
 ];
 
+const dashboardStatusTone: Record<string, string> = {
+  todo: "bg-slate-500/[0.08] text-slate-600 hover:bg-slate-500/[0.14] dark:text-slate-300",
+  in_progress: "bg-sky-500/[0.09] text-sky-700 hover:bg-sky-500/[0.15] dark:text-sky-300",
+  review: "bg-amber-500/[0.1] text-amber-700 hover:bg-amber-500/[0.17] dark:text-amber-300",
+  sent_to_client:
+    "bg-violet-500/[0.09] text-violet-700 hover:bg-violet-500/[0.15] dark:text-violet-300",
+  done: "bg-emerald-500/[0.09] text-emerald-700 hover:bg-emerald-500/[0.15] dark:text-emerald-300",
+  cancelled: "bg-rose-500/[0.09] text-rose-700 hover:bg-rose-500/[0.15] dark:text-rose-300",
+};
+
 export function StatusSelect({
   status,
   onStatusChange,
@@ -105,7 +115,10 @@ export function StatusSelect({
             isIcon
               ? "h-8 w-8 justify-center rounded-md border-border bg-muted/50 text-muted-foreground hover:bg-accent hover:text-foreground"
               : isDashboard
-                ? "h-9 w-fit gap-2 rounded-lg border-border bg-card px-2.5 text-xs text-foreground hover:bg-muted"
+                ? cn(
+                    "h-11 w-36 shrink-0 gap-1.5 rounded-md border-transparent px-2 text-[11px] sm:h-8",
+                    dashboardStatusTone[status]
+                  )
                 : isCompact
                   ? "h-6 w-fit gap-1 rounded-md px-1.5 py-0.5 text-xs"
                   : "h-[36px] gap-2 rounded-full px-[13px] py-px text-[12px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]",
@@ -132,7 +145,11 @@ export function StatusSelect({
                 status === "in_progress" && "animate-pulse"
               )}
             />
-            {!isIcon && <span className="whitespace-nowrap">{currentStatus.label}</span>}
+            {!isIcon && (
+              <span className={cn("whitespace-nowrap", isDashboard && "truncate")}>
+                {currentStatus.label}
+              </span>
+            )}
           </div>
           {!disabled && !isIcon && (
             <ChevronDown

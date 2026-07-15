@@ -84,7 +84,6 @@ export async function GET(req: NextRequest) {
     const restrictedProjectIds = projectAccess.hasFullProjectAccess
       ? null
       : projectAccess.accessibleProjectIds;
-    const restrictedProjectIdSet = restrictedProjectIds ? new Set(restrictedProjectIds) : null;
     const projectFilterIds = restrictedProjectIds
       ? restrictedProjectIds.length > 0
         ? restrictedProjectIds
@@ -132,8 +131,6 @@ export async function GET(req: NextRequest) {
       allWorkspaceMembers,
       // Projects
       projectsResult,
-      // Activities
-      activitiesResult,
       // Workspace invitations
       invitationsResult,
     ] = await Promise.all([
@@ -158,21 +155,6 @@ export async function GET(req: NextRequest) {
         .eq("workspace_id", workspaceId),
       // Projects
       projectsQuery,
-      // Activities
-      (() => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        return supabase
-          .from("activities")
-          .select(`id, type, action, details, metadata, created_at, project_id, task_id, user_id`)
-          .eq("workspace_id", workspaceId)
-          .gte("created_at", today.toISOString())
-          .lt("created_at", tomorrow.toISOString())
-          .order("created_at", { ascending: false })
-          .limit(50);
-      })(),
       // Invitations
       supabase
         .from("workspace_invitations")
@@ -344,66 +326,6 @@ export async function GET(req: NextRequest) {
         });
     };
 
-    // Process activities
-    const activitiesRaw = activitiesResult.data || [];
-    const activities = restrictedProjectIdSet
-      ? activitiesRaw.filter(
-          (activity: any) => !activity.project_id || restrictedProjectIdSet.has(activity.project_id)
-        )
-      : activitiesRaw;
-    const activityProjectIds = Array.from(
-      new Set(activities.map((a: any) => a.project_id).filter(Boolean))
-    );
-    const activityTaskIds = Array.from(
-      new Set(activities.map((a: any) => a.task_id).filter(Boolean))
-    );
-    const activityUserIds = Array.from(
-      new Set(activities.map((a: any) => a.user_id).filter(Boolean))
-    );
-
-    const [activityProjects, activityTasks, activityUsers] = await Promise.all([
-      activityProjectIds.length > 0
-        ? supabase.from("projects").select("id, name, code").in("id", activityProjectIds)
-        : Promise.resolve({ data: [] }),
-      activityTaskIds.length > 0
-        ? supabase.from("tasks").select("id, title").in("id", activityTaskIds)
-        : Promise.resolve({ data: [] }),
-      activityUserIds.length > 0
-        ? supabase
-            .from("profiles")
-            .select("id, display_name, email, avatar_url")
-            .in("id", activityUserIds)
-        : Promise.resolve({ data: [] }),
-    ]);
-
-    const projectsById = new Map((activityProjects.data || []).map((p: any) => [p.id, p]));
-    const tasksById = new Map((activityTasks.data || []).map((t: any) => [t.id, t]));
-    const usersById = new Map((activityUsers.data || []).map((u: any) => [u.id, u]));
-
-    const formattedActivities = activities.map((activity: any) => {
-      const project = activity.project_id ? projectsById.get(activity.project_id) : null;
-      const task = activity.task_id ? tasksById.get(activity.task_id) : null;
-      const user = activity.user_id ? usersById.get(activity.user_id) : null;
-
-      return {
-        id: activity.id,
-        type: activity.type,
-        action: activity.action,
-        details: activity.details,
-        project: project?.name,
-        project_id: activity.project_id,
-        project_code: project?.code,
-        task_title: task?.title,
-        task_id: activity.task_id,
-        user: user?.display_name || "Neznámy používateľ",
-        user_email: user?.email,
-        user_name: user?.display_name,
-        user_avatar_url: user?.avatar_url,
-        created_at: activity.created_at,
-        metadata: activity.metadata,
-      };
-    });
-
     // Format workspace users
     const memberRoleMap = new Map<string, string>();
     allWorkspaceMembers.data?.forEach((m: any) => memberRoleMap.set(m.user_id, m.role));
@@ -438,7 +360,6 @@ export async function GET(req: NextRequest) {
           unassigned: transformAndSort(unassignedTasks),
         },
         projects: projectsResult.data || [],
-        activities: formattedActivities,
         workspaceUsers: workspaceUsers,
         invitations: invitationsResult.data || [],
       },

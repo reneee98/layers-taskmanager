@@ -130,8 +130,8 @@ function ClientsPageContent() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-          <p className="text-muted-foreground">Kontrolujem oprávnenia...</p>
+          <div className="h-7 w-7 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"></div>
+          <p className="text-sm text-muted-foreground">Kontrolujem oprávnenia...</p>
         </div>
       </div>
     );
@@ -152,18 +152,17 @@ function ClientsPageContent() {
   }
 
   return (
-    <div className="w-full space-y-8">
+    <div className="page-shell">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Klienti</h1>
-          <p className="text-muted-foreground mt-1">Spravujte svojich klientov</p>
+          <h1 className="page-heading">Klienti</h1>
+          <p className="page-description">Spravujte svojich klientov</p>
         </div>
         <Button 
           onClick={() => setIsFormOpen(true)}
-          className=""
         >
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="h-4 w-4" />
           Pridať klienta
         </Button>
       </div>
@@ -174,20 +173,20 @@ function ClientsPageContent() {
           placeholder="Hľadať klienta..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm bg-card border-border"
+          className="max-w-sm"
         />
       </div>
 
       {/* Clients Table */}
-      <div className="bg-card border border-border rounded-lg shadow-sm">
+      <div className="surface-panel overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted">
-              <TableHead className="text-muted-foreground font-semibold">Názov</TableHead>
-              <TableHead className="text-muted-foreground font-semibold">Email</TableHead>
-              <TableHead className="text-muted-foreground font-semibold">Telefón</TableHead>
-              <TableHead className="text-muted-foreground font-semibold">IČO/DIČ</TableHead>
-              <TableHead className="w-[100px] text-muted-foreground font-semibold">Akcie</TableHead>
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead>Názov</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Telefón</TableHead>
+              <TableHead>IČO/DIČ</TableHead>
+              <TableHead className="w-[100px]">Akcie</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -264,4 +263,3 @@ export default function ClientsPage() {
     </AuthGuard>
   );
 }
-

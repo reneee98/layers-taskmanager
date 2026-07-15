@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   Moon,
   Sun,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -45,7 +46,7 @@ interface SideNavProps {
 const mainNavItems: Array<{
   title: string;
   href: string;
-  icon: any;
+  icon: LucideIcon;
   badge?: string;
   adminOnly?: boolean;
   permission?: { resource: string; action: string };
@@ -79,7 +80,7 @@ const mainNavItems: Array<{
 const toolsNavItems: Array<{
   title: string;
   href: string | ((workspaceId: string) => string);
-  icon: any;
+  icon: LucideIcon;
   adminOnly?: boolean;
   superadminOnly?: boolean;
   permission?: { resource: string; action: string };
@@ -242,11 +243,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false }: SideNavProps) 
     }
 
     const href =
-      typeof item.href === "function"
-        ? workspace?.id
-          ? item.href(workspace.id)
-          : "#"
-        : item.href;
+      typeof item.href === "function" ? (workspace?.id ? item.href(workspace.id) : "#") : item.href;
     const isActive = pathname === href;
     const showProjectsBadge = item.title === "Projekty" && !isCollapsed;
 
@@ -257,29 +254,29 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false }: SideNavProps) 
         onClick={() => onClose()}
         title={isCollapsed ? item.title : undefined}
         className={cn(
-          "group/nav flex h-9 items-center rounded-lg px-3 transition-colors",
+          "group/nav flex h-8 items-center rounded-md px-2.5 transition-colors",
           isCollapsed ? "justify-center" : "justify-between",
           isActive
             ? "bg-accent text-foreground"
-            : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
         )}
       >
         <span className="flex min-w-0 items-center gap-3">
           <item.icon
             className={cn(
-              "h-[18px] w-[18px] shrink-0 transition-colors",
+              "h-4 w-4 shrink-0 transition-colors",
               isActive ? "text-foreground" : "text-muted-foreground group-hover/nav:text-foreground"
             )}
           />
           {!isCollapsed && (
-            <span className={cn("truncate text-[13px]", isActive ? "font-semibold" : "font-medium")}>
+            <span className={cn("truncate text-[13px]", isActive ? "font-medium" : "font-normal")}>
               {item.title}
             </span>
           )}
         </span>
         {showProjectsBadge && (
           <span className="flex items-center gap-1.5">
-            <span className="flex h-5 min-w-[26px] items-center justify-center rounded-md bg-muted px-1.5 text-[10px] font-bold text-muted-foreground">
+            <span className="flex h-5 min-w-[24px] items-center justify-center rounded-md border border-border/70 bg-card/60 px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground">
               {visibleProjectsCount === null ? "…" : visibleProjectsCount}
             </span>
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
@@ -293,7 +290,9 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false }: SideNavProps) 
     <>
       {/* Mobile overlay */}
       {isOpen && (
-        <div
+        <button
+          type="button"
+          aria-label="Zavrieť navigáciu"
           className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:hidden"
           onClick={onClose}
         />
@@ -302,9 +301,9 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false }: SideNavProps) 
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 h-screen border-r border-border bg-card transition-all duration-300",
+          "app-sidebar fixed left-0 top-0 z-40 h-screen border-r border-border transition-[width,transform] duration-200",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
-          isCollapsed ? "w-16" : "w-64"
+          isCollapsed ? "w-[60px]" : "w-[248px]"
         )}
       >
         <div className="flex h-full flex-col">
@@ -312,46 +311,44 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false }: SideNavProps) 
           <div
             className={cn(
               "flex items-center gap-3",
-              isCollapsed ? "justify-center px-3 py-5" : "px-6 py-5"
+              isCollapsed ? "justify-center px-3 py-3.5" : "px-4 py-3.5"
             )}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary">
               <Image
                 src="/images/layers-logo.svg"
                 alt="Layers logo"
-                width={16}
-                height={16}
-                className="h-4 w-auto object-contain invert dark:invert-0"
+                width={20}
+                height={7}
+                className="object-contain invert dark:invert-0"
                 priority
               />
             </div>
             {!isCollapsed && (
               <div className="flex min-w-0 flex-col">
-                <span className="text-[17px] font-bold leading-5 tracking-tight text-foreground">
-                  layers
+                <span className="text-[14px] font-semibold leading-5 tracking-tight text-foreground">
+                  Layers
                 </span>
-                <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Workspace
-                </span>
+                <span className="text-[10px] leading-3 text-muted-foreground">Task manager</span>
               </div>
             )}
           </div>
 
           {/* Navigation */}
-          <nav className={cn("flex-1 overflow-y-auto", isCollapsed ? "px-2 pt-2" : "px-3 pt-3")}>
-            <div className="flex flex-col gap-7">
-              <div className="flex flex-col gap-1.5">
+          <nav className={cn("flex-1 overflow-y-auto", isCollapsed ? "px-2 pt-2" : "px-2.5 pt-2")}>
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-1">
                 {!isCollapsed && (
-                  <h2 className="px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
+                  <h2 className="px-2.5 pb-1 text-[10px] font-medium text-muted-foreground/70">
                     Prehľad
                   </h2>
                 )}
                 <div className="flex flex-col gap-0.5">{mainNavItems.map(renderNavItem)}</div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 {!isCollapsed && (
-                  <h2 className="px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
+                  <h2 className="px-2.5 pb-1 text-[10px] font-medium text-muted-foreground/70">
                     Nástroje
                   </h2>
                 )}
@@ -361,14 +358,14 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false }: SideNavProps) 
           </nav>
 
           {/* Bottom section */}
-          <div className={cn("border-t border-border", isCollapsed ? "p-2" : "p-3")}>
+          <div className={cn("border-t border-border/80", isCollapsed ? "p-2" : "p-2.5")}>
             {!isCollapsed && (
               <button
                 type="button"
                 onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-                className="mb-1 flex h-9 w-full items-center justify-between rounded-lg px-3 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+                className="mb-1 flex h-8 w-full items-center justify-between rounded-md px-2.5 text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground"
               >
-                <span className="flex items-center gap-3 text-[13px] font-medium">
+                <span className="flex items-center gap-3 text-[13px] font-normal">
                   {mounted && resolvedTheme === "dark" ? (
                     <Sun className="h-[18px] w-[18px]" />
                   ) : (
@@ -401,20 +398,20 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false }: SideNavProps) 
                   <button
                     type="button"
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-accent/60",
+                      "flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-accent/70",
                       isCollapsed && "justify-center p-1.5"
                     )}
                     aria-label="Používateľské menu"
                   >
-                    <Avatar className="h-9 w-9 shrink-0 border border-border">
-                      <AvatarFallback className="bg-muted text-xs font-bold text-foreground">
+                    <Avatar className="h-8 w-8 shrink-0 border border-border">
+                      <AvatarFallback className="bg-muted text-[11px] font-medium text-foreground">
                         {getInitials(profile.display_name || user.email || "U")}
                       </AvatarFallback>
                     </Avatar>
                     {!isCollapsed && (
                       <>
                         <span className="flex min-w-0 flex-1 flex-col">
-                          <span className="truncate text-[13px] font-semibold text-foreground">
+                          <span className="truncate text-[13px] font-medium text-foreground">
                             {profile.display_name || user.email?.split("@")[0] || "User"}
                           </span>
                           <span className="truncate text-[11px] text-muted-foreground">

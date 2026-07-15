@@ -18,13 +18,13 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { user, loading } = useAuth();
   const pathname = usePathname();
-  
+
   // Don't show layout for share routes
-  const isShareRoute = pathname?.startsWith('/share');
+  const isShareRoute = pathname?.startsWith("/share");
 
   // Load sidebar state from localStorage on mount
   useEffect(() => {
-    const savedState = localStorage.getItem('sidebar-collapsed');
+    const savedState = localStorage.getItem("sidebar-collapsed");
     if (savedState !== null) {
       setIsSidebarCollapsed(JSON.parse(savedState));
     }
@@ -32,7 +32,7 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
 
   // Save sidebar state to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('sidebar-collapsed', JSON.stringify(isSidebarCollapsed));
+    localStorage.setItem("sidebar-collapsed", JSON.stringify(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
 
   const handleToggleSideNav = () => {
@@ -52,46 +52,44 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
     return <>{children}</>;
   }
 
-  // If loading, show loading state
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  // If user is not authenticated, show only children (login screen)
-  if (!user) {
-    return <>{children}</>;
-  }
-
-  // If user is authenticated, show full layout
+  // Keep dependent contexts mounted while authentication initializes. An auth redirect
+  // can render a protected page before AuthProvider publishes the user.
   return (
     <WorkspaceProvider>
       <PermissionProvider>
         <WorkspaceUsersProvider>
-          <div className="relative min-h-screen bg-background">
-            <SideNav
-              isOpen={isSideNavOpen}
-              onClose={handleCloseSideNav}
-              isCollapsed={isSidebarCollapsed}
-              onToggleCollapse={handleToggleSidebarCollapse}
-            />
-            <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
-              <TopNav
-                onMenuClick={handleToggleSideNav}
-                onToggleSidebar={handleToggleSidebarCollapse}
-                isSidebarCollapsed={isSidebarCollapsed}
-              />
-              <main className="min-h-screen">
-                <div className="mx-auto w-full max-w-[1400px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8">{children}</div>
-              </main>
+          {loading ? (
+            <div className="flex min-h-screen items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
             </div>
-          </div>
+          ) : !user ? (
+            <>{children}</>
+          ) : (
+            <div className="app-shell relative min-h-screen">
+              <SideNav
+                isOpen={isSideNavOpen}
+                onClose={handleCloseSideNav}
+                isCollapsed={isSidebarCollapsed}
+                onToggleCollapse={handleToggleSidebarCollapse}
+              />
+              <div
+                className={`transition-[margin] duration-200 ${isSidebarCollapsed ? "md:ml-[60px]" : "md:ml-[248px]"}`}
+              >
+                <TopNav
+                  onMenuClick={handleToggleSideNav}
+                  onToggleSidebar={handleToggleSidebarCollapse}
+                  isSidebarCollapsed={isSidebarCollapsed}
+                />
+                <main className="min-h-[calc(100vh-3.25rem)]">
+                  <div className="mx-auto w-full max-w-[1480px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
+                    {children}
+                  </div>
+                </main>
+              </div>
+            </div>
+          )}
         </WorkspaceUsersProvider>
       </PermissionProvider>
     </WorkspaceProvider>
   );
 };
-

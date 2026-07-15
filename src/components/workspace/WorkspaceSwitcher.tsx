@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Building2 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 export function WorkspaceSwitcher() {
@@ -45,60 +44,57 @@ export function WorkspaceSwitcher() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="flex items-center gap-3 px-2 py-0 h-10 hover:bg-transparent rounded-[10px] transition-colors"
+          aria-label={`Prepnúť workspace: ${workspace.name}`}
+          className="flex h-9 items-center gap-2 rounded-lg px-1.5 sm:px-2"
         >
-          {/* Purple gradient avatar */}
-          <div 
-            className="w-8 h-8 rounded-lg flex items-center justify-center shadow-sm"
-            style={{ backgroundImage: "linear-gradient(135deg, rgba(97, 95, 255, 1) 0%, rgba(152, 16, 250, 1) 100%)" }}
-          >
-            <Building2 className="h-3.5 w-3.5 text-white" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card">
+            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
-          
+
           {/* Workspace name and plan */}
-          <div className="flex flex-col items-start gap-0.5">
-            <span className="text-sm font-semibold leading-[14px] text-foreground dark:text-foreground">
+          <div className="hidden flex-col items-start sm:flex">
+            <span className="max-w-36 truncate text-xs font-medium leading-4 text-foreground">
               {workspace.name}
             </span>
-            <span className="text-[10px] font-medium leading-[12.5px] text-muted-foreground dark:text-muted-foreground">
-              Enterprise
+            <span className="text-[10px] leading-3 text-muted-foreground">
+              {workspace.role === "owner" ? "Vlastník" : "Člen"}
             </span>
           </div>
-          
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground dark:text-muted-foreground" />
+
+          <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72 p-2">
-        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground">
           Prepnúť workspace
         </div>
         <div className="space-y-1">
           {workspaces.map((ws) => (
-            <DropdownMenuItem 
+            <DropdownMenuItem
               key={ws.id}
-              className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-accent transition-colors"
+              className="flex cursor-pointer items-center gap-3 rounded-md p-2.5 transition-colors"
               onClick={() => handleWorkspaceSwitch(ws.id)}
             >
-                   <div className={cn(
-                     "w-8 h-8 rounded-lg flex items-center justify-center",
-                     ws.id === workspace.id 
-                       ? "bg-gray-900" 
-                       : "bg-muted"
-                   )}>
-                     <Building2 className={cn(
-                       "h-4 w-4",
-                       ws.id === workspace.id ? "text-white" : "text-muted-foreground"
-                     )} />
-                   </div>
+              <div
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-md border",
+                  ws.id === workspace.id ? "border-input bg-accent" : "border-border bg-card"
+                )}
+              >
+                <Building2
+                  className={cn(
+                    "h-4 w-4",
+                    ws.id === workspace.id ? "text-foreground" : "text-muted-foreground"
+                  )}
+                />
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate text-foreground">{ws.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {ws.role === 'owner' ? 'Vlastník' : 'Člen'}
+                  {ws.role === "owner" ? "Vlastník" : "Člen"}
                 </div>
               </div>
-                   {ws.id === workspace.id && (
-                     <div className="w-2 h-2 bg-gray-900 rounded-full" />
-                   )}
+              {ws.id === workspace.id && <div className="h-1.5 w-1.5 rounded-full bg-brand" />}
             </DropdownMenuItem>
           ))}
         </div>

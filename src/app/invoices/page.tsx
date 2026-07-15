@@ -333,47 +333,47 @@ export default function InvoicesPage() {
   const totalValue = totalProjectsValue + totalTasksValue;
 
   return (
-    <div className="w-full space-y-8">
+    <div className="page-shell">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Faktúry</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="page-heading">Faktúry</h1>
+        <p className="page-description">
           Projekty a úlohy pripravené na vyfaktúrovanie
         </p>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-card border border-border shadow-sm">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-semibold text-muted-foreground">Dokončené projekty</CardTitle>
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-              <FileText className="h-5 w-5 text-blue-600" />
+            <div className="rounded-lg border border-border bg-muted/50 p-2">
+              <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{readyProjects.length}</div>
+            <div className="text-2xl font-semibold tabular-nums text-foreground">{readyProjects.length}</div>
             {canViewPrices && (
               <p className="text-sm text-muted-foreground mt-1">Celková hodnota: {formatCurrency(totalProjectsValue)}</p>
             )}
           </CardContent>
         </Card>
 
-        <Card className="bg-card border border-border shadow-sm">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-semibold text-muted-foreground">Celková hodnota</CardTitle>
-            <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-              <Euro className="h-5 w-5 text-green-600" />
+            <div className="rounded-lg border border-border bg-muted/50 p-2">
+              <Euro className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
           </CardHeader>
           <CardContent>
             {canViewPrices ? (
               <>
-                <div className="text-3xl font-bold text-foreground">{formatCurrency(totalValue)}</div>
+                <div className="text-2xl font-semibold tabular-nums text-foreground">{formatCurrency(totalValue)}</div>
                 <p className="text-sm text-muted-foreground mt-1">Na vyfaktúrovanie</p>
               </>
             ) : (
-              <div className="text-3xl font-bold text-foreground">—</div>
+              <div className="text-2xl font-semibold text-foreground">—</div>
             )}
           </CardContent>
         </Card>
@@ -381,11 +381,11 @@ export default function InvoicesPage() {
 
       {/* Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="bg-muted">
-          <TabsTrigger value="projects" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
+        <TabsList>
+          <TabsTrigger value="projects">
             Projekty ({readyProjects.length})
           </TabsTrigger>
-          <TabsTrigger value="archived" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
+          <TabsTrigger value="archived">
             Archivované ({archivedProjects.length})
           </TabsTrigger>
         </TabsList>
@@ -393,7 +393,7 @@ export default function InvoicesPage() {
         {/* Projects Tab */}
         <TabsContent value="projects" className="space-y-4">
           {readyProjects.length === 0 ? (
-            <Card className="bg-card border border-border shadow-sm">
+            <Card>
               <CardContent className="text-center py-12">
                 <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                   <FileText className="h-6 w-6 text-muted-foreground" />
@@ -405,7 +405,7 @@ export default function InvoicesPage() {
           ) : (
             <div className="space-y-4">
               {readyProjects.map((project) => (
-                <Card key={project.id} className="bg-card border border-border shadow-sm">
+                <Card key={project.id}>
                   <CardHeader className="bg-muted/50">
                     <div className="flex items-start justify-between">
                       <div>

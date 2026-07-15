@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Check, X } from "lucide-react";
+import { Bell, Check, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlobalTimer } from "@/components/timer/GlobalTimer";
 import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
@@ -142,15 +142,37 @@ export const TopNav = ({
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
-      <div className="flex h-14 w-full items-center justify-between px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 w-full border-b border-border/80 bg-background/85 backdrop-blur-xl">
+      <div className="flex h-[52px] w-full items-center gap-2 px-3 sm:px-4 lg:px-5">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMenuClick}
+          className="h-8 w-8 shrink-0 md:hidden"
+          aria-label="Otvoriť navigáciu"
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleSidebar}
+          className="hidden h-8 w-8 shrink-0 text-muted-foreground md:inline-flex"
+          aria-label={isSidebarCollapsed ? "Rozbaliť navigáciu" : "Zbaliť navigáciu"}
+        >
+          {isSidebarCollapsed ? (
+            <PanelLeftOpen className="h-4 w-4" />
+          ) : (
+            <PanelLeftClose className="h-4 w-4" />
+          )}
+        </Button>
         {/* Left side - Search bar */}
-        <div className="flex-1 max-w-md">
+        <div className="min-w-0 flex-1 max-w-md">
           <SearchBar />
         </div>
 
         {/* Right side - Actions and user menu */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="ml-auto flex flex-shrink-0 items-center gap-1.5">
           {/* Global timer (shows only when a timer is active) */}
           <GlobalTimer />
 
@@ -160,12 +182,12 @@ export const TopNav = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-9 w-9 rounded-full hover:bg-accent"
+                className="relative h-8 w-8 rounded-md text-muted-foreground"
                 aria-label="Upozornenia"
               >
                 <Bell className="h-4 w-4" />
                 {pendingCount > 0 && (
-                  <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full border-2 border-background bg-destructive" />
+                  <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-destructive" />
                 )}
               </Button>
             </DropdownMenuTrigger>
@@ -235,7 +257,7 @@ export const TopNav = ({
           </DropdownMenu>
 
           {/* Separator */}
-          <div className="mx-2 h-5 w-px bg-border" />
+          <div className="mx-1 hidden h-5 w-px bg-border sm:block" />
 
           {/* Workspace Switcher */}
           <WorkspaceSwitcher />

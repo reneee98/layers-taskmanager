@@ -119,9 +119,9 @@ export function RegisterForm() {
           <Image
             src="/images/layers-logo.svg"
             alt="Layers logo"
-            width={20}
-            height={20}
-            className="h-5 w-auto object-contain invert dark:invert-0"
+            width={40}
+            height={13}
+            className="h-auto w-10 object-contain invert dark:invert-0"
             priority
           />
         </div>

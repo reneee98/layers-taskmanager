@@ -297,8 +297,8 @@ function ProjectsPageContent() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-          <p className="text-muted-foreground">Kontrolujem oprávnenia...</p>
+          <div className="h-7 w-7 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"></div>
+          <p className="text-sm text-muted-foreground">Kontrolujem oprávnenia...</p>
         </div>
       </div>
     );
@@ -319,51 +319,50 @@ function ProjectsPageContent() {
   }
 
   return (
-    <div className="w-full space-y-8">
+    <div className="page-shell">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Projekty</h1>
-          <p className="text-muted-foreground mt-1">Spravujte svoje projekty</p>
+          <h1 className="page-heading">Projekty</h1>
+          <p className="page-description">Spravujte svoje projekty</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {/* Tabs */}
-          <div className="flex items-center bg-muted rounded-lg p-1">
+          <div className="flex items-center rounded-lg border border-border bg-muted/60 p-0.5">
             <Button
               variant={!showArchived ? "default" : "ghost"}
               size="sm"
               onClick={() => setShowArchived(false)}
-              className={!showArchived ? "bg-gray-900 text-white hover:bg-gray-800 shadow-sm" : "hover:bg-accent text-muted-foreground"}
+              className={!showArchived ? "" : "text-muted-foreground"}
             >
-              <FolderOpen className="h-4 w-4 mr-2" />
+              <FolderOpen className="h-4 w-4" />
               Aktívne ({projects.length})
             </Button>
             <Button
               variant={showArchived ? "default" : "ghost"}
               size="sm"
               onClick={() => setShowArchived(true)}
-              className={showArchived ? "bg-gray-900 text-white hover:bg-gray-800 shadow-sm" : "hover:bg-accent text-muted-foreground"}
+              className={showArchived ? "" : "text-muted-foreground"}
             >
-              <Archive className="h-4 w-4 mr-2" />
+              <Archive className="h-4 w-4" />
               Archivované ({archivedProjects.length})
             </Button>
           </div>
           
           <Button 
             onClick={() => setIsFormOpen(true)}
-            className="bg-gray-900 text-white hover:bg-gray-800"
           >
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="h-4 w-4" />
             Pridať projekt
           </Button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="w-[200px] bg-card border-border justify-between">
+            <Button variant="outline" className="w-full justify-between sm:w-[200px]">
               {statusFilter === "all" ? "Všetky statusy" : statusConfig[statusFilter]?.label || "Všetky statusy"}
               <ChevronDown className="h-4 w-4" />
             </Button>
@@ -393,7 +392,7 @@ function ProjectsPageContent() {
         </DropdownMenu>
 
         <Select value={clientFilter} onValueChange={setClientFilter}>
-          <SelectTrigger className="w-[200px] bg-card border-border">
+          <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="Všetci klienti" />
           </SelectTrigger>
           <SelectContent>
@@ -408,14 +407,14 @@ function ProjectsPageContent() {
       </div>
 
       {/* Projects Table */}
-      <div className="bg-card border border-border rounded-lg shadow-sm">
+      <div className="surface-panel overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted">
-              <TableHead className="text-muted-foreground font-semibold">Kód</TableHead>
-              <TableHead className="text-muted-foreground font-semibold">Názov</TableHead>
-              <TableHead className="text-muted-foreground font-semibold">Klient</TableHead>
-              <TableHead className="text-muted-foreground font-semibold">Status</TableHead>
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead>Kód</TableHead>
+              <TableHead>Názov</TableHead>
+              <TableHead>Klient</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>

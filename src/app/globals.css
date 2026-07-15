@@ -4,62 +4,68 @@
 
 @layer base {
   :root {
-    --background: 240 11% 98%;
-    --foreground: 240 10% 8%;
+    --background: 0 0% 97.5%;
+    --foreground: 0 0% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 8%;
+    --card-foreground: 0 0% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 8%;
-    --primary: 240 10% 10%;
+    --popover-foreground: 0 0% 8%;
+    --primary: 0 0% 10%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 240 6% 95%;
-    --secondary-foreground: 240 8% 20%;
-    --muted: 240 6% 95%;
-    --muted-foreground: 240 4% 44%;
-    --accent: 240 6% 94%;
-    --accent-foreground: 240 8% 15%;
-    --destructive: 0 76% 50%;
+    --secondary: 0 0% 94.5%;
+    --secondary-foreground: 0 0% 18%;
+    --muted: 0 0% 94.5%;
+    --muted-foreground: 0 0% 43%;
+    --accent: 0 0% 93%;
+    --accent-foreground: 0 0% 12%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 6% 89%;
-    --input: 240 6% 87%;
-    --ring: 240 10% 10%;
-    --radius: 0.625rem;
-    --brand: 259 92% 56%;
+    --border: 0 0% 87%;
+    --input: 0 0% 84%;
+    --ring: 0 0% 24%;
+    --radius: 0.75rem;
+    --brand: 155 35% 34%;
     --brand-foreground: 0 0% 100%;
-    --chart-1: 259 92% 56%;
-    --chart-2: 217 91% 60%;
-    --chart-3: 160 84% 39%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 0 76% 55%;
+    --chart-1: 155 35% 34%;
+    --chart-2: 211 58% 48%;
+    --chart-3: 32 72% 48%;
+    --chart-4: 268 38% 52%;
+    --chart-5: 0 61% 52%;
+    --surface-raised: 0 0% 100%;
+    --surface-sunken: 0 0% 95.5%;
+    --sidebar: 0 0% 95.8%;
   }
 
   .dark {
-    --background: 240 7% 6%;
-    --foreground: 240 8% 95%;
-    --card: 240 6% 9%;
-    --card-foreground: 240 8% 95%;
-    --popover: 240 6% 9%;
-    --popover-foreground: 240 8% 95%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 8% 8%;
-    --secondary: 240 5% 14%;
-    --secondary-foreground: 240 6% 85%;
-    --muted: 240 5% 13%;
-    --muted-foreground: 240 5% 62%;
-    --accent: 240 5% 15%;
-    --accent-foreground: 240 6% 92%;
+    --background: 0 0% 5.5%;
+    --foreground: 0 0% 93%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 93%;
+    --popover: 0 0% 9.5%;
+    --popover-foreground: 0 0% 93%;
+    --primary: 0 0% 94%;
+    --primary-foreground: 0 0% 8%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 84%;
+    --muted: 0 0% 11.5%;
+    --muted-foreground: 0 0% 59%;
+    --accent: 0 0% 13.5%;
+    --accent-foreground: 0 0% 92%;
     --destructive: 0 72% 56%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5% 16%;
-    --input: 240 5% 19%;
-    --ring: 240 6% 80%;
-    --brand: 259 92% 66%;
+    --border: 0 0% 16%;
+    --input: 0 0% 21%;
+    --ring: 0 0% 68%;
+    --brand: 153 35% 54%;
     --brand-foreground: 0 0% 100%;
-    --chart-1: 259 92% 66%;
-    --chart-2: 217 91% 65%;
-    --chart-3: 160 74% 45%;
-    --chart-4: 38 92% 55%;
-    --chart-5: 0 72% 60%;
+    --chart-1: 153 35% 54%;
+    --chart-2: 211 66% 62%;
+    --chart-3: 32 75% 60%;
+    --chart-4: 268 50% 68%;
+    --chart-5: 0 69% 64%;
+    --surface-raised: 0 0% 10%;
+    --surface-sunken: 0 0% 4.5%;
+    --sidebar: 0 0% 7%;
   }
 }
 
@@ -75,13 +81,43 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    min-height: 100vh;
   }
   ::selection {
     background: hsl(var(--brand) / 0.18);
   }
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     @apply tracking-tight;
     text-wrap: balance;
+  }
+}
+
+@layer components {
+  .app-shell {
+    background: hsl(var(--background));
+  }
+
+  .app-sidebar {
+    background: hsl(var(--sidebar));
+  }
+
+  .surface-panel {
+    @apply rounded-xl border border-border bg-card text-card-foreground;
+  }
+
+  .page-shell {
+    @apply w-full space-y-6;
+  }
+
+  .page-heading {
+    @apply text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl;
+  }
+
+  .page-description {
+    @apply mt-1 text-sm leading-6 text-muted-foreground;
   }
 }
 
@@ -168,7 +204,12 @@
   body {
     background: #fff !important;
     color: #111 !important;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif !important;
     font-size: 9pt !important;
     line-height: 1.4 !important;
     margin: 0 !important;
@@ -358,7 +399,6 @@
   .print-mode .grid .card {
     margin-bottom: 0 !important;
   }
-
 
   /* Footer */
   .print-mode .text-center {

@@ -45,8 +45,8 @@ const priorityOptions = [
     value: "urgent", 
     label: "Urgent", 
     icon: Flame,
-    color: "bg-[#fef2f2] text-[#c10007] border-[#ffc9c9] hover:bg-[#fee2e2] dark:bg-red-900/20 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-800/30",
-    iconColor: "text-[#c10007]"
+    color: "bg-red-50 dark:bg-red-950/30 text-destructive border-red-200 dark:border-red-900/60 hover:bg-red-100 dark:hover:bg-red-900/40 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-800/30",
+    iconColor: "text-destructive"
   },
 ];
 

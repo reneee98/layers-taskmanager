@@ -71,21 +71,21 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
     <WorkspaceProvider>
       <PermissionProvider>
         <WorkspaceUsersProvider>
-          <div className="relative min-h-screen bg-[#F8F8F8] dark:bg-slate-950">
-            <SideNav 
-              isOpen={isSideNavOpen} 
+          <div className="relative min-h-screen bg-background">
+            <SideNav
+              isOpen={isSideNavOpen}
               onClose={handleCloseSideNav}
               isCollapsed={isSidebarCollapsed}
               onToggleCollapse={handleToggleSidebarCollapse}
             />
-            <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-72'}`}>
-              <TopNav 
+            <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
+              <TopNav
                 onMenuClick={handleToggleSideNav}
                 onToggleSidebar={handleToggleSidebarCollapse}
                 isSidebarCollapsed={isSidebarCollapsed}
               />
               <main className="min-h-screen">
-                <div className="w-full px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">{children}</div>
+                <div className="mx-auto w-full max-w-[1400px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8">{children}</div>
               </main>
             </div>
           </div>

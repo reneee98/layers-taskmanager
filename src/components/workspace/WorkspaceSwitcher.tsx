@@ -57,15 +57,15 @@ export function WorkspaceSwitcher() {
           
           {/* Workspace name and plan */}
           <div className="flex flex-col items-start gap-0.5">
-            <span className="text-sm font-semibold leading-[14px] text-[#314158] dark:text-foreground tracking-[-0.15px]">
+            <span className="text-sm font-semibold leading-[14px] text-foreground dark:text-foreground">
               {workspace.name}
             </span>
-            <span className="text-[10px] font-medium leading-[12.5px] text-[#90a1b9] dark:text-muted-foreground tracking-[0.12px]">
+            <span className="text-[10px] font-medium leading-[12.5px] text-muted-foreground dark:text-muted-foreground">
               Enterprise
             </span>
           </div>
           
-          <ChevronDown className="h-3.5 w-3.5 text-[#90a1b9] dark:text-muted-foreground" />
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground dark:text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72 p-2">

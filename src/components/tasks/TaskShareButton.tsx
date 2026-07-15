@@ -254,11 +254,11 @@ export const TaskShareButton = ({ taskId, showInline = false, compact = false, o
       ) : compact ? (
         <button
           onClick={() => setIsOpen(true)}
-          className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] h-8 w-8 flex items-center justify-center shrink-0 hover:bg-[#f1f5f9] dark:hover:bg-muted transition-colors"
+          className="bg-white dark:bg-card border border-border dark:border-border rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] h-8 w-8 flex items-center justify-center shrink-0 hover:bg-muted dark:hover:bg-muted transition-colors"
           aria-label="Zdieľať úlohu"
           tabIndex={0}
         >
-          <Share2 className="h-4 w-4 text-[#62748e] dark:text-muted-foreground" />
+          <Share2 className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />
         </button>
       ) : (
         <Button

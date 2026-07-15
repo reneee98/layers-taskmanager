@@ -161,7 +161,7 @@ function ClientsPageContent() {
         </div>
         <Button 
           onClick={() => setIsFormOpen(true)}
-          className="bg-gray-900 text-white hover:bg-gray-700"
+          className=""
         >
           <Plus className="mr-2 h-4 w-4" />
           Pridať klienta

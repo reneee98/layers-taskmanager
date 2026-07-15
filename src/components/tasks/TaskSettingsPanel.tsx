@@ -446,16 +446,16 @@ export function TaskSettingsPanel({
   return (
     <div className="flex flex-col gap-6">
       {/* Všeobecné informácie */}
-      <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+      <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
         <CardHeader className="pb-0 pt-[25px] px-[25px]">
-          <CardTitle className="text-[14px] font-bold text-[#0f172b] dark:text-foreground tracking-[-0.1504px]">
+          <CardTitle className="text-[14px] font-bold text-foreground dark:text-foreground">
             Všeobecné informácie
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-[30px] px-[25px] pb-[25px]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="title" className="text-[14px] font-medium text-[#0a0a0a] dark:text-foreground tracking-[-0.1504px]">
+              <Label htmlFor="title" className="text-[14px] font-medium text-foreground dark:text-foreground">
                 Názov úlohy
               </Label>
               <Input
@@ -466,11 +466,11 @@ export function TaskSettingsPanel({
                   void handleSaveGeneral();
                 }}
                 disabled={!canUpdateTasks || isLoading}
-                className="bg-[#f3f3f5] dark:bg-muted border-0 h-9 rounded-[8px] text-[14px] tracking-[-0.1504px]"
+                className="bg-muted dark:bg-muted border-0 h-9 rounded-[8px] text-[14px]"
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="project" className="text-[14px] font-medium text-[#0a0a0a] dark:text-foreground tracking-[-0.1504px]">
+              <Label htmlFor="project" className="text-[14px] font-medium text-foreground dark:text-foreground">
                 Projekt
               </Label>
               <Select
@@ -482,7 +482,7 @@ export function TaskSettingsPanel({
                 }}
                 disabled={!canUpdateTasks || isLoading}
               >
-                <SelectTrigger className="bg-[#f3f3f5] dark:bg-muted border-0 h-9 rounded-[8px] text-[14px] tracking-[-0.1504px]">
+                <SelectTrigger className="bg-muted dark:bg-muted border-0 h-9 rounded-[8px] text-[14px]">
                   <SelectValue placeholder="Vyberte projekt" />
                 </SelectTrigger>
                 <SelectContent>
@@ -496,7 +496,7 @@ export function TaskSettingsPanel({
                 </Select>
               </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="currency" className="text-[14px] font-medium text-[#0a0a0a] dark:text-foreground tracking-[-0.1504px]">
+              <Label htmlFor="currency" className="text-[14px] font-medium text-foreground dark:text-foreground">
                 Mena
               </Label>
               <Select
@@ -504,7 +504,7 @@ export function TaskSettingsPanel({
                 onValueChange={(value) => setCurrency(value as "EUR" | "USD")}
                 disabled={!canUpdateTasks || isLoading}
               >
-                <SelectTrigger className="bg-[#f3f3f5] dark:bg-muted border-0 h-9 rounded-[8px] text-[14px] tracking-[-0.1504px]">
+                <SelectTrigger className="bg-muted dark:bg-muted border-0 h-9 rounded-[8px] text-[14px]">
                   <SelectValue placeholder="Vyberte menu" />
                 </SelectTrigger>
                 <SelectContent>
@@ -519,7 +519,7 @@ export function TaskSettingsPanel({
             </div>
             <div className="flex flex-col gap-2 md:col-span-2">
               <div className="flex items-center justify-between">
-                <Label className="text-[14px] font-medium text-[#0a0a0a] dark:text-foreground tracking-[-0.1504px]">
+                <Label className="text-[14px] font-medium text-foreground dark:text-foreground">
                   Farba úlohy
                 </Label>
                 <Button
@@ -571,7 +571,7 @@ export function TaskSettingsPanel({
                   />
                 </div>
               </div>
-              <p className="text-xs text-[#717182] dark:text-muted-foreground">
+              <p className="text-xs text-muted-foreground dark:text-muted-foreground">
                 Farba sa zobrazí jemne v dashboarde a zoznamoch úloh.
               </p>
             </div>
@@ -580,16 +580,16 @@ export function TaskSettingsPanel({
       </Card>
 
       {/* Financie */}
-      <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+      <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
         <CardHeader className="pb-0 pt-[25px] px-[25px]">
-          <CardTitle className="text-[14px] font-bold text-[#0f172b] dark:text-foreground tracking-[-0.1504px]">
+          <CardTitle className="text-[14px] font-bold text-foreground dark:text-foreground">
             Financie
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-[30px] px-[25px] pb-[25px]">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2 w-full md:w-[309px]">
-              <Label htmlFor="budget" className="text-[14px] font-medium text-[#0a0a0a] dark:text-foreground tracking-[-0.1504px]">
+              <Label htmlFor="budget" className="text-[14px] font-medium text-foreground dark:text-foreground">
                 Budget ({getCurrencySymbol(currency)})
               </Label>
               <Input
@@ -600,21 +600,21 @@ export function TaskSettingsPanel({
                 onChange={(e) => setBudget(e.target.value)}
                 onBlur={handleSaveFinance}
                 disabled={!canUpdateTasks || isLoading}
-                className="bg-[#f3f3f5] dark:bg-muted border-0 h-9 rounded-[8px] text-[14px] tracking-[-0.1504px]"
+                className="bg-muted dark:bg-muted border-0 h-9 rounded-[8px] text-[14px]"
               />
             </div>
 
             {/* Obchodná provízia */}
             <div className="flex flex-col gap-6">
-              <div className="bg-[rgba(255,251,235,0.1)] dark:bg-amber-900/10 border-b border-[rgba(255,251,235,0.5)] dark:border-amber-800/50 -mx-[1px] -mt-6 px-6 py-6 flex items-center justify-between">
+              <div className="bg-amber-50/20 dark:bg-amber-950/10 dark:bg-amber-900/10 border-b border-amber-100/50 dark:border-amber-900/40 dark:border-amber-800/50 -mx-[1px] -mt-6 px-6 py-6 flex items-center justify-between">
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
                     <Percent className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                    <CardTitle className="text-[14px] font-bold text-[#0f172b] dark:text-foreground tracking-[-0.1504px]">
+                    <CardTitle className="text-[14px] font-bold text-foreground dark:text-foreground">
                       Obchodná provízia
                     </CardTitle>
                   </div>
-                  <p className="text-[12px] text-[#717182] dark:text-muted-foreground">
+                  <p className="text-[12px] text-muted-foreground dark:text-muted-foreground">
                     Odpočítať % z budgetu pre obchodníka.
                   </p>
                 </div>
@@ -632,7 +632,7 @@ export function TaskSettingsPanel({
               {salesCommissionEnabled && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
                   <div className="flex flex-col gap-2">
-                    <Label htmlFor="salesPerson" className="text-[14px] font-medium text-[#0a0a0a] dark:text-foreground tracking-[-0.1504px]">
+                    <Label htmlFor="salesPerson" className="text-[14px] font-medium text-foreground dark:text-foreground">
                       Obchodník
                     </Label>
                     <Select
@@ -645,7 +645,7 @@ export function TaskSettingsPanel({
                       }}
                       disabled={!canUpdateTasks || isLoading || isLoadingClients}
                     >
-                      <SelectTrigger className="bg-[#f3f3f5] dark:bg-muted border-0 h-9 rounded-[8px] text-[14px] tracking-[-0.1504px]">
+                      <SelectTrigger className="bg-muted dark:bg-muted border-0 h-9 rounded-[8px] text-[14px]">
                         <SelectValue placeholder="Vyberte obchodníka">
                           {salesCommissionUserId && salesCommissionUserId !== "none" 
                             ? clients.find(c => c.id === salesCommissionUserId)?.name || "Neznámy"
@@ -667,7 +667,7 @@ export function TaskSettingsPanel({
                     </Select>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Label htmlFor="commissionPercent" className="text-[14px] font-medium text-[#0a0a0a] dark:text-foreground tracking-[-0.1504px]">
+                    <Label htmlFor="commissionPercent" className="text-[14px] font-medium text-foreground dark:text-foreground">
                       Podiel (%)
                     </Label>
                     <div className="relative">
@@ -681,9 +681,9 @@ export function TaskSettingsPanel({
                         onChange={(e) => setSalesCommissionPercent(e.target.value)}
                         onBlur={handleSaveFinance}
                         disabled={!canUpdateTasks || isLoading}
-                        className="bg-[#f3f3f5] dark:bg-muted border-0 h-9 rounded-[8px] text-[14px] tracking-[-0.1504px] pr-8"
+                        className="bg-muted dark:bg-muted border-0 h-9 rounded-[8px] text-[14px] pr-8"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-bold text-[#90a1b9] dark:text-muted-foreground">
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-bold text-muted-foreground dark:text-muted-foreground">
                         %
                       </span>
                     </div>
@@ -693,11 +693,11 @@ export function TaskSettingsPanel({
               
               {/* Display current settings summary */}
               {salesCommissionEnabled && (
-                <div className="mt-4 p-4 bg-[#f8fafc] dark:bg-muted/30 border border-[#e2e8f0] dark:border-border rounded-[8px]">
-                  <p className="text-[12px] font-medium text-[#314158] dark:text-foreground mb-2">
+                <div className="mt-4 p-4 bg-muted/40 dark:bg-muted/30 border border-border dark:border-border rounded-[8px]">
+                  <p className="text-[12px] font-medium text-foreground dark:text-foreground mb-2">
                     Aktuálne nastavenia:
                   </p>
-                  <div className="flex flex-col gap-1 text-[11px] text-[#62748e] dark:text-muted-foreground">
+                  <div className="flex flex-col gap-1 text-[11px] text-muted-foreground dark:text-muted-foreground">
                     <p>
                       Obchodník: {salesCommissionUserId && salesCommissionUserId !== "none" 
                         ? clients.find(c => c.id === salesCommissionUserId)?.name || "Neznámy"
@@ -714,12 +714,12 @@ export function TaskSettingsPanel({
                       </p>
                     )}
                     {financeData && financeData.extra > 0 && (
-                      <p className="text-[10px] text-[#90a1b9] dark:text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">
                         (Budget: {formatCurrency(financeData.budgetAmount)} + Extra: {formatCurrency(financeData.extra)})
                       </p>
                     )}
                     {financeData && financeData.extra === 0 && (
-                      <p className="text-[10px] text-[#90a1b9] dark:text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">
                         (Provízia sa počíta z celkovej sumy vrátane extra T&M)
                       </p>
                     )}
@@ -732,23 +732,23 @@ export function TaskSettingsPanel({
       </Card>
 
       {/* Priradení členovia tímu */}
-      <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
-        <CardHeader className="border-b border-[#f1f5f9] dark:border-border h-[77px] pb-0 pt-0 px-6 flex items-center justify-between">
-          <CardTitle className="text-[14px] font-bold text-[#0f172b] dark:text-foreground tracking-[-0.1504px]">
+      <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+        <CardHeader className="border-b border-border/60 dark:border-border h-[77px] pb-0 pt-0 px-6 flex items-center justify-between">
+          <CardTitle className="text-[14px] font-bold text-foreground dark:text-foreground">
             Priradení členovia tímu
           </CardTitle>
           {canUpdateTasks && (
             <Button
               variant="outline"
               size="sm"
-              className="bg-white dark:bg-card border border-[rgba(0,0,0,0.1)] dark:border-border h-7 px-[10px] rounded-[8px]"
+              className="bg-white dark:bg-card border border-border dark:border-border h-7 px-[10px] rounded-[8px]"
               onClick={() => {
                 // TODO: Open dialog to add assignee
                 toast({ title: "Info", description: "Funkcia pridania člena bude čoskoro dostupná" });
               }}
             >
               <Plus className="h-4 w-4 mr-1.5" />
-              <span className="text-[12px] font-medium text-[#314158] dark:text-foreground">
+              <span className="text-[12px] font-medium text-foreground dark:text-foreground">
                 Pridať člena
               </span>
             </Button>
@@ -773,7 +773,7 @@ export function TaskSettingsPanel({
                 return (
                   <div
                     key={assignee.id}
-                    className={`border-b border-[#f1f5f9] dark:border-border px-6 py-4 flex items-center justify-between ${
+                    className={`border-b border-border/60 dark:border-border px-6 py-4 flex items-center justify-between ${
                       index === assignees.length - 1 ? "" : ""
                     }`}
                   >
@@ -784,10 +784,10 @@ export function TaskSettingsPanel({
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col">
-                        <p className="text-[14px] font-medium text-[#0f172b] dark:text-foreground tracking-[-0.1504px]">
+                        <p className="text-[14px] font-medium text-foreground dark:text-foreground">
                           {user?.name || "Neznámy"}
                         </p>
-                        <p className="text-[12px] text-[#62748e] dark:text-muted-foreground">
+                        <p className="text-[12px] text-muted-foreground dark:text-muted-foreground">
                           {user?.role || "Člen tímu"}
                         </p>
                       </div>
@@ -810,9 +810,9 @@ export function TaskSettingsPanel({
                           handleUpdateAssigneeRate(assignee.id, e.target.value);
                         }}
                         disabled={!canUpdateTasks || isLoading}
-                        className="bg-[#f3f3f5] dark:bg-muted border-0 h-8 w-24 rounded-[8px] text-[14px] tracking-[-0.1504px] text-right pr-6"
+                        className="bg-muted dark:bg-muted border-0 h-8 w-24 rounded-[8px] text-[14px] text-right pr-6"
                       />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-[#90a1b9] dark:text-muted-foreground">
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-muted-foreground dark:text-muted-foreground">
                         €
                       </span>
                     </div>

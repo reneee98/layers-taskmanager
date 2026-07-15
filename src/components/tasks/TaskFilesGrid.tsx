@@ -91,7 +91,7 @@ const getFileTypeColor = (type: string, fileName: string) => {
   // ZIP/Archive files - Orange
   if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension || '')) {
     return {
-      bg: "bg-[#fffbeb]",
+      bg: "bg-amber-50 dark:bg-amber-950/30",
       icon: Archive,
     };
   }
@@ -99,7 +99,7 @@ const getFileTypeColor = (type: string, fileName: string) => {
   // Image files - Purple
   if (type.startsWith("image/") || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension || '')) {
     return {
-      bg: "bg-[#faf5ff]",
+      bg: "bg-purple-50 dark:bg-purple-950/30",
       icon: ImageIcon,
     };
   }
@@ -107,14 +107,14 @@ const getFileTypeColor = (type: string, fileName: string) => {
   // PDF/DOC files - Blue
   if (type.includes("pdf") || extension === 'pdf' || type.includes("document") || ['doc', 'docx'].includes(extension || '')) {
     return {
-      bg: "bg-[#eff6ff]",
+      bg: "bg-blue-50 dark:bg-blue-950/40",
       icon: FileText,
     };
   }
   
   // Default - Blue
   return {
-    bg: "bg-[#eff6ff]",
+    bg: "bg-blue-50 dark:bg-blue-950/40",
     icon: File,
   };
 };
@@ -356,12 +356,12 @@ export function TaskFilesGrid({ taskId }: TaskFilesGridProps) {
           return (
             <Card
               key={`${file.name}-${index}`}
-              className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] overflow-hidden hover:shadow-md transition-shadow group"
+              className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] overflow-hidden hover:shadow-md transition-shadow group"
             >
               {/* Large Icon Box - Figma 1:1 */}
-              <div className={`${fileTypeColor.bg} border-b border-[#f1f5f9] dark:border-border h-[128px] flex items-center justify-center relative overflow-hidden`}>
+              <div className={`${fileTypeColor.bg} border-b border-border/60 dark:border-border h-[128px] flex items-center justify-center relative overflow-hidden`}>
                 <div className={`${fileTypeColor.bg} rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-12 h-12 flex items-center justify-center`}>
-                  <FileIcon className="h-6 w-6 text-[#0f172b] dark:text-foreground" />
+                  <FileIcon className="h-6 w-6 text-foreground dark:text-foreground" />
                 </div>
               </div>
 
@@ -369,8 +369,8 @@ export function TaskFilesGrid({ taskId }: TaskFilesGridProps) {
               <div className="pt-4 pb-4 px-4 flex flex-col gap-2">
                 {/* Header Row - Small Icon and Menu */}
                 <div className="flex items-start justify-between h-5">
-                  <div className="bg-[#f1f5f9] dark:bg-muted rounded-[4px] w-5 h-5 flex items-center justify-center">
-                    <SmallFileIcon className="h-3 w-3 text-[#314158] dark:text-foreground" />
+                  <div className="bg-muted dark:bg-muted rounded-[4px] w-5 h-5 flex items-center justify-center">
+                    <SmallFileIcon className="h-3 w-3 text-foreground dark:text-foreground" />
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -379,7 +379,7 @@ export function TaskFilesGrid({ taskId }: TaskFilesGridProps) {
                         size="sm"
                         className="h-[14px] w-[14px] p-0 hover:bg-muted"
                       >
-                        <MoreHorizontal className="h-[14px] w-[14px] text-[#90a1b9] dark:text-muted-foreground" />
+                        <MoreHorizontal className="h-[14px] w-[14px] text-muted-foreground dark:text-muted-foreground" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -403,16 +403,16 @@ export function TaskFilesGrid({ taskId }: TaskFilesGridProps) {
                 </div>
 
                 {/* File Name - Figma 1:1 */}
-                <h3 className="font-bold text-sm leading-5 text-[#314158] dark:text-foreground tracking-[-0.1504px] line-clamp-2 min-h-[20px]">
+                <h3 className="font-bold text-sm leading-5 text-foreground dark:text-foreground line-clamp-2 min-h-[20px]">
                   {file.name}
                 </h3>
 
                 {/* File Size and Date - Figma 1:1 */}
                 <div className="flex items-center justify-between h-[16.5px]">
-                  <span className="text-[11px] leading-[16.5px] text-[#90a1b9] dark:text-muted-foreground tracking-[0.0645px]">
+                  <span className="text-[11px] leading-4 text-muted-foreground dark:text-muted-foreground">
                     {formatFileSize(file.size)}
                   </span>
-                  <span className="text-[11px] leading-[16.5px] text-[#90a1b9] dark:text-muted-foreground tracking-[0.0645px]">
+                  <span className="text-[11px] leading-4 text-muted-foreground dark:text-muted-foreground">
                     {formatFileDate(file.createdAt)}
                   </span>
                 </div>
@@ -431,18 +431,18 @@ export function TaskFilesGrid({ taskId }: TaskFilesGridProps) {
 
         {/* Upload Card - Figma 1:1 */}
         <Card
-          className="bg-white dark:bg-card border-2 border-dashed border-[#e2e8f0] dark:border-border rounded-[14px] hover:border-[#cbd5e1] dark:hover:border-border/70 transition-colors cursor-pointer group"
+          className="bg-white dark:bg-card border-2 border-dashed border-border dark:border-border rounded-[14px] hover:border-input dark:hover:border-border/70 transition-colors cursor-pointer group"
           onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => {
             e.preventDefault();
-            e.currentTarget.classList.add('border-[#155dfc]', 'bg-[#eff6ff]/10');
+            e.currentTarget.classList.add('border-blue-600', 'bg-blue-500/10');
           }}
           onDragLeave={(e) => {
-            e.currentTarget.classList.remove('border-[#155dfc]', 'bg-[#eff6ff]/10');
+            e.currentTarget.classList.remove('border-blue-600', 'bg-blue-500/10');
           }}
           onDrop={async (e) => {
             e.preventDefault();
-            e.currentTarget.classList.remove('border-[#155dfc]', 'bg-[#eff6ff]/10');
+            e.currentTarget.classList.remove('border-blue-600', 'bg-blue-500/10');
             
             const droppedFiles = Array.from(e.dataTransfer.files);
             if (droppedFiles.length === 0) return;
@@ -458,8 +458,8 @@ export function TaskFilesGrid({ taskId }: TaskFilesGridProps) {
               </>
             ) : (
               <>
-                <Upload className="h-6 w-6 text-[#90a1b9] dark:text-muted-foreground group-hover:text-[#64748b] dark:group-hover:text-foreground transition-colors" />
-                <span className="font-medium text-xs leading-4 text-[#90a1b9] dark:text-muted-foreground group-hover:text-[#64748b] dark:group-hover:text-foreground transition-colors">
+                <Upload className="h-6 w-6 text-muted-foreground dark:text-muted-foreground group-hover:text-muted-foreground dark:group-hover:text-foreground transition-colors" />
+                <span className="font-medium text-xs leading-4 text-muted-foreground dark:text-muted-foreground group-hover:text-muted-foreground dark:group-hover:text-foreground transition-colors">
                   Nahrať súbor
                 </span>
               </>
@@ -471,17 +471,17 @@ export function TaskFilesGrid({ taskId }: TaskFilesGridProps) {
         {uploadingFiles.map((fileName, index) => (
           <Card
             key={`uploading-${index}`}
-            className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] overflow-hidden opacity-60"
+            className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] overflow-hidden opacity-60"
           >
             <div className="h-[128px] bg-muted/30 flex items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
             <div className="p-4">
               <div className="flex items-center justify-between h-5 mb-2">
-                <div className="bg-[#f1f5f9] dark:bg-muted rounded-[4px] w-5 h-5" />
+                <div className="bg-muted dark:bg-muted rounded-[4px] w-5 h-5" />
                 <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground opacity-50" />
               </div>
-              <h3 className="font-bold text-sm text-[#314158] dark:text-foreground line-clamp-2 min-h-[40px] mb-2">
+              <h3 className="font-bold text-sm text-foreground dark:text-foreground line-clamp-2 min-h-[40px] mb-2">
                 {fileName}
               </h3>
               <div className="flex items-center justify-between h-4">

@@ -4,58 +4,62 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 240 10% 3.9%;
+    --background: 240 11% 98%;
+    --foreground: 240 10% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 240 10% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-        --primary: 0 0% 9%;
-        --primary-foreground: 0 0% 98%;
-        --secondary: 240 4.8% 95.9%;
-        --secondary-foreground: 240 5.9% 10%;
-        --muted: 240 4.8% 96%;
-        --muted-foreground: 240 3.8% 46.1%;
-        --accent: 240 4.8% 95.9%;
-        --accent-foreground: 240 5.9% 10%;
-        --destructive: 0 84.2% 60.2%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 240 5.9% 90%;
-        --input: 240 5.9% 90%;
-        --ring: 0 0% 9%;
-    --radius: 0.75rem;
-    --chart-1: 262 83% 58%;
-    --chart-2: 197 37% 24%;
-    --chart-3: 43 74% 66%;
-    --chart-4: 12 76% 61%;
-    --chart-5: 173 58% 39%;
+    --popover-foreground: 240 10% 8%;
+    --primary: 240 10% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 6% 95%;
+    --secondary-foreground: 240 8% 20%;
+    --muted: 240 6% 95%;
+    --muted-foreground: 240 4% 44%;
+    --accent: 240 6% 94%;
+    --accent-foreground: 240 8% 15%;
+    --destructive: 0 76% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 89%;
+    --input: 240 6% 87%;
+    --ring: 240 10% 10%;
+    --radius: 0.625rem;
+    --brand: 259 92% 56%;
+    --brand-foreground: 0 0% 100%;
+    --chart-1: 259 92% 56%;
+    --chart-2: 217 91% 60%;
+    --chart-3: 160 84% 39%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 76% 55%;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-        --primary: 0 0% 9%;
-        --primary-foreground: 0 0% 98%;
-        --secondary: 240 3.7% 15.9%;
-        --secondary-foreground: 0 0% 98%;
-        --muted: 240 3.7% 15.9%;
-        --muted-foreground: 240 5% 64.9%;
-        --accent: 240 3.7% 15.9%;
-        --accent-foreground: 0 0% 98%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 240 3.7% 15.9%;
-        --input: 240 3.7% 15.9%;
-        --ring: 0 0% 9%;
-    --chart-1: 262 83% 58%;
-    --chart-2: 197 37% 24%;
-    --chart-3: 43 74% 66%;
-    --chart-4: 12 76% 61%;
-    --chart-5: 173 58% 39%;
+    --background: 240 7% 6%;
+    --foreground: 240 8% 95%;
+    --card: 240 6% 9%;
+    --card-foreground: 240 8% 95%;
+    --popover: 240 6% 9%;
+    --popover-foreground: 240 8% 95%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 8% 8%;
+    --secondary: 240 5% 14%;
+    --secondary-foreground: 240 6% 85%;
+    --muted: 240 5% 13%;
+    --muted-foreground: 240 5% 62%;
+    --accent: 240 5% 15%;
+    --accent-foreground: 240 6% 92%;
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5% 16%;
+    --input: 240 5% 19%;
+    --ring: 240 6% 80%;
+    --brand: 259 92% 66%;
+    --brand-foreground: 0 0% 100%;
+    --chart-1: 259 92% 66%;
+    --chart-2: 217 91% 65%;
+    --chart-3: 160 74% 45%;
+    --chart-4: 38 92% 55%;
+    --chart-5: 0 72% 60%;
   }
 }
 
@@ -63,8 +67,84 @@
   * {
     @apply border-border;
   }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  ::selection {
+    background: hsl(var(--brand) / 0.18);
+  }
+  h1, h2, h3, h4 {
+    @apply tracking-tight;
+    text-wrap: balance;
+  }
+}
+
+/* Thin, unobtrusive scrollbars */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Subtle page-load reveal */
+  .animate-in-up {
+    animation: fade-up 0.4s cubic-bezier(0.21, 1.02, 0.73, 1) both;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -245,7 +325,7 @@
   .print-mode .card-content {
     padding: 0.5mm 1.5mm !important;
   }
-  
+
   .print-mode .p-0 {
     padding: 0 !important;
   }
@@ -309,212 +389,13 @@
   }
 }
 
-/* Theme switcher button height override */
-.theme-switcher-btn {
-  height: 2.5rem !important;
-  width: 2.5rem !important;
-}
-
-/* Login page animations */
-@keyframes float {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-  }
-  25% {
-    transform: translate(30px, -30px) scale(1.1);
-  }
-  50% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-  75% {
-    transform: translate(20px, 30px) scale(1.05);
-  }
-}
-
-@keyframes wave {
-  0%, 100% {
-    opacity: 0.3;
-    transform: translateX(0) scaleY(1);
-  }
-  50% {
-    opacity: 0.6;
-    transform: translateX(-50px) scaleY(1.2);
-  }
-}
-
-@keyframes grid {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 14px 24px;
-  }
-}
-
-@keyframes particle {
-  0% {
-    transform: translateY(0) translateX(0) scale(0);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100vh) translateX(50px) scale(0);
-    opacity: 0;
-  }
-}
-
-.animate-float {
-  animation: float 20s ease-in-out infinite;
-}
-
-.animate-float-reverse {
-  animation: float 25s ease-in-out infinite reverse;
-}
-
-.animate-wave {
-  animation: wave 8s ease-in-out infinite;
-}
-
-.animate-grid {
-  animation: grid 20s linear infinite;
-}
-
-.animate-particle {
-  animation: particle 20s linear infinite;
-}
-
-@keyframes gradient-shift {
-  0%, 100% {
-    background-position: 0% 50%;
-    opacity: 1;
-  }
-  50% {
-    background-position: 100% 50%;
-    opacity: 0.8;
-  }
-}
-
-@keyframes gradient-shift-reverse {
-  0%, 100% {
-    background-position: 100% 50%;
-    opacity: 0.8;
-  }
-  50% {
-    background-position: 0% 50%;
-    opacity: 1;
-  }
-}
-
-@keyframes color-shift {
-  0% {
-    background-color: rgba(168, 85, 247, 0.3);
-  }
-  25% {
-    background-color: rgba(59, 130, 246, 0.3);
-  }
-  50% {
-    background-color: rgba(139, 92, 246, 0.3);
-  }
-  75% {
-    background-color: rgba(236, 72, 153, 0.3);
-  }
-  100% {
-    background-color: rgba(168, 85, 247, 0.3);
-  }
-}
-
-@keyframes color-shift-reverse {
-  0% {
-    background-color: rgba(59, 130, 246, 0.3);
-  }
-  25% {
-    background-color: rgba(236, 72, 153, 0.3);
-  }
-  50% {
-    background-color: rgba(168, 85, 247, 0.3);
-  }
-  75% {
-    background-color: rgba(139, 92, 246, 0.3);
-  }
-  100% {
-    background-color: rgba(59, 130, 246, 0.3);
-  }
-}
-
-@keyframes color-shift-dark {
-  0% {
-    background-color: rgba(147, 51, 234, 0.15);
-  }
-  25% {
-    background-color: rgba(37, 99, 235, 0.15);
-  }
-  50% {
-    background-color: rgba(99, 102, 241, 0.15);
-  }
-  75% {
-    background-color: rgba(219, 39, 119, 0.12);
-  }
-  100% {
-    background-color: rgba(147, 51, 234, 0.15);
-  }
-}
-
-@keyframes color-shift-dark-reverse {
-  0% {
-    background-color: rgba(37, 99, 235, 0.15);
-  }
-  25% {
-    background-color: rgba(219, 39, 119, 0.12);
-  }
-  50% {
-    background-color: rgba(147, 51, 234, 0.15);
-  }
-  75% {
-    background-color: rgba(99, 102, 241, 0.15);
-  }
-  100% {
-    background-color: rgba(37, 99, 235, 0.15);
-  }
-}
-
-.animate-gradient-shift {
-  animation: gradient-shift 15s ease-in-out infinite;
-  background-size: 200% 200%;
-}
-
-.animate-gradient-shift-reverse {
-  animation: gradient-shift-reverse 20s ease-in-out infinite;
-  background-size: 200% 200%;
-}
-
-.animate-color-shift {
-  animation: color-shift 10s ease-in-out infinite;
-}
-
-.animate-color-shift-reverse {
-  animation: color-shift-reverse 12s ease-in-out infinite;
-}
-
-.animate-color-shift-dark {
-  animation: color-shift-dark 10s ease-in-out infinite;
-}
-
-.animate-color-shift-dark-reverse {
-  animation: color-shift-dark-reverse 12s ease-in-out infinite;
-}
-
 /* Ensure Tiptap BubbleMenu is clickable and above everything, including fixed/sticky sidebar (z-40) */
 [role="toolbar"] {
   position: fixed !important;
   z-index: 10000 !important;
   pointer-events: auto !important;
   isolation: isolate !important;
+  min-width: fit-content;
 }
 
 [role="toolbar"] * {
@@ -523,22 +404,6 @@
 }
 
 /* Shift BubbleMenu to the right if it's too close to left edge (sidebar area) */
-[role="toolbar"] {
-  min-width: fit-content;
-}
-
-/* If toolbar is positioned too far left (within sidebar width), ensure it shifts right */
 [role="toolbar"][style*="left"] {
   left: max(300px, var(--toolbar-left, 0px)) !important;
 }
-
-/* Hide scrollbar but keep functionality */
-.scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari and Opera */
-}
-

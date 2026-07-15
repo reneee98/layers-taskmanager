@@ -137,7 +137,7 @@ const getActivityIndicator = (type: string, metadata?: any) => {
     return (
       getStatusIndicator(statusFromMetadata) ?? {
         icon: RefreshCw,
-        bgColor: "bg-[#fe9a00]",
+        bgColor: "bg-amber-500",
         iconColor: "text-white",
       }
     );
@@ -148,7 +148,7 @@ const getActivityIndicator = (type: string, metadata?: any) => {
     return (
       getPriorityIndicator(priorityFromMetadata) ?? {
         icon: Flag,
-        bgColor: "bg-[#fb2c36]",
+        bgColor: "bg-destructive",
         iconColor: "text-white",
       }
     );
@@ -158,14 +158,14 @@ const getActivityIndicator = (type: string, metadata?: any) => {
   if (type.includes('due_date') || type.includes('date') || type === 'time_entry') {
     return {
       icon: Clock,
-      bgColor: 'bg-[#2b7fff]',
+      bgColor: 'bg-blue-500',
       iconColor: 'text-white'
     };
   }
   // Default blue
   return {
     icon: ActivityIcon,
-    bgColor: 'bg-[#2b7fff]',
+    bgColor: 'bg-blue-500',
     iconColor: 'text-white'
   };
 };
@@ -391,21 +391,21 @@ function ActivityPageContent() {
       </div>
 
       {/* Activity Card - Figma Design */}
-      <Card className="bg-white/50 dark:bg-slate-900/50 border border-[#e2e8f0] dark:border-slate-700 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+      <Card className="bg-white/50 dark:bg-slate-900/50 border border-border dark:border-slate-700 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
         {/* Card Header */}
-        <CardHeader className="border-b border-[#f1f5f9] dark:border-slate-700 pb-0 px-6 pt-0">
+        <CardHeader className="border-b border-border/60 dark:border-slate-700 pb-0 px-6 pt-0">
           <div className="flex items-center justify-between h-[89px] px-6 py-0">
             <div className="flex items-center gap-3">
               {/* Icon */}
-              <div className="h-10 w-10 rounded-[14px] bg-[#0f172b] dark:bg-slate-800 shadow-[0px_10px_15px_-3px_#e2e8f0,0px_4px_6px_-4px_#e2e8f0] flex items-center justify-center flex-shrink-0">
+              <div className="h-10 w-10 rounded-[14px] bg-primary dark:bg-slate-800 shadow-[0px_10px_15px_-3px_#e2e8f0,0px_4px_6px_-4px_#e2e8f0] flex items-center justify-center flex-shrink-0">
                 <ActivityIcon className="h-5 w-5 text-white" />
               </div>
               {/* Title and Subtitle */}
               <div className="flex flex-col">
-                <h2 className="text-[18px] font-bold leading-[28px] text-[#0f172b] dark:text-foreground tracking-[-0.44px]">
+                <h2 className="text-[18px] font-bold leading-[28px] text-foreground dark:text-foreground tracking-[-0.44px]">
                   Aktivita
                 </h2>
-                <p className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-muted-foreground mt-0.5">
+                <p className="text-[12px] font-medium leading-4 text-muted-foreground dark:text-muted-foreground mt-0.5">
                   Posledné zmeny
                 </p>
               </div>
@@ -437,7 +437,7 @@ function ActivityPageContent() {
           ) : (
             <div className="relative">
               {/* Timeline Line - positioned at 16px from left */}
-              <div className="absolute left-4 top-0 bottom-0 w-px bg-[#e2e8f0] dark:bg-slate-700"></div>
+              <div className="absolute left-4 top-0 bottom-0 w-px bg-secondary dark:bg-slate-700"></div>
               
               {/* Activity Items */}
               <div className="flex flex-col gap-8 pb-6">
@@ -464,7 +464,7 @@ function ActivityPageContent() {
                     >
                       {/* Timeline Dot - centered exactly on the line at left-4 (16px) */}
                       <div 
-                        className="absolute top-[2px] h-2.5 w-2.5 rounded-full bg-[#cad5e2] dark:bg-slate-600 border-2 border-white dark:border-slate-900 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
+                        className="absolute top-[2px] h-2.5 w-2.5 rounded-full bg-border dark:bg-slate-600 border-2 border-white dark:border-slate-900 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]"
                         style={{ 
                           left: '16px',
                           transform: 'translateX(-50%)',
@@ -476,11 +476,11 @@ function ActivityPageContent() {
                       <div className="flex flex-col gap-1">
                         {/* User Name and Time */}
                         <div className="flex items-start justify-between">
-                          <p className="text-[14px] font-bold leading-[20px] text-[#0f172b] dark:text-foreground tracking-[-0.15px]">
+                          <p className="text-[14px] font-bold leading-5 text-foreground dark:text-foreground">
                             {activity.user_name || activity.user || 'Neznámy používateľ'}
                           </p>
-                          <div className="h-[21px] px-2 rounded-full bg-[#f8fafc] dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 flex items-center">
-                            <p className="text-[10px] font-medium leading-[15px] text-[#90a1b9] dark:text-slate-400 tracking-[0.12px]">
+                          <div className="h-[21px] px-2 rounded-full bg-muted/40 dark:bg-slate-800 border border-border/60 dark:border-slate-700 flex items-center">
+                            <p className="text-[10px] font-medium leading-4 text-muted-foreground dark:text-slate-400">
                               {timeStr}
                             </p>
                           </div>
@@ -488,11 +488,11 @@ function ActivityPageContent() {
                         
                         {/* Activity Description */}
                         <div className="flex items-start gap-1.5">
-                          <p className="text-[14px] font-normal leading-[22.75px] text-[#45556c] dark:text-slate-300 tracking-[-0.15px]">
+                          <p className="text-[14px] font-normal leading-6 text-muted-foreground dark:text-slate-300">
                             {formatActivityDescription(activity)}
                           </p>
                           {activity.project && (
-                            <p className="text-[14px] font-semibold leading-[22.75px] text-[#1d293d] dark:text-foreground tracking-[-0.15px]">
+                            <p className="text-[14px] font-semibold leading-6 text-foreground dark:text-foreground">
                               {activity.project}
                             </p>
                           )}
@@ -501,9 +501,9 @@ function ActivityPageContent() {
                         {/* Project Code and Indicator */}
                         <div className="flex items-center gap-3 mt-1">
                           {activity.project_code && (
-                            <div className="h-[25px] px-2 rounded bg-[#f8fafc] dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 flex items-center gap-2">
-                              <FileText className="h-2.5 w-2.5 text-[#62748e] dark:text-slate-400" />
-                              <p className="text-[10px] font-medium leading-[15px] text-[#62748e] dark:text-slate-400 tracking-[0.12px]">
+                            <div className="h-[25px] px-2 rounded bg-muted/40 dark:bg-slate-800 border border-border/60 dark:border-slate-700 flex items-center gap-2">
+                              <FileText className="h-2.5 w-2.5 text-muted-foreground dark:text-slate-400" />
+                              <p className="text-[10px] font-medium leading-4 text-muted-foreground dark:text-slate-400">
                                 {activity.project_code}
                               </p>
                             </div>
@@ -526,14 +526,14 @@ function ActivityPageContent() {
 
           {/* Load More Button */}
           {hasMore && !loading && activities.length > 0 && !hasActiveFilters && (
-            <div className="pt-6 pb-6 border-t border-[#cad5e2] dark:border-slate-700">
+            <div className="pt-6 pb-6 border-t border-border dark:border-slate-700">
               <Button
                 variant="outline"
                 onClick={loadMore}
-                className="w-full h-8 border border-[#cad5e2] dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 hover:bg-muted"
+                className="w-full h-8 border border-border dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 hover:bg-muted"
                 disabled={loading}
               >
-                <span className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-slate-400">
+                <span className="text-[12px] font-medium leading-4 text-muted-foreground dark:text-slate-400">
                   {loading ? "Načítavam..." : "Zobraziť staršie aktivity"}
                 </span>
               </Button>
@@ -541,7 +541,7 @@ function ActivityPageContent() {
           )}
 
           {loading && activities.length > 0 && (
-            <div className="pt-6 pb-6 border-t border-[#cad5e2] dark:border-slate-700 text-center">
+            <div className="pt-6 pb-6 border-t border-border dark:border-slate-700 text-center">
               <div className="animate-spin rounded-full h-6 w-6 border-4 border-primary border-t-transparent mx-auto"></div>
             </div>
           )}

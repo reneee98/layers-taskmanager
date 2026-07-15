@@ -153,7 +153,7 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
     <div className="relative w-full max-w-[384px]">
       {/* Search Input */}
       <div className="relative w-full">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#90a1b9]" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           ref={inputRef}
           type="text"
@@ -162,12 +162,12 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          className="pl-9 pr-[100px] h-9 text-sm bg-[rgba(241,245,249,0.5)] dark:bg-slate-800/50 border-0 focus:bg-[rgba(241,245,249,0.8)] dark:focus:bg-slate-800/80 focus:ring-0 focus-visible:ring-0 rounded-[10px] text-[#90a1b9] placeholder:text-[#90a1b9]"
+          className="pl-9 pr-[100px] h-9 text-sm bg-muted/50 dark:bg-slate-800/50 border-0 focus:bg-muted/80 dark:focus:bg-slate-800/80 focus:ring-0 focus-visible:ring-0 rounded-[10px] text-muted-foreground placeholder:text-muted-foreground"
         />
         {/* Keyboard shortcut badge */}
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 h-[21px] px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded shadow-sm">
-          <Command className="h-2.5 w-2.5 text-[#90a1b9]" />
-          <span className="text-[10px] font-bold leading-[15px] text-[#90a1b9]">K</span>
+          <Command className="h-2.5 w-2.5 text-muted-foreground" />
+          <span className="text-[10px] font-bold leading-4 text-muted-foreground">K</span>
         </div>
         {query && (
           <Button
@@ -180,7 +180,7 @@ export const SearchBar = ({ onResultClick }: SearchBarProps) => {
             }}
             className="absolute right-[45px] top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-transparent"
           >
-            <X className="h-3 w-3 text-[#90a1b9]" />
+            <X className="h-3 w-3 text-muted-foreground" />
           </Button>
         )}
       </div>

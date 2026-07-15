@@ -402,21 +402,21 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'labor':
-        return <div className="bg-[#eff6ff] rounded-full size-8 flex items-center justify-center"><User className="h-4 w-4 text-blue-600" /></div>;
+        return <div className="bg-blue-50 dark:bg-blue-950/40 rounded-full size-8 flex items-center justify-center"><User className="h-4 w-4 text-blue-600" /></div>;
       case 'external':
-        return <div className="bg-[#fffbeb] rounded-full size-8 flex items-center justify-center"><Briefcase className="h-4 w-4 text-amber-600" /></div>;
+        return <div className="bg-amber-50 dark:bg-amber-950/30 rounded-full size-8 flex items-center justify-center"><Briefcase className="h-4 w-4 text-amber-600" /></div>;
       case 'commission':
-        return <div className="bg-[#f1f5f9] rounded-full size-8 flex items-center justify-center"><FileText className="h-4 w-4 text-slate-600" /></div>;
+        return <div className="bg-muted rounded-full size-8 flex items-center justify-center"><FileText className="h-4 w-4 text-slate-600" /></div>;
       case 'extra':
-        return <div className="bg-[#ede9fe] rounded-full size-8 flex items-center justify-center"><Zap className="h-4 w-4 text-purple-600" /></div>;
+        return <div className="bg-violet-100 dark:bg-violet-900/40 rounded-full size-8 flex items-center justify-center"><Zap className="h-4 w-4 text-purple-600" /></div>;
       default:
-        return <div className="bg-[#f1f5f9] rounded-full size-8 flex items-center justify-center"><FileText className="h-4 w-4" /></div>;
+        return <div className="bg-muted rounded-full size-8 flex items-center justify-center"><FileText className="h-4 w-4" /></div>;
     }
   };
 
   const getTransactionRowClass = (type: string) => {
     if (type === 'extra') {
-      return "bg-[rgba(245,243,255,0.5)] border-[#ede9fe]";
+      return "bg-violet-50/60 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800/60";
     }
     return "";
   };
@@ -447,15 +447,15 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
       {/* Top Section - 4 Metric Cards */}
       <div className="flex gap-4 flex-wrap">
         {/* Fixný Budget */}
-        <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-[155px] h-[100px]">
+        <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-[155px] h-[100px]">
           <CardContent className="p-[21px] flex flex-col justify-between h-full">
             <div className="flex items-start justify-between">
-              <p className="font-bold leading-[16.5px] text-[#90a1b9] dark:text-muted-foreground text-[11px] tracking-[0.6145px] uppercase">
+              <p className="font-bold leading-4 text-muted-foreground dark:text-muted-foreground text-[11px] tracking-wider uppercase">
                 Fixný Budget
               </p>
-              <Wallet className="h-4 w-4 text-[#90a1b9] dark:text-muted-foreground" />
+              <Wallet className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />
             </div>
-            <p className="font-bold leading-[32px] text-[#0f172b] dark:text-foreground text-[24px] tracking-[0.0703px]">
+            <p className="font-bold leading-8 text-foreground dark:text-foreground text-[24px]">
               {formatMoney(fixedBudget)}
             </p>
             {euroEquivalent(fixedBudget) && (
@@ -465,15 +465,15 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
         </Card>
 
         {/* Vyčerpané */}
-        <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-[155px] h-[100px]">
+        <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-[155px] h-[100px]">
           <CardContent className="p-[21px] flex flex-col justify-between h-full">
             <div className="flex items-start justify-between">
-              <p className="font-bold leading-[16.5px] text-[#90a1b9] dark:text-muted-foreground text-[11px] tracking-[0.6145px] uppercase">
+              <p className="font-bold leading-4 text-muted-foreground dark:text-muted-foreground text-[11px] tracking-wider uppercase">
                 Vyčerpané
               </p>
-              <Wallet className="h-4 w-4 text-[#90a1b9] dark:text-muted-foreground" />
+              <Wallet className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />
             </div>
-            <p className="font-bold leading-[32px] text-[#0f172b] dark:text-foreground text-[24px] tracking-[0.0703px]">
+            <p className="font-bold leading-8 text-foreground dark:text-foreground text-[24px]">
               {formatMoney(spent)}
             </p>
             {euroEquivalent(spent) && (
@@ -483,15 +483,15 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
         </Card>
 
         {/* Zostáva */}
-        <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-[155px] h-[100px]">
+        <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-[155px] h-[100px]">
           <CardContent className="p-[21px] flex flex-col justify-between h-full">
             <div className="flex items-start justify-between">
-              <p className="font-bold leading-[16.5px] text-[#90a1b9] dark:text-muted-foreground text-[11px] tracking-[0.6145px] uppercase">
+              <p className="font-bold leading-4 text-muted-foreground dark:text-muted-foreground text-[11px] tracking-wider uppercase">
                 Zostáva
               </p>
-              <Clock className="h-4 w-4 text-[#90a1b9] dark:text-muted-foreground" />
+              <Clock className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />
             </div>
-            <p className="font-bold leading-[32px] text-[#096] dark:text-green-500 text-[24px] tracking-[0.0703px]">
+            <p className="font-bold leading-8 text-emerald-600 dark:text-emerald-400 dark:text-green-500 text-[24px]">
               {formatMoney(remaining)}
             </p>
             {euroEquivalent(remaining) && (
@@ -501,15 +501,15 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
         </Card>
 
         {/* Extra (T&M) */}
-        <Card className="bg-[rgba(245,243,255,0.3)] dark:bg-purple-900/20 border border-[#ede9fe] dark:border-purple-800 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-[157px] h-[100px]">
+        <Card className="bg-violet-50/40 dark:bg-violet-950/20 dark:bg-purple-900/20 border border-violet-200 dark:border-violet-800/60 dark:border-purple-800 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-[157px] h-[100px]">
           <CardContent className="p-5 flex flex-col justify-between h-full">
             <div className="flex items-start justify-between">
-              <p className="font-bold leading-[16.5px] text-[#7f22fe] dark:text-purple-400 text-[11px] tracking-[0.6145px] uppercase">
+              <p className="font-bold leading-4 text-brand dark:text-purple-400 text-[11px] tracking-wider uppercase">
                 Extra (T&M)
               </p>
-              <Zap className="h-4 w-4 text-[#7f22fe] dark:text-purple-400" />
+              <Zap className="h-4 w-4 text-brand dark:text-purple-400" />
             </div>
-            <p className="font-bold leading-[32px] text-[#7008e7] dark:text-purple-500 text-[24px] tracking-[0.0703px]">
+            <p className="font-bold leading-8 text-brand dark:text-purple-500 text-[24px]">
               +{formatMoney(extra)}
             </p>
             {euroEquivalent(extra) && (
@@ -522,9 +522,9 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
       {/* Middle Section - Charts */}
       <div className="flex gap-6 flex-wrap">
         {/* Čerpanie Fixného Budgetu - Area Chart */}
-        <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex-1 min-w-[453px] h-[373px]">
-          <CardHeader className="border-b border-[#f8fafc] dark:border-border h-[67px] pb-0 pt-4 px-6">
-            <CardTitle className="text-[14px] font-bold text-[#1d293d] dark:text-foreground tracking-[-0.1504px] flex items-center gap-2">
+        <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex-1 min-w-[453px] h-[373px]">
+          <CardHeader className="border-b border-border/40 dark:border-border h-[67px] pb-0 pt-4 px-6">
+            <CardTitle className="text-[14px] font-bold text-foreground dark:text-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Čerpanie Fixného Budgetu
             </CardTitle>
@@ -577,9 +577,9 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
         </Card>
 
         {/* Rozloženie Prác - Pie Chart */}
-        <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-[215px] h-[373px]">
-          <CardHeader className="border-b border-[#f8fafc] dark:border-border h-[67px] pb-0 pt-4 px-6">
-            <CardTitle className="text-[14px] font-bold text-[#1d293d] dark:text-foreground tracking-[-0.1504px] flex items-center gap-2">
+        <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-[215px] h-[373px]">
+          <CardHeader className="border-b border-border/40 dark:border-border h-[67px] pb-0 pt-4 px-6">
+            <CardTitle className="text-[14px] font-bold text-foreground dark:text-foreground flex items-center gap-2">
               <PieChart className="h-4 w-4" />
               Rozloženie Prác
             </CardTitle>
@@ -612,7 +612,7 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
                         className="size-2 rounded-full" 
                         style={{ backgroundColor: item.color }}
                       />
-                      <span className="text-[11px] font-medium text-[#45556c] dark:text-foreground">
+                      <span className="text-[11px] font-medium text-muted-foreground dark:text-foreground">
                         {item.name}
                       </span>
                     </div>
@@ -629,17 +629,17 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
       </div>
 
       {/* Bottom Section - Transactions Table */}
-      <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
-        <CardHeader className="border-b border-[#f1f5f9] dark:border-border h-[65px] px-6 py-0 flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-[14px] font-bold text-[#1d293d] dark:text-foreground tracking-[-0.1504px]">
+      <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+        <CardHeader className="border-b border-border/60 dark:border-border h-[65px] px-6 py-0 flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-[14px] font-bold text-foreground dark:text-foreground">
             Transakcie & Náklady
           </CardTitle>
           {canCreateCosts && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border h-[32px] px-3 rounded-[8px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] hover:bg-[#f8fafc] dark:hover:bg-muted">
+                <Button className="bg-white dark:bg-card border border-border dark:border-border h-[32px] px-3 rounded-[8px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] hover:bg-muted/40 dark:hover:bg-muted">
                   <Plus className="h-4 w-4 mr-2" />
-                  <span className="text-[12px] font-medium text-[#314158] dark:text-foreground">
+                  <span className="text-[12px] font-medium text-foreground dark:text-foreground">
                     Nový náklad
                   </span>
                 </Button>
@@ -725,19 +725,19 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             {/* Table Header */}
-            <div className="bg-[rgba(248,250,252,0.5)] dark:bg-muted/30 border-b border-[#f1f5f9] dark:border-border px-6 py-3 grid grid-cols-[minmax(260px,1fr)_minmax(220px,0.8fr)_minmax(140px,0.45fr)] gap-6 items-center min-w-[760px]">
+            <div className="bg-muted/40 dark:bg-muted/30 border-b border-border/60 dark:border-border px-6 py-3 grid grid-cols-[minmax(260px,1fr)_minmax(220px,0.8fr)_minmax(140px,0.45fr)] gap-6 items-center min-w-[760px]">
               <div>
-                <p className="text-[10px] font-bold text-[#90a1b9] dark:text-muted-foreground tracking-[0.6172px] uppercase">
+                <p className="text-[10px] font-bold text-muted-foreground dark:text-muted-foreground tracking-wider uppercase">
                   Položka
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold text-[#90a1b9] dark:text-muted-foreground tracking-[0.6172px] uppercase">
+                <p className="text-[10px] font-bold text-muted-foreground dark:text-muted-foreground tracking-wider uppercase">
                   Množstvo / Sadzba
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold text-[#90a1b9] dark:text-muted-foreground tracking-[0.6172px] uppercase">
+                <p className="text-[10px] font-bold text-muted-foreground dark:text-muted-foreground tracking-wider uppercase">
                   Spolu
                 </p>
               </div>
@@ -753,34 +753,34 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
                 {transactions.map((transaction) => (
                   <div
                     key={transaction.id}
-                    className={`border-b border-[#f1f5f9] dark:border-border px-6 py-4 grid grid-cols-[minmax(260px,1fr)_minmax(220px,0.8fr)_minmax(140px,0.45fr)] gap-6 items-center min-w-[760px] ${getTransactionRowClass(transaction.type)}`}
+                    className={`border-b border-border/60 dark:border-border px-6 py-4 grid grid-cols-[minmax(260px,1fr)_minmax(220px,0.8fr)_minmax(140px,0.45fr)] gap-6 items-center min-w-[760px] ${getTransactionRowClass(transaction.type)}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {getTransactionIcon(transaction.type)}
                       <div className="min-w-0">
-                        <p className="text-[14px] font-medium text-[#0f172b] dark:text-foreground tracking-[-0.1504px] truncate">
+                        <p className="text-[14px] font-medium text-foreground dark:text-foreground truncate">
                           {transaction.name}
                         </p>
-                        <p className="text-[11px] text-[#90a1b9] dark:text-muted-foreground tracking-[0.0645px] truncate">
+                        <p className="text-[11px] text-muted-foreground dark:text-muted-foreground truncate">
                           {transaction.description}
                         </p>
                         {transaction.date && (
-                          <p className="text-[11px] text-[#90a1b9] dark:text-muted-foreground tracking-[0.0645px] mt-0.5">
+                          <p className="text-[11px] text-muted-foreground dark:text-muted-foreground mt-0.5">
                             {format(new Date(transaction.date), "yyyy-MM-dd")}
                           </p>
                         )}
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-[12px] text-[#45556c] dark:text-foreground">
+                      <p className="text-[12px] text-muted-foreground dark:text-foreground">
                         {transaction.quantity}
                       </p>
                     </div>
                     <div className="text-right flex items-center justify-end gap-2">
-                      <p className={`text-[14px] font-bold tracking-[-0.1504px] ${
+                      <p className={`text-[14px] font-bold  ${
                         transaction.type === 'extra' 
-                          ? 'text-[#7008e7] dark:text-purple-500' 
-                          : 'text-[#0f172b] dark:text-foreground'
+                          ? 'text-brand dark:text-purple-500' 
+                          : 'text-foreground dark:text-foreground'
                       }`}>
                         {transaction.type === 'extra' ? '+' : ''}{formatMoney(transaction.amount)}
                       </p>
@@ -799,15 +799,15 @@ export function TaskFinancePanel({ taskId }: TaskFinancePanelProps) {
                 ))}
 
                 {/* Total Row */}
-                <div className="bg-[rgba(248,250,252,0.3)] dark:bg-muted/30 border-t border-[#e2e8f0] dark:border-border px-6 py-4 grid grid-cols-[minmax(260px,1fr)_minmax(220px,0.8fr)_minmax(140px,0.45fr)] gap-6 items-center min-w-[760px]">
+                <div className="bg-muted/30 dark:bg-muted/30 border-t border-border dark:border-border px-6 py-4 grid grid-cols-[minmax(260px,1fr)_minmax(220px,0.8fr)_minmax(140px,0.45fr)] gap-6 items-center min-w-[760px]">
                   <div>
-                    <p className="text-[14px] font-bold text-[#0f172b] dark:text-foreground tracking-[-0.1504px]">
+                    <p className="text-[14px] font-bold text-foreground dark:text-foreground">
                       SPOLU NÁKLADY
                     </p>
                   </div>
                   <div />
                   <div className="text-right">
-                    <p className="text-[18px] font-bold text-[#0f172b] dark:text-foreground tracking-[-0.4395px]">
+                    <p className="text-[18px] font-bold text-foreground dark:text-foreground tracking-[-0.4395px]">
                       {formatMoney(totalCosts)}
                     </p>
                   </div>

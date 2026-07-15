@@ -15,7 +15,7 @@ export default function ShareLayout({
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F8F8F8] light">
+    <div className="min-h-screen bg-muted/40 light">
       {children}
     </div>
   );

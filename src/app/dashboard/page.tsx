@@ -1239,7 +1239,7 @@ export default function DashboardPage() {
       return (
         getStatusIndicator(statusFromMetadata) ?? {
           icon: ArrowRight,
-          bgColor: "bg-[#fe9a00]",
+          bgColor: "bg-amber-500",
           iconColor: "text-white",
         }
       );
@@ -1251,7 +1251,7 @@ export default function DashboardPage() {
       return (
         getPriorityIndicator(priorityFromMetadata) ?? {
           icon: Flag,
-          bgColor: "bg-[#fb2c36]",
+          bgColor: "bg-destructive",
           iconColor: "text-white",
         }
       );
@@ -1265,7 +1265,7 @@ export default function DashboardPage() {
       type === "time_added" ||
       type.startsWith("timer_")
     ) {
-      return { icon: Clock, bgColor: "bg-[#2b7fff]", iconColor: "text-white" };
+      return { icon: Clock, bgColor: "bg-blue-500", iconColor: "text-white" };
     }
 
     // Comments
@@ -1414,24 +1414,24 @@ export default function DashboardPage() {
           <CardContent className="pt-5 px-5 pb-5">
             <div className="flex items-start justify-between mb-3">
               {/* Icon container */}
-              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
+              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-border/60 dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
                 <FolderKanban className="h-5 w-5 text-slate-600 dark:text-slate-400" />
               </div>
               {/* Badge */}
               {todoTasks.length > 0 && (
-                <div className="h-[25px] px-2 rounded-full bg-[#f8fafc] dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 flex items-center gap-1.5">
-                  <ArrowUp className="h-2.5 w-2.5 text-[#62748e] dark:text-slate-400" />
-                  <span className="text-[10px] font-bold leading-[15px] text-[#62748e] dark:text-slate-400 tracking-[0.12px]">
+                <div className="h-[25px] px-2 rounded-full bg-muted/40 dark:bg-slate-800 border border-border/60 dark:border-slate-700 flex items-center gap-1.5">
+                  <ArrowUp className="h-2.5 w-2.5 text-muted-foreground dark:text-slate-400" />
+                  <span className="text-[10px] font-bold leading-4 text-muted-foreground dark:text-slate-400">
                     +{todoTasks.length} nové
                   </span>
                 </div>
               )}
             </div>
             <div className="flex flex-col gap-0.5">
-              <div className="text-[24px] font-bold leading-[32px] text-[#0f172b] dark:text-foreground tracking-[-0.53px]">
+              <div className="text-[24px] font-bold leading-8 text-foreground dark:text-foreground tracking-tight">
                 {todoTasks.length}
               </div>
-              <p className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-muted-foreground">
+              <p className="text-[12px] font-medium leading-4 text-muted-foreground dark:text-muted-foreground">
                 Úlohy na začiatok
               </p>
             </div>
@@ -1443,24 +1443,24 @@ export default function DashboardPage() {
           <CardContent className="pt-5 px-5 pb-5">
             <div className="flex items-start justify-between mb-3">
               {/* Icon container */}
-              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
+              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-border/60 dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
                 <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               {/* Badge */}
               {inProgressTasks.length > 0 && (
-                <div className="h-[25px] px-2 rounded-full bg-[#f8fafc] dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 flex items-center gap-1.5">
-                  <ArrowDown className="h-2.5 w-2.5 text-[#62748e] dark:text-slate-400" />
-                  <span className="text-[10px] font-bold leading-[15px] text-[#62748e] dark:text-slate-400 tracking-[0.12px]">
+                <div className="h-[25px] px-2 rounded-full bg-muted/40 dark:bg-slate-800 border border-border/60 dark:border-slate-700 flex items-center gap-1.5">
+                  <ArrowDown className="h-2.5 w-2.5 text-muted-foreground dark:text-slate-400" />
+                  <span className="text-[10px] font-bold leading-4 text-muted-foreground dark:text-slate-400">
                     -1 od včera
                   </span>
                 </div>
               )}
             </div>
             <div className="flex flex-col gap-0.5">
-              <div className="text-[24px] font-bold leading-[32px] text-[#0f172b] dark:text-foreground tracking-[-0.53px]">
+              <div className="text-[24px] font-bold leading-8 text-foreground dark:text-foreground tracking-tight">
                 {inProgressTasks.length}
               </div>
-              <p className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-muted-foreground">
+              <p className="text-[12px] font-medium leading-4 text-muted-foreground dark:text-muted-foreground">
                 Aktívne úlohy
               </p>
             </div>
@@ -1468,28 +1468,28 @@ export default function DashboardPage() {
         </Card>
 
         {/* Card 3: Potrebujú pozornosť - s červeným tintom */}
-        <Card className="bg-[rgba(254,242,242,0.3)] dark:bg-red-950/20 border-0 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+        <Card className="bg-red-50/40 dark:bg-red-950/20 dark:bg-red-950/20 border-0 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
           <CardContent className="pt-5 px-5 pb-5">
             <div className="flex items-start justify-between mb-3">
               {/* Icon container */}
-              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
+              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-border/60 dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
                 <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               {/* Badge - červený */}
               {overdueTasks.length > 0 && (
-                <div className="h-[25px] px-2 rounded-full bg-[#fef2f2] dark:bg-red-950/40 border border-[#ffe2e2] dark:border-red-900/50 flex items-center gap-1.5">
-                  <ArrowUp className="h-2.5 w-2.5 text-[#e7000b] dark:text-red-400" />
-                  <span className="text-[10px] font-bold leading-[15px] text-[#e7000b] dark:text-red-400 tracking-[0.12px]">
+                <div className="h-[25px] px-2 rounded-full bg-red-50 dark:bg-red-950/30 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 dark:border-red-900/50 flex items-center gap-1.5">
+                  <ArrowUp className="h-2.5 w-2.5 text-destructive dark:text-red-400" />
+                  <span className="text-[10px] font-bold leading-4 text-destructive dark:text-red-400">
                     +{overdueTasks.length} kritická
                   </span>
                 </div>
               )}
             </div>
             <div className="flex flex-col gap-0.5">
-              <div className="text-[24px] font-bold leading-[32px] text-[#0f172b] dark:text-foreground tracking-[-0.53px]">
+              <div className="text-[24px] font-bold leading-8 text-foreground dark:text-foreground tracking-tight">
                 {overdueTasks.length}
               </div>
-              <p className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-muted-foreground">
+              <p className="text-[12px] font-medium leading-4 text-muted-foreground dark:text-muted-foreground">
                 Potrebujú pozornosť
               </p>
             </div>
@@ -1501,15 +1501,15 @@ export default function DashboardPage() {
           <CardContent className="pt-5 px-5 pb-5">
             <div className="flex items-start justify-between mb-3">
               {/* Icon container */}
-              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-[#f1f5f9] dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
+              <div className="h-[38px] w-[38px] rounded-[10px] bg-white dark:bg-slate-800 border border-border/60 dark:border-slate-700 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center">
                 <CalendarIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
             </div>
             <div className="flex flex-col gap-0.5">
-              <div className="text-[24px] font-bold leading-[32px] text-[#0f172b] dark:text-foreground tracking-[-0.53px]">
+              <div className="text-[24px] font-bold leading-8 text-foreground dark:text-foreground tracking-tight">
                 {upcomingTasks.length}
               </div>
-              <p className="text-[12px] font-medium leading-[16px] text-[#62748e] dark:text-muted-foreground">
+              <p className="text-[12px] font-medium leading-4 text-muted-foreground dark:text-muted-foreground">
                 Do 7 dní
               </p>
             </div>
@@ -1616,7 +1616,7 @@ export default function DashboardPage() {
 
                 {/* Desktop: Tabs */}
                 <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DashboardTabType)} className="w-full hidden lg:block">
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto scrollbar-hide">
                     <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground min-w-max">
                       {availableTabs.map((tab) => {
                         const Icon = getTabIcon(tab);
@@ -1701,11 +1701,11 @@ export default function DashboardPage() {
                             <div className="min-w-0 space-y-1">
                               {/* Project name and code - first line (uppercase, smaller) */}
                               {task.project && (
-                                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.6172px] leading-[14.286px]">
-                                  <span className="font-bold text-[#62748e]">{task.project.name}</span>
-                                  <span className="font-bold text-[#cad5e2]">•</span>
+                                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider leading-none">
+                                  <span className="font-bold text-muted-foreground">{task.project.name}</span>
+                                  <span className="font-bold text-muted-foreground/50">•</span>
                                   {task.project.code && (
-                                    <span className="font-medium text-[#90a1b9]">{task.project.code}</span>
+                                    <span className="font-medium text-muted-foreground">{task.project.code}</span>
                                   )}
                                 </div>
                               )}
@@ -1718,7 +1718,7 @@ export default function DashboardPage() {
                                     aria-label={`Farba úlohy ${taskColor}`}
                                   />
                                 )}
-                                <h3 className="font-bold truncate text-sm leading-5 text-[#0f172b] tracking-[-0.1504px]" title={stripHtml(task.title)}>
+                                <h3 className="font-bold truncate text-sm leading-5 text-foreground" title={stripHtml(task.title)}>
                                   {truncateTaskTitle(task.title, 50)}
                                 </h3>
                               </div>
@@ -1762,11 +1762,11 @@ export default function DashboardPage() {
                                 <div className="flex flex-col gap-1 w-[96px]">
                                   {/* Text row: actual hours (left, bold) + "/ estimated hours" (right, lighter) */}
                                   <div className="flex items-end justify-between w-full">
-                                    <span className="text-[11px] font-bold leading-[11px] text-[#314158] dark:text-foreground">
+                                    <span className="text-[11px] font-bold leading-[11px] text-foreground dark:text-foreground">
                                       {formatHours(actualHours)}
                                     </span>
                                     {estimatedHours > 0 && (
-                                      <span className="text-[10px] font-normal leading-[10px] text-[#90a1b9] dark:text-muted-foreground">
+                                      <span className="text-[10px] font-normal leading-[10px] text-muted-foreground dark:text-muted-foreground">
                                         / {formatHours(estimatedHours)}
                                       </span>
                                     )}
@@ -1774,9 +1774,9 @@ export default function DashboardPage() {
                                   
                                   {/* Progress bar */}
                                   {estimatedHours > 0 && (
-                                    <div className="h-1.5 w-full rounded-full bg-[#f1f5f9] dark:bg-slate-800 overflow-hidden">
+                                    <div className="h-1.5 w-full rounded-full bg-muted dark:bg-slate-800 overflow-hidden">
                                       <div 
-                                        className="h-full rounded-full bg-[#ff8904] dark:bg-orange-500 transition-all"
+                                        className="h-full rounded-full bg-orange-400 dark:bg-orange-500 transition-all"
                                         style={{ width: `${progress}%` }}
                                       />
                                     </div>

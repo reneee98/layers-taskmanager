@@ -156,15 +156,15 @@ export function TaskHistoryPanel({ taskId }: TaskHistoryPanelProps) {
   const getHistoryIcon = (type: string) => {
     switch (type) {
       case 'comment':
-        return <MessageSquare className="h-4 w-4 text-[#62748e] dark:text-muted-foreground" />;
+        return <MessageSquare className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />;
       case 'status_change':
-        return <CheckCircle className="h-4 w-4 text-[#62748e] dark:text-muted-foreground" />;
+        return <CheckCircle className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />;
       case 'file_upload':
-        return <FileText className="h-4 w-4 text-[#62748e] dark:text-muted-foreground" />;
+        return <FileText className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />;
       case 'cost_added':
-        return <Wallet className="h-4 w-4 text-[#62748e] dark:text-muted-foreground" />;
+        return <Wallet className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />;
       default:
-        return <User className="h-4 w-4 text-[#62748e] dark:text-muted-foreground" />;
+        return <User className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />;
     }
   };
 
@@ -191,12 +191,12 @@ export function TaskHistoryPanel({ taskId }: TaskHistoryPanelProps) {
   }
 
   return (
-    <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+    <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
       <CardContent className="p-8">
         <div className="relative flex flex-col gap-10">
           {/* Vertical timeline line */}
           {historyItems.length > 0 && (
-            <div className="absolute left-[20px] top-0 bottom-0 w-[1px] bg-[#e2e8f0] dark:bg-border" />
+            <div className="absolute left-[20px] top-0 bottom-0 w-[1px] bg-secondary dark:bg-border" />
           )}
           
           {historyItems.length === 0 ? (
@@ -207,7 +207,7 @@ export function TaskHistoryPanel({ taskId }: TaskHistoryPanelProps) {
             historyItems.map((item, index) => (
               <div key={item.id} className="relative flex gap-4 items-start">
                 {/* Icon */}
-                <div className="relative bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-full size-10 flex items-center justify-center shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 z-10">
+                <div className="relative bg-white dark:bg-card border border-border dark:border-border rounded-full size-10 flex items-center justify-center shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 z-10">
                   {getHistoryIcon(item.type)}
                 </div>
 
@@ -216,15 +216,15 @@ export function TaskHistoryPanel({ taskId }: TaskHistoryPanelProps) {
                   {/* Header with name, description, and timestamp */}
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold leading-[20px] text-[#0f172b] dark:text-foreground text-[14px] tracking-[-0.1504px]">
+                      <p className="font-bold leading-5 text-foreground dark:text-foreground text-[14px]">
                         {item.user.name}
                       </p>
-                      <p className="font-normal leading-[16px] text-[#62748e] dark:text-muted-foreground text-[12px]">
+                      <p className="font-normal leading-4 text-muted-foreground dark:text-muted-foreground text-[12px]">
                         {item.description}
                       </p>
                     </div>
-                    <div className="bg-[#f8fafc] dark:bg-muted rounded-full h-6 px-2 flex items-center shrink-0">
-                      <p className="font-normal leading-[16px] text-[#90a1b9] dark:text-muted-foreground text-[12px]">
+                    <div className="bg-muted/40 dark:bg-muted rounded-full h-6 px-2 flex items-center shrink-0">
+                      <p className="font-normal leading-4 text-muted-foreground dark:text-muted-foreground text-[12px]">
                         {formatTimestamp(item.created_at)}
                       </p>
                     </div>
@@ -234,22 +234,22 @@ export function TaskHistoryPanel({ taskId }: TaskHistoryPanelProps) {
                   {item.metadata && (
                     <div className="mt-1">
                       {item.metadata.status && (
-                        <Badge className="bg-[#f8fafc] dark:bg-muted border border-[#e2e8f0] dark:border-border h-[30px] px-[13px] rounded-[10px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
-                          <span className="font-medium text-[14px] text-[#314158] dark:text-foreground tracking-[-0.1504px]">
+                        <Badge className="bg-muted/40 dark:bg-muted border border-border dark:border-border h-[30px] px-[13px] rounded-[10px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+                          <span className="font-medium text-[14px] text-foreground dark:text-foreground">
                             {item.metadata.status}
                           </span>
                         </Badge>
                       )}
                       {item.metadata.fileName && (
-                        <Badge className="bg-[#f8fafc] dark:bg-muted border border-[#e2e8f0] dark:border-border h-[30px] px-[13px] rounded-[10px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
-                          <span className="font-medium text-[14px] text-[#314158] dark:text-foreground tracking-[-0.1504px]">
+                        <Badge className="bg-muted/40 dark:bg-muted border border-border dark:border-border h-[30px] px-[13px] rounded-[10px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+                          <span className="font-medium text-[14px] text-foreground dark:text-foreground">
                             {item.metadata.fileName}
                           </span>
                         </Badge>
                       )}
                       {item.metadata.costName && (
-                        <Badge className="bg-[#f8fafc] dark:bg-muted border border-[#e2e8f0] dark:border-border h-[30px] px-2 rounded-[10px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
-                          <span className="font-medium text-[14px] text-[#314158] dark:text-foreground tracking-[-0.1504px]">
+                        <Badge className="bg-muted/40 dark:bg-muted border border-border dark:border-border h-[30px] px-2 rounded-[10px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+                          <span className="font-medium text-[14px] text-foreground dark:text-foreground">
                             {item.metadata.costName} {item.metadata.costAmount && `(${formatCurrency(item.metadata.costAmount)})`}
                           </span>
                         </Badge>

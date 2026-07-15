@@ -142,8 +142,8 @@ export const TopNav = ({
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-800/60">
-      <div className="w-full px-8 h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
+      <div className="flex h-14 w-full items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Left side - Search bar */}
         <div className="flex-1 max-w-md">
           <SearchBar />
@@ -165,7 +165,7 @@ export const TopNav = ({
               >
                 <Bell className="h-4 w-4" />
                 {pendingCount > 0 && (
-                  <span className="absolute top-2 right-2 h-1.5 w-1.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-950" />
+                  <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full border-2 border-background bg-destructive" />
                 )}
               </Button>
             </DropdownMenuTrigger>
@@ -235,7 +235,7 @@ export const TopNav = ({
           </DropdownMenu>
 
           {/* Separator */}
-          <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-4" />
+          <div className="mx-2 h-5 w-px bg-border" />
 
           {/* Workspace Switcher */}
           <WorkspaceSwitcher />

@@ -1504,23 +1504,23 @@ export default function TaskDetailPage() {
   return (
     <div className="relative min-h-screen -mx-3 sm:-mx-4 md:-mx-6 -my-3 sm:-my-4 md:-my-6">
       {/* Fixed Header - Figma 1:1 */}
-      <div className="sticky top-0 z-50 bg-[rgba(255,255,255,0.8)] dark:bg-[rgba(24,24,27,0.8)] border-b border-[rgba(226,232,240,0.8)] dark:border-border backdrop-blur-sm pt-4 px-6 pb-4">
+      <div className="sticky top-0 z-50 bg-card/80 dark:bg-card/80 border-b border-border/80 dark:border-border backdrop-blur-sm pt-4 px-6 pb-4">
         <div className="flex h-8 items-center justify-between w-full">
           {/* Left side - Back button and breadcrumb */}
           <div className="flex gap-4 items-center h-8">
             {/* Back Button */}
             <button
               onClick={() => router.push(`/projects/${params.projectId}`)}
-              className="h-8 rounded-lg flex items-center gap-2 px-2.5 hover:bg-[#f1f5f9] dark:hover:bg-muted transition-colors"
+              className="h-8 rounded-lg flex items-center gap-2 px-2.5 hover:bg-muted dark:hover:bg-muted transition-colors"
               aria-label="Späť na projekt"
               tabIndex={0}
             >
-              <ArrowLeft className="h-4 w-4 text-[#62748e] dark:text-muted-foreground" />
-              <span className="text-sm font-medium text-[#62748e] dark:text-muted-foreground tracking-[-0.15px]">Späť</span>
+              <ArrowLeft className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Späť</span>
             </button>
 
             {/* Divider */}
-            <div className="bg-[#e2e8f0] dark:bg-border h-4 w-px shrink-0" />
+            <div className="bg-secondary dark:bg-border h-4 w-px shrink-0" />
 
             {/* Breadcrumb */}
             <div className="flex gap-2 items-center h-7">
@@ -1533,11 +1533,11 @@ export default function TaskDetailPage() {
                         disabled={!canUpdateTasks}
                         className={cn(
                           "flex gap-1.5 items-center px-2 h-7 rounded-lg transition-colors",
-                          canUpdateTasks ? "hover:bg-[#f1f5f9] dark:hover:bg-muted cursor-pointer" : "cursor-default"
+                          canUpdateTasks ? "hover:bg-muted dark:hover:bg-muted cursor-pointer" : "cursor-default"
                         )}
                       >
-                        <Folder className="h-3 w-3 text-[#45556c] dark:text-foreground shrink-0" />
-                        <span className="text-sm font-medium text-[#45556c] dark:text-foreground tracking-[-0.15px]">
+                        <Folder className="h-3 w-3 text-muted-foreground dark:text-foreground shrink-0" />
+                        <span className="text-sm font-medium text-muted-foreground dark:text-foreground">
                           {task.project.name}
                         </span>
                       </button>
@@ -1597,13 +1597,13 @@ export default function TaskDetailPage() {
                   </Popover>
 
                   {/* Slash separator */}
-                  <span className="text-sm text-[#cad5e2] dark:text-muted-foreground tracking-[-0.15px]">/</span>
+                  <span className="text-sm text-muted-foreground/50 dark:text-muted-foreground">/</span>
 
                   {/* Task code with hash icon */}
-                  <div className="flex items-center h-5 rounded hover:bg-[#f1f5f9] dark:hover:bg-muted transition-colors">
+                  <div className="flex items-center h-5 rounded hover:bg-muted dark:hover:bg-muted transition-colors">
                     <div className="flex items-center gap-1 px-1.5">
-                      <Hash className="h-2.5 w-2.5 text-[#90a1b9] dark:text-muted-foreground shrink-0" />
-                      <span className="text-xs font-bold text-[#90a1b9] dark:text-muted-foreground leading-4">
+                      <Hash className="h-2.5 w-2.5 text-muted-foreground dark:text-muted-foreground shrink-0" />
+                      <span className="text-xs font-bold text-muted-foreground dark:text-muted-foreground leading-4">
                         {task.project.code}-{String(task.id).slice(0, 8)}
                       </span>
                     </div>
@@ -1625,18 +1625,18 @@ export default function TaskDetailPage() {
                 value={timerDescription}
                 onChange={(e) => handleDescriptionChange(e.target.value)}
                 placeholder="Čo práve robíš..."
-                className="h-8 px-3 text-xs bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary w-[180px] placeholder:text-muted-foreground"
+                className="h-8 px-3 text-xs bg-white dark:bg-card border border-border dark:border-border rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary w-[180px] placeholder:text-muted-foreground"
                 aria-label="Popis práce"
               />
               
               {/* Timer Controls */}
-              <div className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] h-8 flex items-center overflow-hidden">
+              <div className="bg-white dark:bg-card border border-border dark:border-border rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] h-8 flex items-center overflow-hidden">
                 {/* Extra mode toggle (Zap) */}
                 <button
                   onClick={handleToggleExtraMode}
-                  className={`h-[30px] w-[35px] border-r border-[#f1f5f9] dark:border-border flex items-center justify-center shrink-0 transition-colors hover:bg-[#f1f5f9] dark:hover:bg-muted ${
+                  className={`h-[30px] w-[35px] border-r border-border/60 dark:border-border flex items-center justify-center shrink-0 transition-colors hover:bg-muted dark:hover:bg-muted ${
                     isExtraMode || (activeTimer && String(activeTimer.task_id) === String(task?.id) && activeTimer.is_extra === true)
-                      ? "bg-[#f5f3ff] dark:bg-purple-900/30 hover:bg-[#ede9fe]"
+                      ? "bg-violet-50 dark:bg-violet-950/30 dark:bg-purple-900/30 hover:bg-violet-100 dark:hover:bg-violet-900/40"
                       : ""
                   }`}
                   aria-label={isExtraMode ? "Extra mód zapnutý - čas sa zapíše do extra" : "Normálny mód - čas sa zapíše do úlohy"}
@@ -1646,8 +1646,8 @@ export default function TaskDetailPage() {
                 >
                   <Zap className={`h-3.5 w-3.5 ${
                     isExtraMode || (activeTimer && String(activeTimer.task_id) === String(task?.id) && activeTimer.is_extra === true)
-                      ? "text-[#7f22fe] dark:text-purple-400"
-                      : "text-[#62748e] dark:text-muted-foreground"
+                      ? "text-brand dark:text-purple-400"
+                      : "text-muted-foreground dark:text-muted-foreground"
                   }`} />
                 </button>
 
@@ -1656,9 +1656,9 @@ export default function TaskDetailPage() {
                   <span className={`text-xs font-bold leading-4 tabular-nums ${
                     activeTimer && String(activeTimer.task_id) === String(task?.id)
                       ? activeTimer.is_extra === true
-                        ? "text-[#7f22fe] dark:text-purple-400"
-                        : "text-[#314158] dark:text-foreground"
-                      : "text-[#314158] dark:text-foreground"
+                        ? "text-brand dark:text-purple-400"
+                        : "text-foreground dark:text-foreground"
+                      : "text-foreground dark:text-foreground"
                   }`}>
                     {activeTimer && String(activeTimer.task_id) === String(task?.id)
                       ? (() => {
@@ -1675,7 +1675,7 @@ export default function TaskDetailPage() {
                 <button
                   onClick={handleTimerToggle}
                   disabled={isStartingTimer || !task}
-                  className={`h-[30px] w-[37px] border-l border-[#f1f5f9] dark:border-border flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 ${
+                  className={`h-[30px] w-[37px] border-l border-border/60 dark:border-border flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 ${
                     activeTimer && String(activeTimer.task_id) === String(task?.id)
                       ? "bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30"
                       : "bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30"
@@ -1699,14 +1699,14 @@ export default function TaskDetailPage() {
             <button
               onClick={handleSave}
               disabled={isSaving || !hasChanges}
-              className="bg-[#0f172b] dark:bg-primary hover:bg-[#0f172b]/90 dark:hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed h-8 rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] px-4 flex items-center justify-center shrink-0 transition-colors"
+              className="bg-primary dark:bg-primary hover:bg-primary/90 dark:hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed h-8 rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] px-4 flex items-center justify-center shrink-0 transition-colors"
               aria-label="Uložiť zmeny"
               tabIndex={0}
             >
               {isSaving ? (
-                <Loader2 className="h-3 w-3 animate-spin text-white" />
+                <Loader2 className="h-3 w-3 animate-spin text-primary-foreground" />
               ) : (
-                <span className="text-xs font-medium text-white leading-4">Uložiť zmeny</span>
+                <span className="text-xs font-medium text-primary-foreground leading-4">Uložiť zmeny</span>
               )}
             </button>
           </div>
@@ -1721,7 +1721,7 @@ export default function TaskDetailPage() {
         {/* Title */}
         <div className="h-[37.5px] min-w-0">
           <div className="flex items-center gap-3">
-            <h1 className="font-bold leading-[37.5px] text-[#0f172b] dark:text-foreground text-[30px] tracking-[-0.3545px] truncate">
+            <h1 className="font-bold leading-tight text-foreground dark:text-foreground text-[30px] truncate">
               {task.title}
             </h1>
             <Badge variant="outline">{normalizeCurrency(task.currency)}</Badge>
@@ -1737,10 +1737,10 @@ export default function TaskDetailPage() {
               return (
                 <div
                   key={assignee.user_id || idx}
-                  className="bg-[#f1f5f9] dark:bg-slate-700 border-2 border-solid border-white dark:border-slate-800 flex items-start mr-[-6px] overflow-clip p-[2px] relative rounded-full shadow-[0px_0px_0px_1px_#f1f5f9] dark:shadow-[0px_0px_0px_1px_#334155] shrink-0 size-[28px]"
+                  className="bg-muted dark:bg-slate-700 border-2 border-solid border-white dark:border-slate-800 flex items-start mr-[-6px] overflow-clip p-[2px] relative rounded-full shadow-[0px_0px_0px_1px_#f1f5f9] dark:shadow-[0px_0px_0px_1px_#334155] shrink-0 size-[28px]"
                 >
-                  <div className="bg-[#ececf0] dark:bg-slate-600 h-[24px] w-[24px] rounded-full shrink-0 flex items-center justify-center">
-                    <span className="font-normal leading-[14.286px] text-[#45556c] dark:text-slate-300 text-[10px] tracking-[0.1172px]">
+                  <div className="bg-muted dark:bg-slate-600 h-[24px] w-[24px] rounded-full shrink-0 flex items-center justify-center">
+                    <span className="font-normal leading-none text-muted-foreground dark:text-slate-300 text-[10px] tracking-wide">
                       {getInitials(assigneeName)}
                     </span>
                   </div>
@@ -1762,7 +1762,7 @@ export default function TaskDetailPage() {
           </div>
 
           {/* Divider */}
-          <div className="bg-[rgba(202,213,226,0.5)] dark:bg-border h-4 shrink-0 w-px" />
+          <div className="bg-border/60 dark:bg-border h-4 shrink-0 w-px" />
 
           {/* Date, Status, Priority badges */}
           <div className="flex gap-3 items-center relative shrink-0">
@@ -1809,7 +1809,7 @@ export default function TaskDetailPage() {
             <TabsTrigger value="files" className="relative">
               Súbory
               {filesCount > 0 && (
-                <span className="ml-1.5 bg-[rgba(226,232,240,0.5)] dark:bg-muted-foreground/30 text-[#62748e] dark:text-muted-foreground text-[9px] font-semibold leading-[12px] px-1 py-0 rounded-full h-[14px] flex items-center">
+                <span className="ml-1.5 bg-border/50 dark:bg-muted-foreground/30 text-muted-foreground dark:text-muted-foreground text-[9px] font-semibold leading-[12px] px-1 py-0 rounded-full h-[14px] flex items-center">
                   {filesCount}
                 </span>
               )}
@@ -1818,7 +1818,7 @@ export default function TaskDetailPage() {
               <TabsTrigger value="time" className="relative">
                 Čas
                 {task?.actual_hours != null && task.actual_hours > 0 && (
-                  <span className="ml-1.5 bg-[rgba(226,232,240,0.5)] dark:bg-muted-foreground/30 text-[#62748e] dark:text-muted-foreground text-[9px] font-semibold leading-[12px] px-[4px] py-0 rounded-full h-[14px] flex items-center">
+                  <span className="ml-1.5 bg-border/50 dark:bg-muted-foreground/30 text-muted-foreground dark:text-muted-foreground text-[9px] font-semibold leading-[12px] px-[4px] py-0 rounded-full h-[14px] flex items-center">
                     {task.actual_hours.toFixed(1)}h
                   </span>
                 )}
@@ -1845,19 +1845,19 @@ export default function TaskDetailPage() {
             <div className="flex-1 w-full space-y-6">
               <TabsContent value="overview" className="space-y-6 mt-0">
               {/* Description - Figma Design */}
-              <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
-                <CardHeader className="h-[71px] pb-0 pt-4 px-6 border-b border-[#f1f5f9] dark:border-border">
+              <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+                <CardHeader className="h-[71px] pb-0 pt-4 px-6 border-b border-border/60 dark:border-border">
                   <div className="flex items-center justify-between h-[24px]">
                     <div className="flex items-center gap-6">
-                      <FileText className="h-4 w-4 text-[#0f172b] dark:text-foreground" />
-                      <CardTitle className="text-[14px] font-bold text-[#0f172b] dark:text-foreground tracking-[-0.1504px] m-0">
+                      <FileText className="h-4 w-4 text-foreground dark:text-foreground" />
+                      <CardTitle className="text-[14px] font-bold text-foreground dark:text-foreground m-0">
                         Zadanie & Špecifikácia
                       </CardTitle>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 px-3 text-[12px] font-medium text-[#90a1b9] dark:text-muted-foreground hover:text-[#0f172b] dark:hover:text-foreground"
+                      className="h-6 px-3 text-[12px] font-medium text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground"
                       onClick={() => {
                         // Trigger edit mode for TaskDescription
                         const event = new CustomEvent('editTaskDescription');
@@ -1902,9 +1902,9 @@ export default function TaskDetailPage() {
             )}
 
             <TabsContent value="files" className="mt-4">
-              <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+              <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
                 <CardHeader className="pb-4 pt-5 px-5">
-                  <CardTitle className="text-[11px] font-bold text-[#90a1b9] dark:text-muted-foreground tracking-[0.6145px] uppercase m-0">
+                  <CardTitle className="text-[11px] font-bold text-muted-foreground dark:text-muted-foreground tracking-wider uppercase m-0">
                     Súbory
                   </CardTitle>
                 </CardHeader>

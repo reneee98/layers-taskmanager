@@ -191,10 +191,10 @@ export function ProjectQuickLinks({ projectId }: ProjectQuickLinksProps) {
   };
 
   return (
-    <div className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] overflow-hidden">
+    <div className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] overflow-hidden">
       <div className="pt-[21px] px-[21px] pb-4">
         <div className="h-[16.5px] mb-4">
-          <p className="font-bold leading-[16.5px] text-[#90a1b9] dark:text-muted-foreground text-[11px] tracking-[0.6145px] uppercase">
+          <p className="font-bold leading-4 text-muted-foreground dark:text-muted-foreground text-[11px] tracking-wider uppercase">
             Rýchle odkazy
           </p>
         </div>
@@ -221,7 +221,7 @@ export function ProjectQuickLinks({ projectId }: ProjectQuickLinksProps) {
             {links.map((link) => (
               <div
                 key={link.id}
-                className="bg-[#f8fafc] dark:bg-muted/30 border border-[#f1f5f9] dark:border-border flex h-[54px] items-center justify-between px-[13px] py-px rounded-[10px] group"
+                className="bg-muted/40 dark:bg-muted/30 border border-border/60 dark:border-border flex h-[54px] items-center justify-between px-[13px] py-px rounded-[10px] group"
               >
                 <a
                   href={link.url}
@@ -230,14 +230,14 @@ export function ProjectQuickLinks({ projectId }: ProjectQuickLinksProps) {
                   className="flex items-center gap-3 h-[28px] flex-1 min-w-0"
                 >
                   <div className="bg-white dark:bg-card rounded-[8px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 size-[28px] flex items-center justify-center">
-                    <LinkIcon className="h-4 w-4 text-[#314158] dark:text-foreground" />
+                    <LinkIcon className="h-4 w-4 text-foreground dark:text-foreground" />
                   </div>
-                  <span className="text-[12px] font-bold text-[#314158] dark:text-foreground truncate">
+                  <span className="text-[12px] font-bold text-foreground dark:text-foreground truncate">
                     {link.description || "Link"}
                   </span>
                 </a>
                 <div className="flex items-center gap-2 shrink-0">
-                  <ExternalLink className="h-[14px] w-[14px] text-[#62748e] dark:text-muted-foreground group-hover:text-[#314158] dark:group-hover:text-foreground transition-colors" />
+                  <ExternalLink className="h-[14px] w-[14px] text-muted-foreground dark:text-muted-foreground group-hover:text-foreground dark:group-hover:text-foreground transition-colors" />
                   {canManageProjects && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

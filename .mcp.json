@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "layers-tasks": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://layers-studio.vercel.app/api/mcp"]
+    },
+    "home-assistant": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://homeassistant.local:8123/mcp_server/sse",
+        "--header",
+        "Authorization:Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkMGM1NWNkMGNiYmQ0Y2FkYjVmNDgwY2NkMjM1Y2JmZSIsImlhdCI6MTc4NDAzNTQyOCwiZXhwIjoyMDk5Mzk1NDI4fQ.RGkT46dWU1JlSknqiSKGjN2nLUzvXG3wbeNBSY9_xMs",
+        "--allow-http"
+      ]
+    }
+  }
+}

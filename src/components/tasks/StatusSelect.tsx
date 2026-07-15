@@ -39,8 +39,8 @@ const statusOptions = [
     value: "review", 
     label: getTaskStatusLabel("review"), 
     icon: Eye,
-    color: "bg-[#fffbeb] text-[#bb4d00] border-[#fee685] hover:bg-[#fef3c7]",
-    iconColor: "text-[#bb4d00]"
+    color: "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/40",
+    iconColor: "text-amber-700 dark:text-amber-400"
   },
   { 
     value: "sent_to_client", 

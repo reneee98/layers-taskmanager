@@ -129,18 +129,18 @@ export const DateRangePicker = ({
       <PopoverTrigger asChild>
         <div
           className={cn(
-            "bg-white dark:bg-card border border-[#e2e8f0] dark:border-border flex gap-2 h-[36px] items-center px-[13px] py-px rounded-full shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] transition-colors group",
+            "bg-white dark:bg-card border border-border dark:border-border flex gap-2 h-[36px] items-center px-[13px] py-px rounded-full shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] transition-colors group",
             disabled ? "cursor-default" : "cursor-pointer hover:bg-slate-50 dark:hover:bg-card/80",
             className
           )}
         >
-          <CalendarIcon className="h-[14px] w-[14px] text-[#62748e] dark:text-muted-foreground shrink-0" />
-          <span className="font-medium leading-6 text-[#314158] dark:text-foreground text-[12px] text-center tracking-[-0.3125px] whitespace-nowrap">
+          <CalendarIcon className="h-[14px] w-[14px] text-muted-foreground dark:text-muted-foreground shrink-0" />
+          <span className="font-medium leading-6 text-foreground dark:text-foreground text-[12px] text-center tracking-[-0.3125px] whitespace-nowrap">
             {formatDateRange()}
           </span>
           {!disabled && (start || end) && (
             <X
-              className="h-3 w-3 text-[#62748e] dark:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:text-[#314158] dark:hover:text-foreground shrink-0"
+              className="h-3 w-3 text-muted-foreground dark:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:text-foreground dark:hover:text-foreground shrink-0"
               onClick={handleClear}
             />
           )}

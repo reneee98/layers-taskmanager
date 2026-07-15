@@ -57,12 +57,12 @@ interface TaskTimeTabProps {
 
 // Avatar color palettes for different users
 const AVATAR_COLORS = [
-  { bg: "bg-[#dbeafe]", text: "text-[#155dfc]" }, // Blue - René M.
-  { bg: "bg-[#d0fae5]", text: "text-[#096]" },    // Green - Viktor Beňo
-  { bg: "bg-[#f3e8ff]", text: "text-[#9810fa]" }, // Purple - Jana K.
-  { bg: "bg-[#fef3c7]", text: "text-[#d97706]" }, // Yellow
-  { bg: "bg-[#fce7f3]", text: "text-[#db2777]" }, // Pink
-  { bg: "bg-[#ccfbf1]", text: "text-[#0d9488]" }, // Teal
+  { bg: "bg-blue-100 dark:bg-blue-900/40", text: "text-blue-600 dark:text-blue-400" }, // Blue - René M.
+  { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-600 dark:text-emerald-400" },    // Green - Viktor Beňo
+  { bg: "bg-purple-100 dark:bg-purple-900/40", text: "text-brand" }, // Purple - Jana K.
+  { bg: "bg-amber-100 dark:bg-amber-900/40", text: "text-amber-600 dark:text-amber-400" }, // Yellow
+  { bg: "bg-pink-100 dark:bg-pink-900/40", text: "text-pink-600 dark:text-pink-400" }, // Pink
+  { bg: "bg-teal-100 dark:bg-teal-900/40", text: "text-teal-600 dark:text-teal-400" }, // Teal
 ];
 
 const getAvatarColor = (userId: string) => {
@@ -94,7 +94,6 @@ const getShortName = (name: string | undefined) => {
 };
 
 // Day labels in Slovak
-const DAY_LABELS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"];
 
 // Convert decimal hours to HH:MM:SS format
 const formatHoursToTime = (decimalHours: number): string => {
@@ -403,19 +402,19 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
       {/* Top Section - Chart and Stats */}
       <div className="flex gap-6 flex-wrap">
         {/* Daily Activity Chart */}
-        <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex-1 min-w-[300px]">
-          <div className="border-b border-[#f8fafc] dark:border-border px-6 py-4">
+        <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex-1 min-w-[300px]">
+          <div className="border-b border-border/40 dark:border-border px-6 py-4">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-muted-foreground" />
-              <span className="font-bold text-sm text-[#1d293d] dark:text-foreground tracking-[-0.15px]">
-                Denná aktivita (Posl. 7 dní)
+              <span className="font-bold text-sm text-foreground dark:text-foreground">
+                Denná aktivita
               </span>
             </div>
           </div>
           <div className="p-6 pt-8">
             {/* Bar Chart - Interactive */}
             <div className="flex items-end justify-between gap-4 h-[150px]">
-              {dailyData.map((day, index) => {
+              {dailyData.slice(-12).map((day, index) => {
                 const heightPercent = maxHours > 0 ? (day.hours / maxHours) * 100 : 0;
                 // Calculate actual budget vs extra percentages
                 const totalDayHours = day.hours || 1;
@@ -444,35 +443,35 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                             >
                               {day.extraHours > 0 && (
                                 <div 
-                                  className="bg-[#7f22fe] w-full transition-colors group-hover:bg-[#6b1fd4]" 
+                                  className="bg-brand w-full transition-colors group-hover:bg-brand/90" 
                                   style={{ height: `${extraRatio * 100}%`, minHeight: '4px' }}
                                 />
                               )}
                               <div 
-                                className="bg-[#155dfc] w-full flex-1 transition-colors group-hover:bg-[#1d4ed8]" 
+                                className="bg-blue-600 w-full flex-1 transition-colors group-hover:bg-blue-700" 
                               />
                             </div>
                           ) : (
-                            <div className="w-full max-w-[40px] h-1 bg-[#e2e8f0] dark:bg-muted rounded-sm group-hover:bg-[#cbd5e1] dark:group-hover:bg-muted/70 transition-colors" />
+                            <div className="w-full max-w-[40px] h-1 bg-secondary dark:bg-muted rounded-sm group-hover:bg-border dark:group-hover:bg-muted/70 transition-colors" />
                           )}
                         </div>
-                        <span className="text-xs text-[#94a3b8] dark:text-muted-foreground group-hover:text-[#64748b] dark:group-hover:text-foreground transition-colors">
-                          {DAY_LABELS[day.dayIndex]}
+                        <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground">
+                          {format(day.date, "d.M.", { locale: sk })}
                         </span>
                       </div>
                     </PopoverTrigger>
                     <PopoverContent 
-                      className="w-72 p-0 bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-xl shadow-xl"
+                      className="w-72 p-0 bg-white dark:bg-card border border-border dark:border-border rounded-xl shadow-xl"
                       align="center"
                       sideOffset={8}
                     >
                       {/* Popover Header */}
-                      <div className="px-4 py-3 border-b border-[#f1f5f9] dark:border-border">
+                      <div className="px-4 py-3 border-b border-border/60 dark:border-border">
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm text-[#1d293d] dark:text-foreground">
+                          <span className="font-semibold text-sm text-foreground dark:text-foreground">
                             {format(day.date, "EEEE, d. MMMM", { locale: sk })}
                           </span>
-                          <span className="font-bold text-sm text-[#155dfc] dark:text-blue-400">
+                          <span className="font-bold text-sm text-blue-600 dark:text-blue-400 dark:text-blue-400">
                             {day.hours.toFixed(1)}h
                           </span>
                         </div>
@@ -500,22 +499,22 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                                   </Avatar>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                      <span className="font-medium text-xs text-[#314158] dark:text-foreground truncate">
+                                      <span className="font-medium text-xs text-foreground dark:text-foreground truncate">
                                         {user.userName}
                                       </span>
                                       {user.isExtra && (
-                                        <Badge className="h-4 px-1.5 py-0 text-[8px] font-bold bg-[#f5f3ff] text-[#7f22fe] dark:bg-purple-950/50 dark:text-purple-400 border-0">
+                                        <Badge className="h-4 px-1.5 py-0 text-[8px] font-bold bg-violet-50 dark:bg-violet-950/30 text-brand dark:bg-purple-950/50 dark:text-purple-400 border-0">
                                           EXTRA
                                         </Badge>
                                       )}
                                     </div>
                                   </div>
                                   <div className="flex flex-col items-end">
-                                    <span className="font-bold text-xs text-[#0f172b] dark:text-foreground">
+                                    <span className="font-bold text-xs text-foreground dark:text-foreground">
                                       {user.hours.toFixed(1)}h
                                     </span>
                                     {canViewPrices && (
-                                      <span className="text-[10px] text-[#90a1b9] dark:text-muted-foreground">
+                                      <span className="text-[10px] text-muted-foreground dark:text-muted-foreground">
                                         {Math.round(user.amount)} €
                                       </span>
                                     )}
@@ -529,16 +528,16 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                       
                       {/* Footer with totals */}
                       {day.hours > 0 && (
-                        <div className="px-4 py-2 border-t border-[#f1f5f9] dark:border-border bg-muted/30">
+                        <div className="px-4 py-2 border-t border-border/60 dark:border-border bg-muted/30">
                           <div className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-1.5">
-                                <div className="w-2 h-2 rounded-sm bg-[#155dfc]" />
+                                <div className="w-2 h-2 rounded-sm bg-blue-600" />
                                 <span className="text-muted-foreground">Budget: {day.budgetHours.toFixed(1)}h</span>
                               </div>
                               {day.extraHours > 0 && (
                                 <div className="flex items-center gap-1.5">
-                                  <div className="w-2 h-2 rounded-sm bg-[#7f22fe]" />
+                                  <div className="w-2 h-2 rounded-sm bg-brand" />
                                   <span className="text-muted-foreground">Extra: {day.extraHours.toFixed(1)}h</span>
                                 </div>
                               )}
@@ -553,13 +552,13 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
             </div>
             
             {/* Legend */}
-            <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-[#f1f5f9] dark:border-border">
+            <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-border/60 dark:border-border">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-[#155dfc]" />
+                <div className="w-3 h-3 rounded-sm bg-blue-600" />
                 <span className="text-xs text-muted-foreground">Budget</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-[#7f22fe]" />
+                <div className="w-3 h-3 rounded-sm bg-brand" />
                 <span className="text-xs text-muted-foreground">Extra (T&M)</span>
               </div>
             </div>
@@ -569,17 +568,17 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
       </div>
 
       {/* Detailed Time Entries */}
-      <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] overflow-hidden">
+      <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] overflow-hidden">
         {/* Header */}
-        <div className="bg-white dark:bg-card border-b border-[#f1f5f9] dark:border-border flex items-center justify-between px-6 py-4">
-          <span className="font-bold text-sm text-[#1d293d] dark:text-foreground tracking-[-0.15px]">
+        <div className="bg-white dark:bg-card border-b border-border/60 dark:border-border flex items-center justify-between px-6 py-4">
+          <span className="font-bold text-sm text-foreground dark:text-foreground">
             Podrobný výkaz
           </span>
           <Dialog open={isManualEntryOpen} onOpenChange={setIsManualEntryOpen}>
             <DialogTrigger asChild>
               <Button 
                 size="sm" 
-                className="bg-[#0f172b] hover:bg-[#1e293b] text-white rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] gap-2"
+                className="bg-primary hover:bg-primary/80 text-primary-foreground rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] gap-2"
               >
                 <Plus className="h-4 w-4" />
                 Zapísať čas
@@ -654,26 +653,26 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                   onClick={() => setIsExtraEntry(!isExtraEntry)}
                   className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors ${
                     isExtraEntry 
-                      ? "bg-[#f5f3ff] border-[#ede9fe] dark:bg-purple-950/30 dark:border-purple-900/50" 
+                      ? "bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800/60 dark:bg-purple-950/30 dark:border-purple-900/50" 
                       : "bg-muted/30 border-border hover:bg-muted/50"
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                       isExtraEntry 
-                        ? "bg-[#ede9fe] dark:bg-purple-900/50" 
+                        ? "bg-violet-100 dark:bg-violet-900/40 dark:bg-purple-900/50" 
                         : "bg-muted dark:bg-muted"
                     }`}>
                       <Zap className={`h-4 w-4 ${
                         isExtraEntry 
-                          ? "text-[#7f22fe] dark:text-purple-400" 
+                          ? "text-brand dark:text-purple-400" 
                           : "text-muted-foreground"
                       }`} />
                     </div>
                     <div className="text-left">
                       <div className={`text-sm font-medium ${
                         isExtraEntry 
-                          ? "text-[#7f22fe] dark:text-purple-400" 
+                          ? "text-brand dark:text-purple-400" 
                           : "text-foreground"
                       }`}>
                         Extra čas
@@ -685,7 +684,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                   </div>
                   <div className={`w-10 h-6 rounded-full transition-colors relative ${
                     isExtraEntry 
-                      ? "bg-[#7f22fe]" 
+                      ? "bg-brand" 
                       : "bg-muted-foreground/30"
                   }`}>
                     <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
@@ -733,16 +732,16 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
               return (
                 <div 
                   key={entry.id} 
-                  className={`flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors group ${!isLast ? 'border-b border-[#f1f5f9] dark:border-border' : ''}`}
+                  className={`flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors group ${!isLast ? 'border-b border-border/60 dark:border-border' : ''}`}
                 >
                   {/* Left Section - Date, Avatar, User */}
                   <div className="flex items-center gap-6 min-w-[200px]">
                     {/* Date */}
                     <div className="flex flex-col items-center w-10">
-                      <span className="font-bold text-xs text-[#0f172b] dark:text-foreground">
+                      <span className="font-bold text-xs text-foreground dark:text-foreground">
                         {format(entryDate, "d")}
                       </span>
-                      <span className="text-[10px] text-[#90a1b9] dark:text-muted-foreground uppercase tracking-wide">
+                      <span className="text-[10px] text-muted-foreground dark:text-muted-foreground uppercase tracking-wide">
                         {format(entryDate, "MMM", { locale: sk })}
                       </span>
                     </div>
@@ -756,10 +755,10 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                     
                     {/* User Name and Billing Type */}
                     <div className="flex flex-col">
-                      <span className="font-medium text-xs text-[#314158] dark:text-foreground">
+                      <span className="font-medium text-xs text-foreground dark:text-foreground">
                         {getShortName(entry.user?.name)}
                       </span>
-                      <span className="text-[10px] text-[#90a1b9] dark:text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground dark:text-muted-foreground">
                         {isExtra ? 'Extra' : 'Budget'}
                       </span>
                     </div>
@@ -802,7 +801,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                         className="flex items-center gap-2 group/desc cursor-pointer"
                         onClick={() => handleStartEditDescription(entry)}
                       >
-                        <span className="font-medium text-xs text-[#1d293d] dark:text-foreground line-clamp-1">
+                        <span className="font-medium text-xs text-foreground dark:text-foreground line-clamp-1">
                           {entry.description || '—'}
                         </span>
                         <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/desc:opacity-100 transition-opacity" />
@@ -810,7 +809,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                     )}
                     {isExtra && (
                       <Badge 
-                        className="h-4 px-2 py-0 text-[9px] font-bold bg-[#f5f3ff] text-[#7f22fe] dark:bg-purple-950/50 dark:text-purple-400 border border-[#ede9fe] dark:border-purple-900/50 rounded-lg"
+                        className="h-4 px-2 py-0 text-[9px] font-bold bg-violet-50 dark:bg-violet-950/30 text-brand dark:bg-purple-950/50 dark:text-purple-400 border border-violet-200 dark:border-violet-800/60 dark:border-purple-900/50 rounded-lg"
                       >
                         EXTRA
                       </Badge>
@@ -819,11 +818,11 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
 
                   {/* Right Section - Hours and Amount */}
                   <div className="flex flex-col items-end min-w-[80px]">
-                    <span className="font-bold text-sm text-[#0f172b] dark:text-foreground tracking-[-0.15px] tabular-nums">
+                    <span className="font-bold text-sm text-foreground dark:text-foreground tabular-nums">
                       {formatHoursToTime(entry.hours)}
                     </span>
                     {canViewPrices && (
-                      <span className="text-[10px] text-[#90a1b9] dark:text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground dark:text-muted-foreground">
                         {entry.amount.toFixed(2)} €
                       </span>
                     )}

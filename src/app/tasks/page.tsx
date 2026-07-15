@@ -266,7 +266,7 @@ export default function TasksPage() {
             setEditingTask(null);
             setIsTaskDialogOpen(true);
           }}
-          className="bg-gray-900 text-white hover:bg-gray-800"
+          className=""
         >
           <Plus className="mr-2 h-4 w-4" />
           Pridať úlohu
@@ -398,7 +398,7 @@ export default function TasksPage() {
                   setEditingTask(null);
                   setIsTaskDialogOpen(true);
                 }}
-                className="bg-gray-900 text-white hover:bg-gray-800"
+                className=""
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Vytvoriť úlohu

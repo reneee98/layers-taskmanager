@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
+import { normalizeCurrency } from "@/lib/currency";
 import type { Project } from "@/types/database";
 
 interface TaskTableProps {
@@ -181,15 +183,15 @@ export function TaskTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/80 hover:bg-muted border-b border-border">
-              <TableHead className="w-[40px] text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">{/* Drag handle */}</TableHead>
-              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Úloha</TableHead>
-              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Status</TableHead>
-              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Assignee</TableHead>
-              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 w-fit uppercase tracking-wider">Čas</TableHead>
-              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 w-fit uppercase tracking-wider">Cena</TableHead>
-              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 w-fit uppercase tracking-wider">Deadline</TableHead>
-              <TableHead className="text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">Priorita</TableHead>
-              <TableHead className="w-[40px] text-xs font-semibold text-muted-foreground py-4 px-6 uppercase tracking-wider">{/* Actions */}</TableHead>
+              <TableHead className="w-[40px] text-xs font-semibold text-muted-foreground py-3 px-4 uppercase tracking-wider">{/* Drag handle */}</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-3 px-4 uppercase tracking-wider">Úloha</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-3 px-4 uppercase tracking-wider">Status</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-3 px-4 uppercase tracking-wider">Assignee</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-3 px-4 w-fit uppercase tracking-wider">Čas</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-3 px-4 w-fit uppercase tracking-wider">Cena</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-3 px-4 w-fit uppercase tracking-wider">Deadline</TableHead>
+              <TableHead className="text-xs font-semibold text-muted-foreground py-3 px-4 uppercase tracking-wider">Priorita</TableHead>
+              <TableHead className="w-[40px] text-xs font-semibold text-muted-foreground py-3 px-4 uppercase tracking-wider">{/* Actions */}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -243,13 +245,17 @@ export function TaskTable({
           {canViewPrices && (
             <span>
               Celková cena:{" "}
-              {filteredTasks
-                .reduce((sum, task) => sum + (task.budget_cents ? task.budget_cents / 100 : 0), 0)
-                .toLocaleString("sk-SK", {
-                  style: "currency",
-                  currency: "EUR",
-                  minimumFractionDigits: 2,
-                })}
+              {formatCurrency(
+                filteredTasks.reduce(
+                  (sum, task) =>
+                    sum +
+                    (task.budget_cents
+                      ? task.budget_cents / 100
+                      : task.calculated_price || 0),
+                  0
+                ),
+                normalizeCurrency(project?.currency)
+              )}
             </span>
           )}
         </div>

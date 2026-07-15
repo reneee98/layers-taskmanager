@@ -430,15 +430,15 @@ export function TaskRow({
       </TableCell>
 
       {/* Title */}
-      <TableCell className="py-4 pl-6 pr-2">
+      <TableCell className="py-3 pl-4 pr-2">
         <div className="min-w-0 space-y-1">
           {/* Project info - first line (uppercase, smaller) */}
           {task.project && (
-            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.6172px] leading-[14.286px]">
-              <span className="font-bold text-[#62748e]">{task.project.name}</span>
-              <span className="font-bold text-[#cad5e2]">•</span>
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider leading-none">
+              <span className="font-bold text-muted-foreground">{task.project.name}</span>
+              <span className="font-bold text-muted-foreground/50">•</span>
               {task.project.code && (
-                <span className="font-medium text-[#90a1b9]">{task.project.code}</span>
+                <span className="font-medium text-muted-foreground">{task.project.code}</span>
               )}
             </div>
           )}
@@ -453,7 +453,7 @@ export function TaskRow({
             )}
             <Link 
               href={task.project_id ? `/projects/${task.project_id}/tasks/${task.id}` : `/tasks/${task.id}`}
-              className="font-bold text-sm leading-5 text-[#0f172b] hover:text-[#0f172b]/80 hover:underline inline-flex items-center gap-1 group/link tracking-[-0.1504px]"
+              className="font-bold text-sm leading-5 text-foreground hover:text-foreground/80 hover:underline inline-flex items-center gap-1 group/link"
               title={stripHtml(task.title)}
             >
               {truncateTaskTitle(task.title, 50)}
@@ -472,7 +472,7 @@ export function TaskRow({
       </TableCell>
 
       {/* Status - Inline Dropdown */}
-      <TableCell className="py-4 pl-6 pr-2">
+      <TableCell className="py-3 pl-4 pr-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -521,12 +521,12 @@ export function TaskRow({
       </TableCell>
 
       {/* Assignees */}
-      <TableCell className="py-4 pl-6 pr-2" onClick={(e) => e.stopPropagation()}>
+      <TableCell className="py-3 pl-4 pr-2" onClick={(e) => e.stopPropagation()}>
         <AssigneeCell task={task} onUpdate={onUpdate} />
       </TableCell>
 
       {/* Time - Estimated hours (budget) */}
-      <TableCell className="p-4 align-middle [&:has([role=checkbox])]:pr-0 py-4 pl-6 pr-2 w-fit">
+      <TableCell className="py-3 pl-4 pr-2 w-fit whitespace-nowrap">
         {(() => {
           const estimatedHours = task.estimated_hours || 0;
           const actualHours = task.actual_hours || 0;
@@ -554,7 +554,7 @@ export function TaskRow({
 
       {/* Price - Fixed or Calculated */}
       {canViewPrices ? (
-        <TableCell className="py-4 pl-6 pr-2 w-fit">
+        <TableCell className="py-3 pl-4 pr-2 w-fit whitespace-nowrap">
           {(() => {
             // Use project from props or from task.project
             const projectData = project || task.project;
@@ -577,8 +577,8 @@ export function TaskRow({
                 // Budget is auto-calculated from estimated hours - show it
                 return (
                   <div className="flex items-center justify-end gap-1 text-xs font-medium">
-                    <span className="text-green-600">
-                      {formatCurrency((task.budget_cents || 0) / 100)}
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency((task.budget_cents || 0) / 100, normalizeCurrency(task.currency || (projectData as any)?.currency))}
                     </span>
                   </div>
                 );
@@ -589,8 +589,8 @@ export function TaskRow({
             if (hasBudget) {
               return (
                 <div className="flex items-center justify-end gap-1 text-xs font-medium">
-                  <span className="text-green-600">
-                    {formatCurrency((task.budget_cents || 0) / 100)}
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    {formatCurrency((task.budget_cents || 0) / 100, normalizeCurrency(task.currency || (projectData as any)?.currency))}
                   </span>
                   <span className="text-xs text-muted-foreground">(fixná)</span>
                 </div>
@@ -601,8 +601,8 @@ export function TaskRow({
             if (task.calculated_price && task.calculated_price > 0) {
               return (
                 <div className="flex items-center justify-end gap-1 text-xs">
-                  <span className="text-blue-600">
-                    {formatCurrency(task.calculated_price)}
+                  <span className="text-blue-600 dark:text-blue-400">
+                    {formatCurrency(task.calculated_price, normalizeCurrency(task.currency || (projectData as any)?.currency))}
                   </span>
                   <span className="text-xs text-muted-foreground">(čas)</span>
                 </div>
@@ -614,13 +614,13 @@ export function TaskRow({
           })()}
         </TableCell>
       ) : (
-        <TableCell className="py-4 pl-6 pr-2 w-fit">
+        <TableCell className="py-3 pl-4 pr-2 w-fit whitespace-nowrap">
           <span className="text-muted-foreground">—</span>
         </TableCell>
       )}
 
       {/* Due date */}
-      <TableCell className="py-4 pl-6 pr-2 w-fit">
+      <TableCell className="py-3 pl-4 pr-2 w-fit whitespace-nowrap">
         <div>
           {task.due_date ? (
             <div className="text-xs flex items-center gap-1 text-muted-foreground whitespace-nowrap">
@@ -634,7 +634,7 @@ export function TaskRow({
       </TableCell>
 
       {/* Priority - Inline Dropdown */}
-      <TableCell className="py-4 pl-6 pr-2">
+      <TableCell className="py-3 pl-4 pr-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -683,7 +683,7 @@ export function TaskRow({
       </TableCell>
 
       {/* Actions menu */}
-      <TableCell className="py-4 px-6">
+      <TableCell className="py-3 px-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

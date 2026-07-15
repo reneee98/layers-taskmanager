@@ -225,17 +225,17 @@ export function GoogleDriveLinks({ taskId, onLinksChange }: GoogleDriveLinksProp
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-[#f8fafc] dark:bg-muted/30 border border-[#f1f5f9] dark:border-border flex h-[54px] items-center justify-between px-[13px] py-px rounded-[10px] hover:bg-[#f1f5f9] dark:hover:bg-muted/50 transition-colors group"
+              className="bg-muted/40 dark:bg-muted/30 border border-border/60 dark:border-border flex h-[54px] items-center justify-between px-[13px] py-px rounded-[10px] hover:bg-muted dark:hover:bg-muted/50 transition-colors group"
             >
               <div className="flex items-center gap-3 h-[28px]">
                 <div className="bg-white dark:bg-card rounded-[8px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 size-[28px] flex items-center justify-center">
-                  <LinkIcon className="h-4 w-4 text-[#314158] dark:text-foreground" />
+                  <LinkIcon className="h-4 w-4 text-foreground dark:text-foreground" />
                 </div>
-                <span className="text-[12px] font-bold text-[#314158] dark:text-foreground">
+                <span className="text-[12px] font-bold text-foreground dark:text-foreground">
                   {link.description || "Link"}
                 </span>
               </div>
-              <ExternalLink className="h-[14px] w-[14px] text-[#62748e] dark:text-muted-foreground group-hover:text-[#314158] dark:group-hover:text-foreground transition-colors shrink-0" />
+              <ExternalLink className="h-[14px] w-[14px] text-muted-foreground dark:text-muted-foreground group-hover:text-foreground dark:group-hover:text-foreground transition-colors shrink-0" />
             </a>
           ))}
           <Button onClick={handleAddClick} variant="outline" size="sm" className="w-full mt-2">

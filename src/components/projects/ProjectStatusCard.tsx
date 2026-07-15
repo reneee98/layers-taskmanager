@@ -41,7 +41,7 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
 
     window.addEventListener('timerStopped', handleRefresh);
     window.addEventListener('timeEntryAdded', handleRefresh);
-    
+
     return () => {
       window.removeEventListener('timerStopped', handleRefresh);
       window.removeEventListener('timeEntryAdded', handleRefresh);
@@ -111,10 +111,8 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-card border-[#e2e8f0] dark:border-border border-b border-l border-r border-t-4 rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] overflow-clip pb-px pt-1 px-px">
-        <div className="p-5">
-          <p className="text-muted-foreground text-sm">Načítavam...</p>
-        </div>
+      <div className="w-full rounded-xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm text-muted-foreground">Načítavam...</p>
       </div>
     );
   }
@@ -123,24 +121,22 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
     return null;
   }
 
-  // Calculate budget utilization
-  // For tasks: use totalCost (laborCost + externalCost) which represents actual spent
-  // For projects: use totalCost (laborCost + externalCost) which represents actual spent
+  // Calculate budget utilization from actual spent (labor + external costs)
   const budgetUsed = finance.totalCost || 0;
   const budgetTotal = finance.budgetAmount || 0;
   const budgetPercent = budgetTotal > 0 ? (budgetUsed / budgetTotal) * 100 : 0;
-  
+
   // Determine status (AT RISK if over 90% budget used)
   const isAtRisk = budgetPercent >= 90;
-  
-  // Calculate profit and margin
-  // Profit is already calculated correctly in computeTaskFinance/computeProjectFinance
+
+  // Profit is already calculated in computeTaskFinance/computeProjectFinance
   const profit = finance.profit || 0;
   const revenue = finance.revenue || 0;
-  // Margin should be calculated as profit / revenue, not profit / budgetTotal
-  // Revenue represents the actual amount billed for work (hours * hourly_rate)
   const margin = revenue > 0 ? ((profit / revenue) * 100) : 0;
-  
+
+  // Extra = amount billed over the fixed budget (T&M), consistent with TaskFinancePanel
+  const extra = budgetTotal > 0 ? Math.max(0, budgetUsed - budgetTotal) : 0;
+
   // Get assignees from props
   const displayAssignees = assignees
     .slice(0, 3)
@@ -150,168 +146,106 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
     }));
 
   return (
-    <div className="bg-white dark:bg-card border-[#e2e8f0] dark:border-border border-b border-l border-r border-t-4 flex flex-col gap-3 items-start overflow-clip pb-px pt-1 px-px rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] w-full">
-      <div className="px-5 pt-3">
-        <ExchangeRateNotice currency={currency} />
-      </div>
-      {/* CardHeader */}
-      <div className="border-b border-[#f1f5f9] dark:border-border h-[66px] w-full">
-        <div className="flex items-center justify-between pb-px pt-0 px-5 h-full">
-          {/* CardTitle */}
-          <div className="h-5 relative w-[130px]">
-            <Briefcase className="absolute left-0 top-[2px] h-4 w-4 text-[#0f172b] dark:text-foreground" />
-            <span className="absolute font-bold leading-5 left-6 text-[#0f172b] dark:text-foreground text-sm top-[0.5px] tracking-[-0.1504px]">
-              Status projektu
+    <div className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      {currency === "USD" && (
+        <div className="border-b border-border bg-muted/40 px-5 py-2">
+          <ExchangeRateNotice currency={currency} />
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div className="flex items-center gap-2.5">
+          <Briefcase className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-semibold text-foreground">Status projektu</span>
+        </div>
+        {isAtRisk && (
+          <span className="flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 dark:border-red-900/60 dark:bg-red-950/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-destructive dark:text-red-400">
+              At Risk
             </span>
-          </div>
-          {/* At Risk Badge */}
-          {isAtRisk && (
-            <div className="bg-[#fef2f2] dark:bg-red-900/20 border border-[#ffe2e2] dark:border-red-800 h-[21px] rounded-full w-[74px] relative">
-              <div className="absolute bg-[#fb2c36] left-2 rounded-full size-[6px] top-[6.5px]" />
-              <span className="absolute font-bold leading-[15px] left-5 text-[#e7000b] dark:text-red-400 text-[10px] top-[2.5px] tracking-[0.6172px] uppercase">
-                At Risk
-              </span>
+          </span>
+        )}
+      </div>
+
+      {/* Budget utilization */}
+      <div className="space-y-2 px-5 py-4">
+        <div className="flex items-end justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Čerpanie budgetu
+          </span>
+          <span className="flex items-baseline gap-1">
+            <span className="text-sm font-bold text-foreground">{formatMoney(budgetUsed)}</span>
+            <span className="text-xs text-muted-foreground">/ {formatMoney(budgetTotal)}</span>
+          </span>
+        </div>
+        {euroEquivalent(budgetTotal) && (
+          <p className="text-xs text-muted-foreground">{euroEquivalent(budgetTotal)}</p>
+        )}
+        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className={`h-full rounded-full transition-all ${
+              budgetPercent >= 90
+                ? "bg-destructive"
+                : budgetPercent >= 70
+                ? "bg-amber-500"
+                : "bg-emerald-500"
+            }`}
+            style={{ width: `${Math.min(budgetPercent, 100)}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Metrics grid */}
+      <div className="grid grid-cols-2 border-t border-border">
+        <div className="space-y-1 border-b border-r border-border p-5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Zisk</p>
+          <p className="text-2xl font-bold tracking-tight text-foreground">{formatMoney(profit)}</p>
+        </div>
+        <div className="space-y-1 border-b border-border p-5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Marža</p>
+          <p className={`text-2xl font-bold tracking-tight ${getMarginColor(margin)}`}>
+            {margin.toFixed(1)}%
+          </p>
+        </div>
+        <div className="space-y-1 border-r border-border p-5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Čas</p>
+          <p className="text-2xl font-bold tracking-tight text-foreground">
+            {formatHours(finance.billableHours || 0)}
+          </p>
+        </div>
+        <div className="space-y-1 p-5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Extra
+          </p>
+          <p className="text-2xl font-bold tracking-tight text-brand">+{formatMoney(extra)}</p>
+        </div>
+      </div>
+
+      {/* Team costs */}
+      <div className="flex items-center justify-between border-t border-border bg-muted/40 px-5 py-4">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-semibold text-foreground">Náklady tímu</span>
+          {displayAssignees.length > 0 && (
+            <div className="flex">
+              {displayAssignees.map((assignee, idx) => (
+                <div
+                  key={assignee.id || idx}
+                  title={assignee.name}
+                  className="-mr-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-muted last:mr-0"
+                >
+                  <span className="text-[9px] font-semibold text-muted-foreground">
+                    {getInitials(assignee.name)}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>
-      </div>
-
-      {/* CardContent */}
-      <div className="w-full">
-        <div className="flex flex-col items-start w-full">
-          {/* Budget Utilization */}
-          <div className="bg-white dark:bg-card flex flex-col gap-2 h-[82px] items-start pb-0 pt-5 px-5 w-full">
-            <div className="flex h-5 items-end justify-between w-full">
-              <div className="h-4 flex items-center">
-                <span className="font-medium leading-4 text-[#62748e] dark:text-muted-foreground text-xs tracking-[0.3px] uppercase">
-                  Čerpanie Budgetu
-                </span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="font-bold leading-5 text-[#0f172b] dark:text-foreground text-sm tracking-[-0.1504px]">
-                  {formatMoney(budgetUsed)}
-                </span>
-                <span className="font-normal leading-4 text-[#90a1b9] dark:text-muted-foreground text-xs">
-                  / {formatMoney(budgetTotal)}
-                </span>
-              </div>
-            </div>
-            {euroEquivalent(budgetTotal) && (
-              <p className="text-xs text-muted-foreground">{euroEquivalent(budgetTotal)}</p>
-            )}
-            <div className="bg-[#f1f5f9] dark:bg-muted flex flex-col h-[10px] items-start overflow-clip rounded-full w-full">
-              <div 
-                className={`h-[10px] rounded-full ${
-                  budgetPercent >= 90 
-                    ? "bg-[#ff8904]" 
-                    : budgetPercent >= 70 
-                    ? "bg-yellow-500" 
-                    : "bg-green-500"
-                }`}
-                style={{ width: `${Math.min(budgetPercent, 100)}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="bg-[#f1f5f9] dark:bg-border h-px w-full" />
-
-          {/* Zisk / Marža Row */}
-          <div className="border-b border-[#f1f5f9] dark:border-border h-[96px] relative w-full">
-            {/* Zisk */}
-            <div className="absolute border-r border-[#f1f5f9] dark:border-border flex flex-col gap-2 h-[95px] items-start left-0 pl-5 pr-px py-5 top-0 w-1/2">
-              <div className="h-[15px]">
-                <span className="font-bold leading-[15px] text-[#90a1b9] dark:text-muted-foreground text-[10px] tracking-[0.6172px] uppercase">
-                  Zisk
-                </span>
-              </div>
-              <div className="flex-1">
-                <span className="font-bold leading-8 text-[#0f172b] dark:text-foreground text-2xl tracking-[-0.5297px]">
-                  {formatMoney(profit)}
-                </span>
-              </div>
-            </div>
-            {/* Marža */}
-            <div className="absolute flex flex-col gap-2 h-[95px] items-start left-1/2 pl-5 pr-0 py-5 top-0 w-1/2">
-              <div className="h-[15px]">
-                <span className="font-bold leading-[15px] text-[#90a1b9] dark:text-muted-foreground text-[10px] tracking-[0.6172px] uppercase">
-                  Marža
-                </span>
-              </div>
-              <div className="flex-1">
-                <span className={`font-bold leading-8 text-2xl tracking-[-0.5297px] ${getMarginColor(margin)}`}>
-                  {margin.toFixed(1)}%
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Čas / Extra Row */}
-          <div className="h-[91px] relative w-full">
-            {/* Čas */}
-            <div className="absolute border-r border-[#f1f5f9] dark:border-border flex flex-col gap-2 h-[91px] items-start left-0 pl-5 pr-px py-5 top-0 w-1/2">
-              <div className="h-[15px]">
-                <span className="font-bold leading-[15px] text-[#90a1b9] dark:text-muted-foreground text-[10px] tracking-[0.6172px] uppercase">
-                  Čas
-                </span>
-              </div>
-              <div className="flex-1">
-                <span className="font-bold leading-7 text-[#0f172b] dark:text-foreground text-2xl tracking-[-0.4492px]">
-                  {formatHours(finance.billableHours || 0)}
-                </span>
-              </div>
-            </div>
-            {/* Extra */}
-            <div className="absolute flex flex-col gap-2 h-[91px] items-start left-1/2 pl-5 pr-0 py-5 top-0 w-1/2">
-              <div className="h-[15px]">
-                <span className="font-bold leading-[15px] text-[#90a1b9] dark:text-muted-foreground text-[10px] tracking-[0.6172px] uppercase">
-                  Extra
-                </span>
-              </div>
-              <div className="flex-1">
-                <span className="font-bold leading-7 text-[#7f22fe] dark:text-purple-500 text-2xl tracking-[-0.4492px]">
-                  {finance.externalCost > 0 ? `+${formatMoney(finance.externalCost)}` : `+${formatMoney(0)}`}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="bg-[#f1f5f9] dark:bg-border h-px w-full" />
-
-          {/* Team Costs */}
-          <div className="bg-[rgba(248,250,252,0.3)] dark:bg-muted/30 flex flex-col gap-3 items-start p-5 w-full">
-            <div className="flex h-4 items-center justify-between w-full">
-              <div className="h-4">
-                <span className="font-bold leading-4 text-[#314158] dark:text-foreground text-xs">
-                  Náklady tímu
-                </span>
-              </div>
-              <div className="h-4">
-                <span className="font-bold leading-4 text-[#0f172b] dark:text-foreground text-xs">
-                  {formatMoney(finance.laborCost || 0)}
-                </span>
-              </div>
-            </div>
-            {/* Team Avatars */}
-            {displayAssignees.length > 0 && (
-              <div className="flex items-start pl-0 pr-[6px] py-0">
-                {displayAssignees.map((assignee, idx) => (
-                  <div
-                    key={assignee.id || idx}
-                    className="bg-[#f1f5f9] dark:bg-slate-700 border-2 border-solid border-white dark:border-slate-800 flex items-start mr-[-6px] overflow-clip p-[2px] rounded-full shadow-[0px_0px_0px_1px_#f1f5f9] dark:shadow-[0px_0px_0px_1px_#334155] shrink-0 size-[28px]"
-                  >
-                    <div className="bg-[#ececf0] dark:bg-slate-600 flex-1 h-6 min-h-px min-w-px rounded-full flex items-center justify-center">
-                      <span className="font-normal leading-[14.286px] text-[#45556c] dark:text-slate-300 text-[10px] tracking-[0.1172px]">
-                        {getInitials(assignee.name)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <span className="text-xs font-bold text-foreground">
+          {formatMoney(finance.laborCost || 0)}
+        </span>
       </div>
     </div>
   );

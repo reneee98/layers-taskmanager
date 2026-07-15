@@ -95,7 +95,7 @@ const SortableItem = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex gap-4 h-[49px] items-center px-6 py-0 border-b border-[#f1f5f9] dark:border-border transition-all duration-200 ${
+      className={`flex gap-4 h-[49px] items-center px-6 py-0 border-b border-border/60 dark:border-border transition-all duration-200 ${
         isDragging ? 'opacity-50 shadow-lg' : ''
       }`}
     >
@@ -107,8 +107,8 @@ const SortableItem = ({
         className={cn(
           "flex-shrink-0 size-5 rounded-[4px] border-2",
           item.completed 
-            ? 'bg-[#155dfc] border-[#155dfc] data-[state=checked]:bg-[#155dfc] data-[state=checked]:border-[#155dfc]' 
-            : 'bg-white dark:bg-card border-[#cad5e2] dark:border-border'
+            ? 'bg-blue-600 border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600' 
+            : 'bg-white dark:bg-card border-border dark:border-border'
         )}
       />
       
@@ -149,9 +149,9 @@ const SortableItem = ({
           <span 
             className={`flex-1 h-5 text-[14px] font-medium transition-all duration-200 ${
               item.completed 
-                ? 'line-through text-[#90a1b9] dark:text-muted-foreground' 
-                : 'text-[#314158] dark:text-foreground'
-            } tracking-[-0.1504px]`}
+                ? 'line-through text-muted-foreground dark:text-muted-foreground' 
+                : 'text-foreground dark:text-foreground'
+            } `}
           >
             {item.text}
           </span>
@@ -431,18 +431,18 @@ export const TaskChecklist = ({ taskId }: TaskChecklistProps) => {
   }
 
   return (
-    <Card className="bg-white dark:bg-card border border-[#e2e8f0] dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
-      <CardHeader className="h-[69px] pb-0 pt-4 px-6 border-b border-[#f1f5f9] dark:border-border rounded-tl-[14px] rounded-tr-[14px]">
+    <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]">
+      <CardHeader className="h-[69px] pb-0 pt-4 px-6 border-b border-border/60 dark:border-border rounded-tl-[14px] rounded-tr-[14px]">
         <div className="flex items-center justify-between h-[22px]">
           <div className="flex items-center gap-6">
-            <Check className="h-4 w-4 text-[#0f172b] dark:text-foreground" />
-            <CardTitle className="text-[14px] font-bold text-[#0f172b] dark:text-foreground tracking-[-0.1504px] m-0">
+            <Check className="h-4 w-4 text-foreground dark:text-foreground" />
+            <CardTitle className="text-[14px] font-bold text-foreground dark:text-foreground m-0">
               Checklist
             </CardTitle>
           </div>
           {totalCount > 0 && (
-            <div className="box-content bg-[#f1f5f9] dark:bg-muted border border-[#e2e8f0] dark:border-border h-[22px] rounded-[8px] px-[9px] py-[3px]">
-              <span className="text-[12px] font-medium text-[#45556c] dark:text-foreground">
+            <div className="box-content bg-muted dark:bg-muted border border-border dark:border-border h-[22px] rounded-[8px] px-[9px] py-[3px]">
+              <span className="text-[12px] font-medium text-muted-foreground dark:text-foreground">
                 {progressPercentage}% hotovo
               </span>
             </div>
@@ -510,7 +510,7 @@ export const TaskChecklist = ({ taskId }: TaskChecklistProps) => {
               </SortableContext>
             </DndContext>
             {/* Add new item at bottom */}
-            <div className="flex gap-2 px-6 py-3 border-t border-[#f1f5f9] dark:border-border">
+            <div className="flex gap-2 px-6 py-3 border-t border-border/60 dark:border-border">
               <Input
                 value={newItemText}
                 onChange={(e) => setNewItemText(e.target.value)}

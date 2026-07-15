@@ -567,7 +567,7 @@ export default function SharedTaskPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F8F8]">
+    <div className="min-h-screen bg-muted/40">
       <div className="w-full px-6 py-6">
         <div className="space-y-4">
           {/* Header with Logo */}

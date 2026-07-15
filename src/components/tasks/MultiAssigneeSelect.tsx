@@ -152,9 +152,9 @@ export function MultiAssigneeSelect({
   if (compact) {
     return (
       <Select onValueChange={handleAddAssignee}>
-        <SelectTrigger className="bg-[#f1f5f9] dark:bg-slate-700 border-2 border-solid border-white dark:border-slate-800 overflow-clip p-[2px] rounded-full shadow-[0px_0px_0px_1px_#f1f5f9] dark:shadow-[0px_0px_0px_1px_#334155] h-[28px] w-[28px] cursor-pointer hover:bg-[#e2e8f0] dark:hover:bg-slate-600 transition-colors [&>svg]:hidden">
-          <div className="bg-[#ececf0] dark:bg-slate-600 h-[24px] w-[24px] rounded-full flex items-center justify-center">
-            <Plus className="text-[#45556c] dark:text-slate-300 size-[12px]" />
+        <SelectTrigger className="bg-muted dark:bg-slate-700 border-2 border-solid border-white dark:border-slate-800 overflow-clip p-[2px] rounded-full shadow-[0px_0px_0px_1px_#f1f5f9] dark:shadow-[0px_0px_0px_1px_#334155] h-[28px] w-[28px] cursor-pointer hover:bg-secondary dark:hover:bg-slate-600 transition-colors [&>svg]:hidden">
+          <div className="bg-muted dark:bg-slate-600 h-[24px] w-[24px] rounded-full flex items-center justify-center">
+            <Plus className="text-muted-foreground dark:text-slate-300 size-[12px]" />
           </div>
         </SelectTrigger>
         <SelectContent className="py-2">

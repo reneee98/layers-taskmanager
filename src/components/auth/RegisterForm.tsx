@@ -8,12 +8,22 @@ import { registerSchema, RegisterInput } from "@/lib/validations/user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Mail, Lock, User, Loader2, CheckCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import Image from "next/image";
+
+const AuthShell = ({ children }: { children: React.ReactNode }) => (
+  <div className="relative flex min-h-screen items-center justify-center bg-background p-4">
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,hsl(var(--foreground)/0.05)_1px,transparent_1px)] [background-size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_45%,#000_60%,transparent_100%)]"
+    />
+    <div className="relative z-10 w-full max-w-sm animate-in-up">{children}</div>
+  </div>
+);
 
 export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +42,7 @@ export function RegisterForm() {
 
   const onSubmit = async (data: RegisterInput) => {
     setIsLoading(true);
-    
+
     try {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
@@ -86,261 +96,131 @@ export function RegisterForm() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-black p-4">
-        {/* Animated color gradient background - very dark */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute inset-0 animate-gradient-shift bg-gradient-to-br from-purple-950/40 via-black to-indigo-950/40" />
-          <div className="absolute inset-0 animate-gradient-shift-reverse bg-gradient-to-br from-black via-purple-950/30 to-violet-950/30 opacity-60" />
-          <div className="absolute inset-0 animate-gradient-shift bg-gradient-to-br from-blue-950/30 via-black to-indigo-950/30 opacity-50" style={{ animationDelay: '2s' }} />
+      <AuthShell>
+        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+          <CheckCircle className="mx-auto h-10 w-10 text-emerald-500" />
+          <h3 className="mt-4 text-lg font-semibold text-foreground">Registrácia úspešná!</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Skontrolujte svoj e-mail na potvrdenie registrácie.
+          </p>
+          <Button onClick={() => router.push("/login")} className="mt-6 h-10 w-full">
+            Prejsť na prihlásenie
+          </Button>
         </div>
-
-        {/* Animated background elements - darker colors */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-600/15 rounded-full blur-3xl animate-float animate-color-shift-dark" />
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600/15 rounded-full blur-3xl animate-float-reverse animate-color-shift-dark-reverse" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl animate-float animate-color-shift-dark" style={{ animationDuration: '30s' }} />
-          <div className="absolute top-20 left-20 w-32 h-32 bg-pink-600/12 rounded-full blur-2xl animate-float animate-color-shift-dark" style={{ animationDuration: '15s' }} />
-          <div className="absolute bottom-20 right-20 w-40 h-40 bg-violet-600/12 rounded-full blur-2xl animate-float-reverse animate-color-shift-dark-reverse" style={{ animationDuration: '18s' }} />
-          <div className="absolute top-1/3 right-1/4 w-24 h-24 bg-cyan-600/10 rounded-full blur-xl animate-float animate-color-shift-dark" style={{ animationDuration: '22s' }} />
-        </div>
-
-        {/* Grid pattern overlay with animation */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)] animate-grid" />
-        
-        {/* Animated particles */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(12)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-1 h-1 bg-primary/30 rounded-full animate-particle"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 20}s`,
-                animationDuration: `${15 + Math.random() * 10}s`,
-              }}
-            />
-          ))}
-        </div>
-
-        <div className="relative z-10 w-full max-w-md">
-          <Card className="backdrop-blur-xl bg-card/80 dark:bg-card/90 border-border/50 shadow-2xl shadow-black/10">
-            <CardContent className="p-8 sm:p-10">
-      <div className="text-center space-y-4">
-        <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-        <h3 className="text-lg font-medium text-foreground">
-          Registrácia úspešná!
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Skontrolujte svoj e-mail na potvrdenie registrácie.
-        </p>
-        <Button
-                  onClick={() => router.push("/login")}
-                  className="w-full h-11 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
-        >
-          Prejsť na prihlásenie
-        </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-black p-4">
-      {/* Animated color gradient background - very dark */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 animate-gradient-shift bg-gradient-to-br from-purple-950/40 via-black to-indigo-950/40" />
-        <div className="absolute inset-0 animate-gradient-shift-reverse bg-gradient-to-br from-black via-purple-950/30 to-violet-950/30 opacity-60" />
-        <div className="absolute inset-0 animate-gradient-shift bg-gradient-to-br from-blue-950/30 via-black to-indigo-950/30 opacity-50" style={{ animationDelay: '2s' }} />
-      </div>
-
-      {/* Animated background elements - darker colors */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Floating orbs with subtle color changes */}
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-600/15 rounded-full blur-3xl animate-float animate-color-shift-dark" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600/15 rounded-full blur-3xl animate-float-reverse animate-color-shift-dark-reverse" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl animate-float animate-color-shift-dark" style={{ animationDuration: '30s' }} />
-        
-        {/* Additional floating particles with subtle colors */}
-        <div className="absolute top-20 left-20 w-32 h-32 bg-pink-600/12 rounded-full blur-2xl animate-float animate-color-shift-dark" style={{ animationDuration: '15s' }} />
-        <div className="absolute bottom-20 right-20 w-40 h-40 bg-violet-600/12 rounded-full blur-2xl animate-float-reverse animate-color-shift-dark-reverse" style={{ animationDuration: '18s' }} />
-        <div className="absolute top-1/3 right-1/4 w-24 h-24 bg-cyan-600/10 rounded-full blur-xl animate-float animate-color-shift-dark" style={{ animationDuration: '22s' }} />
-      </div>
-
-      {/* Grid pattern overlay with animation */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)] animate-grid" />
-      
-      {/* Animated particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(12)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-primary/30 rounded-full animate-particle"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 20}s`,
-              animationDuration: `${15 + Math.random() * 10}s`,
-            }}
+    <AuthShell>
+      {/* Logo */}
+      <div className="mb-8 flex flex-col items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary shadow-sm">
+          <Image
+            src="/images/layers-logo.svg"
+            alt="Layers logo"
+            width={20}
+            height={20}
+            className="h-5 w-auto object-contain invert dark:invert-0"
+            priority
           />
-        ))}
+        </div>
+        <div className="text-center">
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Vytvorte si účet</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Začnite prácu s Layers</p>
+        </div>
       </div>
 
-      <div className="relative z-10 w-full max-w-md">
-        <Card className="backdrop-blur-xl bg-card/80 dark:bg-card/90 border-border/50 shadow-2xl shadow-black/10">
-          <CardContent className="p-8 sm:p-10">
-            {/* Header */}
-            <div className="text-center mb-8 space-y-4">
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
-                  Vytvorte si účet
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Začnite prácu s Layers
-                </p>
-              </div>
-            </div>
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="display_name" className="text-[13px] font-medium">
+              Meno
+            </Label>
+            <Input
+              id="display_name"
+              type="text"
+              placeholder="Vaše meno"
+              {...register("display_name")}
+              className={cn("h-10", errors.display_name && "border-destructive")}
+              disabled={isLoading}
+            />
+            {errors.display_name && (
+              <p className="text-sm text-destructive">{errors.display_name.message}</p>
+            )}
+          </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-      <div className="space-y-2">
-                <Label htmlFor="display_name" className="text-sm font-medium">
-                  Meno
-                </Label>
-                <div className="relative group">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-foreground" />
-        <Input
-          id="display_name"
-          type="text"
-          placeholder="Vaše meno"
-          {...register("display_name")}
-                    className={cn(
-                      "pl-10 h-11 bg-background border-border",
-                      "focus:border-primary focus:ring-2 focus:ring-primary/20",
-                      "transition-all duration-200",
-                      errors.display_name && "border-red-500"
-                    )}
-          disabled={isLoading}
-        />
-                </div>
-        {errors.display_name && (
-                  <p className="text-sm text-red-500">{errors.display_name.message}</p>
-        )}
-      </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-[13px] font-medium">
+              Email
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="meno@studio.sk"
+              {...register("email")}
+              className={cn("h-10", errors.email && "border-destructive")}
+              autoComplete="email"
+              disabled={isLoading}
+            />
+            {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+          </div>
 
-      <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </Label>
-                <div className="relative group">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-foreground" />
-        <Input
-          id="email"
-          type="email"
-                    placeholder="Váš email"
-          {...register("email")}
-                    className={cn(
-                      "pl-10 h-11 bg-background border-border",
-                      "focus:border-primary focus:ring-2 focus:ring-primary/20",
-                      "transition-all duration-200",
-                      errors.email && "border-red-500"
-                    )}
-          disabled={isLoading}
-        />
-                </div>
-        {errors.email && (
-                  <p className="text-sm text-red-500">{errors.email.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">
-                  Heslo
-                </Label>
-                <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-foreground" />
-        <Input
-          id="password"
-                    type={showPassword ? "text" : "password"}
-          placeholder="Minimálne 8 znakov"
-          {...register("password")}
-                    className={cn(
-                      "pl-10 pr-10 h-11 bg-background border-border",
-                      "focus:border-primary focus:ring-2 focus:ring-primary/20",
-                      "transition-all duration-200",
-                      errors.password && "border-red-500"
-                    )}
-          disabled={isLoading}
-        />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={isLoading}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-        {errors.password && (
-                  <p className="text-sm text-red-500">{errors.password.message}</p>
-        )}
-      </div>
-
-              <Button 
-                type="submit" 
-                className="w-full h-11 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-[13px] font-medium">
+              Heslo
+            </Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Minimálne 8 znakov"
+                {...register("password")}
+                className={cn("h-10 pr-10", errors.password && "border-destructive")}
+                autoComplete="new-password"
                 disabled={isLoading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={isLoading}
+                aria-label={showPassword ? "Skryť heslo" : "Zobraziť heslo"}
+                className="absolute right-0 top-0 flex h-full w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Registrujem...
-                  </>
-                ) : (
-                  "Registrovať sa"
-                )}
-      </Button>
-    </form>
-
-            {/* Footer */}
-            <div className="mt-8 text-center space-y-4">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    Alebo
-                  </span>
-                </div>
-              </div>
-              
-              <p className="text-sm text-muted-foreground">
-                Už máte účet?{" "}
-                <Link 
-                  href="/login" 
-                  className="font-medium text-foreground hover:text-blue-500 dark:hover:text-blue-400 transition-colors underline underline-offset-4"
-                >
-                  Prihláste sa
-                </Link>
-              </p>
-              
-              <p className="text-xs text-muted-foreground pt-2">
-                Layers v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}
-              </p>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
-          </CardContent>
-        </Card>
+            {errors.password && (
+              <p className="text-sm text-destructive">{errors.password.message}</p>
+            )}
+          </div>
+
+          <Button type="submit" className="h-10 w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Registrujem...
+              </>
+            ) : (
+              "Registrovať sa"
+            )}
+          </Button>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Už máte účet?{" "}
+          <Link
+            href="/login"
+            className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-muted-foreground"
+          >
+            Prihláste sa
+          </Link>
+        </p>
       </div>
-    </div>
+
+      <p className="mt-6 text-center text-xs text-muted-foreground/70">
+        Layers v{process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0"}
+      </p>
+    </AuthShell>
   );
 }

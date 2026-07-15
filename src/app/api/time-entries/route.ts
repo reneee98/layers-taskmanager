@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const supabase = createClient();
 
     // Get time entries for the workspace
+    // Note: time_entries has no FK to profiles, so user profiles are fetched separately
     const { data: timeEntries, error } = await supabase
       .from("time_entries")
       .select(`
@@ -26,11 +27,6 @@ export async function GET(request: NextRequest) {
             name,
             code
           )
-        ),
-        profiles (
-          id,
-          display_name,
-          email
         )
       `)
       .eq("workspace_id", workspaceId)
@@ -45,7 +41,35 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, data: timeEntries });
+    const userIds = Array.from(
+      new Set((timeEntries || []).map((entry) => entry.user_id).filter(Boolean))
+    );
+
+    let profilesById = new Map<string, { id: string; display_name: string | null; email: string | null }>();
+    if (userIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, display_name, email")
+        .in("id", userIds);
+
+      if (profilesError) {
+        console.error("Error fetching profiles for time entries:", profilesError);
+      } else {
+        profilesById = new Map((profiles || []).map((profile) => [profile.id, profile]));
+      }
+    }
+
+    const entriesWithProfiles = (timeEntries || []).map((entry) => ({
+      ...entry,
+      profiles:
+        profilesById.get(entry.user_id) || {
+          id: entry.user_id,
+          display_name: "Neznámy",
+          email: "",
+        },
+    }));
+
+    return NextResponse.json({ success: true, data: entriesWithProfiles });
   } catch (error) {
     console.error("Error in time-entries API:", error);
     return NextResponse.json(

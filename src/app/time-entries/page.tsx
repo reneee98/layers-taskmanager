@@ -118,12 +118,21 @@ export default function TimeEntriesPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'dd.MM.yyyy', { locale: sk });
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "—";
+    return format(date, 'dd.MM.yyyy', { locale: sk });
   };
 
   const formatTime = (timeString: string | null) => {
     if (!timeString) return null;
-    return format(new Date(timeString), 'HH:mm', { locale: sk });
+    // Handle time-only values like "14:30" or "14:30:00"
+    const timeOnlyMatch = timeString.match(/^(\d{1,2}):(\d{2})(:\d{2})?/);
+    if (timeOnlyMatch && !timeString.includes("T")) {
+      return `${timeOnlyMatch[1].padStart(2, "0")}:${timeOnlyMatch[2]}`;
+    }
+    const date = new Date(timeString);
+    if (isNaN(date.getTime())) return null;
+    return format(date, 'HH:mm', { locale: sk });
   };
 
   const getTotalHours = () => {
@@ -275,9 +284,9 @@ export default function TimeEntriesPage() {
                       <div className="flex items-center space-x-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <div className="font-medium">{entry.tasks.projects.name}</div>
+                          <div className="font-medium">{entry.tasks?.projects?.name || "Bez projektu"}</div>
                           <div className="text-sm text-muted-foreground">
-                            {entry.tasks.projects.code}
+                            {entry.tasks?.projects?.code || ""}
                           </div>
                         </div>
                       </div>
@@ -285,8 +294,8 @@ export default function TimeEntriesPage() {
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                        <span className="truncate max-w-[200px]" title={entry.tasks.title}>
-                          {entry.tasks.title}
+                        <span className="truncate max-w-[200px]" title={entry.tasks?.title || ""}>
+                          {entry.tasks?.title || "Bez úlohy"}
                         </span>
                       </div>
                     </TableCell>

@@ -29,6 +29,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { X } from "lucide-react";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 import { TASK_COLOR_PALETTE, normalizeTaskColor } from "@/lib/task-colors";
+import { resolveProjectColor } from "@/lib/project-colors";
 import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
 import {
   SUPPORTED_CURRENCIES,
@@ -371,6 +372,11 @@ export function TaskDialog({
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       <div className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="h-2.5 w-2.5 shrink-0 rounded-full opacity-70"
+                          style={{ backgroundColor: resolveProjectColor(project) || undefined }}
+                        />
                         <span className="font-medium">{project.name}</span>
                         {project.code && (
                           <span className="text-xs text-muted-foreground font-mono">

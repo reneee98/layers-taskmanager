@@ -27,6 +27,14 @@ import { generateProjectCode } from "@/lib/generate-project-code";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
 import { SUPPORTED_CURRENCIES, getCurrencySymbol, normalizeCurrency } from "@/lib/currency";
+import { Check, Dices } from "lucide-react";
+import {
+  getProjectFallbackColor,
+  getRandomProjectColor,
+  normalizeProjectColor,
+  PROJECT_COLOR_PALETTE,
+  projectColorToRgba,
+} from "@/lib/project-colors";
 
 interface ProjectFormProps {
   project?: Project;
@@ -54,6 +62,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
     defaultValues: {
       status: "draft",
       currency: "EUR",
+      color: getRandomProjectColor(),
       hourly_rate: null,
       fixed_fee: null,
       external_costs_budget: null,
@@ -132,6 +141,9 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
             reset({
               client_id: freshProject.client_id,
               name: freshProject.name,
+              color:
+                normalizeProjectColor(freshProject.color) ||
+                getProjectFallbackColor(freshProject.id),
               code: freshProject.code || "",
               description: freshProject.description || "",
               status: freshProject.status,
@@ -150,6 +162,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
           reset({
             client_id: project.client_id,
             name: project.name,
+            color: normalizeProjectColor(project.color) || getProjectFallbackColor(project.id),
             code: project.code || "",
             description: project.description || "",
             status: project.status,
@@ -166,6 +179,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
         reset({
           status: "draft",
           currency: "EUR",
+          color: getRandomProjectColor(),
           hourly_rate: null,
           fixed_fee: null,
           external_costs_budget: null,
@@ -178,6 +192,8 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
 
   // Check if this is an existing personal project (for edit mode) - only by name
   const isPersonalProject = project && project.name === "Osobné úlohy";
+  const selectedProjectColor =
+    normalizeProjectColor(watch("color")) || PROJECT_COLOR_PALETTE[0];
 
   const handleFormSubmit = async (data: ProjectFormData | UpdateProjectData) => {
     setIsSubmitting(true);
@@ -380,6 +396,88 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
             <div className="space-y-2">
               <Label htmlFor="description">Popis</Label>
               <Input id="description" {...register("description")} />
+            </div>
+
+            <div className="col-span-2 space-y-2.5 rounded-xl border border-border bg-muted/[0.18] p-3.5">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <Label>Farba projektu</Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Rovnaká farba označí projekt aj jeho úlohy v plánovači.
+                  </p>
+                </div>
+                <div
+                  className="mt-2 inline-flex w-fit items-center gap-2 rounded-lg border px-2.5 py-1.5 font-mono text-xs font-medium text-foreground sm:mt-0"
+                  style={{
+                    borderColor: projectColorToRgba(selectedProjectColor, 0.18),
+                    backgroundColor: projectColorToRgba(selectedProjectColor, 0.04),
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: selectedProjectColor }}
+                  />
+                  {selectedProjectColor}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Farba projektu">
+                {PROJECT_COLOR_PALETTE.map((color) => {
+                  const isSelected = selectedProjectColor === color;
+
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      aria-label={`Vybrať farbu projektu ${color}`}
+                      onClick={() => setValue("color", color, { shouldDirty: true })}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-black/10 shadow-sm outline-none transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      style={{ backgroundColor: color }}
+                    >
+                      {isSelected && <Check className="h-4 w-4 text-white drop-shadow-sm" />}
+                    </button>
+                  );
+                })}
+
+                <label
+                  className="relative flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-border bg-card shadow-sm outline-none ring-offset-background transition-transform duration-150 hover:-translate-y-0.5 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+                  title="Vlastná farba"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="h-4 w-4 rounded-full border border-black/10"
+                    style={{ backgroundColor: selectedProjectColor }}
+                  />
+                  <input
+                    type="color"
+                    value={selectedProjectColor}
+                    onChange={(event) =>
+                      setValue("color", event.target.value.toUpperCase(), { shouldDirty: true })
+                    }
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                    aria-label="Vybrať vlastnú farbu projektu"
+                  />
+                </label>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setValue("color", getRandomProjectColor(), { shouldDirty: true })
+                  }
+                  className="ml-auto h-8 text-xs"
+                >
+                  <Dices className="h-3.5 w-3.5" />
+                  Náhodná
+                </Button>
+              </div>
+              {errors.color && (
+                <p className="text-sm text-destructive">{errors.color.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">

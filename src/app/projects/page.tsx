@@ -42,6 +42,7 @@ import type { Project, Client } from "@/types/database";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { normalizeCurrency } from "@/lib/currency";
+import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string; iconColor: string }> = {
   draft: { 
@@ -446,12 +447,24 @@ function ProjectsPageContent() {
                 const isPersonalProject = project.name === "Osobné úlohy" || 
                   (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
                   !project.code;
+                const projectColor = resolveProjectColor(project);
                 
                 return (
                 <TableRow
                   key={project.id}
                   className="cursor-pointer group hover:bg-muted/50 transition-colors"
                   onClick={() => router.push(`/projects/${project.id}`)}
+                  style={
+                    projectColor
+                      ? {
+                          boxShadow: `inset 2px 0 0 ${projectColorToRgba(projectColor, 0.42)}`,
+                          backgroundImage: `linear-gradient(90deg, ${projectColorToRgba(
+                            projectColor,
+                            0.02
+                          )} 0, transparent 260px)`,
+                        }
+                      : undefined
+                  }
                 >
                     {!isPersonalProject ? (
                   <TableCell className="font-mono text-foreground">{project.code}</TableCell>
@@ -460,6 +473,11 @@ function ProjectsPageContent() {
                     )}
                   <TableCell className="font-medium text-foreground">
                     <div className="flex items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className="h-2.5 w-2.5 shrink-0 rounded-full opacity-75 ring-1 ring-black/5"
+                        style={{ backgroundColor: projectColor || undefined }}
+                      />
                       <span>{project.name}</span>
                       <Badge variant="outline" className="text-[10px]">
                         {normalizeCurrency(project.currency)}
@@ -494,6 +512,7 @@ function ProjectsPageContent() {
                           variant="ghost"
                           className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted"
                           onClick={(e) => e.stopPropagation()}
+                          aria-label={`Akcie projektu ${project.name}`}
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>

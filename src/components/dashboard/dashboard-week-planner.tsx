@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 import { formatHours } from "@/lib/format";
 import { cn, stripHtml } from "@/lib/utils";
+import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
 
 interface DashboardWeekPlannerProps {
   tasks: DashboardTaskItem[];
@@ -327,11 +328,24 @@ export const DashboardWeekPlanner = ({
                     const remainingHours = getRemainingHours(task);
                     const hasEstimate = (task.estimated_hours || 0) > 0;
                     const assignees = task.assignees || [];
+                    const projectColor = resolveProjectColor(task.project);
 
                     return (
                       <Link
                         key={task.id}
                         href={getTaskHref(task)}
+                        style={
+                          projectColor
+                            ? {
+                                borderColor: projectColorToRgba(projectColor, 0.14),
+                                boxShadow: `inset 2px 0 0 ${projectColorToRgba(projectColor, 0.48)}`,
+                                backgroundImage: `linear-gradient(135deg, ${projectColorToRgba(
+                                  projectColor,
+                                  0.045
+                                )}, ${projectColorToRgba(projectColor, 0.012)} 60%, transparent)`,
+                              }
+                            : undefined
+                        }
                         className="group rounded-lg border border-border/80 bg-card/90 p-2.5 shadow-sm outline-none transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-foreground/20 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <div className="flex items-center gap-1.5 text-[9px] font-medium text-muted-foreground">
@@ -350,7 +364,16 @@ export const DashboardWeekPlanner = ({
                           {stripHtml(task.title)}
                         </p>
                         <div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-muted-foreground">
-                          <span className="truncate font-mono">
+                          <span
+                            className="truncate rounded px-1 py-px font-mono font-medium text-foreground"
+                            style={
+                              projectColor
+                                ? {
+                                    backgroundColor: projectColorToRgba(projectColor, 0.045),
+                                  }
+                                : undefined
+                            }
+                          >
                             {task.project?.code || task.project?.name || "Bez projektu"}
                           </span>
                           <span className="flex shrink-0 items-center gap-1 tabular-nums">

@@ -193,7 +193,7 @@ export async function GET(req: NextRequest) {
     let allActiveTasksQuery = supabase
       .from("tasks")
       .select(
-        `*, project:projects(id, name, code, workspace_id, client:clients(name))`
+        `*, project:projects(id, name, code, color, workspace_id, client:clients(name))`
       )
       .eq("workspace_id", workspaceId)
       .neq("status", "cancelled")

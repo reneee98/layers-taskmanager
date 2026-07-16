@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/admin";
 import { getUserAccessibleWorkspaces } from "@/lib/auth/workspace-security";
 import { hasPermission } from "@/lib/auth/permissions";
+import { getRandomProjectColor } from "@/lib/project-colors";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest) {
         .insert({
           workspace_id: newWorkspace.id,
           name: 'Osobné úlohy',
+          color: getRandomProjectColor(),
           code: personalProjectCode,
           description: 'Projekt pre osobné úlohy bez klienta',
           status: 'active',
@@ -168,7 +170,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
-
 
 
 

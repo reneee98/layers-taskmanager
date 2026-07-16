@@ -46,6 +46,7 @@ import { getDeadlineStatus, getDeadlineDotClass } from "@/lib/deadline-utils";
 import { isProjectArchived } from "@/lib/project-utils";
 import { getTaskStatusLabel } from "@/lib/task-status";
 import { normalizeTaskColor, taskColorToRgba } from "@/lib/task-colors";
+import { resolveProjectColor } from "@/lib/project-colors";
 import type { Project } from "@/types/database";
 import { usePermission } from "@/hooks/usePermissions";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
@@ -402,10 +403,17 @@ export function TaskRow({
                           task.status !== "cancelled" && 
                           !isTaskInArchivedProject;
   const taskColor = normalizeTaskColor(task.color);
-  const rowStyle = taskColor
+  const projectColor = resolveProjectColor(task.project || project);
+  const rowAccentColor = taskColor || projectColor;
+  const rowStyle = rowAccentColor
     ? {
-        boxShadow: `inset 3px 0 0 ${taskColor}`,
-        backgroundImage: `linear-gradient(90deg, ${taskColorToRgba(taskColor, 0.08)} 0, transparent 180px)`,
+        boxShadow: taskColor
+          ? `inset 3px 0 0 ${rowAccentColor}`
+          : `inset 2px 0 0 ${taskColorToRgba(rowAccentColor, 0.42)}`,
+        backgroundImage: `linear-gradient(90deg, ${taskColorToRgba(
+          rowAccentColor,
+          taskColor ? 0.08 : 0.025
+        )} 0, transparent 180px)`,
       }
     : undefined;
 
@@ -435,7 +443,14 @@ export function TaskRow({
           {/* Project info - first line (uppercase, smaller) */}
           {task.project && (
             <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider leading-none">
-              <span className="font-bold text-muted-foreground">{task.project.name}</span>
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 shrink-0 rounded-full opacity-70"
+                style={{ backgroundColor: projectColor || undefined }}
+              />
+              <span className="font-bold text-muted-foreground">
+                {task.project.name}
+              </span>
               <span className="font-bold text-muted-foreground/50">•</span>
               {task.project.code && (
                 <span className="font-medium text-muted-foreground">{task.project.code}</span>
@@ -444,11 +459,11 @@ export function TaskRow({
           )}
           {/* Task title - second line (larger, bold) */}
           <div className="flex items-center gap-2 min-w-0">
-            {taskColor && (
+            {rowAccentColor && (
               <span
-                className="h-2.5 w-2.5 rounded-full shrink-0 ring-1 ring-black/5"
-                style={{ backgroundColor: taskColor }}
-                aria-label={`Farba úlohy ${taskColor}`}
+                className="h-2.5 w-2.5 shrink-0 rounded-full opacity-75 ring-1 ring-black/5"
+                style={{ backgroundColor: rowAccentColor }}
+                aria-label={`Farba úlohy alebo projektu ${rowAccentColor}`}
               />
             )}
             <Link 

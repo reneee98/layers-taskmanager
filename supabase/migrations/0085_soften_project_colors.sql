@@ -1,0 +1,22 @@
+-- Replace the initial saturated project palette with quieter Codex-style tones.
+UPDATE projects
+SET color = CASE UPPER(color)
+  WHEN '#2563EB' THEN '#6F83A8'
+  WHEN '#0EA5E9' THEN '#6F91A3'
+  WHEN '#0891B2' THEN '#698C92'
+  WHEN '#0D9488' THEN '#688B82'
+  WHEN '#16A34A' THEN '#738D73'
+  WHEN '#65A30D' THEN '#879270'
+  WHEN '#D97706' THEN '#A08B68'
+  WHEN '#EA580C' THEN '#A47D69'
+  WHEN '#DC2626' THEN '#A36F70'
+  WHEN '#DB2777' THEN '#9C7387'
+  WHEN '#9333EA' THEN '#87779D'
+  WHEN '#4F46E5' THEN '#73799D'
+  ELSE color
+END
+WHERE UPPER(color) IN (
+  '#2563EB', '#0EA5E9', '#0891B2', '#0D9488',
+  '#16A34A', '#65A30D', '#D97706', '#EA580C',
+  '#DC2626', '#DB2777', '#9333EA', '#4F46E5'
+);

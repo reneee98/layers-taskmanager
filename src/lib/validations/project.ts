@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROJECT_COLOR_REGEX } from "@/lib/project-colors";
 
 export const projectStatusEnum = z.enum([
   "draft",
@@ -12,6 +13,11 @@ export const projectStatusEnum = z.enum([
 export const projectSchema = z.object({
   client_id: z.string().uuid("Neplatné ID klienta").optional().nullable(),
   name: z.string().min(1, "Názov je povinný").max(255, "Názov je príliš dlhý"),
+  color: z
+    .string()
+    .regex(PROJECT_COLOR_REGEX, "Farba musí byť vo formáte #RRGGBB")
+    .optional()
+    .nullable(),
   status: projectStatusEnum.optional(), // Optional for personal projects
   code: z.string().optional().or(z.literal("")).nullable(), // Can be null for personal projects
   description: z.string().nullable().optional(),
@@ -28,6 +34,11 @@ export const projectSchema = z.object({
 export const updateProjectSchema = z.object({
   client_id: z.string().uuid("Neplatné ID klienta").optional(),
   name: z.string().min(1, "Názov je povinný").max(255, "Názov je príliš dlhý").optional(),
+  color: z
+    .string()
+    .regex(PROJECT_COLOR_REGEX, "Farba musí byť vo formáte #RRGGBB")
+    .optional()
+    .nullable(),
   status: projectStatusEnum.optional(),
   code: z.string().optional().or(z.literal("")),
   description: z.string().nullable().optional(),
@@ -45,4 +56,3 @@ export const updateProjectSchema = z.object({
 export type ProjectFormData = z.infer<typeof projectSchema>;
 export type UpdateProjectData = z.infer<typeof updateProjectSchema>;
 export type ProjectStatus = z.infer<typeof projectStatusEnum>;
-

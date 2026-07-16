@@ -520,7 +520,7 @@ export async function PATCH(
       .select(
         `
         *,
-        project:projects(id, name, code, currency, hourly_rate_cents, budget_cents)
+        project:projects(id, name, code, color, currency, hourly_rate_cents, budget_cents)
       `
       )
       .single();
@@ -924,7 +924,7 @@ export async function PATCH(
               .select(
                 `
                 *,
-                project:projects(id, name, code, currency, hourly_rate_cents, budget_cents)
+                project:projects(id, name, code, color, currency, hourly_rate_cents, budget_cents)
               `
               )
               .eq("id", taskId)

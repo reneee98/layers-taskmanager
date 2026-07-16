@@ -4,6 +4,7 @@ import { updateProjectSchema } from "@/lib/validations/project";
 import { validateSchema } from "@/lib/zod-helpers";
 import { getServerUser } from "@/lib/auth";
 import { canAccessProject, getProjectAccessContext } from "@/lib/auth/project-access";
+import { getProjectFallbackColor, normalizeProjectColor } from "@/lib/project-colors";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +134,10 @@ export async function PATCH(
 
     // Convert hourly_rate to hourly_rate_cents and fixed_fee to budget_cents if provided
     const updateData = { ...validation.data };
+    if (updateData.color !== undefined) {
+      updateData.color =
+        normalizeProjectColor(updateData.color) || getProjectFallbackColor(projectId);
+    }
     if (updateData.hourly_rate !== undefined) {
       updateData.hourly_rate_cents = updateData.hourly_rate
         ? Math.round(updateData.hourly_rate * 100)

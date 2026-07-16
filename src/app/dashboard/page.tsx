@@ -388,6 +388,7 @@ interface AssignedTask {
     id: string;
     name: string;
     code: string;
+    color?: string | null;
     status?: string;
     client?: {
       id: string;

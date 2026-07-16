@@ -21,6 +21,7 @@ import { normalizeCurrency } from "@/lib/currency";
 import { formatCurrency, formatHours } from "@/lib/format";
 import { cn, stripHtml } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
 
 export interface DashboardTaskItem {
   id: string;
@@ -47,6 +48,7 @@ export interface DashboardTaskItem {
     id: string;
     name: string;
     code: string;
+    color?: string | null;
     currency?: string | null;
     client?: {
       id?: string;
@@ -92,15 +94,6 @@ const priorityToneClasses: Record<string, string> = {
   medium: "text-sky-600 dark:text-sky-400",
   high: "text-orange-600 dark:text-orange-400",
   urgent: "text-rose-600 dark:text-rose-400",
-};
-
-const taskAccentClasses: Record<string, string> = {
-  todo: "bg-slate-300 dark:bg-slate-600",
-  in_progress: "bg-sky-400 dark:bg-sky-500",
-  review: "bg-amber-400 dark:bg-amber-500",
-  sent_to_client: "bg-violet-400 dark:bg-violet-500",
-  done: "bg-emerald-400 dark:bg-emerald-500",
-  cancelled: "bg-rose-400 dark:bg-rose-500",
 };
 
 const taskSurfaceClasses: Record<string, string> = {
@@ -344,6 +337,7 @@ export const DashboardTaskRow = ({
   const budgetAmount = Math.max(task.budget_cents || 0, 0) / 100;
   const hasVisibleBudget = canViewPrices && budgetAmount > 0;
   const taskCurrency = normalizeCurrency(task.currency || task.project?.currency);
+  const projectColor = resolveProjectColor(task.project);
   const timeProgress = estimatedHours > 0 ? Math.min((actualHours / estimatedHours) * 100, 100) : 0;
   const timeStatusLabel =
     estimatedHours === 0
@@ -402,6 +396,16 @@ export const DashboardTaskRow = ({
 
   return (
     <div
+      style={
+        projectColor
+          ? {
+              backgroundImage: `linear-gradient(90deg, ${projectColorToRgba(
+                projectColor,
+                0.025
+              )} 0, transparent 210px)`,
+            }
+          : undefined
+      }
       className={cn(
         "group relative flex min-h-[52px] flex-col gap-2 border-b border-border/60 px-3 py-2.5 transition-colors duration-150 last:border-b-0 hover:bg-muted/35 sm:px-4 lg:flex-row lg:items-center lg:gap-3 lg:py-2",
         taskSurfaceClasses[task.status],
@@ -410,11 +414,14 @@ export const DashboardTaskRow = ({
     >
       <span
         aria-hidden="true"
-        className={cn(
-          "absolute inset-y-2 left-0 w-0.5 rounded-r-full opacity-70",
-          taskAccentClasses[task.status] || taskAccentClasses.todo,
-          isTimerActive && "bg-emerald-500 opacity-100"
-        )}
+        className="absolute inset-y-2 left-0 w-0.5 rounded-r-full opacity-80"
+        style={{
+          backgroundColor: isTimerActive
+            ? "#10B981"
+            : projectColor
+              ? projectColorToRgba(projectColor, 0.45)
+              : undefined,
+        }}
       />
       <div className="min-w-0 flex-1">
         <Link
@@ -425,7 +432,16 @@ export const DashboardTaskRow = ({
         </Link>
         <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
           {showProject && task.project && (
-            <span className="max-w-48 truncate">
+            <span
+              className="max-w-48 truncate rounded px-1.5 py-px font-medium text-foreground"
+              style={
+                projectColor
+                  ? {
+                      backgroundColor: projectColorToRgba(projectColor, 0.045),
+                    }
+                  : undefined
+              }
+            >
               {task.project.name}
               {task.project.code ? ` · ${task.project.code}` : ""}
             </span>

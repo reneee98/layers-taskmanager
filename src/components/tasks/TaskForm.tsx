@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import type { Task, Project } from "@/types/database";
+import { resolveProjectColor } from "@/lib/project-colors";
 
 interface TaskFormProps {
   task?: Task;
@@ -166,7 +167,14 @@ export const TaskForm = ({
                 <SelectContent>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
-                      {project.name} ({project.code})
+                      <span className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="h-2.5 w-2.5 shrink-0 rounded-full opacity-70"
+                          style={{ backgroundColor: resolveProjectColor(project) || undefined }}
+                        />
+                        <span>{project.name} ({project.code})</span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -272,4 +280,3 @@ export const TaskForm = ({
     </Dialog>
   );
 };
-

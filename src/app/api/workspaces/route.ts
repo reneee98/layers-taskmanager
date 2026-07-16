@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/admin";
 import { getUserAccessibleWorkspaces } from "@/lib/auth/workspace-security";
+import { getRandomProjectColor } from "@/lib/project-colors";
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
         .insert({
           workspace_id: newWorkspace.id,
           name: 'Osobné úlohy',
+          color: getRandomProjectColor(),
           code: personalProjectCode,
           description: 'Projekt pre osobné úlohy bez klienta',
           status: 'active',

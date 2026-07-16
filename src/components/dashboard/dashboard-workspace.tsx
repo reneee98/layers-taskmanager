@@ -25,11 +25,13 @@ import { DashboardWeekPlanner } from "@/components/dashboard/dashboard-week-plan
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
 
 export interface DashboardProjectItem {
   id: string;
   name: string;
   code: string | null;
+  color?: string | null;
   status: string;
   client?: {
     id?: string;
@@ -485,9 +487,26 @@ export const DashboardWorkspace = ({
                 const projectTasks = projectTasksById.get(project.id) || [];
                 const isExpanded = expandedProjectId === project.id;
                 const taskContainerId = `dashboard-project-${project.id}`;
+                const projectColor = resolveProjectColor(project);
 
                 return (
-                  <div key={project.id} className="border-b border-border/70 last:border-b-0">
+                  <div
+                    key={project.id}
+                    className="border-b border-border/70 last:border-b-0"
+                    style={
+                      projectColor
+                        ? {
+                            boxShadow: `inset 2px 0 0 ${projectColorToRgba(projectColor, 0.45)}`,
+                            backgroundImage: isExpanded
+                              ? `linear-gradient(90deg, ${projectColorToRgba(
+                                  projectColor,
+                                  0.025
+                                )} 0, transparent 380px)`
+                              : undefined,
+                          }
+                        : undefined
+                    }
+                  >
                     <div
                       className={cn(
                         "flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3",
@@ -507,7 +526,17 @@ export const DashboardWorkspace = ({
                             !isExpanded && "-rotate-90"
                           )}
                         />
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-sky-500/[0.08] text-sky-600 dark:text-sky-400">
+                        <span
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                          style={
+                            projectColor
+                              ? {
+                                  backgroundColor: projectColorToRgba(projectColor, 0.055),
+                                  color: projectColor,
+                                }
+                              : undefined
+                          }
+                        >
                           <FolderKanban className="h-3.5 w-3.5" />
                         </span>
                         <span className="min-w-0 flex-1">
@@ -516,7 +545,17 @@ export const DashboardWorkspace = ({
                               {project.name}
                             </span>
                             {project.code && (
-                              <span className="hidden shrink-0 rounded-md border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline">
+                              <span
+                                className="hidden shrink-0 rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-medium text-foreground sm:inline"
+                                style={
+                                  projectColor
+                                    ? {
+                                        borderColor: projectColorToRgba(projectColor, 0.12),
+                                        backgroundColor: projectColorToRgba(projectColor, 0.035),
+                                      }
+                                    : undefined
+                                }
+                              >
                                 {project.code}
                               </span>
                             )}

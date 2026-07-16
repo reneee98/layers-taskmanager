@@ -163,6 +163,7 @@ export async function GET(req: NextRequest) {
             id,
             name,
             code,
+            color,
             workspace_id,
             client:clients(name)
           )
@@ -197,6 +198,7 @@ export async function GET(req: NextRequest) {
             id,
             name,
             code,
+            color,
             workspace_id,
             client:clients(name)
           )
@@ -239,6 +241,7 @@ export async function GET(req: NextRequest) {
             id,
             name,
             code,
+            color,
             workspace_id,
             client:clients(name)
           )

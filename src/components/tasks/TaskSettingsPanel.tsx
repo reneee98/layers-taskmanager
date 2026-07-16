@@ -20,6 +20,7 @@ import { usePermission } from "@/hooks/usePermissions";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 import { formatCurrency } from "@/lib/format";
 import { TASK_COLOR_PALETTE, normalizeTaskColor } from "@/lib/task-colors";
+import { resolveProjectColor } from "@/lib/project-colors";
 import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
 import { SUPPORTED_CURRENCIES, getCurrencySymbol, normalizeCurrency } from "@/lib/currency";
 
@@ -40,6 +41,7 @@ interface TaskSettingsPanelProps {
     id: string;
     name: string;
     code?: string | null;
+    color?: string | null;
   }>;
   onTaskUpdate?: () => void;
 }
@@ -489,7 +491,14 @@ export function TaskSettingsPanel({
                   <SelectItem value="none">Bez projektu</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
-                      {project.code ? `${project.code} - ${project.name}` : project.name}
+                      <span className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="h-2.5 w-2.5 shrink-0 rounded-full opacity-70"
+                          style={{ backgroundColor: resolveProjectColor(project) || undefined }}
+                        />
+                        <span>{project.code ? `${project.code} - ${project.name}` : project.name}</span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>

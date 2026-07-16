@@ -18,6 +18,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import { formatHours } from "@/lib/format";
 import { stripHtml } from "@/lib/utils";
+import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
 
 interface DashboardTaskSchedulerDialogProps {
   open: boolean;
@@ -156,6 +157,7 @@ export const DashboardTaskSchedulerDialog = ({
                   0
                 );
                 const isScheduling = schedulingTaskId === task.id;
+                const projectColor = resolveProjectColor(task.project);
 
                 return (
                   <button
@@ -163,6 +165,17 @@ export const DashboardTaskSchedulerDialog = ({
                     type="button"
                     disabled={schedulingTaskId !== null}
                     onClick={() => handleSchedule(task.id)}
+                    style={
+                      projectColor
+                        ? {
+                            boxShadow: `inset 2px 0 0 ${projectColorToRgba(projectColor, 0.4)}`,
+                            backgroundImage: `linear-gradient(90deg, ${projectColorToRgba(
+                              projectColor,
+                              0.025
+                            )}, transparent 240px)`,
+                          }
+                        : undefined
+                    }
                     className="group flex min-h-16 w-full items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left outline-none transition-colors hover:border-border hover:bg-muted/55 focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60"
                   >
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground group-hover:text-foreground">
@@ -178,7 +191,16 @@ export const DashboardTaskSchedulerDialog = ({
                         {stripHtml(task.title)}
                       </span>
                       <span className="mt-1 flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
-                        <span className="truncate font-mono">
+                        <span
+                          className="truncate rounded px-1 py-px font-mono font-medium text-foreground"
+                          style={
+                            projectColor
+                              ? {
+                                  backgroundColor: projectColorToRgba(projectColor, 0.045),
+                                }
+                              : undefined
+                          }
+                        >
                           {task.project?.code || task.project?.name || "Bez projektu"}
                         </span>
                         <span aria-hidden="true">·</span>

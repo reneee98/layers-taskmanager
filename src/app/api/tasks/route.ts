@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       .select(
         `
         *,
-        project:projects(id, name, code, currency, hourly_rate_cents, budget_cents)
+        project:projects(id, name, code, color, currency, hourly_rate_cents, budget_cents)
       `
       )
       .eq("workspace_id", workspaceId)
@@ -343,7 +343,7 @@ export async function POST(request: NextRequest) {
         workspace_id: workspaceId,
         order_index: validation.data.order_index ?? nextOrderIndex,
       })
-      .select("*, project:projects(id, name, code, currency)")
+      .select("*, project:projects(id, name, code, color, currency)")
       .single();
 
     if (error) {

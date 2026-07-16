@@ -6,6 +6,7 @@ import { getServerUser } from "@/lib/auth";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 import { generateProjectCode, generateUniqueProjectCode } from "@/lib/generate-project-code";
 import { getProjectAccessContext } from "@/lib/auth/project-access";
+import { getRandomProjectColor, normalizeProjectColor } from "@/lib/project-colors";
 
 export const dynamic = "force-dynamic";
 
@@ -289,6 +290,7 @@ export async function POST(request: NextRequest) {
     // Convert hourly_rate to hourly_rate_cents and fixed_fee to budget_cents
     const projectData = {
       ...validation.data,
+      color: normalizeProjectColor(validation.data.color) || getRandomProjectColor(),
       code: projectCode, // null for personal projects, generated code for others
       workspace_id: workspaceId,
       client_id: isPersonalProject ? null : validation.data.client_id || null,

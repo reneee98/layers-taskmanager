@@ -35,6 +35,7 @@ export interface WorkspaceMember {
 export interface Project {
   id: string;
   name: string;
+  color?: string | null;
   description: string | null;
   code: string | null;
   currency: string;
@@ -101,6 +102,7 @@ export interface Task {
     id: string;
     name: string;
     code: string;
+    color?: string | null;
     currency?: string;
     hourly_rate?: number | null;
     budget?: number | null;

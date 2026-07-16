@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -16,19 +15,18 @@ import {
 import { 
   Clock, 
   Calendar,
-  User,
-  Edit,
   Trash2,
   DollarSign,
   CheckCircle,
-  XCircle,
-  Eye,
   Building2,
   FolderOpen
 } from "lucide-react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageState } from "@/components/layout/page-state";
+import { MetricStrip } from "@/components/layout/metric-strip";
 
 interface TimeEntry {
   id: string;
@@ -150,96 +148,43 @@ export default function TimeEntriesPage() {
   };
 
   if (workspaceLoading || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Clock className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Načítavam časové záznamy...</p>
-        </div>
-      </div>
-    );
+    return <PageState variant="loading" title="Načítavam časové záznamy" />;
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <XCircle className="h-8 w-8 text-red-500 mx-auto mb-4" />
-          <p className="text-red-500">{error}</p>
-        </div>
-      </div>
+      <PageState variant="error" title="Časové záznamy sa nepodarilo načítať" description={error} />
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Časové záznamy</h1>
-          <p className="text-muted-foreground">
-            Prehľad všetkých časových záznamov v workspace
-          </p>
+    <div className="page-shell">
+      <PageHeader
+        title="Časové záznamy"
+        description="Odpracovaný čas, sadzby a fakturovateľnosť naprieč workspace."
+        icon={Clock}
+      />
+
+      <MetricStrip
+        items={[
+          { label: "Celkové hodiny", value: `${getTotalHours().toFixed(1)} h`, icon: Clock },
+          { label: "Fakturovateľné", value: `${getBillableHours().toFixed(1)} h`, icon: CheckCircle },
+          { label: "Celková suma", value: formatCurrency(getTotalAmount()), icon: DollarSign },
+          { label: "Počet záznamov", value: timeEntries.length, icon: Calendar },
+        ]}
+      />
+
+      <section className="surface-panel overflow-hidden">
+        <div className="border-b border-border bg-muted/[0.16] px-5 py-4">
+          <h2 className="text-sm font-semibold text-foreground">Všetky záznamy</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Chronologický prehľad vykázanej práce.</p>
         </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Celkové hodiny</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{getTotalHours().toFixed(1)}h</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fakturovateľné hodiny</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{getBillableHours().toFixed(1)}h</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Celková suma</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(getTotalAmount())}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Počet záznamov</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{timeEntries.length}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Time Entries Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Časové záznamy</CardTitle>
-        </CardHeader>
-        <CardContent>
           {timeEntries.length === 0 ? (
-            <div className="text-center py-8">
-              <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Žiadne časové záznamy</p>
-            </div>
+            <PageState compact icon={Clock} title="Zatiaľ tu nie je vykázaný čas" className="rounded-none border-0" />
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
                   <TableHead>Dátum</TableHead>
                   <TableHead>Používateľ</TableHead>
                   <TableHead>Projekt</TableHead>
@@ -248,12 +193,12 @@ export default function TimeEntriesPage() {
                   <TableHead>Sadzba</TableHead>
                   <TableHead>Suma</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Akcie</TableHead>
+                  <TableHead className="text-right">Akcie</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {timeEntries.map((entry) => (
-                  <TableRow key={entry.id}>
+                  <TableRow key={entry.id} className="group hover:bg-muted/25">
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -309,19 +254,21 @@ export default function TimeEntriesPage() {
                       <span className="font-medium">{formatCurrency(entry.hourly_rate)}/h</span>
                     </TableCell>
                     <TableCell>
-                      <span className="font-bold">{formatCurrency(entry.amount)}</span>
+                      <span className="font-semibold tabular-nums">{formatCurrency(entry.amount)}</span>
                     </TableCell>
                     <TableCell>
                       <Badge variant={entry.is_billable ? "default" : "secondary"}>
                         {entry.is_billable ? "Fakturovateľné" : "Nefakturovateľné"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end">
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
+                          aria-label="Odstrániť časový záznam"
                           onClick={() => handleDeleteTimeEntry(entry.id)}
+                          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -332,8 +279,7 @@ export default function TimeEntriesPage() {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+      </section>
     </div>
   );
 }

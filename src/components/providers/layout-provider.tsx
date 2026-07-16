@@ -21,7 +21,6 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
 
   // Don't show layout for share routes
   const isShareRoute = pathname?.startsWith("/share");
-  const isFullWidthRoute = pathname === "/dashboard";
 
   // Load sidebar state from localStorage on mount
   useEffect(() => {
@@ -82,13 +81,7 @@ export const LayoutProvider = ({ children }: LayoutProviderProps) => {
                   isSidebarCollapsed={isSidebarCollapsed}
                 />
                 <main className="min-h-[calc(100vh-3.25rem)]">
-                  <div
-                    className={`mx-auto w-full py-5 sm:py-7 lg:py-8 ${
-                      isFullWidthRoute
-                        ? "max-w-none px-3 sm:px-5 lg:px-6"
-                        : "max-w-[1480px] px-4 sm:px-6 lg:px-8"
-                    }`}
-                  >
+                  <div className="w-full max-w-none px-3 py-5 sm:px-5 sm:py-7 lg:px-6 lg:py-8">
                     {children}
                   </div>
                 </main>

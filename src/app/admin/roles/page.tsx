@@ -1,38 +1,37 @@
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/admin";
 import { RolesManager } from "@/components/admin/RolesManager";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ShieldCheck } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function AdminRolesPage() {
   // Check if user is admin
   try {
     await requireAdmin();
-  } catch (error) {
+  } catch {
     redirect("/");
   }
 
   return (
-    <div className="w-full space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Správa rolí a oprávnení</h1>
-        <p className="text-muted-foreground mt-1">
-          Vytvárajte a spravujte role používateľov a ich oprávnenia v systéme. Systémové role: Majiteľ, Člen, Administrátor.
-        </p>
-      </div>
+    <div className="page-shell">
+      <PageHeader
+        title="Role a oprávnenia"
+        description="Vlastné role, prístup k funkciám a systémové pravidlá workspace."
+        eyebrow="Administrácia"
+        icon={ShieldCheck}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Role a oprávnenia</CardTitle>
-          <CardDescription>
-            Vytvárajte vlastné role a nastavujte im oprávnenia pre rôzne zdroje v systéme. Systémové role (Majiteľ, Člen, Administrátor) nie je možné upravovať ani mazať.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <section className="surface-panel overflow-hidden">
+        <div className="border-b border-border bg-muted/[0.16] px-5 py-4">
+          <h2 className="text-sm font-semibold text-foreground">Nastavenie rolí</h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">
+            Systémové role nie je možné upravovať ani mazať. Vlastným rolám môžete nastaviť presný rozsah oprávnení.
+          </p>
+        </div>
+        <div className="p-5">
           <RolesManager />
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }
-

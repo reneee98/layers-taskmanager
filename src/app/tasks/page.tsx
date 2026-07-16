@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useOptimizedFetch } from "@/hooks/useOptimizedFetch";
 import { Button } from "@/components/ui/button";
 import dynamic from "next/dynamic";
@@ -38,6 +38,9 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
 import type { Task } from "@/types/database";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageState } from "@/components/layout/page-state";
+import { DataToolbar } from "@/components/layout/data-toolbar";
 
 interface TasksResponse {
   success: boolean;
@@ -58,7 +61,7 @@ export default function TasksPage() {
     {
       cacheKey: "tasks_all",
       cacheExpiry: 1 * 60 * 1000, // 1 minute (tasks change frequently)
-      onError: (error) => {
+      onError: () => {
         toast({
           title: "Chyba",
           description: "Nepodarilo sa načítať úlohy",
@@ -68,7 +71,10 @@ export default function TasksPage() {
     }
   );
 
-  const tasks = tasksData?.success ? (tasksData.data || []) : [];
+  const tasks = useMemo(
+    () => (tasksData?.success ? (tasksData.data || []) : []),
+    [tasksData]
+  );
 
   // Helper functions for tabs
   const getTabLabel = (tab: TasksPageTabType) => {
@@ -243,56 +249,27 @@ export default function TasksPage() {
     }
   };
 
-  const handleReorderTasks = async (taskId: string, newIndex: number) => {
-    // Reordering is not supported on the global tasks page
-    // as it would require complex logic across projects.
-    // This function is a no-op here.
-  };
-
   if (isLoading) {
-    return (
-      <div className="w-full space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Úlohy</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Všetky úlohy vo vašom workspace
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center justify-center py-12">
-          <p className="text-muted-foreground">Načítavam...</p>
-        </div>
-      </div>
-    );
+    return <PageState variant="loading" title="Načítavam úlohy" />;
   }
 
   return (
-    <div className="w-full space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Úlohy</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Všetky úlohy vo vašom workspace
-          </p>
-        </div>
-        <Button
-          onClick={() => {
-            setEditingTask(null);
-            setIsTaskDialogOpen(true);
-          }}
-          className=""
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Pridať úlohu
-        </Button>
-      </div>
+    <div className="page-shell">
+      <PageHeader
+        title="Úlohy"
+        description="Kompletný zoznam práce naprieč všetkými projektmi."
+        icon={List}
+        actions={
+          <Button onClick={() => { setEditingTask(null); setIsTaskDialogOpen(true); }}>
+            <Plus className="h-4 w-4" />
+            Pridať úlohu
+          </Button>
+        }
+      />
 
-      {/* Filters */}
-      <div className="border rounded-lg bg-card">
+      <div className="surface-panel overflow-hidden">
         {/* Mobile: Select Dropdown */}
-        <div className="lg:hidden p-4 border-b">
+        <div className="border-b border-border bg-muted/[0.16] p-3 lg:hidden">
           <Select value={activeTab} onValueChange={(value) => setActiveTab(value as TasksPageTabType)}>
             <SelectTrigger className="w-full">
               <SelectValue>
@@ -334,14 +311,14 @@ export default function TasksPage() {
         </div>
 
         {/* Desktop: Tabs */}
-        <div className="hidden lg:block p-4 border-b">
+        <DataToolbar className="hidden rounded-none border-x-0 border-t-0 p-3 lg:flex">
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TasksPageTabType)} className="w-full">
-            <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground min-w-max">
+            <TabsList className="inline-flex h-9 min-w-max items-center justify-center rounded-md bg-background p-1 text-muted-foreground">
               <TabsTrigger value="all_active" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
                 <List className="h-4 w-4 mr-2" />
                 <span>Všetky aktívne</span>
                 {taskCounts.all_active > 0 && (
-                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
                     {taskCounts.all_active}
                   </Badge>
                 )}
@@ -350,7 +327,7 @@ export default function TasksPage() {
                 <FolderX className="h-4 w-4 mr-2" />
                 <span>Bez projektu</span>
                 {taskCounts.no_project > 0 && (
-                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
                     {taskCounts.no_project}
                   </Badge>
                 )}
@@ -359,7 +336,7 @@ export default function TasksPage() {
                 <Send className="h-4 w-4 mr-2" />
                 <span>Odoslané klientovi</span>
                 {taskCounts.sent_to_client > 0 && (
-                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
                     {taskCounts.sent_to_client}
                   </Badge>
                 )}
@@ -368,7 +345,7 @@ export default function TasksPage() {
                 <Play className="h-4 w-4 mr-2" />
                 <span>V procese</span>
                 {taskCounts.in_progress > 0 && (
-                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
                     {taskCounts.in_progress}
                   </Badge>
                 )}
@@ -377,14 +354,14 @@ export default function TasksPage() {
                 <User className="h-4 w-4 mr-2" />
                 <span>Nepriradené</span>
                 {taskCounts.unassigned > 0 && (
-                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs bg-gray-200 text-gray-700">
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
                     {taskCounts.unassigned}
                   </Badge>
                 )}
               </TabsTrigger>
             </TabsList>
           </Tabs>
-        </div>
+        </DataToolbar>
 
         {/* Task List */}
         <div className="p-4">
@@ -398,28 +375,25 @@ export default function TasksPage() {
                 setIsTaskDialogOpen(true);
               }}
               onReorder={undefined}
-              projectId={"" as any}
+              projectId=""
               onTaskUpdated={async () => {
                 clearCache();
                 await refetch();
               }}
             />
           ) : (
-            <div className="rounded-md border p-8 text-center">
-              <p className="text-muted-foreground mb-4">
-                Žiadne úlohy v kategórii "{getTabLabel(activeTab)}"
-              </p>
-              <Button
-                onClick={() => {
-                  setEditingTask(null);
-                  setIsTaskDialogOpen(true);
-                }}
-                className=""
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Vytvoriť úlohu
-              </Button>
-            </div>
+            <PageState
+              compact
+              icon={getTabIcon(activeTab)}
+              title={`Žiadne úlohy: ${getTabLabel(activeTab)}`}
+              description="V tejto kategórii momentálne nie je žiadna práca."
+              action={
+                <Button size="sm" onClick={() => { setEditingTask(null); setIsTaskDialogOpen(true); }}>
+                  <Plus className="h-4 w-4" />
+                  Vytvoriť úlohu
+                </Button>
+              }
+            />
           )}
         </div>
       </div>
@@ -435,4 +409,3 @@ export default function TasksPage() {
     </div>
   );
 }
-

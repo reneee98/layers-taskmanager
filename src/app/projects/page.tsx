@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { usePermission } from "@/hooks/usePermissions";
-import { AlertTriangle } from "lucide-react";
-import { Plus, MoreHorizontal, Pencil, Trash2, Circle, Play, Eye, CheckCircle, XCircle, Pause, Send, ChevronDown, Check, Archive, FolderOpen } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, Circle, Play, CheckCircle, XCircle, Pause, Send, ChevronDown, Check, Archive, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -39,10 +38,12 @@ const ProjectForm = dynamic(() => import("@/components/projects/ProjectForm").th
   ssr: false,
 });
 import type { Project, Client } from "@/types/database";
-import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { normalizeCurrency } from "@/lib/currency";
 import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageState } from "@/components/layout/page-state";
+import { DataToolbar } from "@/components/layout/data-toolbar";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string; iconColor: string }> = {
   draft: { 
@@ -118,7 +119,7 @@ function ProjectsPageContent() {
       if (archivedResponse.success) {
         setArchivedProjects(archivedResponse.data);
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Chyba",
         description: "Nepodarilo sa načítať projekty",
@@ -295,40 +296,35 @@ function ProjectsPageContent() {
 
   // Check permission
   if (isLoadingPermission) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="h-7 w-7 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"></div>
-          <p className="text-sm text-muted-foreground">Kontrolujem oprávnenia...</p>
-        </div>
-      </div>
-    );
+    return <PageState variant="loading" title="Kontrolujem oprávnenia" />;
   }
 
   if (!canViewProjects) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="flex flex-col items-center space-y-4 text-center">
-          <AlertTriangle className="h-12 w-12 text-muted-foreground" />
-          <h2 className="text-xl font-semibold text-foreground">Nemáte oprávnenie</h2>
-          <p className="text-muted-foreground max-w-md">
-            Nemáte oprávnenie na zobrazenie projektov. Kontaktujte administrátora workspace.
-          </p>
-        </div>
-      </div>
+      <PageState
+        variant="permission"
+        title="Nemáte prístup k projektom"
+        description="O prístup môžete požiadať administrátora workspace."
+      />
     );
   }
 
   return (
     <div className="page-shell">
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="page-heading">Projekty</h1>
-          <p className="page-description">Spravujte svoje projekty</p>
-        </div>
+      <PageHeader
+        title="Projekty"
+        description="Aktívne zákazky, ich stav a klienti v jednom prehľade."
+        icon={FolderOpen}
+        actions={
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Pridať projekt
+          </Button>
+        }
+      />
+
+      <DataToolbar className="lg:flex-row">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {/* Tabs */}
           <div className="flex items-center rounded-lg border border-border bg-muted/60 p-0.5">
             <Button
               variant={!showArchived ? "default" : "ghost"}
@@ -349,63 +345,45 @@ function ProjectsPageContent() {
               Archivované ({archivedProjects.length})
             </Button>
           </div>
-          
-          <Button 
-            onClick={() => setIsFormOpen(true)}
-          >
-            <Plus className="h-4 w-4" />
-            Pridať projekt
-          </Button>
         </div>
-      </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-9 w-full justify-between bg-background sm:w-[180px]">
+                {statusFilter === "all" ? "Všetky statusy" : statusConfig[statusFilter]?.label || "Všetky statusy"}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-[200px]">
+              <DropdownMenuItem onClick={() => setStatusFilter("all")} className="flex items-center gap-2">
+                <Check className="h-4 w-4" />
+                Všetky statusy
+              </DropdownMenuItem>
+              {Object.entries(statusConfig).map(([key, config]) => {
+                const IconComponent = config.icon;
+                return (
+                  <DropdownMenuItem key={key} onClick={() => setStatusFilter(key)} className="flex items-center gap-2">
+                    <IconComponent className={cn("h-4 w-4", config.iconColor)} />
+                    {config.label}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="w-full justify-between sm:w-[200px]">
-              {statusFilter === "all" ? "Všetky statusy" : statusConfig[statusFilter]?.label || "Všetky statusy"}
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-[200px]">
-            <DropdownMenuItem 
-              onClick={() => setStatusFilter("all")}
-              className="flex items-center gap-2"
-            >
-              <Check className="h-4 w-4" />
-              Všetky statusy
-            </DropdownMenuItem>
-            {Object.entries(statusConfig).map(([key, config]) => {
-              const IconComponent = config.icon;
-              return (
-                <DropdownMenuItem 
-                  key={key} 
-                  onClick={() => setStatusFilter(key)}
-                  className="flex items-center gap-2"
-                >
-                  <IconComponent className={cn("h-4 w-4", config.iconColor)} />
-                  {config.label}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Select value={clientFilter} onValueChange={setClientFilter}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="Všetci klienti" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Všetci klienti</SelectItem>
-            {clients.map((client) => (
-              <SelectItem key={client.id} value={client.id}>
-                {client.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          <Select value={clientFilter} onValueChange={setClientFilter}>
+            <SelectTrigger className="h-9 w-full bg-background sm:w-[180px]">
+              <SelectValue placeholder="Všetci klienti" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všetci klienti</SelectItem>
+              {clients.map((client) => (
+                <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </DataToolbar>
 
       {/* Projects Table */}
       <div className="surface-panel overflow-hidden">
@@ -422,24 +400,26 @@ function ProjectsPageContent() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                  Načítavam...
+                <TableCell colSpan={5} className="p-0">
+                  <PageState compact variant="loading" title="Načítavam projekty" className="rounded-none border-0" />
                 </TableCell>
               </TableRow>
             ) : (showArchived ? archivedProjects : projects).length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-                      {showArchived ? <Archive className="h-6 w-6 text-muted-foreground" /> : <Plus className="h-6 w-6 text-muted-foreground" />}
-                    </div>
-                    <p className="text-lg font-medium">
-                      {showArchived ? "Žiadne archivované projekty" : "Žiadne projekty"}
-                    </p>
-                    <p className="text-sm">
-                      {showArchived ? "Dokončte nejaký projekt a objaví sa tu" : "Začnite vytvorením nového projektu"}
-                    </p>
-                  </div>
+                <TableCell colSpan={5} className="p-0">
+                  <PageState
+                    compact
+                    icon={showArchived ? Archive : FolderOpen}
+                    title={showArchived ? "Archív je prázdny" : "Zatiaľ tu nie sú projekty"}
+                    description={showArchived ? "Dokončené projekty sa zobrazia na tomto mieste." : "Vytvorte prvý projekt a pridajte doň úlohy."}
+                    action={!showArchived ? (
+                      <Button size="sm" onClick={() => setIsFormOpen(true)}>
+                        <Plus className="h-4 w-4" />
+                        Pridať projekt
+                      </Button>
+                    ) : undefined}
+                    className="rounded-none border-0"
+                  />
                 </TableCell>
               </TableRow>
             ) : (

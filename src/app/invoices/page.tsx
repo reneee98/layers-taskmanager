@@ -1,19 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   FileText, 
   Clock, 
-  Euro, 
-  Users, 
+  Archive,
+  Euro,
   Calendar,
   CheckCircle,
-  AlertCircle,
-  Loader2
+  ListChecks,
+  ReceiptText,
 } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/format";
 import { format } from "date-fns";
@@ -24,6 +24,10 @@ import { cn } from "@/lib/utils";
 import { getTaskStatusLabel } from "@/lib/task-status";
 import { usePermission } from "@/hooks/usePermissions";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageState } from "@/components/layout/page-state";
+import { MetricStrip } from "@/components/layout/metric-strip";
+import { DataToolbar } from "@/components/layout/data-toolbar";
 
 interface Project {
   id: string;
@@ -148,7 +152,7 @@ export default function InvoicesPage() {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Chyba",
         description: "Nepodarilo sa načítať dáta pre faktúry",
@@ -175,7 +179,7 @@ export default function InvoicesPage() {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Chyba",
         description: "Nepodarilo sa načítať archivované dáta",
@@ -284,7 +288,16 @@ export default function InvoicesPage() {
   };
 
   const getStatusText = (status: string) => {
-    return getTaskStatusLabel(status) || status;
+    const projectStatusLabels: Record<string, string> = {
+      draft: "Návrh",
+      active: "Aktívny",
+      on_hold: "Pozastavený",
+      sent_to_client: "Odoslaný klientovi",
+      completed: "Dokončený",
+      cancelled: "Zrušený",
+    };
+
+    return projectStatusLabels[status] || getTaskStatusLabel(status) || status;
   };
 
   const getPriorityBadgeVariant = (priority: string) => {
@@ -299,118 +312,101 @@ export default function InvoicesPage() {
 
   const getPriorityText = (priority: string) => {
     const priorityMap: { [key: string]: string } = {
-      'low': 'Low',
-      'medium': 'Medium',
-      'high': 'High',
-      'urgent': 'Urgent'
+      'low': 'Nízka',
+      'medium': 'Stredná',
+      'high': 'Vysoká',
+      'urgent': 'Urgentná'
     };
     return priorityMap[priority] || priority;
   };
 
+  if (isLoadingInvoices) {
+    return <PageState variant="loading" title="Kontrolujem oprávnenia" />;
+  }
+
   if (!canAccess) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="text-center space-y-2">
-          <p className="text-muted-foreground">Nemáte oprávnenie na zobrazenie faktúr</p>
-        </div>
-      </div>
+      <PageState
+        variant="permission"
+        title="Nemáte prístup k fakturácii"
+        description="Finančné údaje môže sprístupniť vlastník alebo administrátor workspace."
+      />
     );
   }
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <p className="text-muted-foreground">Načítavam faktúry...</p>
-        </div>
-      </div>
-    );
+    return <PageState variant="loading" title="Načítavam fakturáciu" />;
   }
 
-  const totalProjectsValue = (activeTab === "projects" ? readyProjects : archivedProjects).reduce((sum, project) => sum + project.total_cost, 0);
-  const totalTasksValue = (activeTab === "projects" ? readyTasks : archivedTasks).reduce((sum, task) => sum + task.total_cost, 0);
+  const currentProjects = activeTab === "projects" ? readyProjects : archivedProjects;
+  const currentTasks = activeTab === "projects" ? readyTasks : archivedTasks;
+  const totalProjectsValue = currentProjects.reduce((sum, project) => sum + project.total_cost, 0);
+  const totalTasksValue = currentTasks.reduce((sum, task) => sum + task.total_cost, 0);
   const totalValue = totalProjectsValue + totalTasksValue;
 
   return (
     <div className="page-shell">
-      {/* Header */}
-      <div>
-        <h1 className="page-heading">Faktúry</h1>
-        <p className="page-description">
-          Projekty a úlohy pripravené na vyfaktúrovanie
-        </p>
-      </div>
+      <PageHeader
+        title="Fakturácia"
+        description="Dokončená práca pripravená na fakturáciu a história vybavených položiek."
+        icon={ReceiptText}
+      />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Dokončené projekty</CardTitle>
-            <div className="rounded-lg border border-border bg-muted/50 p-2">
-              <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold tabular-nums text-foreground">{readyProjects.length}</div>
-            {canViewPrices && (
-              <p className="text-sm text-muted-foreground mt-1">Celková hodnota: {formatCurrency(totalProjectsValue)}</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Celková hodnota</CardTitle>
-            <div className="rounded-lg border border-border bg-muted/50 p-2">
-              <Euro className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {canViewPrices ? (
-              <>
-                <div className="text-2xl font-semibold tabular-nums text-foreground">{formatCurrency(totalValue)}</div>
-                <p className="text-sm text-muted-foreground mt-1">Na vyfaktúrovanie</p>
-              </>
-            ) : (
-              <div className="text-2xl font-semibold text-foreground">—</div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <MetricStrip
+        items={[
+          {
+            label: activeTab === "projects" ? "Pripravené projekty" : "Archivované projekty",
+            value: currentProjects.length,
+            icon: activeTab === "projects" ? FileText : Archive,
+          },
+          {
+            label: "Samostatné úlohy",
+            value: currentTasks.length,
+            icon: ListChecks,
+          },
+          {
+            label: activeTab === "projects" ? "Na vyfaktúrovanie" : "Vyfaktúrovaná hodnota",
+            value: canViewPrices ? formatCurrency(totalValue) : "—",
+            icon: Euro,
+            tone: "text-emerald-600 dark:text-emerald-400",
+          },
+        ]}
+      />
 
       {/* Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="projects">
-            Projekty ({readyProjects.length})
-          </TabsTrigger>
-          <TabsTrigger value="archived">
-            Archivované ({archivedProjects.length})
-          </TabsTrigger>
-        </TabsList>
+        <DataToolbar>
+          <TabsList className="h-9 bg-background">
+            <TabsTrigger value="projects">
+              Na fakturáciu ({readyProjects.length})
+            </TabsTrigger>
+            <TabsTrigger value="archived">
+              Archív ({archivedProjects.length})
+            </TabsTrigger>
+          </TabsList>
+          <p className="px-1 text-xs text-muted-foreground">
+            {activeTab === "projects" ? "Dokončené a ešte nevyfaktúrované" : "Už spracované položky"}
+          </p>
+        </DataToolbar>
 
         {/* Projects Tab */}
         <TabsContent value="projects" className="space-y-4">
           {readyProjects.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <p className="text-lg font-medium text-foreground">Žiadne dokončené projekty</p>
-                <p className="text-sm text-muted-foreground mt-2">Začnite dokončením existujúcich projektov</p>
-              </CardContent>
-            </Card>
+            <PageState
+              compact
+              icon={ReceiptText}
+              title="Všetko je spracované"
+              description="Keď dokončíte projekt, objaví sa tu pripravený na fakturáciu."
+            />
           ) : (
             <div className="space-y-4">
               {readyProjects.map((project) => (
-                <Card key={project.id}>
-                  <CardHeader className="bg-muted/50">
-                    <div className="flex items-start justify-between">
+                <Card key={project.id} className="overflow-hidden">
+                  <CardHeader className="border-b border-border bg-muted/[0.22] px-5 py-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-semibold text-foreground">{project.name}</h3>
+                          <h3 className="text-lg font-semibold text-foreground">{project.name}</h3>
                           <Badge variant="outline" className="font-mono bg-muted text-foreground border-border">
                             {project.code}
                           </Badge>
@@ -418,19 +414,16 @@ export default function InvoicesPage() {
                             {getStatusText(project.status)}
                           </Badge>
                         </div>
-                        <p className="text-muted-foreground">
-                          <strong>Klient:</strong> {project.client?.name || 'Bez klienta'}
-                        </p>
                         <p className="text-sm text-muted-foreground">
-                          <strong>Dokončené úlohy:</strong> {project.task_count}
+                          {project.client?.name || 'Bez klienta'} · {project.task_count} dokončených úloh
                         </p>
                       </div>
                       {canViewPrices && (
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-green-600">
+                          <div className="text-xl font-semibold tabular-nums text-foreground">
                             {formatCurrency(project.total_cost)}
                           </div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="mt-1 max-w-xs text-xs text-muted-foreground">
                             {project.labor_cost > 0 && `${formatCurrency(project.labor_cost)} (čas) `}
                             {project.fixed_budget_cost > 0 && `${formatCurrency(project.fixed_budget_cost)} (fixná) `}
                             {project.external_cost > 0 && `${formatCurrency(project.external_cost)} (náklady)`}
@@ -439,14 +432,14 @@ export default function InvoicesPage() {
                       )}
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-5">
                     {/* Done tasks details */}
                     {project.done_tasks && project.done_tasks.length > 0 && (
                       <div className="mb-4">
                         <h4 className="text-sm font-medium mb-2">Dokončené úlohy:</h4>
                         <div className="space-y-2">
                           {project.done_tasks.map((task: any) => (
-                            <div key={task.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+                            <div key={task.id} className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/[0.18] px-3 py-2">
                               <div className="flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4 text-green-600" />
                                 <span className="text-sm font-medium">{task.title}</span>
@@ -468,7 +461,7 @@ export default function InvoicesPage() {
                       </div>
                     )}
                     
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
@@ -509,18 +502,18 @@ export default function InvoicesPage() {
         {/* Archived Tab */}
         <TabsContent value="archived" className="space-y-4">
           {archivedProjects.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-8">
-                <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-muted-foreground">Žiadne archivované projekty</p>
-              </CardContent>
-            </Card>
+            <PageState
+              compact
+              icon={Archive}
+              title="Archív je prázdny"
+              description="Vyfaktúrované projekty sa zobrazia na tomto mieste."
+            />
           ) : (
             <div className="space-y-4">
               {archivedProjects.map((project) => (
-                <Card key={project.id}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
+                <Card key={project.id} className="overflow-hidden">
+                  <CardHeader className="border-b border-border bg-muted/[0.18] px-5 py-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-lg font-semibold">{project.name}</h3>
@@ -542,7 +535,7 @@ export default function InvoicesPage() {
                       </div>
                       {canViewPrices && (
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                          <div className="text-xl font-semibold tabular-nums text-foreground">
                             {formatCurrency(project.total_cost)}
                           </div>
                           <div className="text-sm text-muted-foreground">
@@ -554,14 +547,14 @@ export default function InvoicesPage() {
                       )}
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-5">
                     {/* Done tasks details */}
                     {project.tasks && project.tasks.length > 0 && (
                       <div className="mb-4">
                         <h4 className="text-sm font-medium mb-2">Vyfaktúrované úlohy:</h4>
                         <div className="space-y-2">
                           {project.tasks.map((task: any) => (
-                            <div key={task.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+                            <div key={task.id} className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/[0.18] px-3 py-2">
                               <div className="flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4 text-green-600" />
                                 <span className="text-sm font-medium">{task.title}</span>

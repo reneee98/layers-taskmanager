@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -47,6 +46,9 @@ import {
 import { DashboardPermissionsDialog } from "@/components/dashboard/DashboardPermissionsDialog";
 import { getRoleLabel, getRoleDisplayName } from "@/lib/role-utils";
 import { toast } from "@/hooks/use-toast";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageState } from "@/components/layout/page-state";
+import { MetricStrip } from "@/components/layout/metric-strip";
 
 interface WorkspaceUser {
   user_id: string;
@@ -108,14 +110,7 @@ export default function WorkspaceUsersPage() {
 
   const [editUserRole, setEditUserRole] = useState("member");
 
-  useEffect(() => {
-    if (workspaceId) {
-      void fetchUsers();
-      void fetchProjects();
-    }
-  }, [workspaceId]);
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       const response = await fetch(
         `/api/projects?workspace_id=${workspaceId}&exclude_status=completed,cancelled`,
@@ -139,9 +134,9 @@ export default function WorkspaceUsersPage() {
       console.error("Error fetching projects for invitation:", fetchError);
       setAvailableProjects([]);
     }
-  };
+  }, [workspaceId]);
 
-  const fetchAvailableRoles = async () => {
+  const fetchAvailableRoles = useCallback(async () => {
     try {
       const response = await fetch(`/api/workspaces/${workspaceId}/roles`, {
         cache: "no-store",
@@ -194,9 +189,9 @@ export default function WorkspaceUsersPage() {
       console.error("Error fetching available roles:", fetchError);
       setAvailableRoles(SYSTEM_ROLE_OPTIONS);
     }
-  };
+  }, [workspaceId]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -235,7 +230,14 @@ export default function WorkspaceUsersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchAvailableRoles, workspaceId]);
+
+  useEffect(() => {
+    if (workspaceId) {
+      void fetchUsers();
+      void fetchProjects();
+    }
+  }, [fetchProjects, fetchUsers, workspaceId]);
 
   const handleAddUser = async () => {
     if (!newUserEmail.trim()) {
@@ -388,27 +390,16 @@ export default function WorkspaceUsersPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Users className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Načítavam používateľov...</p>
-        </div>
-      </div>
-    );
+    return <PageState variant="loading" title="Načítavam používateľov" />;
   }
 
   return (
-    <div className="w-full space-y-8">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Správa používateľov</h1>
-          <p className="text-muted-foreground mt-1">
-            Spravujte používateľov a ich roly v workspace
-          </p>
-        </div>
-
-        {canManageUsers && (
+    <div className="page-shell">
+      <PageHeader
+        title="Tím workspace"
+        description="Členovia, ich roly a viditeľnosť projektov na dashboarde."
+        icon={Users}
+        actions={canManageUsers ? (
           <Dialog
             open={isAddDialogOpen}
             onOpenChange={(open) => {
@@ -419,8 +410,8 @@ export default function WorkspaceUsersPage() {
             }}
           >
             <DialogTrigger asChild>
-              <Button className="bg-gray-900 text-white hover:bg-gray-800">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button>
+                <Plus className="h-4 w-4" />
                 Pozvať používateľa
               </Button>
             </DialogTrigger>
@@ -516,35 +507,45 @@ export default function WorkspaceUsersPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        )}
-      </div>
+        ) : undefined}
+      />
+
+      <MetricStrip
+        items={[
+          { label: "Členovia", value: users.length, icon: Users },
+          { label: "Majitelia", value: users.filter((user) => user.is_owner).length, icon: Crown },
+          { label: "Spravovateľné účty", value: canManageUsers ? users.filter((user) => !user.is_owner).length : "—", icon: Shield },
+        ]}
+      />
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div role="alert" className="rounded-xl border border-destructive/20 bg-destructive/[0.05] p-4">
           <div className="flex">
-            <AlertTriangle className="h-5 w-5 text-red-400" />
+            <AlertTriangle className="h-5 w-5 text-destructive" />
             <div className="ml-3">
-              <p className="text-sm text-red-800">{error}</p>
+              <p className="text-sm text-destructive">{error}</p>
             </div>
           </div>
         </div>
       )}
 
-      <Card>
-        <CardContent>
+      <section className="surface-panel overflow-hidden">
           {users.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Žiadni používatelia</p>
-            </div>
+            <PageState
+              compact
+              icon={Users}
+              title="Zatiaľ tu nie sú členovia"
+              description="Pozvite prvého človeka do tohto workspace."
+              className="rounded-none border-0"
+            />
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
                   <TableHead>Používateľ</TableHead>
                   <TableHead>Rola</TableHead>
                   <TableHead>Pridaný</TableHead>
-                  <TableHead>Akcie</TableHead>
+                  <TableHead className="text-right">Akcie</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -553,7 +554,7 @@ export default function WorkspaceUsersPage() {
                     canManageUsers || user.user_id === currentUserId;
 
                   return (
-                    <TableRow key={user.user_id}>
+                    <TableRow key={user.user_id} className="group hover:bg-muted/25">
                       <TableCell>
                         <div className="flex items-center space-x-3">
                           <div className="flex-shrink-0">
@@ -574,12 +575,13 @@ export default function WorkspaceUsersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>{new Date(user.joined_at).toLocaleDateString("sk-SK")}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-1">
                           {canOpenDashboardPermissions && (
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
+                              aria-label={`Nastaviť dashboard pre ${user.display_name}`}
                               onClick={() => {
                                 setSelectedUser(user);
                                 setIsDashboardPermissionsOpen(true);
@@ -594,15 +596,18 @@ export default function WorkspaceUsersPage() {
                             <>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                aria-label={`Upraviť rolu používateľa ${user.display_name}`}
                                 onClick={() => openEditDialog(user)}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                aria-label={`Odstrániť používateľa ${user.display_name}`}
                                 onClick={() => handleRemoveUser(user)}
+                                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -620,8 +625,7 @@ export default function WorkspaceUsersPage() {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+      </section>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import dynamic from "next/dynamic";
 
@@ -19,10 +18,11 @@ const TaskDialog = dynamic(() => import("@/components/tasks/TaskDialog").then(mo
   loading: () => null,
   ssr: false,
 });
-import { Plus } from "lucide-react";
+import { ListChecks, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useOptimizedFetch } from "@/hooks/useOptimizedFetch";
 import type { Project, Task } from "@/types/database";
+import { PageState } from "@/components/layout/page-state";
 
 interface ProjectResponse {
   success: boolean;
@@ -55,7 +55,7 @@ export default function ProjectDetailPage() {
     {
       cacheKey: `project_${projectId}`,
       cacheExpiry: 2 * 60 * 1000, // 2 minutes
-      onError: (error) => {
+      onError: () => {
         toast({
           title: "Chyba",
           description: "Nepodarilo sa načítať projekt",
@@ -217,18 +217,16 @@ export default function ProjectDetailPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-muted-foreground">Načítavam...</p>
-      </div>
-    );
+    return <PageState variant="loading" title="Načítavam projekt" />;
   }
 
   if (!project) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-muted-foreground">Projekt nebol nájdený</p>
-      </div>
+      <PageState
+        variant="error"
+        title="Projekt nebol nájdený"
+        description="Projekt mohol byť odstránený alebo k nemu nemáte prístup."
+      />
     );
   }
 
@@ -237,18 +235,21 @@ export default function ProjectDetailPage() {
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="page-shell">
       <ProjectHeader project={project} tasks={tasks} onUpdate={handleUpdateSummary} />
 
       {/* Task List */}
       <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold">Úlohy projektu</h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Úlohy projektu</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{tasks.length} {tasks.length === 1 ? "úloha" : "úloh"} v tomto projekte</p>
+          </div>
           <Button onClick={() => {
             setEditingTask(null);
             setIsTaskDialogOpen(true);
           }}>
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="h-4 w-4" />
             Nová úloha
           </Button>
         </div>
@@ -277,18 +278,18 @@ export default function ProjectDetailPage() {
             }}
           />
         ) : (
-          <div className="rounded-md border p-8 text-center">
-            <p className="text-muted-foreground mb-4">
-              Zatiaľ žiadne úlohy v tomto projekte
-            </p>
-            <Button onClick={() => {
-              setEditingTask(null);
-              setIsTaskDialogOpen(true);
-            }}>
-              <Plus className="mr-2 h-4 w-4" />
-              Vytvoriť prvú úlohu
-            </Button>
-          </div>
+          <PageState
+            compact
+            icon={ListChecks}
+            title="Projekt zatiaľ nemá úlohy"
+            description="Vytvorte prvú úlohu a priraďte jej termín alebo riešiteľa."
+            action={
+              <Button size="sm" onClick={() => { setEditingTask(null); setIsTaskDialogOpen(true); }}>
+                <Plus className="h-4 w-4" />
+                Vytvoriť prvú úlohu
+              </Button>
+            }
+          />
         )}
       </div>
 
@@ -311,4 +312,3 @@ export default function ProjectDetailPage() {
     </div>
   );
 }
-

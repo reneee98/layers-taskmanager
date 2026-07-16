@@ -1,15 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, ChevronDown, ArrowDown, ArrowUp, ArrowUpRight, Zap, Flame } from "lucide-react";
+import { Check, ChevronDown, ArrowDown, ArrowUp, ArrowUpRight, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PrioritySelectProps {
@@ -22,30 +20,30 @@ interface PrioritySelectProps {
 const priorityOptions = [
   { 
     value: "low", 
-    label: "Low", 
+    label: "Nízka",
     icon: ArrowDown,
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800 dark:hover:bg-emerald-800/30",
+    color: "border-emerald-500/20 bg-emerald-500/[0.08] text-emerald-700 hover:bg-emerald-500/[0.12] dark:text-emerald-300",
     iconColor: "text-emerald-500"
   },
   { 
     value: "medium", 
-    label: "Medium", 
+    label: "Stredná",
     icon: ArrowUp,
-    color: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800 dark:hover:bg-amber-800/30",
+    color: "border-amber-500/20 bg-amber-500/[0.08] text-amber-700 hover:bg-amber-500/[0.12] dark:text-amber-300",
     iconColor: "text-amber-500"
   },
   { 
     value: "high", 
-    label: "High", 
+    label: "Vysoká",
     icon: ArrowUpRight,
-    color: "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800 dark:hover:bg-orange-800/30",
+    color: "border-orange-500/20 bg-orange-500/[0.08] text-orange-700 hover:bg-orange-500/[0.12] dark:text-orange-300",
     iconColor: "text-orange-500"
   },
   { 
     value: "urgent", 
-    label: "Urgent", 
+    label: "Urgentná",
     icon: Flame,
-    color: "bg-red-50 dark:bg-red-950/30 text-destructive border-red-200 dark:border-red-900/60 hover:bg-red-100 dark:hover:bg-red-900/40 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-800/30",
+    color: "border-red-500/20 bg-red-500/[0.08] text-red-700 hover:bg-red-500/[0.12] dark:text-red-300",
     iconColor: "text-destructive"
   },
 ];
@@ -67,14 +65,18 @@ export function PrioritySelect({ priority, onPriorityChange, disabled = false, s
   return (
     <DropdownMenu open={disabled ? false : isOpen} onOpenChange={disabled ? undefined : setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <div className="h-auto p-0">
-          <div className={cn(
+          <button
+            type="button"
+            disabled={disabled}
+            aria-label={`Priorita: ${currentPriority.label}`}
+            className={cn(
             "flex items-center justify-between border transition-all duration-200",
             isCompact ? "gap-1 px-1.5 py-0.5 h-6 w-fit text-xs rounded-md" : "gap-2 px-[13px] py-px h-[36px] text-[12px] rounded-full shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]",
             "font-medium whitespace-nowrap",
             currentPriority.color,
             disabled ? "cursor-default" : "cursor-pointer hover:opacity-80"
-          )}>
+            )}
+          >
             <div className="flex items-center gap-2">
               <IconComponent className={cn(
                 "flex-shrink-0",
@@ -88,8 +90,7 @@ export function PrioritySelect({ priority, onPriorityChange, disabled = false, s
               "opacity-70 flex-shrink-0",
               isCompact ? "h-2.5 w-2.5" : "h-4 w-4"
             )} />}
-          </div>
-        </div>
+          </button>
       </DropdownMenuTrigger>
       {!disabled && (
         <DropdownMenuContent align="start" className="w-48 p-2">

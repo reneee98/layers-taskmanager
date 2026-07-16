@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { Mail, Pencil, Phone, Plus, Search, Trash2, UsersRound, X } from "lucide-react";
 import { usePermission } from "@/hooks/usePermissions";
 import { useOptimizedFetch } from "@/hooks/useOptimizedFetch";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -26,7 +26,10 @@ const ClientForm = dynamic(() => import("@/components/clients/ClientForm").then(
 });
 import { toast } from "@/hooks/use-toast";
 import type { Client } from "@/types/database";
-import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageState } from "@/components/layout/page-state";
+import { MetricStrip } from "@/components/layout/metric-strip";
+import { DataToolbar } from "@/components/layout/data-toolbar";
 
 interface ClientsResponse {
   success: boolean;
@@ -47,7 +50,7 @@ function ClientsPageContent() {
   const [editingClient, setEditingClient] = useState<Client | undefined>();
 
   // Memoize error handler to avoid recreating on every render
-  const handleError = useCallback((error: Error) => {
+  const handleError = useCallback(() => {
     toast({
       title: "Chyba",
       description: "Nepodarilo sa načítať klientov",
@@ -88,6 +91,15 @@ function ClientsPageContent() {
     );
   }, [searchTerm, clients]);
 
+  const clientsWithEmail = useMemo(
+    () => clients.filter((client) => Boolean(client.email)).length,
+    [clients]
+  );
+  const clientsWithPhone = useMemo(
+    () => clients.filter((client) => Boolean(client.phone)).length,
+    [clients]
+  );
+
   const handleDelete = async (id: string) => {
     if (!confirm("Naozaj chcete odstrániť tohto klienta?")) return;
 
@@ -106,7 +118,7 @@ function ClientsPageContent() {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Chyba",
         description: "Nastala neočakávaná chyba",
@@ -127,57 +139,74 @@ function ClientsPageContent() {
 
   // Check permission - owners and admins have all permissions automatically
   if (!hasFullAccess && isLoadingPermission) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="h-7 w-7 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"></div>
-          <p className="text-sm text-muted-foreground">Kontrolujem oprávnenia...</p>
-        </div>
-      </div>
-    );
+    return <PageState variant="loading" title="Kontrolujem oprávnenia" />;
   }
 
   if (!hasFullAccess && !canViewClients) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="flex flex-col items-center space-y-4 text-center">
-          <AlertTriangle className="h-12 w-12 text-muted-foreground" />
-          <h2 className="text-xl font-semibold text-foreground">Nemáte oprávnenie</h2>
-          <p className="text-muted-foreground max-w-md">
-            Nemáte oprávnenie na zobrazenie klientov. Kontaktujte administrátora workspace.
-          </p>
-        </div>
-      </div>
+      <PageState
+        variant="permission"
+        title="Nemáte prístup ku klientom"
+        description="O prístup môžete požiadať administrátora workspace."
+      />
     );
   }
 
   return (
     <div className="page-shell">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="page-heading">Klienti</h1>
-          <p className="page-description">Spravujte svojich klientov</p>
-        </div>
-        <Button 
+      <PageHeader
+        title="Klienti"
+        description="Kontakty, fakturačné údaje a firmy na jednom mieste."
+        icon={UsersRound}
+        actions={
+          <Button
           onClick={() => setIsFormOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Pridať klienta
-        </Button>
-      </div>
+          >
+            <Plus className="h-4 w-4" />
+            Pridať klienta
+          </Button>
+        }
+      />
 
-      {/* Search */}
-      <div className="flex items-center space-x-2">
-        <Input
-          placeholder="Hľadať klienta..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-      </div>
+      <MetricStrip
+        items={[
+          { label: "Všetci klienti", value: clients.length, icon: UsersRound },
+          { label: "S emailom", value: clientsWithEmail, icon: Mail },
+          { label: "S telefónom", value: clientsWithPhone, icon: Phone },
+        ]}
+      />
 
-      {/* Clients Table */}
+      <DataToolbar>
+        <div className="relative w-full sm:max-w-sm">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            aria-label="Hľadať klienta"
+            placeholder="Hľadať podľa názvu, emailu alebo telefónu"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="h-9 bg-background pl-9 pr-9"
+          />
+          {searchTerm && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Vymazať vyhľadávanie"
+              onClick={() => setSearchTerm("")}
+              className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+        <p className="shrink-0 px-1 text-xs tabular-nums text-muted-foreground">
+          {searchTerm ? `${filteredClients.length} z ${clients.length}` : `${clients.length} klientov`}
+        </p>
+      </DataToolbar>
+
       <div className="surface-panel overflow-hidden">
         <Table>
           <TableHeader>
@@ -186,52 +215,104 @@ function ClientsPageContent() {
               <TableHead>Email</TableHead>
               <TableHead>Telefón</TableHead>
               <TableHead>IČO/DIČ</TableHead>
-              <TableHead className="w-[100px]">Akcie</TableHead>
+              <TableHead className="w-[92px] text-right">Akcie</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                  Načítavam...
+                <TableCell colSpan={5} className="p-0">
+                  <PageState
+                    compact
+                    variant="loading"
+                    title="Načítavam klientov"
+                    className="rounded-none border-0"
+                  />
                 </TableCell>
               </TableRow>
             ) : filteredClients.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-                      <Plus className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                    <p className="text-lg font-medium">Žiadni klienti</p>
-                    <p className="text-sm">Začnite pridaním nového klienta</p>
-                  </div>
+                <TableCell colSpan={5} className="p-0">
+                  <PageState
+                    compact
+                    title={searchTerm ? "Nenašli sa žiadni klienti" : "Zatiaľ tu nie sú klienti"}
+                    description={
+                      searchTerm
+                        ? "Skúste upraviť vyhľadávanie."
+                        : "Pridajte prvého klienta a začnite k nemu priraďovať projekty."
+                    }
+                    icon={UsersRound}
+                    action={
+                      searchTerm ? (
+                        <Button variant="outline" size="sm" onClick={() => setSearchTerm("")}>
+                          Zrušiť filter
+                        </Button>
+                      ) : (
+                        <Button size="sm" onClick={() => setIsFormOpen(true)}>
+                          <Plus className="h-4 w-4" />
+                          Pridať klienta
+                        </Button>
+                      )
+                    }
+                    className="rounded-none border-0"
+                  />
                 </TableCell>
               </TableRow>
             ) : (
               filteredClients.map((client) => (
-                <TableRow key={client.id} className="hover:bg-muted transition-colors">
-                  <TableCell className="font-medium text-foreground">{client.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{client.email || "-"}</TableCell>
-                  <TableCell className="text-muted-foreground">{client.phone || "-"}</TableCell>
-                  <TableCell className="text-muted-foreground">{client.tax_id || "-"}</TableCell>
+                <TableRow key={client.id} className="group hover:bg-muted/25">
                   <TableCell>
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/45 text-[11px] font-semibold text-muted-foreground">
+                        {client.name
+                          .split(" ")
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((part) => part[0])
+                          .join("")
+                          .toUpperCase()}
+                      </span>
+                      <span className="truncate font-medium text-foreground">{client.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {client.email ? (
+                      <a className="text-muted-foreground hover:text-foreground" href={`mailto:${client.email}`}>
+                        {client.email}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground/60">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {client.phone ? (
+                      <a className="text-muted-foreground hover:text-foreground" href={`tel:${client.phone}`}>
+                        {client.phone}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground/60">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{client.tax_id || "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
+                        aria-label={`Upraviť klienta ${client.name}`}
                         onClick={() => handleEdit(client)}
-                        className="h-8 w-8 hover:bg-muted"
+                        className="h-8 w-8"
                       >
-                        <Pencil className="h-4 w-4 text-muted-foreground" />
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
+                        aria-label={`Odstrániť klienta ${client.name}`}
                         onClick={() => handleDelete(client.id)}
-                        className="h-8 w-8 hover:bg-red-50"
+                        className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       >
-                        <Trash2 className="h-4 w-4 text-red-600" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </TableCell>

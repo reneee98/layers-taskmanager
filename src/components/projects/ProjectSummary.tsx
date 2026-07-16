@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatHours } from "@/lib/format";
-import type { Project } from "@/types/database";
 import { usePermission } from "@/hooks/usePermissions";
 import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
 import { getEuroEquivalentLabel, normalizeCurrency } from "@/lib/currency";
 import { useUsdExchangeRate } from "@/hooks/useUsdExchangeRate";
+import { CheckCircle2, Clock3, CircleDollarSign, ReceiptText } from "lucide-react";
+import { MetricStrip, type MetricStripItem } from "@/components/layout/metric-strip";
 
 interface ProjectSummaryData {
   totalTasks: number;
@@ -69,16 +68,15 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-4">
         {[...Array(4)].map((_, i) => (
-          <Card key={i}>
-            <CardHeader className="pb-2">
-              <div className="h-4 bg-muted animate-pulse rounded" />
-            </CardHeader>
-            <CardContent>
-              <div className="h-8 bg-muted animate-pulse rounded" />
-            </CardContent>
-          </Card>
+          <div key={i} className="flex items-center gap-3 border-b border-r border-border px-4 py-4 lg:border-b-0">
+            <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
+            <div className="space-y-2">
+              <div className="h-4 w-16 animate-pulse rounded bg-muted" />
+              <div className="h-2.5 w-24 animate-pulse rounded bg-muted" />
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -89,90 +87,44 @@ export const ProjectSummary = ({ projectId, onUpdate }: ProjectSummaryProps) => 
   }
 
   const completionRate = summary.totalTasks > 0 ? (summary.completedTasks / summary.totalTasks) * 100 : 0;
+  const items: MetricStripItem[] = [
+    {
+      label: "Dokončené úlohy",
+      value: `${summary.completedTasks}/${summary.totalTasks}`,
+      description: `${completionRate.toFixed(0)} % projektu`,
+      icon: CheckCircle2,
+    },
+    {
+      label: "Odpracovaný čas",
+      value: formatHours(summary.totalHours),
+      description: "Celkovo na projekte",
+      icon: Clock3,
+    },
+  ];
+
+  if (canViewCosts) {
+    items.push({
+      label: "Náklady",
+      value: formatMoney(summary.totalCost),
+      description: euroEquivalent(summary.totalCost) || "Externé a interné náklady",
+      icon: CircleDollarSign,
+    });
+  }
+
+  if (canViewPrices) {
+    items.push({
+      label: "Na fakturáciu",
+      value: formatMoney(summary.totalBudget || 0),
+      description: euroEquivalent(summary.totalBudget || 0) || "Hodnota projektu",
+      icon: ReceiptText,
+      tone: "text-emerald-600 dark:text-emerald-400",
+    });
+  }
 
   return (
     <div className="space-y-3">
       <ExchangeRateNotice currency={currency} />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Úlohy */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Úlohy
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {summary.completedTasks}/{summary.totalTasks}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {completionRate.toFixed(0)}% dokončené
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Hodiny */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Hodiny
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {formatHours(summary.totalHours)}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Celkovo odpracované
-          </p>
-        </CardContent>
-      </Card>
-
-
-      {/* Náklady */}
-      {canViewCosts && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Náklady
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatMoney(summary.totalCost)}
-            </div>
-            {euroEquivalent(summary.totalCost) && (
-              <p className="text-xs text-muted-foreground">{euroEquivalent(summary.totalCost)}</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Externé náklady
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Spolu k fakturácií */}
-      {canViewPrices && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Spolu k fakturácií
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatMoney(summary.totalBudget || 0)}
-            </div>
-            {euroEquivalent(summary.totalBudget || 0) && (
-              <p className="text-xs text-muted-foreground">{euroEquivalent(summary.totalBudget || 0)}</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Suma na vyfakturovanie
-            </p>
-          </CardContent>
-        </Card>
-      )}
-      </div>
+      <MetricStrip items={items} />
     </div>
   );
 };

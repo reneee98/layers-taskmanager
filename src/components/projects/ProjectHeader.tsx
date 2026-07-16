@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { normalizeCurrency } from "@/lib/currency";
 import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
+import { FolderKanban } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
 
 // Lazy load components
 const ProjectSummary = dynamic(() => import("./ProjectSummary").then(mod => ({ default: mod.ProjectSummary })), {
@@ -30,11 +32,19 @@ export const ProjectHeader = ({ project, tasks, onUpdate }: ProjectHeaderProps) 
     (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
     !project.code;
   const projectColor = resolveProjectColor(project);
+  const statusLabels: Record<string, string> = {
+    draft: "Návrh",
+    active: "Aktívny",
+    on_hold: "Pozastavený",
+    sent_to_client: "U klienta",
+    completed: "Dokončený",
+    cancelled: "Zrušený",
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div
-        className="flex items-start justify-between rounded-xl border border-border px-4 py-3"
+        className="surface-panel p-4 sm:p-5"
         style={
           projectColor
             ? {
@@ -48,39 +58,41 @@ export const ProjectHeader = ({ project, tasks, onUpdate }: ProjectHeaderProps) 
             : undefined
         }
       >
-        <div>
-          <div className="flex items-center gap-3">
-            <span
-              aria-hidden="true"
-              className="h-3 w-3 shrink-0 rounded-full opacity-75 ring-2 ring-background"
-              style={{ backgroundColor: projectColor || undefined }}
-            />
-            <h1 className="text-3xl font-bold">{project.name}</h1>
-            {!isPersonalProject && project.code && (
-              <span className="font-mono text-sm text-muted-foreground">{project.code}</span>
-            )}
-            <Badge variant="outline">{normalizeCurrency(project.currency)}</Badge>
-          </div>
-          {project.description && (
-            <p className="mt-2 text-muted-foreground">{project.description}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <ProjectReportGenerator project={project} tasks={tasks} />
-        </div>
+        <PageHeader
+          title={project.name}
+          description={
+            project.description ||
+            (!isPersonalProject
+              ? "Prehľad úloh, času a rozpočtu projektu."
+              : "Vaše osobné úlohy mimo klientskych projektov.")
+          }
+          eyebrow={!isPersonalProject ? project.client?.name || "Projekt bez klienta" : "Osobný projekt"}
+          icon={FolderKanban}
+          meta={
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="h-2.5 w-2.5 shrink-0 rounded-full opacity-75 ring-1 ring-black/5"
+                style={{ backgroundColor: projectColor || undefined }}
+              />
+              {!isPersonalProject && project.code && (
+                <Badge variant="outline" className="font-mono text-[10px] font-medium">
+                  {project.code}
+                </Badge>
+              )}
+              <Badge variant="secondary" className="text-[10px] font-medium">
+                {statusLabels[project.status] || project.status}
+              </Badge>
+              <Badge variant="outline" className="text-[10px] font-medium">
+                {normalizeCurrency(project.currency)}
+              </Badge>
+            </div>
+          }
+          actions={<ProjectReportGenerator project={project} tasks={tasks} />}
+        />
       </div>
 
-      {!isPersonalProject && (
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Klient:</span>
-          <span className="font-medium">{project.client?.name || 'Bez klienta'}</span>
-        </div>
-      </div>
-      )}
-
-          {/* Project Summary */}
-          <ProjectSummary projectId={project.id} onUpdate={onUpdate} />
+      <ProjectSummary projectId={project.id} onUpdate={onUpdate} />
     </div>
   );
 };

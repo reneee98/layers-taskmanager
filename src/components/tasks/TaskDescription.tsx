@@ -69,7 +69,7 @@ const DEBOUNCE_MS = 700;
 
 export const TaskDescription = ({ taskId, initialDescription = "", onStatusChange }: TaskDescriptionProps) => {
   const [status, setStatus] = useState<SaveStatus>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const supabase = createClient();
   const draftKey = `${DRAFT_KEY_PREFIX}${taskId}`;
   const isInitialMount = useRef(true);
@@ -381,11 +381,13 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
       <style jsx global>{`
         .ProseMirror {
           outline: none;
+          min-width: 0;
           border: 1px solid hsl(var(--input));
           background-color: hsl(var(--background));
           border-radius: calc(var(--radius) - 2px);
           min-height: 150px;
           padding: 0.75rem;
+          overflow-wrap: anywhere;
           transition: border-color 0.2s, box-shadow 0.2s;
         }
         .ProseMirror:focus {
@@ -454,6 +456,8 @@ export const TaskDescription = ({ taskId, initialDescription = "", onStatusChang
           color: hsl(var(--primary));
           text-decoration: underline;
           cursor: pointer;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
         .ProseMirror a:hover {
           color: hsl(var(--primary/80));

@@ -7,9 +7,8 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Save } from "lucide-react";
+import { Building2, Loader2, Save, UserRound } from "lucide-react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -34,8 +33,6 @@ export function PersonalSettings() {
   const {
     register,
     handleSubmit,
-    setValue,
-    watch,
     reset,
     formState: { errors, isDirty },
   } = useForm<PersonalSettingsInput>({
@@ -140,142 +137,82 @@ export function PersonalSettings() {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Osobné informácie</CardTitle>
-          <CardDescription>
-            Spravujte svoje osobné údaje a údaje o firme
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Workspace Name */}
-            <div className="space-y-2">
-              <Label htmlFor="workspace_name">Názov workspace</Label>
-              <Input
-                id="workspace_name"
-                {...register("workspace_name")}
-                placeholder="Názov vášho workspace"
-              />
-              {errors.workspace_name && (
-                <p className="text-sm text-destructive">{errors.workspace_name.message}</p>
-              )}
-            </div>
+    <form onSubmit={handleSubmit(onSubmit)} className="surface-panel overflow-hidden">
+      <section className="grid border-b border-border lg:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="border-b border-border bg-muted/[0.16] px-5 py-5 lg:border-b-0 lg:border-r">
+          <div className="flex items-center gap-2">
+            <UserRound className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Profil a workspace</h2>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            Údaje používané pri priradeniach, reportoch a v navigácii.
+          </p>
+        </div>
+        <div className="grid gap-4 p-5 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="workspace_name">Názov workspace</Label>
+            <Input id="workspace_name" {...register("workspace_name")} placeholder="Názov workspace" />
+            {errors.workspace_name && <p className="text-xs text-destructive">{errors.workspace_name.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="first_name">Meno</Label>
+            <Input id="first_name" {...register("first_name")} placeholder="Vaše meno" />
+            {errors.first_name && <p className="text-xs text-destructive">{errors.first_name.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="last_name">Priezvisko</Label>
+            <Input id="last_name" {...register("last_name")} placeholder="Vaše priezvisko" />
+            {errors.last_name && <p className="text-xs text-destructive">{errors.last_name.message}</p>}
+          </div>
+        </div>
+      </section>
 
-            {/* First Name */}
-            <div className="space-y-2">
-              <Label htmlFor="first_name">Meno</Label>
-              <Input
-                id="first_name"
-                {...register("first_name")}
-                placeholder="Vaše meno"
-              />
-              {errors.first_name && (
-                <p className="text-sm text-destructive">{errors.first_name.message}</p>
-              )}
-            </div>
+      <section className="grid lg:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="border-b border-border bg-muted/[0.16] px-5 py-5 lg:border-b-0 lg:border-r">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Firemné údaje</h2>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            Voliteľné kontaktné a fakturačné informácie vašej spoločnosti.
+          </p>
+        </div>
+        <div className="grid gap-4 p-5 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="company_name">Názov firmy</Label>
+            <Input id="company_name" {...register("company_name")} placeholder="Názov firmy" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="company_tax_id">IČO/DIČ</Label>
+            <Input id="company_tax_id" {...register("company_tax_id")} placeholder="IČO alebo DIČ" />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="company_address">Adresa firmy</Label>
+            <Input id="company_address" {...register("company_address")} placeholder="Ulica, mesto a PSČ" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="company_phone">Telefón</Label>
+            <Input id="company_phone" {...register("company_phone")} placeholder="Telefón firmy" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="company_email">Email firmy</Label>
+            <Input id="company_email" type="email" {...register("company_email")} placeholder="Email firmy" />
+            {errors.company_email && <p className="text-xs text-destructive">{errors.company_email.message}</p>}
+          </div>
+        </div>
+      </section>
 
-            {/* Last Name */}
-            <div className="space-y-2">
-              <Label htmlFor="last_name">Priezvisko</Label>
-              <Input
-                id="last_name"
-                {...register("last_name")}
-                placeholder="Vaše priezvisko"
-              />
-              {errors.last_name && (
-                <p className="text-sm text-destructive">{errors.last_name.message}</p>
-              )}
-            </div>
-
-            {/* Company Section */}
-            <div className="space-y-4 pt-4 border-t">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Údaje o firme</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Voliteľné údaje o vašej firme/spoločnosti
-                </p>
-              </div>
-
-              {/* Company Name */}
-              <div className="space-y-2">
-                <Label htmlFor="company_name">Názov firmy</Label>
-                <Input
-                  id="company_name"
-                  {...register("company_name")}
-                  placeholder="Názov firmy/spoločnosti"
-                />
-                {errors.company_name && (
-                  <p className="text-sm text-destructive">{errors.company_name.message}</p>
-                )}
-              </div>
-
-              {/* Company Tax ID */}
-              <div className="space-y-2">
-                <Label htmlFor="company_tax_id">IČO/DIČ</Label>
-                <Input
-                  id="company_tax_id"
-                  {...register("company_tax_id")}
-                  placeholder="IČO/DIČ firmy"
-                />
-                {errors.company_tax_id && (
-                  <p className="text-sm text-destructive">{errors.company_tax_id.message}</p>
-                )}
-              </div>
-
-              {/* Company Address */}
-              <div className="space-y-2">
-                <Label htmlFor="company_address">Adresa firmy</Label>
-                <Input
-                  id="company_address"
-                  {...register("company_address")}
-                  placeholder="Adresa firmy"
-                />
-                {errors.company_address && (
-                  <p className="text-sm text-destructive">{errors.company_address.message}</p>
-                )}
-              </div>
-
-              {/* Company Phone */}
-              <div className="space-y-2">
-                <Label htmlFor="company_phone">Telefón</Label>
-                <Input
-                  id="company_phone"
-                  {...register("company_phone")}
-                  placeholder="Telefón firmy"
-                />
-                {errors.company_phone && (
-                  <p className="text-sm text-destructive">{errors.company_phone.message}</p>
-                )}
-              </div>
-
-              {/* Company Email */}
-              <div className="space-y-2">
-                <Label htmlFor="company_email">Email firmy</Label>
-                <Input
-                  id="company_email"
-                  type="email"
-                  {...register("company_email")}
-                  placeholder="Email firmy"
-                />
-                {errors.company_email && (
-                  <p className="text-sm text-destructive">{errors.company_email.message}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-4">
+      <div className="flex flex-col gap-3 border-t border-border bg-muted/[0.12] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-muted-foreground">
+          {isDirty ? "Máte neuložené zmeny." : "Všetky zmeny sú uložené."}
+        </p>
+        <div className="flex justify-end">
               <Button type="submit" disabled={!isDirty || saving}>
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                <Save className="mr-2 h-4 w-4" />
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 {saving ? "Ukladám..." : "Uložiť nastavenia"}
               </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>
+    </form>
   );
 }
-

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/admin";
 import { WorkspaceMembers } from "@/components/workspace/WorkspaceMembers";
+import { UsersRound } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
 
 interface PageProps {
   params: {
@@ -42,15 +44,15 @@ export default async function WorkspaceMembersPage({ params }: PageProps) {
   }
   
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Správa členov</h1>
-        <p className="text-muted-foreground mt-2">
-          Spravujte členov vášho workspace
-        </p>
-      </div>
-      
-      <WorkspaceMembers workspaceId={params.workspaceId} />
+    <div className="page-shell">
+      <PageHeader
+        title="Členovia workspace"
+        description="Pozvánky, členstvo a základné roly tímu."
+        icon={UsersRound}
+      />
+      <section className="surface-panel p-5">
+        <WorkspaceMembers workspaceId={params.workspaceId} />
+      </section>
     </div>
   );
 }

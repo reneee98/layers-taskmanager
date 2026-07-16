@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +40,7 @@ import {
 interface TaskDialogProps {
   projectId?: string | null; // Optional - if null, task will be created without project
   task?: Task | null;
+  initialDueDate?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
@@ -48,6 +49,7 @@ interface TaskDialogProps {
 export function TaskDialog({
   projectId,
   task,
+  initialDueDate = null,
   open,
   onOpenChange,
   onSuccess,
@@ -66,20 +68,20 @@ export function TaskDialog({
   const [startDate, setStartDate] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId || null);
   const [projects, setProjects] = useState<Project[]>([]);
-  
+
   // Get workspace users from context
   const { users: contextUsers } = useWorkspaceUsers();
   const workspaceUsers = useMemo(() => {
     return contextUsers
-      .filter(wu => wu.profiles)
-      .map(wu => ({
+      .filter((wu) => wu.profiles)
+      .map((wu) => ({
         id: wu.profiles.id,
         display_name: wu.profiles.display_name,
         email: wu.profiles.email,
         role: wu.role,
       }));
   }, [contextUsers]);
-  
+
   // Reset selectedProjectId when projectId prop changes
   useEffect(() => {
     if (open && !task) {
@@ -88,7 +90,26 @@ export function TaskDialog({
   }, [projectId, open, task]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [isBudgetAutoCalculated, setIsBudgetAutoCalculated] = useState(false);
-  const [userSettings, setUserSettings] = useState<{ default_hourly_rate?: number | null } | null>(null);
+  const [userSettings, setUserSettings] = useState<{ default_hourly_rate?: number | null } | null>(
+    null
+  );
+
+  const resetForm = useCallback(() => {
+    setTitle("");
+    setDescription("");
+    setStatus("todo");
+    setPriority("medium");
+    setTaskColor(null);
+    setEstimatedHours("");
+    setBudgetAmount("");
+    setHourlyRate("");
+    setCurrency("EUR");
+    setDueDate(initialDueDate);
+    setStartDate(initialDueDate);
+    setSelectedProjectId(projectId || null);
+    setSelectedAssignees([]);
+    setIsBudgetAutoCalculated(false);
+  }, [initialDueDate, projectId]);
 
   useEffect(() => {
     if (task) {
@@ -110,7 +131,7 @@ export function TaskDialog({
     } else {
       resetForm();
     }
-  }, [task, open]);
+  }, [task, open, resetForm]);
 
   useEffect(() => {
     // Fetch projects and user settings when dialog is open (workspace users come from context)
@@ -138,7 +159,7 @@ export function TaskDialog({
           console.error("Failed to fetch user settings:", error);
         }
       };
-      
+
       fetchProjects();
       fetchUserSettings();
     }
@@ -150,14 +171,14 @@ export function TaskDialog({
       const hours = parseFloat(estimatedHours);
       if (hours > 0 && !isNaN(hours)) {
         let hourlyRateValue: number | null = null;
-        
+
         // Priority 1: Task hourly rate (for tasks without project)
         if (!selectedProjectId && hourlyRate && hourlyRate.trim() !== "") {
           hourlyRateValue = parseFloat(hourlyRate);
         }
         // Priority 2: Project hourly rate
         else if (selectedProjectId) {
-          const project = projects.find(p => p.id === selectedProjectId);
+          const project = projects.find((p) => p.id === selectedProjectId);
           if (project?.hourly_rate_cents) {
             hourlyRateValue = project.hourly_rate_cents / 100;
           }
@@ -166,10 +187,10 @@ export function TaskDialog({
         else if (!selectedProjectId && userSettings?.default_hourly_rate != null) {
           hourlyRateValue = userSettings.default_hourly_rate;
         }
-        
+
         if (hourlyRateValue && hourlyRateValue > 0) {
           const calculatedBudget = hours * hourlyRateValue;
-          
+
           // Only auto-calculate if:
           // 1. It's a new task (no task), OR
           // 2. It's an existing task but budget was previously auto-calculated
@@ -196,25 +217,16 @@ export function TaskDialog({
         setIsBudgetAutoCalculated(false);
       }
     }
-  }, [estimatedHours, selectedProjectId, projects, hourlyRate, userSettings, task, isBudgetAutoCalculated]);
+  }, [
+    estimatedHours,
+    selectedProjectId,
+    projects,
+    hourlyRate,
+    userSettings,
+    task,
+    isBudgetAutoCalculated,
+  ]);
 
-  const resetForm = () => {
-    setTitle("");
-    setDescription("");
-    setStatus("todo");
-    setPriority("medium");
-    setTaskColor(null);
-    setEstimatedHours("");
-    setBudgetAmount("");
-    setHourlyRate("");
-    setCurrency("EUR");
-    setDueDate(null);
-    setStartDate(null);
-    setSelectedProjectId(projectId || null);
-    setSelectedAssignees([]);
-    setIsBudgetAutoCalculated(false);
-  };
-  
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -222,17 +234,17 @@ export function TaskDialog({
       .join("")
       .toUpperCase();
   };
-  
+
   const handleAssigneeToggle = (userId: string) => {
     if (selectedAssignees.includes(userId)) {
-      setSelectedAssignees(selectedAssignees.filter(id => id !== userId));
+      setSelectedAssignees(selectedAssignees.filter((id) => id !== userId));
     } else {
       setSelectedAssignees([...selectedAssignees, userId]);
     }
   };
-  
+
   const handleRemoveAssignee = (userId: string) => {
-    setSelectedAssignees(selectedAssignees.filter(id => id !== userId));
+    setSelectedAssignees(selectedAssignees.filter((id) => id !== userId));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -303,7 +315,7 @@ export function TaskDialog({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ assigneeIds: selectedAssignees }),
             });
-            
+
             const assigneeResult = await assigneeResponse.json();
             if (!assigneeResult.success) {
               console.error("Failed to assign users to task:", assigneeResult.error);
@@ -313,7 +325,7 @@ export function TaskDialog({
             // Don't fail the entire operation if assignment fails
           }
         }
-        
+
         toast({
           title: "Úspech",
           description: task ? "Úloha bola aktualizovaná" : "Úloha bola vytvorená",
@@ -345,8 +357,8 @@ export function TaskDialog({
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="project">Projekt</Label>
-              <Select 
-                value={selectedProjectId || "none"} 
+              <Select
+                value={selectedProjectId || "none"}
                 onValueChange={(val) => setSelectedProjectId(val === "none" ? null : val)}
               >
                 <SelectTrigger>
@@ -417,16 +429,16 @@ export function TaskDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <StatusSelect 
-                  status={status} 
+                <StatusSelect
+                  status={status}
                   onStatusChange={(val) => setStatus(val as Task["status"])}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="priority">Priorita</Label>
-                <PrioritySelect 
-                  priority={priority} 
+                <PrioritySelect
+                  priority={priority}
                   onPriorityChange={(val) => setPriority(val as Task["priority"])}
                 />
               </div>
@@ -516,9 +528,7 @@ export function TaskDialog({
                     onChange={(e) => setHourlyRate(e.target.value)}
                     placeholder="0.00"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Hodinová sadzba pre túto úlohu
-                  </p>
+                  <p className="text-xs text-muted-foreground">Hodinová sadzba pre túto úlohu</p>
                 </div>
               )}
             </div>
@@ -538,7 +548,9 @@ export function TaskDialog({
                 placeholder="0.00"
               />
               <p className="text-xs text-muted-foreground">
-                {isBudgetAutoCalculated ? "Automaticky vypočítané z odhadu hodín" : "Nechajte prázdne pre kalkuláciu z hodín"}
+                {isBudgetAutoCalculated
+                  ? "Automaticky vypočítané z odhadu hodín"
+                  : "Nechajte prázdne pre kalkuláciu z hodín"}
               </p>
             </div>
 
@@ -547,7 +559,7 @@ export function TaskDialog({
                 <Label>Priradiť používateľov</Label>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {selectedAssignees.map((userId) => {
-                    const user = workspaceUsers.find(u => u.id === userId);
+                    const user = workspaceUsers.find((u) => u.id === userId);
                     if (!user) return null;
                     return (
                       <Badge
@@ -585,7 +597,7 @@ export function TaskDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {workspaceUsers
-                      .filter(user => !selectedAssignees.includes(user.id))
+                      .filter((user) => !selectedAssignees.includes(user.id))
                       .map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           <div className="flex items-center gap-2">

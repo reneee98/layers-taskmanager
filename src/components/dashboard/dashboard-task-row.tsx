@@ -1,26 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { format, isToday, parseISO, startOfDay } from "date-fns";
-import { sk } from "date-fns/locale";
-import {
-  AlertCircle,
-  ArrowRight,
-  CalendarDays,
-  Circle,
-  Clock3,
-  Loader2,
-  Play,
-  Plus,
-  Square,
-  X,
-} from "lucide-react";
+import { ArrowRight, Banknote, Circle, Clock3, Loader2, Play, Plus, Square, X } from "lucide-react";
 import Link from "next/link";
 
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,10 +15,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 import { useTimer } from "@/contexts/TimerContext";
-import { formatHours } from "@/lib/format";
+import { normalizeCurrency } from "@/lib/currency";
+import { formatCurrency, formatHours } from "@/lib/format";
 import { cn, stripHtml } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -41,9 +27,12 @@ export interface DashboardTaskItem {
   title: string;
   status: string;
   priority: string;
+  start_date: string | null;
   due_date: string | null;
   estimated_hours: number | null;
   actual_hours: number | null;
+  budget_cents: number | null;
+  currency?: string | null;
   project_id: string | null;
   assignees?: Array<{
     id: string;
@@ -58,6 +47,7 @@ export interface DashboardTaskItem {
     id: string;
     name: string;
     code: string;
+    currency?: string | null;
     client?: {
       id?: string;
       name: string;
@@ -68,24 +58,26 @@ export interface DashboardTaskItem {
 export interface DashboardTaskUpdate {
   status?: string;
   priority?: string;
+  start_date?: string | null;
   due_date?: string | null;
 }
 
 interface DashboardTaskRowProps {
   task: DashboardTaskItem;
   canUpdate: boolean;
+  canViewPrices?: boolean;
   showProject?: boolean;
   onUpdate: (taskId: string, updates: DashboardTaskUpdate) => Promise<void>;
   onTimeTracked?: (taskId: string, hours: number) => void;
 }
 
-interface DashboardDueDateControlProps {
+interface DashboardDateRangeControlProps {
+  startDate: string | null;
   dueDate: string | null;
   disabled: boolean;
   taskTitle: string;
-  /* Closed tasks (done/cancelled) don't highlight overdue deadlines */
   muted?: boolean;
-  onChange: (dueDate: string | null) => Promise<void>;
+  onChange: (startDate: string | null, dueDate: string | null) => Promise<void>;
 }
 
 const priorityLabels: Record<string, string> = {
@@ -133,34 +125,6 @@ const getInitials = (name: string) =>
     .join("")
     .toUpperCase()
     .slice(0, 2);
-
-const getDeadline = (dueDate: string | null) => {
-  if (!dueDate) {
-    return null;
-  }
-
-  const date = parseISO(dueDate);
-  const today = startOfDay(new Date());
-  const dueDay = startOfDay(date);
-  const days = Math.round((dueDay.getTime() - today.getTime()) / 86_400_000);
-
-  if (days < 0) {
-    return { label: `${Math.abs(days)} d po termíne`, urgent: true };
-  }
-
-  if (isToday(date)) {
-    return { label: "Dnes", urgent: true };
-  }
-
-  if (days === 1) {
-    return { label: "Zajtra", urgent: false };
-  }
-
-  return {
-    label: format(date, days <= 7 ? "EEE d. MMM" : "d. MMM", { locale: sk }),
-    urgent: false,
-  };
-};
 
 const formatTimerDuration = (totalSeconds: number) => {
   const hours = Math.floor(totalSeconds / 3600);
@@ -323,87 +287,44 @@ const DashboardAssigneeControl = ({ task, disabled }: DashboardAssigneeControlPr
   );
 };
 
-const DashboardDueDateControl = ({
+const DashboardDateRangeControl = ({
+  startDate,
   dueDate,
   disabled,
   taskTitle,
   muted = false,
   onChange,
-}: DashboardDueDateControlProps) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const rawDeadline = getDeadline(dueDate);
-  const deadline = rawDeadline && muted ? { ...rawDeadline, urgent: false } : rawDeadline;
-  const selectedDate = dueDate ? parseISO(dueDate) : undefined;
-
-  const handleChange = async (date: Date | undefined) => {
-    const nextDueDate = date ? format(date, "yyyy-MM-dd") : null;
-    if (nextDueDate === dueDate) return;
-
-    setIsSaving(true);
-    try {
-      await onChange(nextDueDate);
-    } finally {
-      setIsSaving(false);
-      setIsOpen(false);
-    }
-  };
-
+}: DashboardDateRangeControlProps) => {
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled || isSaving}
-          aria-label={
-            dueDate ? `Zmeniť termín úlohy ${taskTitle}` : `Nastaviť termín úlohy ${taskTitle}`
-          }
-          className={cn(
-            "inline-flex h-11 w-[72px] shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent bg-muted/55 px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:h-8",
-            deadline?.urgent &&
-              "bg-rose-500/[0.08] text-rose-600 hover:bg-rose-500/[0.13] dark:text-rose-400"
-          )}
-        >
-          {isSaving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : deadline?.urgent ? (
-            <AlertCircle className="h-3.5 w-3.5" />
-          ) : (
-            <CalendarDays className="h-3.5 w-3.5" />
-          )}
-          <span>{dueDate ? format(parseISO(dueDate), "d.M.") : "Termín"}</span>
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="end">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          defaultMonth={selectedDate}
-          onSelect={handleChange}
-          initialFocus
-          disabled={(date) => date < new Date("1900-01-01")}
-        />
-        {dueDate && (
-          <div className="border-t border-border p-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="w-full text-muted-foreground"
-              onClick={() => handleChange(undefined)}
-            >
-              Odstrániť termín
-            </Button>
-          </div>
+    <div
+      title={
+        startDate || dueDate
+          ? `Termín úlohy ${taskTitle}: ${startDate || "?"} – ${dueDate || "?"}`
+          : `Nastaviť termín od – do pre úlohu ${taskTitle}`
+      }
+    >
+      <DateRangePicker
+        startDate={startDate}
+        endDate={dueDate}
+        disabled={disabled}
+        placeholder="Termín"
+        className={cn(
+          "h-11 w-[112px] justify-center rounded-md border-transparent bg-muted/55 px-2 shadow-none sm:h-8",
+          muted && "opacity-70"
         )}
-      </PopoverContent>
-    </Popover>
+        onSave={async (nextStartDate, nextDueDate) => {
+          const normalizedDueDate = nextDueDate || nextStartDate;
+          await onChange(nextStartDate, normalizedDueDate);
+        }}
+      />
+    </div>
   );
 };
 
 export const DashboardTaskRow = ({
   task,
   canUpdate,
+  canViewPrices = false,
   showProject = true,
   onUpdate,
   onTimeTracked,
@@ -420,6 +341,9 @@ export const DashboardTaskRow = ({
   const estimatedHours = Math.max(task.estimated_hours || 0, 0);
   const remainingHours = Math.max(estimatedHours - actualHours, 0);
   const exceededHours = Math.max(actualHours - estimatedHours, 0);
+  const budgetAmount = Math.max(task.budget_cents || 0, 0) / 100;
+  const hasVisibleBudget = canViewPrices && budgetAmount > 0;
+  const taskCurrency = normalizeCurrency(task.currency || task.project?.currency);
   const timeProgress = estimatedHours > 0 ? Math.min((actualHours / estimatedHours) * 100, 100) : 0;
   const timeStatusLabel =
     estimatedHours === 0
@@ -517,14 +441,24 @@ export const DashboardTaskRow = ({
           </span>
           <span className="inline-flex items-center gap-1 lg:hidden">
             <Clock3 className="h-3 w-3" />
-            <span className="font-medium text-foreground">{formatHours(actualHours)}</span>
-            {estimatedHours > 0 && <span>/ {formatHours(estimatedHours)}</span>}
-            <span>· {timeStatusLabel}</span>
+            <span
+              className={cn("font-medium text-foreground", exceededHours > 0 && "text-destructive")}
+            >
+              {timeStatusLabel}
+            </span>
           </span>
+          {hasVisibleBudget && (
+            <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 lg:hidden">
+              <Banknote className="h-3 w-3" />
+              <span className="font-semibold tabular-nums">
+                {formatCurrency(budgetAmount, taskCurrency)}
+              </span>
+            </span>
+          )}
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-nowrap items-center gap-1.5 lg:grid lg:flex-none lg:grid-cols-[144px_72px_128px_76px_32px_32px] lg:gap-2">
+      <div className="flex min-w-0 flex-nowrap items-center gap-1.5 lg:grid lg:flex-none lg:grid-cols-[144px_112px_128px_76px_32px_32px] lg:gap-2">
         <StatusSelect
           status={
             task.status as
@@ -540,19 +474,22 @@ export const DashboardTaskRow = ({
           size="dashboard"
         />
 
-        <DashboardDueDateControl
+        <DashboardDateRangeControl
+          startDate={task.start_date}
           dueDate={task.due_date}
           disabled={!canUpdate}
           taskTitle={taskTitle}
           muted={task.status === "done" || task.status === "cancelled"}
-          onChange={(dueDate) => onUpdate(task.id, { due_date: dueDate })}
+          onChange={(startDate, dueDate) =>
+            onUpdate(task.id, { start_date: startDate, due_date: dueDate })
+          }
         />
 
         <div
           className="hidden w-32 shrink-0 flex-col gap-0.5 lg:flex"
-          title={`Odpracované ${formatHours(actualHours)}, odhad ${
-            estimatedHours > 0 ? formatHours(estimatedHours) : "nie je nastavený"
-          }, ${timeStatusLabel}`}
+          title={`${timeStatusLabel}${
+            hasVisibleBudget ? `, cena úlohy ${formatCurrency(budgetAmount, taskCurrency)}` : ""
+          }`}
         >
           <div className="flex items-center gap-1 whitespace-nowrap text-[10px]">
             <Clock3
@@ -561,47 +498,60 @@ export const DashboardTaskRow = ({
                 isTimerActive ? "text-emerald-500" : "text-muted-foreground"
               )}
             />
-            <span className="font-semibold tabular-nums text-foreground">
-              {formatHours(actualHours)}
-            </span>
-            <span className="text-muted-foreground">
-              / {estimatedHours > 0 ? formatHours(estimatedHours) : "bez odhadu"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {estimatedHours > 0 && (
-              <div
-                role="progressbar"
-                aria-label={`Časový progres úlohy ${taskTitle}`}
-                aria-valuemin={0}
-                aria-valuemax={estimatedHours}
-                aria-valuenow={actualHours}
-                className="h-0.5 min-w-8 flex-1 overflow-hidden rounded-full bg-muted"
-              >
-                <div
-                  className={cn(
-                    "h-full rounded-full",
-                    exceededHours > 0
-                      ? "bg-destructive"
-                      : timeProgress >= 80
-                        ? "bg-orange-500"
-                        : isTimerActive
-                          ? "bg-emerald-500"
-                          : "bg-foreground/60"
-                  )}
-                  style={{ width: `${timeProgress}%` }}
-                />
-              </div>
-            )}
             <span
               className={cn(
-                "whitespace-nowrap text-[8px] tabular-nums text-muted-foreground",
-                exceededHours > 0 && "font-medium text-destructive"
+                "font-semibold tabular-nums text-foreground",
+                exceededHours > 0 && "text-destructive"
               )}
             >
-              {timeStatusLabel}
+              {estimatedHours > 0
+                ? exceededHours > 0
+                  ? `+${formatHours(exceededHours)}`
+                  : formatHours(remainingHours)
+                : "bez odhadu"}
             </span>
+            {estimatedHours > 0 && (
+              <span className="text-muted-foreground">
+                {exceededHours > 0 ? "nad odhad" : "ostáva"}
+              </span>
+            )}
           </div>
+          {hasVisibleBudget ? (
+            <div className="flex items-center gap-1 whitespace-nowrap text-[9px] text-emerald-600 dark:text-emerald-400">
+              <Banknote className="h-3 w-3 shrink-0" />
+              <span className="font-semibold tabular-nums">
+                {formatCurrency(budgetAmount, taskCurrency)}
+              </span>
+              <span className="text-muted-foreground">za úlohu</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              {estimatedHours > 0 && (
+                <div
+                  role="progressbar"
+                  aria-label={`Časový progres úlohy ${taskTitle}`}
+                  aria-valuemin={0}
+                  aria-valuemax={estimatedHours}
+                  aria-valuenow={actualHours}
+                  className="h-0.5 min-w-8 flex-1 overflow-hidden rounded-full bg-muted"
+                >
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      exceededHours > 0
+                        ? "bg-destructive"
+                        : timeProgress >= 80
+                          ? "bg-orange-500"
+                          : isTimerActive
+                            ? "bg-emerald-500"
+                            : "bg-foreground/60"
+                    )}
+                    style={{ width: `${timeProgress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div

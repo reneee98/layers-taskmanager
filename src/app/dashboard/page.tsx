@@ -365,6 +365,7 @@ interface AssignedTask {
   color?: string | null;
   estimated_hours: number | null;
   actual_hours: number | null;
+  currency?: string | null;
   due_date: string | null;
   start_date: string | null;
   end_date: string | null;
@@ -417,6 +418,10 @@ export default function DashboardPage() {
   );
   const { hasPermission: canUpdateTasks } = usePermission("tasks", "update");
   const { hasPermission: canUpdateProjects } = usePermission("projects", "update");
+  const { hasPermission: canViewPrices, isLoading: isLoadingPricesPermission } = usePermission(
+    "financial",
+    "view_prices"
+  );
   const { hasPermission: canReadClients } = usePermission("clients", "read");
 
   // Dashboard visibility permissions - don't block on this
@@ -426,7 +431,8 @@ export default function DashboardPage() {
     isLoadingProjectsPermission ||
     isLoadingTasksPermission ||
     isLoadingReadProjectsPermission ||
-    isLoadingReadTasksPermission;
+    isLoadingReadTasksPermission ||
+    isLoadingPricesPermission;
   const [tasks, setTasks] = useState<AssignedTask[]>([]); // Priradené používateľovi
   const [allActiveTasks, setAllActiveTasks] = useState<AssignedTask[]>([]); // Všetky aktívne v workspace
   const [unassignedTasks, setUnassignedTasks] = useState<AssignedTask[]>([]); // Nepriradené
@@ -446,6 +452,7 @@ export default function DashboardPage() {
     return today;
   });
   const [isQuickTaskOpen, setIsQuickTaskOpen] = useState(false);
+  const [quickTaskDueDate, setQuickTaskDueDate] = useState<string | null>(null);
   const [personalProjectId, setPersonalProjectId] = useState<string | null>(null);
   const [moreEventsModalOpen, setMoreEventsModalOpen] = useState(false);
   const [moreEventsDate, setMoreEventsDate] = useState<Date | null>(null);
@@ -513,7 +520,12 @@ export default function DashboardPage() {
 
   const handleUpdateTask = async (
     taskId: string,
-    updates: { status?: string; priority?: string; due_date?: string | null }
+    updates: {
+      status?: string;
+      priority?: string;
+      start_date?: string | null;
+      due_date?: string | null;
+    }
   ) => {
     if (!canUpdateTasks) {
       toast({
@@ -609,8 +621,7 @@ export default function DashboardPage() {
     } catch (error) {
       toast({
         title: "Chyba",
-        description:
-          error instanceof Error ? error.message : "Nepodarilo sa dokončiť projekt",
+        description: error instanceof Error ? error.message : "Nepodarilo sa dokončiť projekt",
         variant: "destructive",
       });
     }
@@ -1232,6 +1243,16 @@ export default function DashboardPage() {
     return Array.from(tasksById.values());
   }, [allActiveTasks, unassignedTasks]);
 
+  const handleOpenQuickTask = (dueDate?: string) => {
+    setQuickTaskDueDate(dueDate || null);
+    setIsQuickTaskOpen(true);
+  };
+
+  const handleQuickTaskOpenChange = (open: boolean) => {
+    setIsQuickTaskOpen(open);
+    if (!open) setQuickTaskDueDate(null);
+  };
+
   if (workspaceLoading || isLoading || isLoadingPermissions) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
@@ -1250,11 +1271,12 @@ export default function DashboardPage() {
         workspaceTasks={workspaceTasks}
         projects={dashboardProjects}
         canUpdateTasks={canUpdateTasks}
+        canViewPrices={canViewPrices}
         showStats={dashboardPermissions.show_stats_overview}
         showTasks={dashboardPermissions.show_tasks_section}
         showProjects={canReadProjects || canViewProjects}
         quickTaskDisabled={!personalProjectId}
-        onQuickTask={() => setIsQuickTaskOpen(true)}
+        onQuickTask={handleOpenQuickTask}
         onUpdateTask={handleUpdateTask}
         onTimeTracked={handleTimeTracked}
         onCompleteProject={canUpdateProjects ? handleCompleteProject : undefined}
@@ -2437,8 +2459,9 @@ export default function DashboardPage() {
       {/* Quick Task Dialog */}
       <TaskDialog
         projectId={null}
+        initialDueDate={quickTaskDueDate}
         open={isQuickTaskOpen}
-        onOpenChange={setIsQuickTaskOpen}
+        onOpenChange={handleQuickTaskOpenChange}
         onSuccess={() => {
           // Refresh tasks
           const fetchData = async () => {

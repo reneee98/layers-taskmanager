@@ -828,9 +828,12 @@ export default function TaskDetailPage() {
     }
   };
 
-  const handleStartDateChange = async (newStartDate: string | null) => {
+  const handleDateRangeChange = async (
+    newStartDate: string | null,
+    newDueDate: string | null
+  ) => {
     if (!task) return;
-    
+
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
@@ -839,16 +842,25 @@ export default function TaskDetailPage() {
         },
         body: JSON.stringify({
           start_date: newStartDate,
+          due_date: newDueDate,
         }),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        setTask({ ...task, start_date: newStartDate });
+        setTask((currentTask) =>
+          currentTask
+            ? {
+                ...currentTask,
+                start_date: result.data?.start_date ?? newStartDate,
+                due_date: result.data?.due_date ?? newDueDate,
+              }
+            : currentTask
+        );
         toast({
           title: "Úspech",
-          description: "Dátum začiatku bol aktualizovaný",
+          description: "Termín úlohy bol aktualizovaný",
         });
         // Dispatch event to refresh dashboard
         window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
@@ -857,54 +869,15 @@ export default function TaskDetailPage() {
       } else {
         toast({
           title: "Chyba",
-          description: result.error || "Nepodarilo sa aktualizovať dátum začiatku",
+          description: result.error || "Nepodarilo sa aktualizovať termín úlohy",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error("Error updating start date:", error);
+      console.error("Error updating task date range:", error);
       toast({
         title: "Chyba",
-        description: "Nepodarilo sa aktualizovať dátum začiatku",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleEndDateChange = async (newEndDate: string | null) => {
-    if (!task) return;
-    
-    try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          end_date: newEndDate,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setTask({ ...task, end_date: newEndDate });
-        toast({
-          title: "Úspech",
-          description: "Dátum konca bol aktualizovaný",
-        });
-      } else {
-        toast({
-          title: "Chyba",
-          description: result.error || "Nepodarilo sa aktualizovať dátum konca",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error updating end date:", error);
-      toast({
-        title: "Chyba",
-        description: "Nepodarilo sa aktualizovať dátum konca",
+        description: "Nepodarilo sa aktualizovať termín úlohy",
         variant: "destructive",
       });
     }
@@ -959,51 +932,6 @@ export default function TaskDetailPage() {
       toast({
         title: "Chyba",
         description: "Nepodarilo sa presunúť úlohu",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDueDateChange = async (newDueDate: string | null) => {
-    if (!task) return;
-    
-    
-    try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          due_date: newDueDate,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        // Update task with returned data (includes updated start_date if it was auto-set)
-        const updatedTask = { ...task, due_date: newDueDate, start_date: result.data?.start_date || task.start_date };
-        setTask(updatedTask);
-        toast({
-          title: "Úspech",
-          description: "Deadline bol aktualizovaný",
-        });
-        // Dispatch event to refresh dashboard
-        window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
-          detail: { taskId: params.taskId } 
-        }));
-      } else {
-        toast({
-          title: "Chyba",
-          description: result.error || "Nepodarilo sa aktualizovať deadline",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Chyba",
-        description: "Nepodarilo sa aktualizovať deadline",
         variant: "destructive",
       });
     }
@@ -1770,12 +1698,7 @@ export default function TaskDetailPage() {
             <DateRangePicker
               startDate={task.start_date}
               endDate={task.due_date}
-              onSave={async (startDate, endDate) => {
-                await Promise.all([
-                  handleStartDateChange(startDate),
-                  handleDueDateChange(endDate),
-                ]);
-              }}
+              onSave={handleDateRangeChange}
               placeholder="Nastaviť dátum"
               disabled={!canUpdateTasks}
             />

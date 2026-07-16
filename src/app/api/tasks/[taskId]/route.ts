@@ -858,6 +858,7 @@ export async function PATCH(
         validation.data.status !== undefined ? validation.data.status : currentTask.status;
       if (
         validation.data.due_date &&
+        validation.data.start_date === undefined &&
         taskStatus !== "done" &&
         taskStatus !== "cancelled" &&
         taskStatus !== "sent_to_client"
@@ -962,7 +963,7 @@ export async function PATCH(
         }
       } else {
         console.log(
-          `[Task ${taskId}] Skipping auto-set start_date: taskStatus=${taskStatus}, due_date=${validation.data.due_date}`
+          `[Task ${taskId}] Skipping auto-set start_date: taskStatus=${taskStatus}, due_date=${validation.data.due_date}, explicitStartDate=${validation.data.start_date !== undefined}`
         );
       }
     }

@@ -21,6 +21,7 @@ import {
   type DashboardTaskItem,
   type DashboardTaskUpdate,
 } from "@/components/dashboard/dashboard-task-row";
+import { DashboardWeekPlanner } from "@/components/dashboard/dashboard-week-planner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -41,11 +42,12 @@ interface DashboardWorkspaceProps {
   workspaceTasks: DashboardTaskItem[];
   projects: DashboardProjectItem[];
   canUpdateTasks: boolean;
+  canViewPrices: boolean;
   showStats: boolean;
   showTasks: boolean;
   showProjects: boolean;
   quickTaskDisabled: boolean;
-  onQuickTask: () => void;
+  onQuickTask: (dueDate?: string) => void;
   onUpdateTask: (taskId: string, updates: DashboardTaskUpdate) => Promise<void>;
   onTimeTracked: (taskId: string, hours: number) => void;
   onCompleteProject?: (projectId: string) => Promise<void>;
@@ -56,7 +58,6 @@ const isPersonalProject = (project: DashboardProjectItem) =>
   (project.code !== null && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
 
 type FocusFilter =
-  | "now"
   | "week"
   | "all"
   | "todo"
@@ -112,6 +113,7 @@ export const DashboardWorkspace = ({
   workspaceTasks,
   projects,
   canUpdateTasks,
+  canViewPrices,
   showStats,
   showTasks,
   showProjects,
@@ -121,7 +123,7 @@ export const DashboardWorkspace = ({
   onTimeTracked,
   onCompleteProject,
 }: DashboardWorkspaceProps) => {
-  const [focusFilter, setFocusFilter] = useState<FocusFilter>("now");
+  const [focusFilter, setFocusFilter] = useState<FocusFilter>("week");
   const [completingProjectId, setCompletingProjectId] = useState<string | null>(null);
   const [isFocusCollapsed, setIsFocusCollapsed] = useState(false);
   const [expandedProjectState, setExpandedProjectState] = useState<string | null | undefined>(
@@ -130,7 +132,7 @@ export const DashboardWorkspace = ({
   const [showAllFocusTasks, setShowAllFocusTasks] = useState(false);
 
   const todayTimestamp = startOfDay(new Date()).getTime();
-  const weekEndTimestamp = addDays(new Date(todayTimestamp), 7).getTime();
+  const plannerEndTimestamp = addDays(new Date(todayTimestamp), 4).getTime();
 
   const projectTasksById = useMemo(() => {
     const groupedTasks = new Map<string, DashboardTaskItem[]>();
@@ -197,15 +199,11 @@ export const DashboardWorkspace = ({
       }
 
       const dueTimestamp = startOfDay(parseISO(task.due_date)).getTime();
-      if (focusFilter === "now") {
-        return dueTimestamp <= todayTimestamp;
-      }
-
-      return dueTimestamp <= weekEndTimestamp;
+      return dueTimestamp <= plannerEndTimestamp;
     });
 
     return sortTasks(filtered);
-  }, [focusFilter, tasks, workspaceTasks, todayTimestamp, weekEndTimestamp]);
+  }, [focusFilter, tasks, workspaceTasks, plannerEndTimestamp]);
 
   const statusCounts = useMemo(() => {
     const counts = { todo: 0, in_progress: 0, review: 0, sent_to_client: 0, done: 0 } as Record<
@@ -220,9 +218,7 @@ export const DashboardWorkspace = ({
     return counts;
   }, [workspaceTasks]);
 
-  const openTasks = tasks.filter(
-    (task) => task.status !== "done" && task.status !== "cancelled"
-  );
+  const openTasks = tasks.filter((task) => task.status !== "done" && task.status !== "cancelled");
   const overdueCount = openTasks.filter((task) => {
     if (!task.due_date) return false;
     return startOfDay(parseISO(task.due_date)).getTime() < todayTimestamp;
@@ -231,19 +227,42 @@ export const DashboardWorkspace = ({
     (task) => task.due_date && isToday(parseISO(task.due_date))
   ).length;
   const inProgressCount = openTasks.filter((task) => task.status === "in_progress").length;
+  const weekPlannerTasks = useMemo(() => {
+    const lastPlannerDayTimestamp = addDays(new Date(todayTimestamp), 4).getTime();
+
+    return sortTasks(
+      workspaceTasks.filter((task) => {
+        if (task.status === "done" || task.status === "cancelled" || !task.due_date) return false;
+
+        const startTimestamp = startOfDay(parseISO(task.start_date || task.due_date)).getTime();
+        const dueTimestamp = startOfDay(parseISO(task.due_date)).getTime();
+        return dueTimestamp >= todayTimestamp && startTimestamp <= lastPlannerDayTimestamp;
+      })
+    );
+  }, [todayTimestamp, workspaceTasks]);
+  const unscheduledPlannerTasks = useMemo(
+    () =>
+      sortTasks(
+        workspaceTasks.filter(
+          (task) => task.status !== "done" && task.status !== "cancelled" && task.due_date === null
+        )
+      ),
+    [workspaceTasks]
+  );
   const visibleFocusTasks = showAllFocusTasks ? focusTasks : focusTasks.slice(0, 6);
+  const focusTaskCount = focusFilter === "week" ? weekPlannerTasks.length : focusTasks.length;
 
   const focusFilterDescription = isStatusFilter(focusFilter)
     ? `Všetky úlohy vo workspace so statusom „${statusFilterLabels[focusFilter]}“`
-    : focusFilter === "now"
-      ? "Po termíne, na dnes a rozpracované"
-      : focusFilter === "week"
-        ? "Termíny počas najbližších siedmich dní"
-        : "Všetky aktívne úlohy priradené vám";
+    : focusFilter === "week"
+      ? "Tímové termíny, riešitelia a voľná kapacita na najbližších päť dní"
+      : "Všetky aktívne úlohy priradené vám";
 
   const focusSectionTitle = isStatusFilter(focusFilter)
     ? statusFilterLabels[focusFilter]
-    : "Čaká na mňa";
+    : focusFilter === "week"
+      ? "Plán na 5 dní"
+      : "Čaká na mňa";
 
   const handleToggleProject = (projectId: string) => {
     setExpandedProjectState((currentProjectId) => {
@@ -286,7 +305,7 @@ export const DashboardWorkspace = ({
             To najdôležitejšie na jednom mieste, bez zbytočného šumu.
           </p>
         </div>
-        <Button onClick={onQuickTask} disabled={quickTaskDisabled}>
+        <Button onClick={() => onQuickTask()} disabled={quickTaskDisabled}>
           <Plus className="h-4 w-4" />
           Rýchla úloha
         </Button>
@@ -356,7 +375,7 @@ export const DashboardWorkspace = ({
                 <span className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-foreground">{focusSectionTitle}</span>
                   <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
-                    {focusTasks.length}
+                    {focusTaskCount}
                   </span>
                 </span>
                 <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
@@ -376,8 +395,7 @@ export const DashboardWorkspace = ({
               >
                 <div className="overflow-x-auto scrollbar-hide">
                   <TabsList className="w-max">
-                    <TabsTrigger value="now">Teraz</TabsTrigger>
-                    <TabsTrigger value="week">7 dní</TabsTrigger>
+                    <TabsTrigger value="week">5 dní</TabsTrigger>
                     <TabsTrigger value="all">Všetky</TabsTrigger>
                     <span aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border" />
                     {STATUS_FILTERS.map((status) => (
@@ -398,13 +416,25 @@ export const DashboardWorkspace = ({
 
           {!isFocusCollapsed && (
             <div id="dashboard-focus-tasks">
-              {visibleFocusTasks.length > 0 ? (
+              {focusFilter === "week" ? (
+                <DashboardWeekPlanner
+                  tasks={weekPlannerTasks}
+                  unscheduledTasks={unscheduledPlannerTasks}
+                  canCreateTask={!quickTaskDisabled}
+                  canScheduleTask={canUpdateTasks}
+                  onCreateTask={onQuickTask}
+                  onScheduleTask={(taskId, startDate, dueDate) =>
+                    onUpdateTask(taskId, { start_date: startDate, due_date: dueDate })
+                  }
+                />
+              ) : visibleFocusTasks.length > 0 ? (
                 <div>
                   {visibleFocusTasks.map((task) => (
                     <DashboardTaskRow
                       key={task.id}
                       task={task}
                       canUpdate={canUpdateTasks}
+                      canViewPrices={canViewPrices}
                       onUpdate={onUpdateTask}
                       onTimeTracked={onTimeTracked}
                     />
@@ -431,7 +461,7 @@ export const DashboardWorkspace = ({
                     V tejto chvíli je všetko vybavené
                   </p>
                   <p className="mt-1 max-w-sm text-xs leading-5 text-muted-foreground">
-                    Prepnite na „7 dní“ alebo „Všetky“, ak chcete plánovať ďalšiu prácu.
+                    Prepnite na „Všetky“, ak chcete zobraziť aj ďalšiu prácu.
                   </p>
                 </div>
               )}
@@ -536,6 +566,7 @@ export const DashboardWorkspace = ({
                             key={task.id}
                             task={task}
                             canUpdate={canUpdateTasks}
+                            canViewPrices={canViewPrices}
                             showProject={false}
                             onUpdate={onUpdateTask}
                             onTimeTracked={onTimeTracked}

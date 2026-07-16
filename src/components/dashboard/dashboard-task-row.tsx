@@ -11,7 +11,9 @@ import {
   Clock3,
   Loader2,
   Play,
+  Plus,
   Square,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -19,7 +21,16 @@ import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 import { useTimer } from "@/contexts/TimerContext";
 import { formatHours } from "@/lib/format";
 import { cn, stripHtml } from "@/lib/utils";
@@ -72,6 +83,8 @@ interface DashboardDueDateControlProps {
   dueDate: string | null;
   disabled: boolean;
   taskTitle: string;
+  /* Closed tasks (done/cancelled) don't highlight overdue deadlines */
+  muted?: boolean;
   onChange: (dueDate: string | null) => Promise<void>;
 }
 
@@ -164,15 +177,163 @@ const formatTimerDuration = (totalSeconds: number) => {
 const getElapsedSeconds = (startedAt: string) =>
   Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
 
+interface DashboardAssigneeControlProps {
+  task: DashboardTaskItem;
+  disabled: boolean;
+}
+
+const DashboardAssigneeControl = ({ task, disabled }: DashboardAssigneeControlProps) => {
+  const { users: workspaceUsers } = useWorkspaceUsers();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const assignees = task.assignees || [];
+  const assigneeIds = assignees.map((assignee) => assignee.user_id);
+
+  const availableUsers = workspaceUsers
+    .filter((workspaceUser: any) => workspaceUser.profiles)
+    .map((workspaceUser: any) => workspaceUser.profiles)
+    .filter((profile: any) => profile?.id && !assigneeIds.includes(profile.id));
+
+  const saveAssignees = async (nextAssigneeIds: string[], successMessage: string) => {
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/assignees`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeIds: nextAssigneeIds }),
+      });
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Nepodarilo sa upraviť priradenie");
+      }
+
+      // Refresh dashboard task lists without a full page reload
+      window.dispatchEvent(new CustomEvent("taskStatusChanged"));
+      toast({ title: "Úspech", description: successMessage });
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa upraviť priradenie",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const getAssigneeName = (assignee: { user?: { name?: string; email?: string } | null }) =>
+    assignee.user?.name || assignee.user?.email || "Používateľ";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled || isSaving}
+          aria-label={`Upraviť priradených používateľov úlohy ${stripHtml(task.title)}`}
+          title="Priradiť používateľov"
+          className="group/assignees inline-flex h-11 shrink-0 items-center justify-center gap-0.5 rounded-md px-1 outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:h-8"
+        >
+          {assignees.length > 0 ? (
+            <span className="flex -space-x-1.5">
+              {assignees.slice(0, 2).map((assignee) => (
+                <Avatar key={assignee.id} className="h-6 w-6 border border-card">
+                  <AvatarFallback className="bg-muted text-[8px] font-medium text-muted-foreground">
+                    {getInitials(getAssigneeName(assignee))}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {assignees.length > 2 && (
+                <span className="flex h-6 w-6 items-center justify-center rounded-full border border-card bg-muted text-[8px] font-medium text-muted-foreground">
+                  +{assignees.length - 2}
+                </span>
+              )}
+            </span>
+          ) : null}
+          {isSaving ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          ) : (
+            <span
+              className={cn(
+                "flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground transition-colors group-hover/assignees:border-solid group-hover/assignees:text-foreground",
+                assignees.length === 0 && "h-6 w-6"
+              )}
+            >
+              <Plus className="h-3 w-3" />
+            </span>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        {assignees.length > 0 && (
+          <>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Priradení
+            </DropdownMenuLabel>
+            {assignees.map((assignee) => {
+              const name = getAssigneeName(assignee);
+              return (
+                <DropdownMenuItem
+                  key={assignee.id}
+                  onClick={() =>
+                    saveAssignees(
+                      assigneeIds.filter((id) => id !== assignee.user_id),
+                      `${name} bol odstránený z úlohy`
+                    )
+                  }
+                  className="flex items-center gap-2"
+                >
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-[9px]">{getInitials(name)}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </DropdownMenuItem>
+              );
+            })}
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuLabel className="text-xs text-muted-foreground">Pridať</DropdownMenuLabel>
+        {availableUsers.length === 0 ? (
+          <DropdownMenuItem disabled>Všetci používatelia sú už priradení</DropdownMenuItem>
+        ) : (
+          availableUsers.map((profile: any) => {
+            const name = profile.display_name || profile.email || "Neznámy";
+            return (
+              <DropdownMenuItem
+                key={profile.id}
+                onClick={() =>
+                  saveAssignees([...assigneeIds, profile.id], `${name} bol priradený k úlohe`)
+                }
+                className="flex items-center gap-2"
+              >
+                <Avatar className="h-6 w-6">
+                  <AvatarFallback className="text-[9px]">{getInitials(name)}</AvatarFallback>
+                </Avatar>
+                <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
+                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+              </DropdownMenuItem>
+            );
+          })
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
 const DashboardDueDateControl = ({
   dueDate,
   disabled,
   taskTitle,
+  muted = false,
   onChange,
 }: DashboardDueDateControlProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const deadline = getDeadline(dueDate);
+  const rawDeadline = getDeadline(dueDate);
+  const deadline = rawDeadline && muted ? { ...rawDeadline, urgent: false } : rawDeadline;
   const selectedDate = dueDate ? parseISO(dueDate) : undefined;
 
   const handleChange = async (date: Date | undefined) => {
@@ -363,7 +524,7 @@ export const DashboardTaskRow = ({
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-nowrap items-center gap-1.5 lg:grid lg:flex-none lg:grid-cols-[144px_72px_128px_56px_32px_32px] lg:gap-2">
+      <div className="flex min-w-0 flex-nowrap items-center gap-1.5 lg:grid lg:flex-none lg:grid-cols-[144px_72px_128px_76px_32px_32px] lg:gap-2">
         <StatusSelect
           status={
             task.status as
@@ -383,6 +544,7 @@ export const DashboardTaskRow = ({
           dueDate={task.due_date}
           disabled={!canUpdate}
           taskTitle={taskTitle}
+          muted={task.status === "done" || task.status === "cancelled"}
           onChange={(dueDate) => onUpdate(task.id, { due_date: dueDate })}
         />
 
@@ -443,7 +605,7 @@ export const DashboardTaskRow = ({
         </div>
 
         <div
-          className="flex w-10 shrink-0 justify-center lg:w-14"
+          className="flex shrink-0 justify-center"
           role="group"
           aria-label={
             task.assignees && task.assignees.length > 0
@@ -451,22 +613,7 @@ export const DashboardTaskRow = ({
               : "Bez priradeného používateľa"
           }
         >
-          {task.assignees && task.assignees.length > 0 ? (
-            <div className="flex -space-x-1.5">
-              {task.assignees.slice(0, 2).map((assignee) => {
-                const name = assignee.user?.name || assignee.user?.email || "Používateľ";
-                return (
-                  <Avatar key={assignee.id} className="h-6 w-6 border border-card">
-                    <AvatarFallback className="bg-muted text-[8px] font-medium text-muted-foreground">
-                      {getInitials(name)}
-                    </AvatarFallback>
-                  </Avatar>
-                );
-              })}
-            </div>
-          ) : (
-            <span aria-hidden="true" className="h-6 w-6" />
-          )}
+          <DashboardAssigneeControl task={task} disabled={!canUpdate} />
         </div>
 
         <button

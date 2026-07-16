@@ -23,13 +23,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Plus, 
-  List, 
-  Play, 
-  Send, 
+import {
+  Plus,
+  List,
+  Play,
+  Send,
   User,
-  FolderX
+  FolderX,
+  Target,
+  Circle,
+  Eye,
+  CheckCircle2
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
@@ -70,8 +74,12 @@ export default function TasksPage() {
   const getTabLabel = (tab: TasksPageTabType) => {
     const labels: Record<TasksPageTabType, string> = {
       'all_active': 'Všetky aktívne',
-      'sent_to_client': 'Odoslané klientovi',
+      'this_week': 'Najbližších 7 dní',
+      'todo': 'Na spracovanie',
       'in_progress': 'V procese',
+      'review': 'Na kontrole',
+      'sent_to_client': 'Odoslané klientovi',
+      'done': 'Dokončené',
       'unassigned': 'Nepriradené',
       'no_project': 'Bez projektu',
     };
@@ -82,10 +90,18 @@ export default function TasksPage() {
     switch (tab) {
       case 'all_active':
         return List;
+      case 'this_week':
+        return Target;
+      case 'todo':
+        return Circle;
       case 'sent_to_client':
         return Send;
       case 'in_progress':
         return Play;
+      case 'review':
+        return Eye;
+      case 'done':
+        return CheckCircle2;
       case 'unassigned':
         return User;
       case 'no_project':
@@ -297,7 +313,7 @@ export default function TasksPage() {
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {(['all_active', 'sent_to_client', 'in_progress', 'unassigned', 'no_project'] as TasksPageTabType[]).map((tab) => {
+              {(['all_active', 'this_week', 'todo', 'in_progress', 'review', 'sent_to_client', 'done', 'unassigned', 'no_project'] as TasksPageTabType[]).map((tab) => {
                 const Icon = getTabIcon(tab);
                 return (
                   <SelectItem key={tab} value={tab}>

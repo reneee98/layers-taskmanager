@@ -188,14 +188,16 @@ export async function GET(req: NextRequest) {
     );
 
     // OPTIMIZED: Fetch all active tasks in one query instead of 3 separate queries
+    // Done tasks from the last 60 days are included so the "Dokončené" dashboard tab has data
+    const doneCutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
     let allActiveTasksQuery = supabase
       .from("tasks")
       .select(
         `*, project:projects(id, name, code, workspace_id, client:clients(name))`
       )
       .eq("workspace_id", workspaceId)
-      .neq("status", "done")
-      .neq("status", "cancelled");
+      .neq("status", "cancelled")
+      .or(`status.neq.done,updated_at.gte.${doneCutoff}`);
 
     if (projectFilterIds) {
       allActiveTasksQuery = allActiveTasksQuery.in("project_id", projectFilterIds);
@@ -317,7 +319,8 @@ export async function GET(req: NextRequest) {
             days_until_deadline: daysUntilDeadline,
           };
         })
-        .filter((task: any) => task.status !== "done" && task.status !== "invoiced")
+        // Recently done tasks stay in (dashboard "Dokončené" tab); invoiced are archived
+        .filter((task: any) => task.status !== "invoiced")
         .sort((a: any, b: any) => {
           if (!a.due_date && !b.due_date) return 0;
           if (!a.due_date) return 1;

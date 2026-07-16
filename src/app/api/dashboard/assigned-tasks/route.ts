@@ -126,6 +126,9 @@ export async function GET(req: NextRequest) {
     let tasks;
     let tasksError;
 
+    // Done tasks from the last 60 days stay included so the "Dokončené" dashboard tab has data
+    const doneCutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+
     // Fetch tasks based on filter
     if (isRiesitel || (!showUnassigned && !showAll)) {
       // Show only assigned tasks to current user
@@ -200,8 +203,8 @@ export async function GET(req: NextRequest) {
         `
         )
         .eq("workspace_id", workspaceId)
-        .neq("status", "done")
-        .neq("status", "cancelled");
+        .neq("status", "cancelled")
+        .or(`status.neq.done,updated_at.gte.${doneCutoff}`);
 
       if (projectFilterIds) {
         allTasksQuery = allTasksQuery.in("project_id", projectFilterIds);
@@ -242,8 +245,8 @@ export async function GET(req: NextRequest) {
         `
         )
         .eq("workspace_id", workspaceId)
-        .neq("status", "done")
         .neq("status", "cancelled")
+        .or(`status.neq.done,updated_at.gte.${doneCutoff}`)
         .in("id", taskIdsWithAssignees);
 
       if (projectFilterIds) {
@@ -365,7 +368,8 @@ export async function GET(req: NextRequest) {
           days_until_deadline: daysUntilDeadline,
         };
       })
-      .filter((task) => task.status !== "done" && task.status !== "invoiced")
+      // Recently done tasks stay in (dashboard "Dokončené" tab); invoiced are archived
+      .filter((task) => task.status !== "invoiced")
       .sort((a, b) => {
         if (!a.due_date && !b.due_date) return 0;
         if (!a.due_date) return 1;

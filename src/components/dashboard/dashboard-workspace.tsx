@@ -49,7 +49,29 @@ interface DashboardWorkspaceProps {
   onTimeTracked: (taskId: string, hours: number) => void;
 }
 
-type FocusFilter = "now" | "week" | "all";
+type FocusFilter =
+  | "now"
+  | "week"
+  | "all"
+  | "todo"
+  | "in_progress"
+  | "review"
+  | "sent_to_client"
+  | "done";
+
+const STATUS_FILTERS = ["todo", "in_progress", "review", "sent_to_client", "done"] as const;
+type StatusFilter = (typeof STATUS_FILTERS)[number];
+
+const isStatusFilter = (filter: FocusFilter): filter is StatusFilter =>
+  (STATUS_FILTERS as readonly string[]).includes(filter);
+
+const statusFilterLabels: Record<StatusFilter, string> = {
+  todo: "Na spracovanie",
+  in_progress: "V procese",
+  review: "Na kontrole",
+  sent_to_client: "Odoslané klientovi",
+  done: "Dokončené",
+};
 
 const getTaskTime = (task: DashboardTaskItem) => {
   if (!task.due_date) {
@@ -106,6 +128,9 @@ export const DashboardWorkspace = ({
     const groupedTasks = new Map<string, DashboardTaskItem[]>();
 
     workspaceTasks.forEach((task) => {
+      // Sekcia projektov ukazuje len otvorenú prácu
+      if (task.status === "done" || task.status === "cancelled") return;
+
       const projectId = task.project?.id;
       if (!projectId) return;
 
@@ -140,7 +165,17 @@ export const DashboardWorkspace = ({
     expandedProjectState === undefined ? fallbackExpandedProjectId : expandedProjectState;
 
   const focusTasks = useMemo(() => {
+    // Stavové filtre pracujú s celým workspace (agentúrny pohľad na flow)
+    if (isStatusFilter(focusFilter)) {
+      return sortTasks(workspaceTasks.filter((task) => task.status === focusFilter));
+    }
+
     const filtered = tasks.filter((task) => {
+      // Časové filtre ukazujú len otvorenú prácu
+      if (task.status === "done" || task.status === "cancelled") {
+        return false;
+      }
+
       if (focusFilter === "all") {
         return true;
       }
@@ -162,24 +197,45 @@ export const DashboardWorkspace = ({
     });
 
     return sortTasks(filtered);
-  }, [focusFilter, tasks, todayTimestamp, weekEndTimestamp]);
+  }, [focusFilter, tasks, workspaceTasks, todayTimestamp, weekEndTimestamp]);
 
-  const overdueCount = tasks.filter((task) => {
+  const statusCounts = useMemo(() => {
+    const counts = { todo: 0, in_progress: 0, review: 0, sent_to_client: 0, done: 0 } as Record<
+      StatusFilter,
+      number
+    >;
+    workspaceTasks.forEach((task) => {
+      if ((STATUS_FILTERS as readonly string[]).includes(task.status)) {
+        counts[task.status as StatusFilter] += 1;
+      }
+    });
+    return counts;
+  }, [workspaceTasks]);
+
+  const openTasks = tasks.filter(
+    (task) => task.status !== "done" && task.status !== "cancelled"
+  );
+  const overdueCount = openTasks.filter((task) => {
     if (!task.due_date) return false;
     return startOfDay(parseISO(task.due_date)).getTime() < todayTimestamp;
   }).length;
-  const todayCount = tasks.filter(
+  const todayCount = openTasks.filter(
     (task) => task.due_date && isToday(parseISO(task.due_date))
   ).length;
-  const inProgressCount = tasks.filter((task) => task.status === "in_progress").length;
+  const inProgressCount = openTasks.filter((task) => task.status === "in_progress").length;
   const visibleFocusTasks = showAllFocusTasks ? focusTasks : focusTasks.slice(0, 6);
 
-  const focusFilterDescription =
-    focusFilter === "now"
+  const focusFilterDescription = isStatusFilter(focusFilter)
+    ? `Všetky úlohy vo workspace so statusom „${statusFilterLabels[focusFilter]}“`
+    : focusFilter === "now"
       ? "Po termíne, na dnes a rozpracované"
       : focusFilter === "week"
         ? "Termíny počas najbližších siedmich dní"
         : "Všetky aktívne úlohy priradené vám";
+
+  const focusSectionTitle = isStatusFilter(focusFilter)
+    ? statusFilterLabels[focusFilter]
+    : "Čaká na mňa";
 
   const handleToggleProject = (projectId: string) => {
     setExpandedProjectState((currentProjectId) => {
@@ -271,7 +327,7 @@ export const DashboardWorkspace = ({
               />
               <span className="min-w-0">
                 <span className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-foreground">Čaká na mňa</span>
+                  <span className="text-sm font-semibold text-foreground">{focusSectionTitle}</span>
                   <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
                     {focusTasks.length}
                   </span>
@@ -289,18 +345,26 @@ export const DashboardWorkspace = ({
                   setFocusFilter(value as FocusFilter);
                   setShowAllFocusTasks(false);
                 }}
+                className="min-w-0"
               >
-                <TabsList className="w-full sm:w-auto">
-                  <TabsTrigger value="now" className="flex-1 sm:flex-none">
-                    Teraz
-                  </TabsTrigger>
-                  <TabsTrigger value="week" className="flex-1 sm:flex-none">
-                    7 dní
-                  </TabsTrigger>
-                  <TabsTrigger value="all" className="flex-1 sm:flex-none">
-                    Všetky
-                  </TabsTrigger>
-                </TabsList>
+                <div className="overflow-x-auto scrollbar-hide">
+                  <TabsList className="w-max">
+                    <TabsTrigger value="now">Teraz</TabsTrigger>
+                    <TabsTrigger value="week">7 dní</TabsTrigger>
+                    <TabsTrigger value="all">Všetky</TabsTrigger>
+                    <span aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border" />
+                    {STATUS_FILTERS.map((status) => (
+                      <TabsTrigger key={status} value={status} className="gap-1.5">
+                        {statusFilterLabels[status]}
+                        {statusCounts[status] > 0 && (
+                          <span className="rounded bg-muted px-1 py-px text-[9px] font-semibold tabular-nums text-muted-foreground">
+                            {statusCounts[status]}
+                          </span>
+                        )}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </div>
               </Tabs>
             )}
           </div>

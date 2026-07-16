@@ -158,14 +158,9 @@ function DashboardAssigneeCell({ task, onTaskUpdate }: DashboardAssigneeCellProp
       const result = await response.json();
 
       if (result.success) {
-        // Refresh assignees
-        const assigneesResponse = await fetch(`/api/tasks/${task.id}/assignees`);
-        const assigneesResult = await assigneesResponse.json();
-        if (assigneesResult.success) {
-          // Refresh the page or update local state
-          window.location.reload();
-        }
         setIsOpen(false);
+        // Refresh dashboard task lists without a full page reload
+        window.dispatchEvent(new CustomEvent("taskStatusChanged"));
         toast({
           title: "Úspech",
           description: "Používateľ bol priradený k úlohe",
@@ -208,8 +203,8 @@ function DashboardAssigneeCell({ task, onTaskUpdate }: DashboardAssigneeCellProp
       const result = await response.json();
 
       if (result.success) {
-        // Refresh the page or update local state
-        window.location.reload();
+        // Refresh dashboard task lists without a full page reload
+        window.dispatchEvent(new CustomEvent("taskStatusChanged"));
         toast({
           title: "Úspech",
           description: "Používateľ bol odstránený z úlohy",
@@ -327,6 +322,8 @@ function DashboardAssigneeCell({ task, onTaskUpdate }: DashboardAssigneeCellProp
             size="sm"
             className="h-6 w-6 rounded-full p-0 hover:bg-accent border border-dashed border-border hover:border-solid"
             disabled={isLoading || availableUsers.length === 0}
+            title="Pridať používateľa"
+            aria-label="Pridať používateľa k úlohe"
           >
             <Plus className="h-3 w-3 text-muted-foreground" />
           </Button>
@@ -617,8 +614,14 @@ export default function DashboardPage() {
     tasksToFilter = allActiveTasks;
   } else if (activeTab === "unassigned") {
     tasksToFilter = unassignedTasks;
-  } else if (activeTab === "sent_to_client") {
-    // Pre "sent_to_client" kombinujeme všetky priradené aj nepriradené tasky
+  } else if (
+    activeTab === "sent_to_client" ||
+    activeTab === "this_week" ||
+    activeTab === "todo" ||
+    activeTab === "review" ||
+    activeTab === "done"
+  ) {
+    // Stavové taby ukazujú všetky úlohy vo workspace (priradené aj nepriradené)
     tasksToFilter = [...allActiveTasks, ...unassignedTasks];
   } else if (activeTab === "today") {
     // Use tasks assigned to current user for "today" tab
@@ -672,15 +675,19 @@ export default function DashboardPage() {
 
   // Get task counts for each tab
   const taskCounts = useMemo(() => {
-    // Pre "sent_to_client" kombinujeme allActiveTasks a unassignedTasks
-    const sentToClientTasks = [...allActiveTasks, ...unassignedTasks];
+    // Stavové taby počítame zo všetkých úloh vo workspace (priradené aj nepriradené)
+    const allWorkspaceTasks = [...allActiveTasks, ...unassignedTasks];
 
     return {
       all_active: filterTasksByTab(allActiveTasks, "all_active").length,
       unassigned: filterTasksByTab(unassignedTasks, "unassigned").length,
       today: filterTasksByTab(tasks, "today").length, // Use tasks (assigned to current user) for accurate count
-      sent_to_client: filterTasksByTab(sentToClientTasks, "sent_to_client").length,
+      this_week: filterTasksByTab(allWorkspaceTasks, "this_week").length,
+      todo: filterTasksByTab(allWorkspaceTasks, "todo").length,
+      sent_to_client: filterTasksByTab(allWorkspaceTasks, "sent_to_client").length,
       in_progress: filterTasksByTab(allActiveTasks, "in_progress").length,
+      review: filterTasksByTab(allWorkspaceTasks, "review").length,
+      done: filterTasksByTab(allWorkspaceTasks, "done").length,
       no_project: filterTasksByTab(allActiveTasks, "no_project").length,
     };
   }, [tasks, allActiveTasks, unassignedTasks]);
@@ -998,8 +1005,12 @@ export default function DashboardPage() {
     const allTabs: DashboardTabType[] = [
       "all_active",
       "today",
-      "sent_to_client",
+      "this_week",
+      "todo",
       "in_progress",
+      "review",
+      "sent_to_client",
+      "done",
       "unassigned",
     ];
     return allTabs.filter((tab) => {
@@ -1034,8 +1045,12 @@ export default function DashboardPage() {
     const labels: Record<DashboardTabType, string> = {
       all_active: "Všetky aktívne",
       today: "Úlohy dnes",
-      sent_to_client: "Odoslané klientovi",
+      this_week: "Najbližších 7 dní",
+      todo: "Na spracovanie",
       in_progress: "V procese",
+      review: "Na kontrole",
+      sent_to_client: "Odoslané klientovi",
+      done: "Dokončené",
       unassigned: "Nepriradené",
       no_project: "Bez projektu",
     };
@@ -1048,10 +1063,18 @@ export default function DashboardPage() {
         return List;
       case "today":
         return CalendarIcon;
+      case "this_week":
+        return Target;
+      case "todo":
+        return Circle;
       case "sent_to_client":
         return Send;
       case "in_progress":
         return Play;
+      case "review":
+        return Eye;
+      case "done":
+        return CheckCircle2;
       case "unassigned":
         return User;
       case "no_project":

@@ -38,7 +38,17 @@ export interface AssignedTask {
   } | null;
 }
 
-export type DashboardTabType = "today" | "sent_to_client" | "in_progress" | "all_active" | "unassigned" | "no_project";
+export type DashboardTabType =
+  | "today"
+  | "this_week"
+  | "todo"
+  | "in_progress"
+  | "review"
+  | "sent_to_client"
+  | "done"
+  | "all_active"
+  | "unassigned"
+  | "no_project";
 
 export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabType): AssignedTask[] => {
   const now = new Date();
@@ -60,11 +70,35 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
         return hasDueDateToday || hasStartDateToday;
       });
 
+    case "this_week":
+      // Najbližších 7 dní - deadline od dnes do 7 dní, úloha ešte nie je uzavretá ani u klienta
+      return tasks.filter(task => {
+        if (!task.due_date) return false;
+        if (
+          task.status === "done" ||
+          task.status === "cancelled" ||
+          task.status === "sent_to_client"
+        ) {
+          return false;
+        }
+        const due = startOfDay(new Date(task.due_date));
+        return !isBefore(due, todayStart) && isBefore(due, weekEnd);
+      });
+
+    case "todo":
+      return tasks.filter(task => task.status === "todo");
+
     case "sent_to_client":
       return tasks.filter(task => task.status === "sent_to_client");
 
     case "in_progress":
       return tasks.filter(task => task.status === "in_progress");
+
+    case "review":
+      return tasks.filter(task => task.status === "review");
+
+    case "done":
+      return tasks.filter(task => task.status === "done");
 
     case "all_active":
       return tasks.filter(task => 
@@ -95,8 +129,12 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
 export const getTaskCountsByTab = (tasks: AssignedTask[]): Record<DashboardTabType, number> => {
   return {
     today: filterTasksByTab(tasks, "today").length,
+    this_week: filterTasksByTab(tasks, "this_week").length,
+    todo: filterTasksByTab(tasks, "todo").length,
     sent_to_client: filterTasksByTab(tasks, "sent_to_client").length,
     in_progress: filterTasksByTab(tasks, "in_progress").length,
+    review: filterTasksByTab(tasks, "review").length,
+    done: filterTasksByTab(tasks, "done").length,
     all_active: filterTasksByTab(tasks, "all_active").length,
     unassigned: filterTasksByTab(tasks, "unassigned").length,
     no_project: filterTasksByTab(tasks, "no_project").length,

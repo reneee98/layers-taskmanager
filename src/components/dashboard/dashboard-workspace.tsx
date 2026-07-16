@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronDown,
   FolderKanban,
+  Loader2,
   Plus,
   Sparkles,
 } from "lucide-react";
@@ -47,7 +48,12 @@ interface DashboardWorkspaceProps {
   onQuickTask: () => void;
   onUpdateTask: (taskId: string, updates: DashboardTaskUpdate) => Promise<void>;
   onTimeTracked: (taskId: string, hours: number) => void;
+  onCompleteProject?: (projectId: string) => Promise<void>;
 }
+
+const isPersonalProject = (project: DashboardProjectItem) =>
+  project.name === "Osobné úlohy" ||
+  (project.code !== null && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
 
 type FocusFilter =
   | "now"
@@ -113,8 +119,10 @@ export const DashboardWorkspace = ({
   onQuickTask,
   onUpdateTask,
   onTimeTracked,
+  onCompleteProject,
 }: DashboardWorkspaceProps) => {
   const [focusFilter, setFocusFilter] = useState<FocusFilter>("now");
+  const [completingProjectId, setCompletingProjectId] = useState<string | null>(null);
   const [isFocusCollapsed, setIsFocusCollapsed] = useState(false);
   const [expandedProjectState, setExpandedProjectState] = useState<string | null | undefined>(
     undefined
@@ -244,6 +252,25 @@ export const DashboardWorkspace = ({
 
       return currentExpandedProjectId === projectId ? null : projectId;
     });
+  };
+
+  const handleCompleteProject = async (project: DashboardProjectItem) => {
+    if (!onCompleteProject || completingProjectId) return;
+
+    const openCount = (projectTasksById.get(project.id) || []).length;
+    const confirmed = confirm(
+      openCount > 0
+        ? `Označiť projekt „${project.name}“ ako hotový? Projekt sa archivuje a zmizne z dashboardu (má ešte ${openCount} otvorených úloh).`
+        : `Označiť projekt „${project.name}“ ako hotový? Projekt sa archivuje a zmizne z dashboardu.`
+    );
+    if (!confirmed) return;
+
+    setCompletingProjectId(project.id);
+    try {
+      await onCompleteProject(project.id);
+    } finally {
+      setCompletingProjectId(null);
+    }
   };
 
   return (
@@ -470,6 +497,24 @@ export const DashboardWorkspace = ({
                           </span>
                         </span>
                       </button>
+
+                      {onCompleteProject && !isPersonalProject(project) && (
+                        <button
+                          type="button"
+                          onClick={() => handleCompleteProject(project)}
+                          disabled={completingProjectId !== null}
+                          aria-label={`Označiť projekt ${project.name} ako hotový`}
+                          title="Označiť projekt ako hotový (archivuje sa)"
+                          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:bg-emerald-500/[0.08] hover:text-emerald-600 focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:px-2.5 dark:hover:text-emerald-400"
+                        >
+                          {completingProjectId === project.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          )}
+                          <span className="hidden sm:inline">Hotové</span>
+                        </button>
+                      )}
 
                       <Link
                         href={`/projects/${project.id}`}

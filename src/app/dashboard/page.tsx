@@ -416,6 +416,7 @@ export default function DashboardPage() {
     "read"
   );
   const { hasPermission: canUpdateTasks } = usePermission("tasks", "update");
+  const { hasPermission: canUpdateProjects } = usePermission("projects", "update");
   const { hasPermission: canReadClients } = usePermission("clients", "read");
 
   // Dashboard visibility permissions - don't block on this
@@ -579,6 +580,40 @@ export default function DashboardPage() {
     setTasks((currentTasks) => addTrackedHours(currentTasks));
     setAllActiveTasks((currentTasks) => addTrackedHours(currentTasks));
     setUnassignedTasks((currentTasks) => addTrackedHours(currentTasks));
+  };
+
+  const handleCompleteProject = async (projectId: string) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Nepodarilo sa dokončiť projekt");
+      }
+
+      // Archivovaný projekt zmizne z dashboardu bez reloadu
+      setDashboardProjects((currentProjects) =>
+        currentProjects.map((project: any) =>
+          project.id === projectId ? { ...project, status: "completed" } : project
+        )
+      );
+
+      toast({
+        title: "Projekt dokončený",
+        description: "Projekt bol archivovaný a už sa nezobrazuje na dashboarde.",
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description:
+          error instanceof Error ? error.message : "Nepodarilo sa dokončiť projekt",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleMoreEventsClick = (events: any[], date: Date) => {
@@ -1222,6 +1257,7 @@ export default function DashboardPage() {
         onQuickTask={() => setIsQuickTaskOpen(true)}
         onUpdateTask={handleUpdateTask}
         onTimeTracked={handleTimeTracked}
+        onCompleteProject={canUpdateProjects ? handleCompleteProject : undefined}
       />
 
       {/* Header */}

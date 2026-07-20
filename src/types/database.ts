@@ -192,3 +192,30 @@ export interface Activity {
   task_id: string | null;
   project_id: string | null;
 }
+
+export interface Tag {
+  id: string;
+  workspace_id: string;
+  name: string;
+  color: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskTag {
+  task_id: string;
+  tag_id: string;
+  added_by: string | null;
+  added_at: string;
+  tag?: Tag;
+}
+
+export interface TaskWatcher {
+  task_id: string;
+  user_id: string;
+  added_at: string;
+  display_name?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+}

@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  ArrowLeft, 
-  Clock, 
-  Euro, 
-  BarChart3, 
-  FileText, 
+import {
+  ArrowLeft,
+  Clock,
+  Euro,
+  BarChart3,
+  FileText,
   MessageSquare,
   Calendar,
   User,
@@ -38,7 +38,12 @@ import {
   Square,
   Flame,
   Folder,
-  Hash
+  Hash,
+  Eye,
+  EyeOff,
+  Tag,
+  ChevronRight,
+  Pencil,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
@@ -166,8 +171,9 @@ import { toast } from "@/hooks/use-toast";
 import { formatHours, formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
-import type { Task, TaskAssignee } from "@/types/database";
+import type { Task, TaskAssignee, Tag as TagType, TaskWatcher } from "@/types/database";
 import { cn } from "@/lib/utils";
+import { TagSelect, TagBadge } from "@/components/tasks/TagSelect";
 import { getDeadlineStatus, getDeadlineBadge } from "@/lib/deadline-utils";
 import { normalizeCurrency } from "@/lib/currency";
 import { useTimer } from "@/contexts/TimerContext";
@@ -240,6 +246,17 @@ export default function TaskDetailPage() {
   const [isExtraMode, setIsExtraMode] = useState(false);
   const descriptionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { users: workspaceUsers, loading: workspaceUsersLoading } = useWorkspaceUsers();
+
+  // Tags & watchers
+  const [taskTags, setTaskTags] = useState<TagType[]>([]);
+  const [watchers, setWatchers] = useState<TaskWatcher[]>([]);
+  const [isWatching, setIsWatching] = useState(false);
+  const [isTogglingWatch, setIsTogglingWatch] = useState(false);
+
+  // Inline-editable title
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
   const persistTimerDescription = useCallback(async (description: string, keepalive = false) => {
     try {
       const response = await fetch("/api/timers/update", {
@@ -389,6 +406,68 @@ export default function TaskDetailPage() {
     }
   };
 
+  const fetchTaskTags = async () => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/tags`);
+      const result = await res.json();
+      if (result.success) setTaskTags(result.data ?? []);
+    } catch {
+      // non-critical
+    }
+  };
+
+  const fetchWatchers = async () => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/watchers`);
+      const result = await res.json();
+      if (result.success) {
+        setWatchers(result.data ?? []);
+        setIsWatching(result.isWatching ?? false);
+      }
+    } catch {
+      // non-critical
+    }
+  };
+
+  const handleWatchToggle = async () => {
+    setIsTogglingWatch(true);
+    try {
+      if (isWatching) {
+        await fetch(`/api/tasks/${taskId}/watchers`, { method: "DELETE" });
+        setIsWatching(false);
+        setWatchers((prev) => prev.filter((w) => w.user_id !== undefined));
+      } else {
+        await fetch(`/api/tasks/${taskId}/watchers`, { method: "POST" });
+        setIsWatching(true);
+      }
+      fetchWatchers();
+    } finally {
+      setIsTogglingWatch(false);
+    }
+  };
+
+  const handleTitleSave = async () => {
+    const newTitle = titleDraft.trim();
+    if (!newTitle || newTitle === task?.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        setTask((t) => t ? { ...t, title: newTitle } : t);
+      }
+    } catch {
+      // silent
+    }
+    setIsEditingTitle(false);
+  };
+
   useEffect(() => {
     // Load critical data first (task), then load other non-critical data in parallel
     const loadData = async () => {
@@ -399,13 +478,15 @@ export default function TaskDetailPage() {
         fetchProjects(),
         fetchLinksCount(),
         fetchFilesCount(),
+        fetchTaskTags(),
+        fetchWatchers(),
       ];
-      
+
       // Only fetch comments count if user has permission
       if (canReadComments) {
         nonCriticalPromises.push(fetchCommentsCount());
       }
-      
+
       Promise.all(nonCriticalPromises).catch(() => {
         // Silently fail - non-critical data
       });
@@ -1620,28 +1701,76 @@ export default function TaskDetailPage() {
         </div>
       </div>
 
-      {/* ── Main content: two-column ───────────────────────────────────── */}
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
+      {/* ── Main content: two-column ClickUp layout ──────────────────── */}
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
 
-        {/* ── Left column ──────────────────────────────────────────────── */}
-        <div className="min-w-0 flex-1 space-y-4">
+        {/* ── LEFT COLUMN ──────────────────────────────────────────────── */}
+        <div className="min-w-0 flex-1 space-y-3">
 
-          {/* Task title */}
-          <div className="surface-panel px-5 py-4">
-            <div className="flex flex-wrap items-start gap-3">
+          {/* ── Inline-editable title ── */}
+          <div className="surface-panel group px-5 py-4">
+            <div className="flex items-start gap-3">
+              {/* Color dot */}
               <div
                 className={cn(
-                  "h-2.5 w-2.5 rounded-full shrink-0 mt-[9px]",
-                  task.color ? "" : "bg-muted-foreground/30"
+                  "mt-[5px] h-3 w-3 shrink-0 rounded-full ring-2 ring-offset-1 ring-offset-card",
+                  task.color ? "ring-transparent" : "bg-muted-foreground/20 ring-transparent"
                 )}
                 style={task.color ? { backgroundColor: task.color } : undefined}
               />
-              <h1 className="min-w-0 flex-1 text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
-                {task.title}
-              </h1>
-              <Badge variant="outline" className="shrink-0 mt-0.5 text-[11px]">
-                {normalizeCurrency(task.currency)}
-              </Badge>
+
+              {isEditingTitle ? (
+                <textarea
+                  ref={titleTextareaRef}
+                  value={titleDraft}
+                  onChange={(e) => {
+                    setTitleDraft(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = e.target.scrollHeight + "px";
+                  }}
+                  onBlur={handleTitleSave}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleTitleSave(); }
+                    if (e.key === "Escape") { setIsEditingTitle(false); }
+                  }}
+                  className="min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-muted/50 px-2 py-1 text-xl font-semibold leading-snug tracking-tight text-foreground outline-none ring-1 ring-brand/40 focus:ring-brand sm:text-2xl"
+                  rows={1}
+                  autoFocus
+                />
+              ) : (
+                <h1
+                  onClick={() => {
+                    if (!canUpdateTasks) return;
+                    setTitleDraft(task.title);
+                    setIsEditingTitle(true);
+                    setTimeout(() => {
+                      if (titleTextareaRef.current) {
+                        titleTextareaRef.current.style.height = "auto";
+                        titleTextareaRef.current.style.height = titleTextareaRef.current.scrollHeight + "px";
+                      }
+                    }, 0);
+                  }}
+                  className={cn(
+                    "min-w-0 flex-1 text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl",
+                    canUpdateTasks && "cursor-text rounded-lg px-2 py-1 -mx-2 -my-1 hover:bg-muted/50 transition-colors"
+                  )}
+                >
+                  {task.title}
+                </h1>
+              )}
+              {/* Edit hint */}
+              {canUpdateTasks && !isEditingTitle && (
+                <button
+                  onClick={() => {
+                    setTitleDraft(task.title);
+                    setIsEditingTitle(true);
+                  }}
+                  className="mt-1 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted hover:text-foreground"
+                  title="Upraviť názov"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -1790,25 +1919,20 @@ export default function TaskDetailPage() {
           )}
         </div>
 
-        {/* ── Right sidebar: properties ─────────────────────────────────── */}
-        <div className="w-full shrink-0 space-y-4 xl:w-[268px]">
+        {/* ── RIGHT SIDEBAR ────────────────────────────────────────────── */}
+        <div className="w-full shrink-0 space-y-3 xl:w-[340px]">
 
-          {/* Properties card */}
-          <Card className="rounded-xl border border-border bg-card shadow-none">
-            <CardHeader className="border-b border-border px-4 py-3">
-              <CardTitle className="m-0 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Detaily
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="divide-y divide-border/60 px-0 py-0">
+          {/* ── Properties card ── */}
+          <Card className="rounded-xl border border-border bg-card shadow-none overflow-hidden">
+            <CardContent className="divide-y divide-border/50 px-0 py-0">
 
-              {/* Status */}
-              <div className="flex items-center gap-3 px-4 py-2.5">
-                <div className="flex w-24 shrink-0 items-center gap-1.5">
-                  <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Status</span>
+              {/* ── Status ── */}
+              <div className="flex min-h-[40px] items-center gap-0 px-0">
+                <div className="flex w-[90px] shrink-0 items-center gap-1.5 px-3 py-2">
+                  <Activity className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                  <span className="text-[11px] font-medium text-muted-foreground">Status</span>
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="flex-1 border-l border-border/50 px-2 py-1.5">
                   <StatusSelect
                     status={task.status}
                     onStatusChange={handleStatusChange}
@@ -1818,45 +1942,43 @@ export default function TaskDetailPage() {
                 </div>
               </div>
 
-              {/* Priority */}
-              <div className="flex items-center gap-3 px-4 py-2.5">
-                <div className="flex w-24 shrink-0 items-center gap-1.5">
-                  <Flag className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Priorita</span>
+              {/* ── Priority ── */}
+              <div className="flex min-h-[40px] items-center gap-0 px-0">
+                <div className="flex w-[90px] shrink-0 items-center gap-1.5 px-3 py-2">
+                  <Flag className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                  <span className="text-[11px] font-medium text-muted-foreground">Priorita</span>
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="flex-1 border-l border-border/50 px-2 py-1.5">
                   <PrioritySelect
                     priority={task.priority}
                     onPriorityChange={handlePriorityChange}
                     disabled={!canUpdateTasks}
-                    size="default"
+                    size="compact"
                   />
                 </div>
               </div>
 
-              {/* Assignees */}
-              <div className="flex items-start gap-3 px-4 py-2.5">
-                <div className="flex w-24 shrink-0 items-center gap-1.5 pt-1">
-                  <User className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Riešitelia</span>
+              {/* ── Assignees ── */}
+              <div className="flex min-h-[40px] items-start gap-0 px-0">
+                <div className="flex w-[90px] shrink-0 items-center gap-1.5 px-3 py-2.5">
+                  <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                  <span className="text-[11px] font-medium text-muted-foreground">Riešitelia</span>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex-1 border-l border-border/50 px-2 py-2">
+                  <div className="flex flex-wrap items-center gap-1">
                     {assignees.map((assignee, idx) => {
                       const name = (assignee as any).display_name || (assignee as any).user?.name || (assignee as any).email || "";
                       return (
-                        <div
+                        <span
                           key={assignee.user_id || idx}
-                          className="flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5"
+                          className="flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium text-foreground"
                           title={name}
                         >
-                          <div className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] font-semibold text-muted-foreground">
+                          <span className="flex h-[16px] w-[16px] items-center justify-center rounded-full bg-muted-foreground/25 text-[8px] font-bold text-muted-foreground shrink-0">
                             {getInitials(name)}
-                          </div>
-                          <span className="max-w-[80px] truncate text-[11px] font-medium text-foreground">
-                            {name.split(" ")[0]}
                           </span>
-                        </div>
+                          {name.split(" ")[0]}
+                        </span>
                       );
                     })}
                     {canUpdateTasks && (
@@ -1869,82 +1991,180 @@ export default function TaskDetailPage() {
                       />
                     )}
                     {assignees.length === 0 && !canUpdateTasks && (
-                      <span className="text-xs text-muted-foreground/60">—</span>
+                      <span className="text-[11px] text-muted-foreground/50">Nepriradená</span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Dates */}
-              <div className="flex items-center gap-3 px-4 py-2.5">
-                <div className="flex w-24 shrink-0 items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Termín</span>
+              {/* ── Due date ── */}
+              <div className="flex min-h-[40px] items-center gap-0 px-0">
+                <div className="flex w-[90px] shrink-0 items-center gap-1.5 px-3 py-2">
+                  <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                  <span className="text-[11px] font-medium text-muted-foreground">Termín</span>
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="flex-1 border-l border-border/50 px-2 py-1.5">
                   <DateRangePicker
                     startDate={task.start_date}
                     endDate={task.due_date}
                     onSave={handleDateRangeChange}
-                    placeholder="Nastaviť dátum"
+                    placeholder="Nastaviť..."
                     disabled={!canUpdateTasks}
                   />
                 </div>
               </div>
 
-              {/* Estimated hours */}
-              {task.estimated_hours != null && task.estimated_hours > 0 && (
-                <div className="flex items-center gap-3 px-4 py-2.5">
-                  <div className="flex w-24 shrink-0 items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Odhad</span>
-                  </div>
-                  <span className="text-xs font-medium text-foreground">
-                    {formatHours(task.estimated_hours)}
-                  </span>
+              {/* ── Tags ── */}
+              <div className="flex min-h-[40px] items-start gap-0 px-0">
+                <div className="flex w-[90px] shrink-0 items-center gap-1.5 px-3 py-2.5">
+                  <Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                  <span className="text-[11px] font-medium text-muted-foreground">Tagy</span>
                 </div>
-              )}
+                <div className="flex-1 border-l border-border/50 px-2 py-2">
+                  <TagSelect
+                    taskId={task.id}
+                    currentTags={taskTags}
+                    onTagsChange={setTaskTags}
+                    disabled={!canUpdateTasks}
+                  />
+                </div>
+              </div>
 
-              {/* Actual hours */}
-              {task.actual_hours != null && task.actual_hours > 0 && (
-                <div className="flex items-center gap-3 px-4 py-2.5">
-                  <div className="flex w-24 shrink-0 items-center gap-1.5">
-                    <Timer className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Zaznam.</span>
+              {/* ── Time tracking ── */}
+              {(canReadTimeEntries) && (
+                <div className="flex min-h-[40px] items-start gap-0 px-0">
+                  <div className="flex w-[90px] shrink-0 items-center gap-1.5 px-3 py-2.5">
+                    <Timer className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                    <span className="text-[11px] font-medium text-muted-foreground">Čas</span>
                   </div>
-                  <span className={cn(
-                    "text-xs font-medium",
-                    task.estimated_hours && task.actual_hours > task.estimated_hours
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-foreground"
-                  )}>
-                    {formatHours(task.actual_hours)}
-                    {task.estimated_hours && task.actual_hours > 0 && (
-                      <span className="ml-1 text-muted-foreground font-normal">
-                        / {formatHours(task.estimated_hours)}
+                  <div className="flex-1 border-l border-border/50 px-3 py-2.5">
+                    {task.actual_hours != null && task.actual_hours > 0 ? (
+                      <div className="space-y-1.5">
+                        {/* Progress bar */}
+                        {task.estimated_hours != null && task.estimated_hours > 0 && (
+                          <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                task.actual_hours / task.estimated_hours > 1
+                                  ? "bg-red-500"
+                                  : task.actual_hours / task.estimated_hours > 0.8
+                                  ? "bg-amber-500"
+                                  : "bg-brand"
+                              )}
+                              style={{
+                                width: `${Math.min((task.actual_hours / task.estimated_hours) * 100, 100)}%`,
+                              }}
+                            />
+                          </div>
+                        )}
+                        <div className="flex items-baseline gap-1">
+                          <span className={cn(
+                            "text-[12px] font-semibold",
+                            task.estimated_hours && task.actual_hours > task.estimated_hours
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-foreground"
+                          )}>
+                            {formatHours(task.actual_hours)}
+                          </span>
+                          {task.estimated_hours != null && task.estimated_hours > 0 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              / {formatHours(task.estimated_hours)} est.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : task.estimated_hours != null && task.estimated_hours > 0 ? (
+                      <span className="text-[11px] text-muted-foreground">
+                        0h / {formatHours(task.estimated_hours)} est.
                       </span>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground/50">Nenastavený</span>
                     )}
-                  </span>
+                  </div>
                 </div>
               )}
 
-              {/* Budget */}
+              {/* ── Budget ── */}
               {canViewCosts && task.budget_cents != null && task.budget_cents > 0 && (
-                <div className="flex items-center gap-3 px-4 py-2.5">
-                  <div className="flex w-24 shrink-0 items-center gap-1.5">
-                    <Euro className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Budget</span>
+                <div className="flex min-h-[40px] items-center gap-0 px-0">
+                  <div className="flex w-[90px] shrink-0 items-center gap-1.5 px-3 py-2">
+                    <Euro className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                    <span className="text-[11px] font-medium text-muted-foreground">Budget</span>
                   </div>
-                  <span className="text-xs font-medium text-foreground">
-                    {formatCurrency(task.budget_cents / 100, task.currency || "EUR")}
-                  </span>
+                  <div className="flex-1 border-l border-border/50 px-3 py-2">
+                    <span className="text-[12px] font-semibold text-foreground">
+                      {formatCurrency(task.budget_cents / 100, task.currency || "EUR")}
+                    </span>
+                  </div>
                 </div>
               )}
+
+              {/* ── Watchers ── */}
+              <div className="flex min-h-[40px] items-start gap-0 px-0">
+                <div className="flex w-[90px] shrink-0 items-center gap-1.5 px-3 py-2.5">
+                  <Eye className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                  <span className="text-[11px] font-medium text-muted-foreground">Sleduje</span>
+                </div>
+                <div className="flex-1 border-l border-border/50 px-2 py-2">
+                  <div className="flex flex-wrap items-center gap-1">
+                    {watchers.map((w, idx) => (
+                      <span
+                        key={w.user_id || idx}
+                        className="flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium text-foreground"
+                        title={w.display_name || w.email || ""}
+                      >
+                        <span className="flex h-[16px] w-[16px] items-center justify-center rounded-full bg-muted-foreground/25 text-[8px] font-bold text-muted-foreground shrink-0">
+                          {getInitials(w.display_name || w.email || "")}
+                        </span>
+                        {(w.display_name || w.email || "").split(" ")[0]}
+                      </span>
+                    ))}
+                    <button
+                      onClick={handleWatchToggle}
+                      disabled={isTogglingWatch}
+                      className={cn(
+                        "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                        isWatching
+                          ? "border-brand/40 bg-brand/10 text-brand hover:bg-brand/20"
+                          : "border-dashed border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+                      )}
+                    >
+                      {isTogglingWatch ? (
+                        <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                      ) : isWatching ? (
+                        <EyeOff className="h-2.5 w-2.5" />
+                      ) : (
+                        <Eye className="h-2.5 w-2.5" />
+                      )}
+                      {isWatching ? "Prestať" : "Sledovať"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Created / Updated meta ── */}
+              <div className="px-3 py-2.5 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground/60">Vytvorená</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {format(new Date(task.created_at), "d. MMM yyyy", { locale: sk })}
+                  </span>
+                </div>
+                {task.updated_at && task.updated_at !== task.created_at && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground/60">Upravená</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {format(new Date(task.updated_at), "d. MMM yyyy", { locale: sk })}
+                    </span>
+                  </div>
+                )}
+              </div>
 
             </CardContent>
           </Card>
 
-          {/* Project status */}
+          {/* ── Project status card ── */}
           {task.project_id && canViewReports && (
             <ProjectStatusCard
               projectId={task.project_id}
@@ -1953,7 +2173,7 @@ export default function TaskDetailPage() {
             />
           )}
 
-          {/* Quick links */}
+          {/* ── Quick links ── */}
           {task.id && (
             <ProjectQuickLinksSection taskId={task.id} />
           )}
@@ -1963,3 +2183,4 @@ export default function TaskDetailPage() {
     </div>
   );
 }
+

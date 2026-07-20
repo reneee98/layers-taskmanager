@@ -116,7 +116,7 @@ export function StatusSelect({
               ? "h-8 w-8 justify-center rounded-md border-border bg-muted/50 text-muted-foreground hover:bg-accent hover:text-foreground"
               : isDashboard
                 ? cn(
-                    "h-11 w-36 shrink-0 gap-1.5 rounded-md border-transparent px-2 text-[11px] sm:h-8",
+                    "h-11 w-40 shrink-0 gap-2 overflow-hidden rounded-md border-transparent px-3 text-xs sm:h-9",
                     dashboardStatusTone[status]
                   )
                 : isCompact
@@ -126,7 +126,7 @@ export function StatusSelect({
             disabled ? "cursor-default" : "cursor-pointer"
           )}
         >
-          <div className="flex items-center gap-2">
+          <div className={cn("flex items-center gap-2", isDashboard && "min-w-0 flex-1")}>
             <IconComponent
               className={cn(
                 "flex-shrink-0",
@@ -146,7 +146,7 @@ export function StatusSelect({
               )}
             />
             {!isIcon && (
-              <span className={cn("whitespace-nowrap", isDashboard && "truncate")}>
+              <span className={cn("whitespace-nowrap", isDashboard && "min-w-0 truncate")}>
                 {currentStatus.label}
               </span>
             )}
@@ -155,7 +155,7 @@ export function StatusSelect({
             <ChevronDown
               className={cn(
                 "flex-shrink-0 opacity-70",
-                isCompact ? "h-2.5 w-2.5" : isDashboard ? "h-3 w-3" : "h-4 w-4"
+                isCompact ? "h-2.5 w-2.5" : isDashboard ? "ml-auto h-3.5 w-3.5" : "h-4 w-4"
               )}
             />
           )}

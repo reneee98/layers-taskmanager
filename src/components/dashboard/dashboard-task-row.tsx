@@ -407,7 +407,7 @@ export const DashboardTaskRow = ({
           : undefined
       }
       className={cn(
-        "group relative flex min-h-[52px] flex-col gap-2 border-b border-border/60 px-3 py-2.5 transition-colors duration-150 last:border-b-0 hover:bg-muted/35 sm:px-4 lg:flex-row lg:items-center lg:gap-3 lg:py-2",
+        "group relative flex min-h-[60px] flex-col gap-2 border-b border-border/60 px-3 py-2.5 transition-colors duration-150 last:border-b-0 hover:bg-muted/35 sm:px-4 lg:flex-row lg:items-center lg:gap-3",
         taskSurfaceClasses[task.status],
         isTimerActive && "bg-emerald-500/[0.055] hover:bg-emerald-500/[0.08]"
       )}
@@ -474,7 +474,7 @@ export const DashboardTaskRow = ({
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-nowrap items-center gap-1.5 lg:grid lg:flex-none lg:grid-cols-[144px_112px_128px_76px_32px_32px] lg:gap-2">
+      <div className="flex min-w-0 flex-nowrap items-center gap-1.5 lg:grid lg:flex-none lg:grid-cols-[160px_112px_128px_76px_32px_32px] lg:gap-2">
         <StatusSelect
           status={
             task.status as

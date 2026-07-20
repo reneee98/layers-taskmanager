@@ -2,7 +2,7 @@
 
 import { useTimer } from "@/contexts/TimerContext";
 import { Button } from "@/components/ui/button";
-import { Square } from "lucide-react";
+import { ChevronRight, Loader2, Square } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useRouter, usePathname } from "next/navigation";
 import { useRef, useState } from "react";
@@ -95,44 +95,56 @@ export function GlobalTimer() {
   };
 
   return (
-    <div className="flex items-center gap-2 h-12 px-3 bg-muted rounded-md border border-border shadow-sm hover:bg-muted/80 hover:shadow-md transition-all">
-      {/* Timer Display */}
-      <div className="flex items-center gap-2">
-        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-        <span className="text-sm font-semibold text-foreground tabular-nums">
+    <div className="flex h-9 min-w-0 max-w-[420px] items-center overflow-hidden rounded-lg border border-border/80 bg-card/80 shadow-sm backdrop-blur-sm">
+      <div className="flex h-full shrink-0 items-center gap-2 border-r border-border/70 px-2.5 sm:px-3">
+        <span className="relative flex h-2 w-2" aria-hidden="true">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-30" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+        </span>
+        <span
+          className="font-mono text-[13px] font-semibold leading-none tracking-[-0.02em] text-foreground tabular-nums"
+          aria-live="off"
+        >
           {formatTime(currentDuration)}
         </span>
       </div>
-      
-      {/* Task Info - Clickable */}
-      <div 
-        className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity group"
+
+      <button
+        type="button"
         onClick={handleClick}
+        className="hidden h-full min-w-0 flex-1 items-center gap-1.5 px-3 text-left transition-colors duration-150 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:flex"
+        aria-label={`Otvoriť úlohu ${activeTimer.task_name}`}
       >
         {activeTimer.project_name && (
           <>
-            <span className="text-xs text-muted-foreground font-medium">
+            <span className="hidden max-w-[110px] truncate text-xs font-medium text-muted-foreground lg:inline">
               {activeTimer.project_name}
             </span>
-            <span className="text-xs text-muted-foreground">•</span>
+            <ChevronRight className="hidden h-3 w-3 shrink-0 text-muted-foreground/60 lg:block" aria-hidden="true" />
           </>
         )}
-        <span className="text-xs font-medium text-foreground truncate max-w-[120px]">
+        <span className="min-w-0 truncate text-xs font-medium text-foreground sm:max-w-[120px] xl:max-w-[170px]">
           {activeTimer.task_name}
         </span>
-      </div>
+      </button>
 
-      {/* Action Button */}
+      <div className="flex shrink-0 items-center px-1">
         <Button
-          size="sm"
+          size="icon"
           variant="ghost"
           onClick={handleStop}
           disabled={isStopping}
-          className="h-6 w-6 p-0 hover:bg-destructive/10 text-destructive hover:text-destructive rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+          className="h-7 w-7 rounded-md text-destructive transition-colors duration-150 hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
           title="Zastaviť časovač"
+          aria-label="Zastaviť časovač"
         >
-        <Square className="h-3.5 w-3.5" />
+          {isStopping ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          ) : (
+            <Square className="h-3 w-3 fill-current" aria-hidden="true" />
+          )}
         </Button>
+      </div>
     </div>
   );
 }

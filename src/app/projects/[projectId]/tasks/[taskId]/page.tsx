@@ -163,7 +163,7 @@ const TaskShareButton = dynamic(() => import("@/components/tasks/TaskShareButton
 });
 
 import { toast } from "@/hooks/use-toast";
-import { formatHours } from "@/lib/format";
+import { formatHours, formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import type { Task, TaskAssignee } from "@/types/database";
@@ -1410,8 +1410,9 @@ export default function TaskDetailPage() {
 
   return (
     <div className="page-shell">
-      <div className="sticky top-[60px] z-40 rounded-xl border border-border bg-card/90 px-3 py-3 backdrop-blur-md sm:px-4">
-        <div className="flex w-full flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      {/* ── Sticky header ──────────────────────────────────────────────── */}
+      <div className="sticky top-[60px] z-40 rounded-xl border border-border bg-card/90 px-3 py-2.5 backdrop-blur-md sm:px-4">
+        <div className="flex w-full items-center justify-between gap-2">
           {/* Left side - Back button and breadcrumb */}
           <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
             {/* Back Button */}
@@ -1619,237 +1620,345 @@ export default function TaskDetailPage() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="space-y-5">
+      {/* ── Main content: two-column ───────────────────────────────────── */}
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
 
-      <section className="surface-panel overflow-hidden">
-        {/* Title */}
-        <div className="min-w-0 border-b border-border px-4 py-4 sm:px-5">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="min-w-0 text-2xl font-semibold leading-tight tracking-tight text-foreground sm:text-3xl">
-              {task.title}
-            </h1>
-            <Badge variant="outline">{normalizeCurrency(task.currency)}</Badge>
+        {/* ── Left column ──────────────────────────────────────────────── */}
+        <div className="min-w-0 flex-1 space-y-4">
+
+          {/* Task title */}
+          <div className="surface-panel px-5 py-4">
+            <div className="flex flex-wrap items-start gap-3">
+              <div
+                className={cn(
+                  "h-2.5 w-2.5 rounded-full shrink-0 mt-[9px]",
+                  task.color ? "" : "bg-muted-foreground/30"
+                )}
+                style={task.color ? { backgroundColor: task.color } : undefined}
+              />
+              <h1 className="min-w-0 flex-1 text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
+                {task.title}
+              </h1>
+              <Badge variant="outline" className="shrink-0 mt-0.5 text-[11px]">
+                {normalizeCurrency(task.currency)}
+              </Badge>
+            </div>
           </div>
+
+          {/* Description */}
+          <Card className="rounded-xl border border-border bg-card shadow-none">
+            <CardHeader className="border-b border-border px-5 py-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  <CardTitle className="m-0 text-sm font-semibold text-foreground">
+                    Zadanie
+                  </CardTitle>
+                </div>
+                <div className="flex items-center gap-2">
+                  <TaskDescriptionStatus taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                    onClick={() => window.dispatchEvent(new CustomEvent("editTaskDescription"))}
+                  >
+                    Upraviť
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-5">
+              <FileUploadHandler
+                taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
+                onFileUploaded={() => {}}
+              >
+                <TaskDescription
+                  taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
+                  initialDescription={task?.description || ""}
+                />
+              </FileUploadHandler>
+            </CardContent>
+          </Card>
+
+          {/* Checklist */}
+          <TaskChecklist taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
+
+          {/* Comments */}
+          {canReadComments && (
+            <Card className="rounded-xl border border-border bg-card shadow-none">
+              <CardHeader className="border-b border-border px-5 py-3.5">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                  <CardTitle className="m-0 text-sm font-semibold text-foreground">
+                    Komentáre
+                  </CardTitle>
+                  {commentsCount > 0 && (
+                    <span className="ml-1 flex h-[18px] items-center rounded-full bg-muted px-1.5 text-[10px] font-semibold text-muted-foreground">
+                      {commentsCount}
+                    </span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <CommentsList
+                  taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── Secondary tabs: Time / Files / Settings ────────────────── */}
+          {(canReadTimeEntries || canViewCosts || canUpdateTasks) && (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-xl border border-border bg-muted/[0.16] p-1 [&>*]:shrink-0">
+                {(canReadTimeEntries || canViewCosts) && (
+                  <TabsTrigger value="time" className="relative">
+                    Čas a rozpočet
+                    {task?.actual_hours != null && task.actual_hours > 0 && (
+                      <span className="ml-1.5 flex h-[14px] items-center rounded-full bg-border/50 px-1 text-[9px] font-semibold text-muted-foreground">
+                        {task.actual_hours.toFixed(1)}h
+                      </span>
+                    )}
+                  </TabsTrigger>
+                )}
+                <TabsTrigger value="files" className="relative">
+                  Podklady
+                  {filesCount > 0 && (
+                    <span className="ml-1.5 flex h-[14px] items-center rounded-full bg-border/50 px-1 text-[9px] font-semibold text-muted-foreground">
+                      {filesCount}
+                    </span>
+                  )}
+                </TabsTrigger>
+                {canUpdateTasks && (
+                  <TabsTrigger value="settings">Nastavenia</TabsTrigger>
+                )}
+              </TabsList>
+
+              {(canReadTimeEntries || canViewCosts) && (
+                <TabsContent value="time" className="mt-4 space-y-5">
+                  {canReadTimeEntries && (
+                    <TaskTimeTab
+                      taskId={task.id}
+                      projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId}
+                      onTimeEntryAdded={() => {
+                        fetchTask();
+                        window.dispatchEvent(new CustomEvent("timeEntryAdded"));
+                      }}
+                    />
+                  )}
+                  {canViewCosts && <TaskFinancePanel taskId={task.id} />}
+                </TabsContent>
+              )}
+
+              <TabsContent value="files" className="mt-4">
+                <Card className="rounded-xl border border-border bg-card shadow-none">
+                  <CardHeader className="border-b border-border px-5 py-3.5">
+                    <CardTitle className="m-0 text-sm font-semibold text-foreground">
+                      Súbory a podklady
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-5">
+                    <TaskFilesGrid taskId={task.id} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {canUpdateTasks && (
+                <TabsContent value="settings" className="mt-4">
+                  {task && (
+                    <TaskSettingsPanel
+                      taskId={task.id}
+                      task={{
+                        id: task.id,
+                        title: task.title,
+                        project_id: task.project_id || null,
+                        color: task.color || null,
+                        currency: task.currency || "EUR",
+                        budget_cents: task.budget_cents || null,
+                        sales_commission_enabled: (task as any).sales_commission_enabled,
+                        sales_commission_user_id: (task as any).sales_commission_user_id || null,
+                        sales_commission_percent: (task as any).sales_commission_percent || null,
+                      }}
+                      projects={projects}
+                      onTaskUpdate={fetchTask}
+                    />
+                  )}
+                </TabsContent>
+              )}
+            </Tabs>
+          )}
         </div>
 
-        <div className="flex flex-col gap-3 bg-muted/[0.16] p-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-5 sm:px-5">
-          {/* Assignees */}
-          <div className="flex items-start pl-0 pr-[6px] py-0 relative shrink-0">
-            {assignees.slice(0, 3).map((assignee, idx) => {
-              const assigneeName = (assignee as any).display_name || (assignee as any).user?.name || (assignee as any).email || "";
-              return (
-                <div
-                  key={assignee.user_id || idx}
-                  className="bg-muted dark:bg-slate-700 border-2 border-solid border-white dark:border-slate-800 flex items-start mr-[-6px] overflow-clip p-[2px] relative rounded-full shadow-[0px_0px_0px_1px_#f1f5f9] dark:shadow-[0px_0px_0px_1px_#334155] shrink-0 size-[28px]"
-                >
-                  <div className="bg-muted dark:bg-slate-600 h-[24px] w-[24px] rounded-full shrink-0 flex items-center justify-center">
-                    <span className="font-normal leading-none text-muted-foreground dark:text-slate-300 text-[10px] tracking-wide">
-                      {getInitials(assigneeName)}
-                    </span>
+        {/* ── Right sidebar: properties ─────────────────────────────────── */}
+        <div className="w-full shrink-0 space-y-4 xl:w-[268px]">
+
+          {/* Properties card */}
+          <Card className="rounded-xl border border-border bg-card shadow-none">
+            <CardHeader className="border-b border-border px-4 py-3">
+              <CardTitle className="m-0 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Detaily
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="divide-y divide-border/60 px-0 py-0">
+
+              {/* Status */}
+              <div className="flex items-center gap-3 px-4 py-2.5">
+                <div className="flex w-24 shrink-0 items-center gap-1.5">
+                  <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Status</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <StatusSelect
+                    status={task.status}
+                    onStatusChange={handleStatusChange}
+                    disabled={!canUpdateTasks}
+                    size="dashboard"
+                  />
+                </div>
+              </div>
+
+              {/* Priority */}
+              <div className="flex items-center gap-3 px-4 py-2.5">
+                <div className="flex w-24 shrink-0 items-center gap-1.5">
+                  <Flag className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Priorita</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <PrioritySelect
+                    priority={task.priority}
+                    onPriorityChange={handlePriorityChange}
+                    disabled={!canUpdateTasks}
+                    size="default"
+                  />
+                </div>
+              </div>
+
+              {/* Assignees */}
+              <div className="flex items-start gap-3 px-4 py-2.5">
+                <div className="flex w-24 shrink-0 items-center gap-1.5 pt-1">
+                  <User className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Riešitelia</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {assignees.map((assignee, idx) => {
+                      const name = (assignee as any).display_name || (assignee as any).user?.name || (assignee as any).email || "";
+                      return (
+                        <div
+                          key={assignee.user_id || idx}
+                          className="flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5"
+                          title={name}
+                        >
+                          <div className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] font-semibold text-muted-foreground">
+                            {getInitials(name)}
+                          </div>
+                          <span className="max-w-[80px] truncate text-[11px] font-medium text-foreground">
+                            {name.split(" ")[0]}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {canUpdateTasks && (
+                      <MultiAssigneeSelect
+                        taskId={task.id}
+                        currentAssignees={assignees}
+                        onAssigneesChange={handleAssigneesChange}
+                        disabled={!canUpdateTasks}
+                        compact={true}
+                      />
+                    )}
+                    {assignees.length === 0 && !canUpdateTasks && (
+                      <span className="text-xs text-muted-foreground/60">—</span>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-            {/* Add assignee button */}
-            {canUpdateTasks && (
-              <div className="mr-[-6px] relative shrink-0">
-                <MultiAssigneeSelect
-                  taskId={task.id}
-                  currentAssignees={assignees}
-                  onAssigneesChange={handleAssigneesChange}
-                  disabled={!canUpdateTasks}
-                  compact={true}
-                />
               </div>
-            )}
-          </div>
 
-          {/* Divider */}
-          <div className="hidden h-4 w-px shrink-0 bg-border/60 sm:block" />
+              {/* Dates */}
+              <div className="flex items-center gap-3 px-4 py-2.5">
+                <div className="flex w-24 shrink-0 items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Termín</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <DateRangePicker
+                    startDate={task.start_date}
+                    endDate={task.due_date}
+                    onSave={handleDateRangeChange}
+                    placeholder="Nastaviť dátum"
+                    disabled={!canUpdateTasks}
+                  />
+                </div>
+              </div>
 
-          {/* Date, Status, Priority badges */}
-          <div className="relative flex flex-wrap items-center gap-2 sm:gap-3">
-            {/* Date badge */}
-            <DateRangePicker
-              startDate={task.start_date}
-              endDate={task.due_date}
-              onSave={handleDateRangeChange}
-              placeholder="Nastaviť dátum"
-              disabled={!canUpdateTasks}
-            />
-
-            {/* Status badge */}
-            <StatusSelect 
-              status={task.status} 
-              onStatusChange={handleStatusChange}
-              disabled={!canUpdateTasks}
-              size="default"
-            />
-
-            {/* Priority badge */}
-            <PrioritySelect 
-              priority={task.priority} 
-              onPriorityChange={handlePriorityChange}
-              disabled={!canUpdateTasks}
-              size="default"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Tabs Navigation */}
-      <div className="w-full">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-xl border border-border bg-muted/[0.16] p-1 [&>*]:shrink-0">
-            <TabsTrigger value="overview" className="relative">
-              Práca
-            </TabsTrigger>
-            {(canReadTimeEntries || canViewCosts) && (
-              <TabsTrigger value="time" className="relative">
-                Čas a rozpočet
-                {task?.actual_hours != null && task.actual_hours > 0 && (
-                  <span className="ml-1.5 flex h-[14px] items-center rounded-full bg-border/50 px-1 text-[9px] font-semibold text-muted-foreground">
-                    {task.actual_hours.toFixed(1)}h
-                  </span>
-                )}
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="files" className="relative">
-              Podklady
-              {filesCount > 0 && (
-                <span className="ml-1.5 bg-border/50 dark:bg-muted-foreground/30 text-muted-foreground dark:text-muted-foreground text-[9px] font-semibold leading-[12px] px-1 py-0 rounded-full h-[14px] flex items-center">
-                  {filesCount}
-                </span>
-              )}
-            </TabsTrigger>
-            {canUpdateTasks && (
-              <TabsTrigger value="settings">
-                Nastavenia
-              </TabsTrigger>
-            )}
-          </TabsList>
-
-          {/* Main Content - two column on large screens, single column on smaller */}
-          <div className="mt-4 flex flex-col items-start gap-5 xl:flex-row">
-            {/* Left Column - Main Content */}
-            <div className="min-w-0 flex-1 space-y-6">
-              <TabsContent value="overview" className="mt-0 space-y-5">
-              <Card className="rounded-xl border border-border bg-card shadow-none">
-                <CardHeader className="border-b border-border px-5 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <CardTitle className="m-0 text-sm font-semibold text-foreground">
-                        Zadanie
-                      </CardTitle>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-3 text-[12px] font-medium text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground"
-                      onClick={() => {
-                        // Trigger edit mode for TaskDescription
-                        const event = new CustomEvent('editTaskDescription');
-                        window.dispatchEvent(event);
-                      }}
-                    >
-                      Upraviť
-                    </Button>
+              {/* Estimated hours */}
+              {task.estimated_hours != null && task.estimated_hours > 0 && (
+                <div className="flex items-center gap-3 px-4 py-2.5">
+                  <div className="flex w-24 shrink-0 items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Odhad</span>
                   </div>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-5">
-                  <FileUploadHandler
-                    taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
-                    onFileUploaded={(fileUrl, htmlContent) => {
-                      // Files are automatically added to Files section via custom event
-                      // No need to modify description
-                    }}
-                  >
-                    <TaskDescription
-                      taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
-                      initialDescription={task?.description || ""}
-                    />
-                  </FileUploadHandler>
-                </CardContent>
-              </Card>
-
-              {/* Task Checklist */}
-              <TaskChecklist taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
-            </TabsContent>
-
-            {(canReadTimeEntries || canViewCosts) && (
-              <TabsContent value="time" className="mt-0 space-y-5">
-                {canReadTimeEntries && (
-                  <TaskTimeTab
-                    taskId={task.id}
-                    projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId}
-                    onTimeEntryAdded={() => {
-                      fetchTask();
-                      window.dispatchEvent(new CustomEvent('timeEntryAdded'));
-                    }}
-                  />
-                )}
-                {canViewCosts && <TaskFinancePanel taskId={task.id} />}
-              </TabsContent>
-            )}
-
-            <TabsContent value="files" className="mt-0">
-              <Card className="rounded-xl border border-border bg-card shadow-none">
-                <CardHeader className="border-b border-border px-5 py-4">
-                  <CardTitle className="m-0 text-sm font-semibold text-foreground">
-                    Súbory a podklady
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-5">
-                  <TaskFilesGrid 
-                    taskId={task.id}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="settings" className="mt-0">
-              {task && (
-                <TaskSettingsPanel
-                  taskId={task.id}
-                  task={{
-                    id: task.id,
-                    title: task.title,
-                    project_id: task.project_id || null,
-                    color: task.color || null,
-                    currency: task.currency || "EUR",
-                    budget_cents: task.budget_cents || null,
-                    sales_commission_enabled: (task as any).sales_commission_enabled,
-                    sales_commission_user_id: (task as any).sales_commission_user_id || null,
-                    sales_commission_percent: (task as any).sales_commission_percent || null,
-                  }}
-                  projects={projects}
-                  onTaskUpdate={fetchTask}
-                />
+                  <span className="text-xs font-medium text-foreground">
+                    {formatHours(task.estimated_hours)}
+                  </span>
+                </div>
               )}
-            </TabsContent>
-            </div>
 
-            {/* Right Sidebar - full width on small, fixed width on 2xl+ */}
-            <div className="w-full shrink-0 space-y-5 xl:w-80">
-              {/* Status projektu Card - Figma Design */}
-              {task.project_id && canViewReports && (
-                <ProjectStatusCard 
-                  projectId={task.project_id}
-                  taskId={task.id}
-                  assignees={assignees}
-                />
+              {/* Actual hours */}
+              {task.actual_hours != null && task.actual_hours > 0 && (
+                <div className="flex items-center gap-3 px-4 py-2.5">
+                  <div className="flex w-24 shrink-0 items-center gap-1.5">
+                    <Timer className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Zaznam.</span>
+                  </div>
+                  <span className={cn(
+                    "text-xs font-medium",
+                    task.estimated_hours && task.actual_hours > task.estimated_hours
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-foreground"
+                  )}>
+                    {formatHours(task.actual_hours)}
+                    {task.estimated_hours && task.actual_hours > 0 && (
+                      <span className="ml-1 text-muted-foreground font-normal">
+                        / {formatHours(task.estimated_hours)}
+                      </span>
+                    )}
+                  </span>
+                </div>
               )}
-              
-              {/* Rýchle odkazy */}
-              {task.id && (
-                <ProjectQuickLinksSection taskId={task.id} />
+
+              {/* Budget */}
+              {canViewCosts && task.budget_cents != null && task.budget_cents > 0 && (
+                <div className="flex items-center gap-3 px-4 py-2.5">
+                  <div className="flex w-24 shrink-0 items-center gap-1.5">
+                    <Euro className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Budget</span>
+                  </div>
+                  <span className="text-xs font-medium text-foreground">
+                    {formatCurrency(task.budget_cents / 100, task.currency || "EUR")}
+                  </span>
+                </div>
               )}
-            </div>
-          </div>
-        </Tabs>
-      </div>
+
+            </CardContent>
+          </Card>
+
+          {/* Project status */}
+          {task.project_id && canViewReports && (
+            <ProjectStatusCard
+              projectId={task.project_id}
+              taskId={task.id}
+              assignees={assignees}
+            />
+          )}
+
+          {/* Quick links */}
+          {task.id && (
+            <ProjectQuickLinksSection taskId={task.id} />
+          )}
+
+        </div>
       </div>
     </div>
   );

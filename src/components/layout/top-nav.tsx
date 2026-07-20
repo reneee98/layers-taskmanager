@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Check, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Bell, Check, CheckCheck, Menu, MessageSquare, CalendarClock, Activity, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { sk } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { GlobalTimer } from "@/components/timer/GlobalTimer";
 import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
@@ -33,16 +37,41 @@ interface WorkspaceInvitationNotification {
   project_names?: string[];
 }
 
+interface AppNotification {
+  id: string;
+  type: "status_change" | "comment" | "due_date" | string;
+  title: string;
+  body: string | null;
+  task_id: string | null;
+  project_id: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+const notificationIcon = (type: string) => {
+  switch (type) {
+    case "comment":
+      return MessageSquare;
+    case "due_date":
+      return CalendarClock;
+    default:
+      return Activity;
+  }
+};
+
 export const TopNav = ({
   onMenuClick,
   onToggleSidebar,
   isSidebarCollapsed = false,
 }: TopNavProps) => {
+  const router = useRouter();
   const [invitations, setInvitations] = useState<WorkspaceInvitationNotification[]>([]);
   const [loadingInvitations, setLoadingInvitations] = useState(true);
   const [processingInvitationId, setProcessingInvitationId] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const pendingCount = invitations.length;
+  const pendingCount = invitations.length + unreadCount;
 
   const fetchInvitations = async () => {
     try {
@@ -61,11 +90,57 @@ export const TopNav = ({
     }
   };
 
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch("/api/notifications", { cache: "no-store" });
+      const result = await response.json();
+      if (response.ok && result?.success) {
+        setNotifications(result.data || []);
+        setUnreadCount(result.unreadCount || 0);
+      }
+    } catch (error) {
+      // silent — bell just stays as-is
+    }
+  };
+
   useEffect(() => {
     fetchInvitations();
-    const interval = setInterval(fetchInvitations, 30000);
+    fetchNotifications();
+    const interval = setInterval(() => {
+      fetchInvitations();
+      fetchNotifications();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleNotificationClick = async (notification: AppNotification) => {
+    if (!notification.read_at) {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notification.id ? { ...n, read_at: new Date().toISOString() } : n))
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+      fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: notification.id }),
+      }).catch(() => {});
+    }
+    if (notification.task_id && notification.project_id) {
+      router.push(`/projects/${notification.project_id}/tasks/${notification.task_id}`);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() }))
+    );
+    setUnreadCount(0);
+    fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ all: true }),
+    }).catch(() => {});
+  };
 
   const handleAcceptInvitation = async (invitationId: string) => {
     setProcessingInvitationId(invitationId);
@@ -194,9 +269,19 @@ export const TopNav = ({
             <DropdownMenuContent align="end" className="w-[420px] p-0">
               <DropdownMenuLabel className="flex items-center justify-between px-4 py-3">
                 <span>Upozornenia</span>
-                <span className="text-xs font-medium text-muted-foreground">
-                  {pendingCount} čakajúcich
-                </span>
+                {unreadCount > 0 ? (
+                  <button
+                    onClick={handleMarkAllRead}
+                    className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" />
+                    Označiť ako prečítané
+                  </button>
+                ) : (
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {pendingCount} čakajúcich
+                  </span>
+                )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <div className="max-h-[420px] overflow-y-auto p-3 space-y-3">
@@ -206,9 +291,60 @@ export const TopNav = ({
                   </p>
                 )}
 
-                {!loadingInvitations && invitations.length === 0 && (
+                {/* Task notifications */}
+                {notifications.length > 0 && (
+                  <div className="space-y-1">
+                    {notifications.map((notification) => {
+                      const Icon = notificationIcon(notification.type);
+                      const isUnread = !notification.read_at;
+                      return (
+                        <button
+                          key={notification.id}
+                          onClick={() => handleNotificationClick(notification)}
+                          className={cn(
+                            "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-muted",
+                            isUnread && "bg-brand/[0.04]"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+                              isUnread ? "bg-brand/10 text-brand" : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                          </span>
+                          <span className="min-w-0 flex-1 space-y-0.5">
+                            <span className={cn(
+                              "block text-[13px] leading-snug",
+                              isUnread ? "font-medium text-foreground" : "text-muted-foreground"
+                            )}>
+                              {notification.title}
+                            </span>
+                            {notification.body && (
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {notification.body}
+                              </span>
+                            )}
+                            <span className="block text-[11px] text-muted-foreground/60">
+                              {formatDistanceToNow(new Date(notification.created_at), {
+                                addSuffix: true,
+                                locale: sk,
+                              })}
+                            </span>
+                          </span>
+                          {isUnread && (
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {!loadingInvitations && invitations.length === 0 && notifications.length === 0 && (
                   <p className="text-sm text-muted-foreground px-1 py-2">
-                    Nemáte žiadne nové pozvánky.
+                    Nemáte žiadne nové upozornenia.
                   </p>
                 )}
 

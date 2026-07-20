@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth";
 import { logActivity, ActivityTypes, getUserDisplayName, getTaskTitle } from "@/lib/activity-logger";
+import { notifyTaskWatchers } from "@/lib/notifications";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 
 export async function GET(
@@ -162,6 +163,20 @@ export async function POST(
         comment_content: content.trim(),
         user_display_name: userDisplayName
       }
+    });
+
+    const commentPreview = content.trim().length > 80
+      ? `${content.trim().slice(0, 80)}…`
+      : content.trim();
+    await notifyTaskWatchers({
+      supabase,
+      taskId: params.taskId,
+      workspaceId,
+      projectId: task.project_id,
+      actorId: user.id,
+      type: "comment",
+      title: `${userDisplayName} pridal komentár: „${commentPreview}"`,
+      body: task.title,
     });
 
     // Get current user info

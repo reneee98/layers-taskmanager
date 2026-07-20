@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
+import { notifyTaskWatchers } from "@/lib/notifications";
+import { getTaskStatusLabel } from "@/lib/task-status";
 import { getUserWorkspaceIdFromRequest, getUserWorkspaceId } from "@/lib/auth/workspace";
 import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
 import { resolveHourlyRate } from "@/server/rates/resolveHourlyRate";
@@ -730,6 +732,17 @@ export async function PATCH(
           user_display_name: userDisplayName,
         },
       });
+
+      await notifyTaskWatchers({
+        supabase,
+        taskId: task.id,
+        workspaceId,
+        projectId: task.project_id,
+        actorId: user.id,
+        type: "status_change",
+        title: `${userDisplayName} zmenil status úlohy na „${getTaskStatusLabel(validation.data.status)}"`,
+        body: task.title,
+      });
     }
 
     // Check for priority change
@@ -850,6 +863,19 @@ export async function PATCH(
           new_due_date: validation.data.due_date,
           user_display_name: userDisplayName,
         },
+      });
+
+      await notifyTaskWatchers({
+        supabase,
+        taskId: task.id,
+        workspaceId,
+        projectId: task.project_id,
+        actorId: user.id,
+        type: "due_date",
+        title: validation.data.due_date
+          ? `${userDisplayName} zmenil termín úlohy na ${new Date(validation.data.due_date).toLocaleDateString("sk-SK")}`
+          : `${userDisplayName} odstránil termín úlohy`,
+        body: task.title,
       });
 
       // Automatically set start_date to today if task is overdue or due today

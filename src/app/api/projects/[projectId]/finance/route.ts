@@ -3,6 +3,7 @@ import { computeProjectFinance } from "@/server/finance/computeProjectFinance";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth";
 import { canAccessProject } from "@/lib/auth/project-access";
+import { hasPermission } from "@/lib/auth/permissions";
 
 export async function GET(
   req: NextRequest,
@@ -33,6 +34,14 @@ export async function GET(
     if (!hasAccess) {
       return NextResponse.json(
         { success: false, error: "Nemáte prístup k tomuto projektu" },
+        { status: 403 }
+      );
+    }
+
+    const canViewCosts = await hasPermission(user.id, "financial", "view_costs", project.workspace_id);
+    if (!canViewCosts) {
+      return NextResponse.json(
+        { success: false, error: "Nemáte oprávnenie na zobrazenie finančných údajov" },
         { status: 403 }
       );
     }

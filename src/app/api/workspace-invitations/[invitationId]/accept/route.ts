@@ -67,7 +67,9 @@ export async function POST(
     // Validate selected project IDs belong to invitation workspace
     let scopedProjectIds: string[] = [];
     if (requestedProjectIds.length > 0) {
-      const { data: projectsInWorkspace, error: projectsError } = await supabase
+      // Must use dataClient (service role): the accepting user is not a member yet,
+      // so RLS would hide the workspace's projects from their session client.
+      const { data: projectsInWorkspace, error: projectsError } = await dataClient
         .from("projects")
         .select("id")
         .eq("workspace_id", invitation.workspace_id)

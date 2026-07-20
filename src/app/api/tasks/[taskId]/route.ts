@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
 import { notifyTaskWatchers } from "@/lib/notifications";
 import { getTaskStatusLabel } from "@/lib/task-status";
+import { canViewFinancialData, redactTaskFinancials } from "@/lib/finance-redaction";
 import { getUserWorkspaceIdFromRequest, getUserWorkspaceId } from "@/lib/auth/workspace";
 import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
 import { resolveHourlyRate } from "@/server/rates/resolveHourlyRate";
@@ -273,8 +274,13 @@ export async function GET(
       assignees: assigneesWithUsers,
     };
 
+    // Hide prices/budgets from users without financial permission
+    const responseTask = (await canViewFinancialData(user.id, workspaceId))
+      ? taskWithHourlyRate
+      : redactTaskFinancials([taskWithHourlyRate])[0];
+
     return NextResponse.json(
-      { success: true, data: taskWithHourlyRate },
+      { success: true, data: responseTask },
       {
         headers: { "Content-Type": "application/json" },
       }

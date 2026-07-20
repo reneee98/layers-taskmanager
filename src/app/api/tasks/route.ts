@@ -7,6 +7,7 @@ import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-l
 import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
 import { getProjectAccessContext } from "@/lib/auth/project-access";
 import { normalizeCurrency } from "@/lib/currency";
+import { canViewFinancialData, redactTaskFinancials } from "@/lib/finance-redaction";
 
 export const dynamic = "force-dynamic";
 
@@ -208,8 +209,13 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // Hide prices/budgets from users without financial permission
+    const responseTasks = (await canViewFinancialData(user.id, workspaceId))
+      ? tasksWithAssignees
+      : redactTaskFinancials(tasksWithAssignees);
+
     return NextResponse.json(
-      { success: true, data: tasksWithAssignees },
+      { success: true, data: responseTasks },
       {
         headers: {
           "Cache-Control": "private, max-age=5",

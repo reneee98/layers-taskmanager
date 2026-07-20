@@ -6,6 +6,7 @@ import { getServerUser } from "@/lib/auth";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 import { generateProjectCode, generateUniqueProjectCode } from "@/lib/generate-project-code";
 import { getProjectAccessContext } from "@/lib/auth/project-access";
+import { canViewFinancialData, redactProjectFinancials } from "@/lib/finance-redaction";
 import { getRandomProjectColor, normalizeProjectColor } from "@/lib/project-colors";
 
 export const dynamic = "force-dynamic";
@@ -167,11 +168,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Convert hourly_rate_cents and budget_cents back to hourly_rate and fixed_fee for frontend compatibility
-    const projectsWithHourlyRate = finalProjects.map((project) => ({
+    let projectsWithHourlyRate = finalProjects.map((project) => ({
       ...project,
       hourly_rate: project.hourly_rate_cents ? project.hourly_rate_cents / 100 : null,
       fixed_fee: project.budget_cents ? project.budget_cents / 100 : null,
     }));
+
+    // Hide prices/budgets from users without financial permission
+    if (!(await canViewFinancialData(user.id, workspaceId))) {
+      projectsWithHourlyRate = redactProjectFinancials(projectsWithHourlyRate);
+    }
 
     return NextResponse.json({ success: true, data: projectsWithHourlyRate });
   } catch (error) {

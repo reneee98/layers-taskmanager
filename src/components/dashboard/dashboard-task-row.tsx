@@ -410,12 +410,20 @@ export const DashboardTaskRow = ({
         }}
       />
       <div className="min-w-0 flex-1">
-        <Link
-          href={taskHref}
-          className="block truncate text-[13px] font-medium leading-5 text-foreground outline-none transition-colors hover:text-foreground/70 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring/30"
-        >
-          {taskTitle}
-        </Link>
+        <div className="flex min-w-0 items-center gap-1">
+          <PrioritySelect
+            priority={task.priority as TaskPriority}
+            disabled={!canUpdate}
+            size="flag"
+            onPriorityChange={(priority) => onUpdate(task.id, { priority })}
+          />
+          <Link
+            href={taskHref}
+            className="min-w-0 flex-1 truncate text-[13px] font-medium leading-5 text-foreground outline-none transition-colors hover:text-foreground/70 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring/30"
+          >
+            {taskTitle}
+          </Link>
+        </div>
         <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
           {showProject && task.project && (
             <span
@@ -432,12 +440,6 @@ export const DashboardTaskRow = ({
               {task.project.code ? ` · ${task.project.code}` : ""}
             </span>
           )}
-          <PrioritySelect
-            priority={task.priority as TaskPriority}
-            disabled={!canUpdate}
-            size="flag"
-            onPriorityChange={(priority) => onUpdate(task.id, { priority })}
-          />
           <span className="inline-flex items-center gap-1 lg:hidden">
             <Clock3 className="h-3 w-3" />
             <span

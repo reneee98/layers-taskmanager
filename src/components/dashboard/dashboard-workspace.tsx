@@ -234,7 +234,7 @@ export const DashboardWorkspace = ({
 
     return sortTasks(
       workspaceTasks.filter((task) => {
-        if (task.status === "done" || task.status === "cancelled" || !task.due_date) return false;
+        if (task.status !== "todo" || !task.due_date) return false;
 
         const startTimestamp = startOfDay(parseISO(task.start_date || task.due_date)).getTime();
         const dueTimestamp = startOfDay(parseISO(task.due_date)).getTime();
@@ -246,7 +246,7 @@ export const DashboardWorkspace = ({
     () =>
       sortTasks(
         workspaceTasks.filter(
-          (task) => task.status !== "done" && task.status !== "cancelled" && task.due_date === null
+          (task) => task.status === "todo" && task.due_date === null
         )
       ),
     [workspaceTasks]

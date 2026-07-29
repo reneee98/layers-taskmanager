@@ -27,6 +27,17 @@ export interface ProjectFinance {
   
   // Time series data for charts
   dailyData: DailyFinanceData[];
+
+  // Task detail only
+  teamBreakdown?: TeamMemberFinance[];
+  teamCost?: number;
+}
+
+export interface TeamMemberFinance {
+  userId: string;
+  name: string;
+  hours: number;
+  cost: number;
 }
 
 export interface DailyFinanceData {

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { ProjectFinance, DailyFinanceData } from "./computeProjectFinance";
+import { ProjectFinance, DailyFinanceData, TeamMemberFinance } from "./computeProjectFinance";
 
 export const computeTaskFinance = async (
   taskId: string
@@ -30,7 +30,7 @@ export const computeTaskFinance = async (
   // 2. Get time entries for this task
   const { data: timeEntries, error: timeEntriesError } = await supabase
     .from("time_entries")
-    .select("hours, hourly_rate, amount, date, is_billable")
+    .select("hours, hourly_rate, amount, date, is_billable, user_id")
     .eq("task_id", taskId)
     .order("date", { ascending: true });
 
@@ -43,6 +43,50 @@ export const computeTaskFinance = async (
   const billableTimeEntries = timeEntries?.filter(te => te.is_billable) || [];
   const billableHours = billableTimeEntries.reduce((sum, te) => sum + (te.hours || 0), 0);
   const totalHours = timeEntries?.reduce((sum, te) => sum + (te.hours || 0), 0) || 0;
+
+  const userIds = Array.from(
+    new Set((timeEntries || []).map((entry) => entry.user_id).filter(Boolean))
+  );
+  const { data: profiles } =
+    userIds.length > 0
+      ? await supabase
+          .from("profiles")
+          .select("id, display_name, email")
+          .in("id", userIds)
+      : { data: [] };
+  const profilesById = new Map(
+    (profiles || []).map((profile) => [
+      profile.id,
+      profile.display_name || profile.email || "Neznámy používateľ",
+    ])
+  );
+  const teamByUserId = new Map<string, TeamMemberFinance>();
+
+  (timeEntries || []).forEach((entry) => {
+    if (!entry.user_id) return;
+
+    const existingMember = teamByUserId.get(entry.user_id);
+    const hours = entry.hours || 0;
+    const cost = hours * (entry.hourly_rate || 0);
+
+    if (existingMember) {
+      existingMember.hours += hours;
+      existingMember.cost += cost;
+      return;
+    }
+
+    teamByUserId.set(entry.user_id, {
+      userId: entry.user_id,
+      name: profilesById.get(entry.user_id) || "Neznámy používateľ",
+      hours,
+      cost,
+    });
+  });
+
+  const teamBreakdown = Array.from(teamByUserId.values()).sort(
+    (firstMember, secondMember) => secondMember.hours - firstMember.hours
+  );
+  const teamCost = teamBreakdown.reduce((sum, member) => sum + member.cost, 0);
 
   // 4. Calculate labor cost (sum of time_entries.amount)
   const laborCost = timeEntries?.reduce((sum, te) => sum + (te.amount || 0), 0) || 0;
@@ -138,5 +182,7 @@ export const computeTaskFinance = async (
     profitPct,
     
     dailyData,
+    teamBreakdown,
+    teamCost,
   };
 };

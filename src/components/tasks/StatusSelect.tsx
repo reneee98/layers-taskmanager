@@ -17,7 +17,7 @@ interface StatusSelectProps {
     status: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled"
   ) => void;
   disabled?: boolean;
-  size?: "default" | "compact" | "icon" | "dashboard";
+  size?: "default" | "compact" | "icon" | "dashboard" | "planner";
 }
 
 const statusOptions = [
@@ -46,7 +46,7 @@ const statusOptions = [
   },
   {
     value: "sent_to_client",
-    label: getTaskStatusLabel("sent_to_client"),
+    label: "U klienta",
     icon: Send,
     color:
       "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800 dark:hover:bg-purple-800/30",
@@ -79,6 +79,15 @@ const dashboardStatusTone: Record<string, string> = {
   cancelled: "bg-rose-500/[0.09] text-rose-700 hover:bg-rose-500/[0.15] dark:text-rose-300",
 };
 
+const statusMenuIconTone: Record<string, string> = {
+  todo: "bg-slate-500/[0.08] text-slate-500",
+  in_progress: "bg-sky-500/[0.1] text-sky-600 dark:text-sky-400",
+  review: "bg-amber-500/[0.1] text-amber-600 dark:text-amber-400",
+  sent_to_client: "bg-violet-500/[0.1] text-violet-600 dark:text-violet-400",
+  done: "bg-emerald-500/[0.1] text-emerald-600 dark:text-emerald-400",
+  cancelled: "bg-rose-500/[0.1] text-rose-600 dark:text-rose-400",
+};
+
 export function StatusSelect({
   status,
   onStatusChange,
@@ -101,6 +110,7 @@ export function StatusSelect({
   const isCompact = size === "compact";
   const isIcon = size === "icon";
   const isDashboard = size === "dashboard";
+  const isPlanner = size === "planner";
 
   return (
     <DropdownMenu open={disabled ? false : isOpen} onOpenChange={disabled ? undefined : setIsOpen}>
@@ -119,19 +129,36 @@ export function StatusSelect({
                     "h-11 w-40 shrink-0 gap-2 overflow-hidden rounded-md border-transparent px-3 text-xs sm:h-9",
                     dashboardStatusTone[status]
                   )
+                : isPlanner
+                  ? cn(
+                      "h-5 max-w-[92px] shrink-0 gap-1 overflow-hidden rounded border-transparent px-1.5 text-[9px] leading-none",
+                      dashboardStatusTone[status]
+                    )
                 : isCompact
                   ? "h-6 w-fit gap-1 rounded-md px-1.5 py-0.5 text-xs"
                   : "h-[36px] gap-2 rounded-full px-[13px] py-px text-[12px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]",
-            !isIcon && !isDashboard && currentStatus.color,
+            !isIcon && !isDashboard && !isPlanner && currentStatus.color,
             disabled ? "cursor-default" : "cursor-pointer"
           )}
         >
-          <div className={cn("flex items-center gap-2", isDashboard && "min-w-0 flex-1")}>
+          <div
+            className={cn(
+              "flex items-center gap-2",
+              (isDashboard || isPlanner) && "min-w-0 flex-1",
+              isPlanner && "gap-1"
+            )}
+          >
             <IconComponent
               className={cn(
                 "flex-shrink-0",
-                isIcon || isDashboard ? "h-3.5 w-3.5" : isCompact ? "h-3 w-3" : "h-4 w-4",
                 isIcon || isDashboard
+                  ? "h-3.5 w-3.5"
+                  : isPlanner
+                    ? "h-2.5 w-2.5"
+                    : isCompact
+                      ? "h-3 w-3"
+                      : "h-4 w-4",
+                isIcon || isDashboard || isPlanner
                   ? status === "in_progress"
                     ? "text-blue-500"
                     : status === "review"
@@ -146,7 +173,12 @@ export function StatusSelect({
               )}
             />
             {!isIcon && (
-              <span className={cn("whitespace-nowrap", isDashboard && "min-w-0 truncate")}>
+              <span
+                className={cn(
+                  "whitespace-nowrap",
+                  (isDashboard || isPlanner) && "min-w-0 truncate"
+                )}
+              >
                 {currentStatus.label}
               </span>
             )}
@@ -155,16 +187,26 @@ export function StatusSelect({
             <ChevronDown
               className={cn(
                 "flex-shrink-0 opacity-70",
-                isCompact ? "h-2.5 w-2.5" : isDashboard ? "ml-auto h-3.5 w-3.5" : "h-4 w-4"
+                isCompact || isPlanner
+                  ? "h-2.5 w-2.5"
+                  : isDashboard
+                    ? "ml-auto h-3.5 w-3.5"
+                    : "h-4 w-4"
               )}
             />
           )}
         </button>
       </DropdownMenuTrigger>
       {!disabled && (
-        <DropdownMenuContent align="start" className="w-48 p-2">
+        <DropdownMenuContent
+          align={isPlanner ? "end" : "start"}
+          sideOffset={6}
+          className="w-44 rounded-xl border-border/80 bg-popover/95 p-1.5 shadow-[0_16px_40px_hsl(0_0%_0%/0.14)] backdrop-blur-xl"
+        >
           {statusOptions.map((option) => {
             const OptionIcon = option.icon;
+            const isSelected = status === option.value;
+
             return (
               <DropdownMenuItem
                 key={option.value}
@@ -179,18 +221,29 @@ export function StatusSelect({
                       | "sent_to_client"
                   )
                 }
-                className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-accent transition-colors"
+                className={cn(
+                  "min-h-8 cursor-pointer gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors focus:bg-muted/80",
+                  isSelected && "bg-muted/60 text-foreground"
+                )}
               >
-                <OptionIcon
+                <span
                   className={cn(
-                    "h-4 w-4",
-                    option.iconColor,
-                    option.value === "in_progress" && "animate-pulse"
+                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+                    statusMenuIconTone[option.value]
                   )}
-                />
-                <span className="font-medium">{option.label}</span>
-                {status === option.value && (
-                  <Check className="h-4 w-4 ml-auto text-muted-foreground" />
+                >
+                  <OptionIcon
+                    className={cn(
+                      "h-3.5 w-3.5",
+                      option.value === "in_progress" && "animate-pulse"
+                    )}
+                  />
+                </span>
+                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                {isSelected && (
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-background text-foreground shadow-sm">
+                    <Check className="h-3 w-3" />
+                  </span>
                 )}
               </DropdownMenuItem>
             );

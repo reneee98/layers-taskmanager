@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Banknote, Circle, Clock3, Loader2, Play, Plus, Square, X } from "lucide-react";
+import { ArrowRight, Banknote, Clock3, Loader2, Play, Plus, Square, X } from "lucide-react";
 import Link from "next/link";
 
+import { PrioritySelect, type TaskPriority } from "@/components/tasks/PrioritySelect";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -81,20 +82,6 @@ interface DashboardDateRangeControlProps {
   muted?: boolean;
   onChange: (startDate: string | null, dueDate: string | null) => Promise<void>;
 }
-
-const priorityLabels: Record<string, string> = {
-  low: "Nízka",
-  medium: "Stredná",
-  high: "Vysoká",
-  urgent: "Urgentná",
-};
-
-const priorityToneClasses: Record<string, string> = {
-  low: "text-slate-500 dark:text-slate-400",
-  medium: "text-sky-600 dark:text-sky-400",
-  high: "text-orange-600 dark:text-orange-400",
-  urgent: "text-rose-600 dark:text-rose-400",
-};
 
 const taskSurfaceClasses: Record<string, string> = {
   in_progress: "bg-sky-500/[0.025] hover:bg-sky-500/[0.055]",
@@ -327,7 +314,6 @@ export const DashboardTaskRow = ({
 
   const taskTitle = stripHtml(task.title);
   const taskHref = getTaskHref(task);
-  const priorityLabel = priorityLabels[task.priority] || task.priority;
   const isTimerActive = activeTimer?.task_id === task.id;
   const liveHours = isTimerActive ? currentDuration / 3600 : 0;
   const actualHours = Math.max(task.actual_hours || 0, 0) + liveHours;
@@ -446,15 +432,12 @@ export const DashboardTaskRow = ({
               {task.project.code ? ` · ${task.project.code}` : ""}
             </span>
           )}
-          <span className="inline-flex items-center gap-1">
-            <Circle
-              className={cn(
-                "h-1.5 w-1.5 fill-current",
-                priorityToneClasses[task.priority] || "text-muted-foreground/70"
-              )}
-            />
-            <span className={priorityToneClasses[task.priority]}>{priorityLabel}</span>
-          </span>
+          <PrioritySelect
+            priority={task.priority as TaskPriority}
+            disabled={!canUpdate}
+            size="flag"
+            onPriorityChange={(priority) => onUpdate(task.id, { priority })}
+          />
           <span className="inline-flex items-center gap-1 lg:hidden">
             <Clock3 className="h-3 w-3" />
             <span

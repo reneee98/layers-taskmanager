@@ -3,11 +3,21 @@
 import { useMemo, useState } from "react";
 import { addDays, format, isToday, startOfDay } from "date-fns";
 import { sk } from "date-fns/locale";
-import { CalendarDays, CalendarPlus, Clock3, Plus, UserRound, Users } from "lucide-react";
+import {
+  CalendarDays,
+  CalendarPlus,
+  Clock3,
+  FolderKanban,
+  Plus,
+  UserRound,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 
 import { DashboardTaskSchedulerDialog } from "@/components/dashboard/dashboard-task-scheduler-dialog";
 import type { DashboardTaskItem } from "@/components/dashboard/dashboard-task-row";
+import { PrioritySelect, type TaskPriority } from "@/components/tasks/PrioritySelect";
+import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +30,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 import { formatHours } from "@/lib/format";
+import type { TaskStatus } from "@/lib/task-status";
 import { cn, stripHtml } from "@/lib/utils";
 import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
 
@@ -28,27 +39,17 @@ interface DashboardWeekPlannerProps {
   unscheduledTasks: DashboardTaskItem[];
   canCreateTask: boolean;
   canScheduleTask: boolean;
+  canUpdateTaskStatus: boolean;
+  canUpdateTaskPriority: boolean;
   onCreateTask: (dueDate: string) => void;
   onScheduleTask: (taskId: string, startDate: string, dueDate: string) => Promise<void>;
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
+  onUpdateTaskPriority: (taskId: string, priority: TaskPriority) => Promise<void>;
 }
 
 const DAILY_CAPACITY_HOURS = 8;
 const ALL_USERS_FILTER = "all";
 const UNASSIGNED_FILTER = "unassigned";
-
-const statusLabels: Record<string, string> = {
-  todo: "Na spracovanie",
-  in_progress: "V procese",
-  review: "Na kontrole",
-  sent_to_client: "U klienta",
-};
-
-const statusDots: Record<string, string> = {
-  todo: "bg-slate-400",
-  in_progress: "bg-sky-500",
-  review: "bg-amber-500",
-  sent_to_client: "bg-violet-500",
-};
 
 const getTaskHref = (task: DashboardTaskItem) =>
   task.project?.id ? `/projects/${task.project.id}/tasks/${task.id}` : `/tasks/${task.id}`;
@@ -176,8 +177,12 @@ export const DashboardWeekPlanner = ({
   unscheduledTasks,
   canCreateTask,
   canScheduleTask,
+  canUpdateTaskStatus,
+  canUpdateTaskPriority,
   onCreateTask,
   onScheduleTask,
+  onUpdateTaskStatus,
+  onUpdateTaskPriority,
 }: DashboardWeekPlannerProps) => {
   const { user } = useAuth();
   const { users: workspaceUsers } = useWorkspaceUsers();
@@ -326,14 +331,19 @@ export const DashboardWeekPlanner = ({
                 <div className="flex flex-1 flex-col gap-1.5 p-2">
                   {dayTasks.map((task) => {
                     const remainingHours = getRemainingHours(task);
-                    const hasEstimate = (task.estimated_hours || 0) > 0;
+                    const estimatedHours = task.estimated_hours || 0;
+                    const actualHours = task.actual_hours || 0;
+                    const hasEstimate = estimatedHours > 0;
+                    const timeProgress = hasEstimate
+                      ? Math.min((actualHours / estimatedHours) * 100, 100)
+                      : 0;
+                    const isOverEstimate = hasEstimate && actualHours > estimatedHours;
                     const assignees = task.assignees || [];
                     const projectColor = resolveProjectColor(task.project);
 
                     return (
-                      <Link
+                      <div
                         key={task.id}
-                        href={getTaskHref(task)}
                         style={
                           projectColor
                             ? {
@@ -348,71 +358,136 @@ export const DashboardWeekPlanner = ({
                         }
                         className="group rounded-lg border border-border/80 bg-card/90 p-2.5 shadow-sm outline-none transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-foreground/20 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        <div className="flex items-center gap-1.5 text-[9px] font-medium text-muted-foreground">
-                          <span
-                            aria-hidden="true"
-                            className={cn(
-                              "h-1.5 w-1.5 rounded-full",
-                              statusDots[task.status] || "bg-slate-400"
-                            )}
-                          />
-                          <span className="truncate">
-                            {statusLabels[task.status] || task.status}
-                          </span>
-                        </div>
-                        <p className="mt-1.5 line-clamp-2 text-xs font-medium leading-4 text-foreground">
-                          {stripHtml(task.title)}
-                        </p>
-                        <div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-muted-foreground">
-                          <span
-                            className="truncate rounded px-1 py-px font-mono font-medium text-foreground"
-                            style={
-                              projectColor
-                                ? {
-                                    backgroundColor: projectColorToRgba(projectColor, 0.045),
-                                  }
-                                : undefined
-                            }
+                        <div className="flex min-w-0 items-center justify-between gap-2">
+                          <Link
+                            href={getTaskHref(task)}
+                            aria-label={`Otvoriť projekt a úlohu ${stripHtml(task.title)}`}
+                            className="flex min-w-0 flex-1 items-center gap-1.5 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
-                            {task.project?.code || task.project?.name || "Bez projektu"}
-                          </span>
-                          <span className="flex shrink-0 items-center gap-1 tabular-nums">
-                            <Clock3 className="h-3 w-3" />
-                            {hasEstimate ? `${formatHours(remainingHours)} ostáva` : "bez odhadu"}
-                          </span>
-                        </div>
-                        <div className="mt-2 flex items-center gap-1.5 border-t border-border/60 pt-2">
-                          {assignees.length > 0 ? (
-                            <>
-                              <span className="flex -space-x-1.5">
-                                {assignees.slice(0, 2).map((assignee) => {
-                                  const name = getAssigneeName(assignee);
-                                  return (
-                                    <Avatar
-                                      key={assignee.id}
-                                      title={name}
-                                      className="h-5 w-5 border border-card"
-                                    >
-                                      <AvatarFallback className="text-[8px]">
-                                        {getInitials(name)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  );
-                                })}
+                            <FolderKanban
+                              className="h-3 w-3 shrink-0 text-muted-foreground"
+                              aria-hidden="true"
+                            />
+                            {task.project?.code && (
+                              <span
+                                className="shrink-0 rounded px-1 py-px font-mono text-[9px] font-semibold text-foreground"
+                                style={
+                                  projectColor
+                                    ? {
+                                        backgroundColor: projectColorToRgba(projectColor, 0.07),
+                                      }
+                                    : undefined
+                                }
+                              >
+                                {task.project.code}
                               </span>
-                              <span className="min-w-0 truncate text-[9px] text-muted-foreground">
-                                {getAssigneeName(assignees[0])}
-                                {assignees.length > 1 ? ` +${assignees.length - 1}` : ""}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
-                              <UserRound className="h-3 w-3" />
-                              Nepriradené
+                            )}
+                            <span className="truncate text-[10px] font-semibold text-foreground">
+                              {task.project?.name || "Bez projektu"}
                             </span>
-                          )}
+                          </Link>
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <PrioritySelect
+                              priority={task.priority as TaskPriority}
+                              disabled={!canUpdateTaskPriority}
+                              size="flag"
+                              onPriorityChange={(priority) =>
+                                onUpdateTaskPriority(task.id, priority)
+                              }
+                            />
+                            <StatusSelect
+                              status={task.status as TaskStatus}
+                              disabled={!canUpdateTaskStatus}
+                              size="planner"
+                              onStatusChange={(status) => onUpdateTaskStatus(task.id, status)}
+                            />
+                          </div>
                         </div>
-                      </Link>
+
+                        <Link
+                          href={getTaskHref(task)}
+                          aria-label={`Otvoriť úlohu ${stripHtml(task.title)}`}
+                          className="mt-2 block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <p className="line-clamp-2 text-xs font-semibold leading-4 text-foreground">
+                            {stripHtml(task.title)}
+                          </p>
+
+                          {hasEstimate ? (
+                            <div className="mt-2.5">
+                              <div className="mb-1.5 flex items-center justify-between gap-2 text-[9px] tabular-nums">
+                                <span className="font-semibold text-foreground">
+                                  {formatHours(actualHours)} z {formatHours(estimatedHours)}
+                                </span>
+                                <span
+                                  className={cn(
+                                    "flex shrink-0 items-center gap-1 font-medium text-muted-foreground",
+                                    isOverEstimate && "text-rose-600 dark:text-rose-400"
+                                  )}
+                                >
+                                  <Clock3 className="h-3 w-3" />
+                                  {isOverEstimate
+                                    ? `${formatHours(actualHours - estimatedHours)} navyše`
+                                    : `${formatHours(remainingHours)} ostáva`}
+                                </span>
+                              </div>
+                              <div
+                                role="progressbar"
+                                aria-label={`Odpracovaných ${formatHours(actualHours)} z ${formatHours(estimatedHours)}`}
+                                aria-valuemin={0}
+                                aria-valuemax={estimatedHours}
+                                aria-valuenow={Math.min(actualHours, estimatedHours)}
+                                className="h-1.5 overflow-hidden rounded-full bg-muted"
+                              >
+                                <div
+                                  className={cn(
+                                    "h-full rounded-full transition-[width] duration-300",
+                                    isOverEstimate ? "bg-rose-500" : "bg-sky-500"
+                                  )}
+                                  style={{ width: `${timeProgress}%` }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-2 flex items-center gap-1 text-[9px] text-muted-foreground">
+                              <Clock3 className="h-3 w-3" />
+                              Bez časového odhadu
+                            </div>
+                          )}
+
+                          <div className="mt-2 flex items-center gap-1.5 border-t border-border/60 pt-2">
+                            {assignees.length > 0 ? (
+                              <>
+                                <span className="flex -space-x-1.5">
+                                  {assignees.slice(0, 2).map((assignee) => {
+                                    const name = getAssigneeName(assignee);
+                                    return (
+                                      <Avatar
+                                        key={assignee.id}
+                                        title={name}
+                                        className="h-5 w-5 border border-card"
+                                      >
+                                        <AvatarFallback className="text-[8px]">
+                                          {getInitials(name)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    );
+                                  })}
+                                </span>
+                                <span className="min-w-0 truncate text-[9px] text-muted-foreground">
+                                  {getAssigneeName(assignees[0])}
+                                  {assignees.length > 1 ? ` +${assignees.length - 1}` : ""}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                                <UserRound className="h-3 w-3" />
+                                Nepriradené
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      </div>
                     );
                   })}
 

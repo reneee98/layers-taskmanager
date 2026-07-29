@@ -424,9 +424,15 @@ export const DashboardWorkspace = ({
                   unscheduledTasks={unscheduledPlannerTasks}
                   canCreateTask={!quickTaskDisabled}
                   canScheduleTask={canUpdateTasks}
+                  canUpdateTaskStatus={canUpdateTasks}
+                  canUpdateTaskPriority={canUpdateTasks}
                   onCreateTask={onQuickTask}
                   onScheduleTask={(taskId, startDate, dueDate) =>
                     onUpdateTask(taskId, { start_date: startDate, due_date: dueDate })
+                  }
+                  onUpdateTaskStatus={(taskId, status) => onUpdateTask(taskId, { status })}
+                  onUpdateTaskPriority={(taskId, priority) =>
+                    onUpdateTask(taskId, { priority })
                   }
                 />
               ) : visibleFocusTasks.length > 0 ? (

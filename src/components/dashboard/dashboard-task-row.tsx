@@ -1,7 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowRight, Banknote, Clock3, Loader2, Play, Plus, Square, X } from "lucide-react";
+import { useState, type DragEvent } from "react";
+import {
+  ArrowRight,
+  Banknote,
+  Clock3,
+  GripVertical,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Play,
+  Plus,
+  Square,
+  Trash2,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 
 import { PrioritySelect, type TaskPriority } from "@/components/tasks/PrioritySelect";
@@ -72,6 +85,14 @@ interface DashboardTaskRowProps {
   showProject?: boolean;
   onUpdate: (taskId: string, updates: DashboardTaskUpdate) => Promise<void>;
   onTimeTracked?: (taskId: string, hours: number) => void;
+  onEdit?: () => void;
+  onDelete?: () => Promise<void>;
+  draggable?: boolean;
+  isDragging?: boolean;
+  onDragStart?: () => void;
+  onDragOver?: (event: DragEvent<HTMLDivElement>) => void;
+  onDrop?: () => void;
+  onDragEnd?: () => void;
 }
 
 interface DashboardDateRangeControlProps {
@@ -134,9 +155,8 @@ const DashboardAssigneeControl = ({ task, disabled }: DashboardAssigneeControlPr
   const assigneeIds = assignees.map((assignee) => assignee.user_id);
 
   const availableUsers = workspaceUsers
-    .filter((workspaceUser: any) => workspaceUser.profiles)
-    .map((workspaceUser: any) => workspaceUser.profiles)
-    .filter((profile: any) => profile?.id && !assigneeIds.includes(profile.id));
+    .map((workspaceUser) => workspaceUser.profiles)
+    .filter((profile) => Boolean(profile?.id) && !assigneeIds.includes(profile?.id || ""));
 
   const saveAssignees = async (nextAssigneeIds: string[], successMessage: string) => {
     setIsSaving(true);
@@ -243,7 +263,7 @@ const DashboardAssigneeControl = ({ task, disabled }: DashboardAssigneeControlPr
         {availableUsers.length === 0 ? (
           <DropdownMenuItem disabled>Všetci používatelia sú už priradení</DropdownMenuItem>
         ) : (
-          availableUsers.map((profile: any) => {
+          availableUsers.map((profile) => {
             const name = profile.display_name || profile.email || "Neznámy";
             return (
               <DropdownMenuItem
@@ -308,6 +328,14 @@ export const DashboardTaskRow = ({
   showProject = true,
   onUpdate,
   onTimeTracked,
+  onEdit,
+  onDelete,
+  draggable = false,
+  isDragging = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: DashboardTaskRowProps) => {
   const { activeTimer, currentDuration, startTimer, stopTimer } = useTimer();
   const [isTimerUpdating, setIsTimerUpdating] = useState(false);
@@ -324,6 +352,7 @@ export const DashboardTaskRow = ({
   const hasVisibleBudget = canViewPrices && budgetAmount > 0;
   const taskCurrency = normalizeCurrency(task.currency || task.project?.currency);
   const projectColor = resolveProjectColor(task.project);
+  const hasActions = Boolean(onEdit || onDelete);
   const timeProgress = estimatedHours > 0 ? Math.min((actualHours / estimatedHours) * 100, 100) : 0;
   const timeStatusLabel =
     estimatedHours === 0
@@ -382,6 +411,11 @@ export const DashboardTaskRow = ({
 
   return (
     <div
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       style={
         projectColor
           ? {
@@ -395,7 +429,8 @@ export const DashboardTaskRow = ({
       className={cn(
         "group relative flex min-h-[60px] flex-col gap-2 border-b border-border/60 px-3 py-2.5 transition-colors duration-150 last:border-b-0 hover:bg-muted/35 sm:px-4 lg:flex-row lg:items-center lg:gap-3",
         taskSurfaceClasses[task.status],
-        isTimerActive && "bg-emerald-500/[0.055] hover:bg-emerald-500/[0.08]"
+        isTimerActive && "bg-emerald-500/[0.055] hover:bg-emerald-500/[0.08]",
+        isDragging && "opacity-45"
       )}
     >
       <span
@@ -409,6 +444,14 @@ export const DashboardTaskRow = ({
               : undefined,
         }}
       />
+      {draggable && (
+        <span
+          aria-hidden="true"
+          className="hidden h-8 w-4 shrink-0 cursor-grab items-center justify-center text-muted-foreground/35 transition-colors group-hover:text-muted-foreground active:cursor-grabbing lg:flex"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1">
           <PrioritySelect
@@ -459,7 +502,14 @@ export const DashboardTaskRow = ({
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-nowrap items-center gap-1.5 lg:grid lg:flex-none lg:grid-cols-[160px_112px_128px_76px_32px_32px] lg:gap-2">
+      <div
+        className={cn(
+          "flex w-full min-w-0 flex-wrap items-center gap-1.5 sm:w-auto sm:flex-nowrap lg:grid lg:flex-none lg:gap-2",
+          hasActions
+            ? "lg:grid-cols-[160px_112px_128px_76px_32px_32px_32px]"
+            : "lg:grid-cols-[160px_112px_128px_76px_32px_32px]"
+        )}
+      >
         <StatusSelect
           status={
             task.status as
@@ -597,6 +647,37 @@ export const DashboardTaskRow = ({
         >
           <ArrowRight className="h-4 w-4" />
         </Link>
+
+        {hasActions && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Ďalšie možnosti úlohy ${taskTitle}`}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:h-8 sm:w-8"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {onEdit && (
+                <DropdownMenuItem onClick={onEdit}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Upraviť
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <DropdownMenuItem
+                  onClick={() => void onDelete()}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Vymazať
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   );

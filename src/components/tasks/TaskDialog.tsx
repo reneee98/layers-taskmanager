@@ -48,6 +48,7 @@ import { TASK_COLOR_PALETTE, normalizeTaskColor } from "@/lib/task-colors";
 import { resolveProjectColor } from "@/lib/project-colors";
 import { cn } from "@/lib/utils";
 import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
+import { TaskSidePanelDetail } from "@/components/tasks/TaskSidePanelDetail";
 import {
   SUPPORTED_CURRENCIES,
   getCurrencySymbol,
@@ -102,10 +103,32 @@ export function TaskDialog({
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId || null);
+  const [projectSelectionTouchedForTaskId, setProjectSelectionTouchedForTaskId] = useState<
+    string | null | undefined
+  >(undefined);
   const [projects, setProjects] = useState<Project[]>([]);
   const [showQuickDetails, setShowQuickDetails] = useState(true);
   const [panelTask, setPanelTask] = useState<Task | null>(null);
   const activeTask = panelTask || task || null;
+  const activeTaskProjectId = activeTask?.project_id || activeTask?.project?.id || null;
+  const effectiveSelectedProjectId =
+    activeTask && projectSelectionTouchedForTaskId !== activeTask.id
+      ? activeTaskProjectId
+      : selectedProjectId;
+
+  const refreshPanelTask = useCallback(async () => {
+    if (!activeTask?.id) return;
+
+    try {
+      const response = await fetch(`/api/tasks/${activeTask.id}`, { cache: "no-store" });
+      const result = await response.json();
+      if (result.success) setPanelTask(result.data);
+    } catch (error) {
+      console.error("Failed to refresh task detail:", error);
+    } finally {
+      onSuccess();
+    }
+  }, [activeTask?.id, onSuccess]);
 
   // Get workspace users from context
   const { users: contextUsers } = useWorkspaceUsers();
@@ -145,6 +168,7 @@ export function TaskDialog({
     setDueDate(initialDueDate);
     setStartDate(initialDueDate);
     setSelectedProjectId(projectId || null);
+    setProjectSelectionTouchedForTaskId(undefined);
     setSelectedAssignees([]);
     setIsBudgetAutoCalculated(false);
   }, [initialDueDate, projectId]);
@@ -165,7 +189,7 @@ export function TaskDialog({
       setCurrency(normalizeCurrency(activeTask.currency));
       setDueDate(activeTask.due_date || null);
       setStartDate(activeTask.start_date || null);
-      setSelectedProjectId(activeTask.project_id || null);
+      setSelectedProjectId(activeTask.project_id || activeTask.project?.id || null);
       if (activeTask.assignees !== undefined) {
         setSelectedAssignees(activeTask.assignees.map((assignee) => assignee.user_id));
       } else if (!panelTask) {
@@ -182,6 +206,7 @@ export function TaskDialog({
     if (!open) {
       setShowQuickDetails(true);
       setPanelTask(null);
+      setProjectSelectionTouchedForTaskId(undefined);
       return;
     }
 
@@ -228,18 +253,18 @@ export function TaskDialog({
         let hourlyRateValue: number | null = null;
 
         // Priority 1: Task hourly rate (for tasks without project)
-        if (!selectedProjectId && hourlyRate && hourlyRate.trim() !== "") {
+        if (!effectiveSelectedProjectId && hourlyRate && hourlyRate.trim() !== "") {
           hourlyRateValue = parseFloat(hourlyRate);
         }
         // Priority 2: Project hourly rate
-        else if (selectedProjectId) {
-          const project = projects.find((p) => p.id === selectedProjectId);
+        else if (effectiveSelectedProjectId) {
+          const project = projects.find((p) => p.id === effectiveSelectedProjectId);
           if (project?.hourly_rate_cents) {
             hourlyRateValue = project.hourly_rate_cents / 100;
           }
         }
         // Priority 3: User default hourly rate (for tasks without project)
-        else if (!selectedProjectId && userSettings?.default_hourly_rate != null) {
+        else if (!effectiveSelectedProjectId && userSettings?.default_hourly_rate != null) {
           hourlyRateValue = userSettings.default_hourly_rate;
         }
 
@@ -274,7 +299,7 @@ export function TaskDialog({
     }
   }, [
     estimatedHours,
-    selectedProjectId,
+    effectiveSelectedProjectId,
     projects,
     hourlyRate,
     userSettings,
@@ -323,8 +348,8 @@ export function TaskDialog({
       }
 
       // Include project_id only if a project is selected
-      if (selectedProjectId) {
-        payload.project_id = selectedProjectId;
+      if (effectiveSelectedProjectId) {
+        payload.project_id = effectiveSelectedProjectId;
       } else {
         payload.project_id = null;
       }
@@ -345,7 +370,7 @@ export function TaskDialog({
       // If budget was auto-calculated, don't send budget_cents - API will calculate it automatically
 
       // Include hourly_rate_cents only for tasks without project
-      if (!selectedProjectId && hourlyRate && hourlyRate.trim() !== "") {
+      if (!effectiveSelectedProjectId && hourlyRate && hourlyRate.trim() !== "") {
         const hourlyRateValue = parseFloat(hourlyRate);
         payload.hourly_rate_cents = Math.round(hourlyRateValue * 100);
       }
@@ -436,8 +461,11 @@ export function TaskDialog({
         Projekt
       </Label>
       <Select
-        value={selectedProjectId || "none"}
-        onValueChange={(value) => setSelectedProjectId(value === "none" ? null : value)}
+        value={effectiveSelectedProjectId || "none"}
+        onValueChange={(value) => {
+          setProjectSelectionTouchedForTaskId(activeTask?.id || null);
+          setSelectedProjectId(value === "none" ? null : value);
+        }}
       >
         <SelectTrigger id="project" className="h-11 bg-card">
           <SelectValue placeholder="Vybrať projekt" />
@@ -583,7 +611,7 @@ export function TaskDialog({
     </div>
   );
 
-  const selectedProject = projects.find((project) => project.id === selectedProjectId);
+  const selectedProject = projects.find((project) => project.id === effectiveSelectedProjectId);
   const inheritedProjectColor = resolveProjectColor(selectedProject);
 
   const colorField = (
@@ -681,8 +709,8 @@ export function TaskDialog({
         </div>
       </div>
 
-      <div className={cn("grid gap-4", !selectedProjectId && "sm:grid-cols-2")}>
-        {!selectedProjectId && (
+      <div className={cn("grid gap-4", !effectiveSelectedProjectId && "sm:grid-cols-2")}>
+        {!effectiveSelectedProjectId && (
           <div className="space-y-2">
             <Label htmlFor="hourlyRate" className="text-xs font-semibold text-foreground">
               Hodinová sadzba {getPerHourLabel(currency)}
@@ -727,6 +755,87 @@ export function TaskDialog({
     </div>
   );
 
+  const sidePanelEditor = activeTask ? (
+    <div className="space-y-5 p-5 sm:p-6">
+      <section className="rounded-xl border border-border/80 bg-card p-4 sm:p-5">
+        <div className="mb-4 flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <FolderKanban className="h-4 w-4" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold">Základné informácie</h3>
+            <p className="text-[11px] text-muted-foreground">Názov, zadanie a projekt úlohy.</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_240px]">
+            <div className="space-y-2">
+              <Label htmlFor="side-panel-title" className="text-xs font-semibold text-foreground">
+                Názov úlohy <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="side-panel-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                required
+                className="h-11 bg-card font-medium"
+              />
+            </div>
+            {projectField}
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-foreground">Popis</Label>
+            <TaskRichTextEditor
+              value={description}
+              onChange={setDescription}
+              placeholder="Doplňte kontext, podklady alebo očakávaný výsledok…"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border/80 bg-card p-4 sm:p-5">
+        <div className="mb-4 flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <CalendarDays className="h-4 w-4" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold">Plánovanie</h3>
+            <p className="text-[11px] text-muted-foreground">
+              Stav, priorita, termín a zodpovední ľudia.
+            </p>
+          </div>
+        </div>
+        <div className="space-y-4">
+          {statusAndPriorityFields}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {dateField}
+            {assigneeField}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border/80 bg-card p-4 sm:p-5">
+        <div className="mb-4 flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <CircleDollarSign className="h-4 w-4" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold">Odhad a rozpočet</h3>
+            <p className="text-[11px] text-muted-foreground">
+              Plánovaný rozsah, sadzba a farebné označenie.
+            </p>
+          </div>
+        </div>
+        <div className="space-y-5">
+          {financeFields}
+          <div className="border-t border-border/70 pt-5">{colorField}</div>
+        </div>
+      </section>
+    </div>
+  ) : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -734,7 +843,7 @@ export function TaskDialog({
         className={cn(
           "max-h-[calc(100dvh-1.5rem)] gap-0 overflow-hidden rounded-[20px] border-border/80 bg-card p-0 shadow-[0_28px_90px_-24px_rgba(15,23,42,0.45)]",
           isSidePanel
-            ? "max-h-none grid-rows-[auto_minmax(0,1fr)] rounded-none sm:rounded-l-[20px]"
+            ? "max-h-none grid-rows-[auto_minmax(0,1fr)] rounded-none sm:max-w-[720px] sm:rounded-l-[20px]"
             : "sm:max-w-[760px]"
         )}
       >
@@ -788,219 +897,232 @@ export function TaskDialog({
           </div>
         </DialogHeader>
 
-        <form
-          onSubmit={handleSubmit}
-          className="flex min-h-0 flex-col"
-          aria-busy={isLoading || loadingTask}
-        >
-          {loadingTask ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden px-5 py-6 sm:px-6">
-              <div className="h-28 animate-pulse rounded-xl border border-border/70 bg-muted/50" />
-              <div className="h-44 animate-pulse rounded-xl border border-border/70 bg-muted/40" />
-              <div className="h-36 animate-pulse rounded-xl border border-border/70 bg-muted/30" />
-            </div>
-          ) : (
-            <>
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className={cn("space-y-5 px-5 py-5 sm:px-6", !isQuickCreate && "sm:py-6")}>
-                  <section
-                    className={cn(
-                      !isQuickCreate &&
-                        !isSidePanel &&
-                        "rounded-xl border border-border/80 bg-card p-4 sm:p-5"
-                    )}
-                  >
-                    {!isQuickCreate && !isSidePanel && (
-                      <div className="mb-4 flex items-center gap-2.5">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                          <FolderKanban className="h-3.5 w-3.5" />
-                        </span>
-                        <div>
-                          <h3 className="text-sm font-semibold">Základné informácie</h3>
-                          <p className="text-[11px] text-muted-foreground">
-                            Čo treba spraviť a kam úloha patrí.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="title" className="text-xs font-semibold text-foreground">
-                          Názov úlohy <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="title"
-                          value={title}
-                          onChange={(event) => setTitle(event.target.value)}
-                          placeholder={
-                            isQuickCreate
-                              ? "Čo treba spraviť?"
-                              : "Napr. Pripraviť návrh úvodnej stránky"
-                          }
-                          required
-                          autoFocus
-                          className={cn(
-                            "h-11 bg-card placeholder:text-muted-foreground/75",
-                            isQuickCreate && "h-12 text-base font-medium"
-                          )}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs font-semibold text-foreground">
-                          Popis{" "}
-                          <span className="font-normal text-muted-foreground">(voliteľné)</span>
-                        </Label>
-                        <TaskRichTextEditor
-                          value={description}
-                          onChange={setDescription}
-                          placeholder="Doplňte kontext, podklady alebo očakávaný výsledok…"
-                          compact={isQuickCreate}
-                        />
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        {projectField}
-                        {isQuickCreate && dateField}
-                      </div>
-
-                      {isQuickCreate && statusAndPriorityFields}
-                      {isQuickCreate && assigneeField}
-                    </div>
-                  </section>
-
-                  {isQuickCreate ? (
-                    <section className="border-t border-border/70 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowQuickDetails((current) => !current)}
-                        className="flex w-full items-center gap-3 rounded-lg px-1 py-3 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
-                        aria-expanded={showQuickDetails}
-                        aria-controls="quick-task-details"
-                      >
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                          <SlidersHorizontal className="h-3.5 w-3.5" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-medium">Ďalšie nastavenia</span>
-                          <span className="block truncate text-[11px] text-muted-foreground">
-                            Farba, odhad a rozpočet
+        {isSidePanel && activeTask && !loadingTask ? (
+          <TaskSidePanelDetail
+            task={activeTask}
+            projects={projects}
+            editor={sidePanelEditor}
+            isSaving={isLoading}
+            canSave={Boolean(title.trim())}
+            onSubmit={handleSubmit}
+            onClose={() => onOpenChange(false)}
+            onTaskUpdate={refreshPanelTask}
+          />
+        ) : (
+          <form
+            onSubmit={handleSubmit}
+            className="flex min-h-0 flex-col"
+            aria-busy={isLoading || loadingTask}
+          >
+            {loadingTask ? (
+              <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden px-5 py-6 sm:px-6">
+                <div className="h-28 animate-pulse rounded-xl border border-border/70 bg-muted/50" />
+                <div className="h-44 animate-pulse rounded-xl border border-border/70 bg-muted/40" />
+                <div className="h-36 animate-pulse rounded-xl border border-border/70 bg-muted/30" />
+              </div>
+            ) : (
+              <>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <div className={cn("space-y-5 px-5 py-5 sm:px-6", !isQuickCreate && "sm:py-6")}>
+                    <section
+                      className={cn(
+                        !isQuickCreate &&
+                          !isSidePanel &&
+                          "rounded-xl border border-border/80 bg-card p-4 sm:p-5"
+                      )}
+                    >
+                      {!isQuickCreate && !isSidePanel && (
+                        <div className="mb-4 flex items-center gap-2.5">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                            <FolderKanban className="h-3.5 w-3.5" />
                           </span>
-                        </span>
-                        <ChevronDown
-                          className={cn(
-                            "h-4 w-4 text-muted-foreground transition-transform",
-                            showQuickDetails && "rotate-180"
-                          )}
-                        />
-                      </button>
-
-                      {showQuickDetails && (
-                        <div
-                          id="quick-task-details"
-                          className="space-y-5 border-t border-border/70 py-5"
-                        >
-                          {colorField}
-                          <div className="border-t border-border/70 pt-5">{financeFields}</div>
+                          <div>
+                            <h3 className="text-sm font-semibold">Základné informácie</h3>
+                            <p className="text-[11px] text-muted-foreground">
+                              Čo treba spraviť a kam úloha patrí.
+                            </p>
+                          </div>
                         </div>
                       )}
+
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="title" className="text-xs font-semibold text-foreground">
+                            Názov úlohy <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="title"
+                            value={title}
+                            onChange={(event) => setTitle(event.target.value)}
+                            placeholder={
+                              isQuickCreate
+                                ? "Čo treba spraviť?"
+                                : "Napr. Pripraviť návrh úvodnej stránky"
+                            }
+                            required
+                            autoFocus
+                            className={cn(
+                              "h-11 bg-card placeholder:text-muted-foreground/75",
+                              isQuickCreate && "h-12 text-base font-medium"
+                            )}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-xs font-semibold text-foreground">
+                            Popis{" "}
+                            <span className="font-normal text-muted-foreground">(voliteľné)</span>
+                          </Label>
+                          <TaskRichTextEditor
+                            value={description}
+                            onChange={setDescription}
+                            placeholder="Doplňte kontext, podklady alebo očakávaný výsledok…"
+                            compact={isQuickCreate}
+                          />
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {projectField}
+                          {isQuickCreate && dateField}
+                        </div>
+
+                        {isQuickCreate && statusAndPriorityFields}
+                        {isQuickCreate && assigneeField}
+                      </div>
                     </section>
-                  ) : (
-                    <>
-                      <section
-                        className={cn(
-                          isSidePanel
-                            ? "border-t border-border/70 pt-5"
-                            : "rounded-xl border border-border/80 bg-card p-4 sm:p-5"
-                        )}
-                      >
-                        <div className="mb-4 flex items-center gap-2.5">
-                          {!isSidePanel && (
-                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                              <CalendarDays className="h-3.5 w-3.5" />
-                            </span>
-                          )}
-                          <div>
-                            <h3 className="text-sm font-semibold">Plánovanie</h3>
-                            <p className="text-[11px] text-muted-foreground">
-                              Termín, stav a zodpovední ľudia.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="space-y-4">
-                          {statusAndPriorityFields}
-                          <div className="grid gap-4 sm:grid-cols-2">
-                            {dateField}
-                            {assigneeField}
-                          </div>
-                          <div className="border-t border-border/70 pt-4">{colorField}</div>
-                        </div>
-                      </section>
 
-                      <section
-                        className={cn(
-                          isSidePanel
-                            ? "border-t border-border/70 pt-5"
-                            : "rounded-xl border border-border/80 bg-card p-4 sm:p-5"
-                        )}
-                      >
-                        <div className="mb-4 flex items-center gap-2.5">
-                          {!isSidePanel && (
-                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                              <CircleDollarSign className="h-3.5 w-3.5" />
+                    {isQuickCreate ? (
+                      <section className="border-t border-border/70 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowQuickDetails((current) => !current)}
+                          className="flex w-full items-center gap-3 rounded-lg px-1 py-3 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+                          aria-expanded={showQuickDetails}
+                          aria-controls="quick-task-details"
+                        >
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-medium">Ďalšie nastavenia</span>
+                            <span className="block truncate text-[11px] text-muted-foreground">
+                              Farba, odhad a rozpočet
                             </span>
-                          )}
-                          <div>
-                            <h3 className="text-sm font-semibold">Čas a rozpočet</h3>
-                            <p className="text-[11px] text-muted-foreground">
-                              Voliteľný odhad pre plánovanie a fakturáciu.
-                            </p>
+                          </span>
+                          <ChevronDown
+                            className={cn(
+                              "h-4 w-4 text-muted-foreground transition-transform",
+                              showQuickDetails && "rotate-180"
+                            )}
+                          />
+                        </button>
+
+                        {showQuickDetails && (
+                          <div
+                            id="quick-task-details"
+                            className="space-y-5 border-t border-border/70 py-5"
+                          >
+                            {colorField}
+                            <div className="border-t border-border/70 pt-5">{financeFields}</div>
                           </div>
-                        </div>
-                        {financeFields}
+                        )}
                       </section>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <section
+                          className={cn(
+                            isSidePanel
+                              ? "border-t border-border/70 pt-5"
+                              : "rounded-xl border border-border/80 bg-card p-4 sm:p-5"
+                          )}
+                        >
+                          <div className="mb-4 flex items-center gap-2.5">
+                            {!isSidePanel && (
+                              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                                <CalendarDays className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                            <div>
+                              <h3 className="text-sm font-semibold">Plánovanie</h3>
+                              <p className="text-[11px] text-muted-foreground">
+                                Termín, stav a zodpovední ľudia.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="space-y-4">
+                            {statusAndPriorityFields}
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              {dateField}
+                              {assigneeField}
+                            </div>
+                            <div className="border-t border-border/70 pt-4">{colorField}</div>
+                          </div>
+                        </section>
+
+                        <section
+                          className={cn(
+                            isSidePanel
+                              ? "border-t border-border/70 pt-5"
+                              : "rounded-xl border border-border/80 bg-card p-4 sm:p-5"
+                          )}
+                        >
+                          <div className="mb-4 flex items-center gap-2.5">
+                            {!isSidePanel && (
+                              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                                <CircleDollarSign className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                            <div>
+                              <h3 className="text-sm font-semibold">Čas a rozpočet</h3>
+                              <p className="text-[11px] text-muted-foreground">
+                                Voliteľný odhad pre plánovanie a fakturáciu.
+                              </p>
+                            </div>
+                          </div>
+                          {financeFields}
+                        </section>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <DialogFooter className="gap-2 border-t border-border/70 bg-muted/20 px-5 py-4 sm:px-6">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => onOpenChange(false)}
-                  disabled={isLoading}
-                  className="sm:mr-auto"
-                >
-                  {isSidePanel ? "Zavrieť" : "Zrušiť"}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isLoading || !title.trim()}
-                  className={cn(
-                    "min-w-36",
-                    isSidePanel && "bg-brand text-brand-foreground hover:bg-brand/90"
-                  )}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="animate-spin" />
-                      Ukladám…
-                    </>
-                  ) : activeTask ? (
-                    "Uložiť zmeny"
-                  ) : (
-                    <>
-                      <Plus />
-                      {isQuickCreate ? "Pridať úlohu" : "Vytvoriť úlohu"}
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </form>
+                <DialogFooter className="gap-2 border-t border-border/70 bg-muted/20 px-5 py-4 sm:px-6">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => onOpenChange(false)}
+                    disabled={isLoading}
+                    className="sm:mr-auto"
+                  >
+                    {isSidePanel ? "Zavrieť" : "Zrušiť"}
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isLoading || !title.trim()}
+                    className={cn(
+                      "min-w-36",
+                      isSidePanel && "bg-brand text-brand-foreground hover:bg-brand/90"
+                    )}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="animate-spin" />
+                        Ukladám…
+                      </>
+                    ) : activeTask ? (
+                      "Uložiť zmeny"
+                    ) : (
+                      <>
+                        <Plus />
+                        {isQuickCreate ? "Pridať úlohu" : "Vytvoriť úlohu"}
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -95,6 +95,7 @@ import {
   DashboardWorkspace,
   type DashboardProjectItem,
 } from "@/components/dashboard/dashboard-workspace";
+import type { DashboardTaskItem } from "@/components/dashboard/dashboard-task-row";
 
 // Lazy load WeekCalendar - only load when calendar view is active
 const WeekCalendar = dynamic(
@@ -1265,7 +1266,7 @@ export default function DashboardPage() {
     setIsQuickTaskOpen(true);
   };
 
-  const handleOpenTaskPanel = async (taskToOpen: { id: string }) => {
+  const handleOpenTaskPanel = async (taskToOpen: DashboardTaskItem) => {
     const requestId = taskPanelRequestRef.current + 1;
     taskPanelRequestRef.current = requestId;
     setQuickTaskDueDate(null);
@@ -1282,7 +1283,12 @@ export default function DashboardPage() {
       }
 
       if (taskPanelRequestRef.current !== requestId) return;
-      setQuickTaskToEdit(result.data);
+      setQuickTaskToEdit({
+        ...result.data,
+        project_id:
+          result.data.project_id || taskToOpen.project_id || taskToOpen.project?.id || null,
+        project: result.data.project || taskToOpen.project || null,
+      });
     } catch (error) {
       if (taskPanelRequestRef.current !== requestId) return;
       setIsQuickTaskOpen(false);

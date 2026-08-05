@@ -26,6 +26,7 @@ interface TaskRichTextEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   compact?: boolean;
+  expanded?: boolean;
 }
 
 interface ToolbarButtonProps {
@@ -63,6 +64,7 @@ export const TaskRichTextEditor = ({
   onChange,
   placeholder = "Napíšte popis úlohy…",
   compact = false,
+  expanded = false,
 }: TaskRichTextEditorProps) => {
   const editor = useEditor({
     extensions: [
@@ -200,7 +202,7 @@ export const TaskRichTextEditor = ({
         editor={editor}
         className={cn(
           "max-h-[60vh] resize-y overflow-auto [&_.ProseMirror]:min-h-full [&_.ProseMirror]:max-w-none [&_.ProseMirror]:overflow-x-hidden [&_.ProseMirror]:px-3.5 [&_.ProseMirror]:py-3 [&_.ProseMirror]:text-sm [&_.ProseMirror]:leading-6 [&_.ProseMirror]:outline-none [&_.ProseMirror_a]:text-brand [&_.ProseMirror_a]:underline [&_.ProseMirror_blockquote]:my-2 [&_.ProseMirror_blockquote]:border-l-2 [&_.ProseMirror_blockquote]:border-brand/40 [&_.ProseMirror_blockquote]:pl-3 [&_.ProseMirror_blockquote]:text-muted-foreground [&_.ProseMirror_code]:rounded [&_.ProseMirror_code]:bg-muted [&_.ProseMirror_code]:px-1 [&_.ProseMirror_code]:py-0.5 [&_.ProseMirror_h2]:mb-1 [&_.ProseMirror_h2]:mt-3 [&_.ProseMirror_h2]:text-base [&_.ProseMirror_h2]:font-semibold [&_.ProseMirror_li]:my-0.5 [&_.ProseMirror_ol]:my-2 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-5 [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0 [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-muted-foreground [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p]:my-1.5 [&_.ProseMirror_ul]:my-2 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-5",
-          compact ? "h-28 min-h-24" : "h-40 min-h-32"
+          expanded ? "h-80 min-h-48" : compact ? "h-28 min-h-24" : "h-40 min-h-32"
         )}
       />
     </div>

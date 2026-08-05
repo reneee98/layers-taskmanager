@@ -28,10 +28,13 @@ import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   CalendarDays,
+  CalendarClock,
   ChevronDown,
   CircleDollarSign,
   ClipboardList,
+  Clock3,
   ExternalLink,
+  Flag,
   FolderKanban,
   Loader2,
   Palette,
@@ -39,6 +42,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   UserRoundPlus,
+  WalletCards,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -755,84 +759,122 @@ export function TaskDialog({
     </div>
   );
 
-  const sidePanelEditor = activeTask ? (
-    <div className="space-y-5 p-5 sm:p-6">
-      <section className="rounded-xl border border-border/80 bg-card p-4 sm:p-5">
-        <div className="mb-4 flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <FolderKanban className="h-4 w-4" />
-          </span>
-          <div>
-            <h3 className="text-sm font-semibold">Základné informácie</h3>
-            <p className="text-[11px] text-muted-foreground">Názov, zadanie a projekt úlohy.</p>
+  const sidePanelSummary = activeTask ? (
+    <section className="border-b border-border/70 bg-muted/[0.1] px-5 py-5 sm:px-7 sm:py-6">
+      <div className="space-y-5">
+        <div className="min-w-0 space-y-2">
+          <Label htmlFor="side-panel-title" className="sr-only">
+            Názov úlohy
+          </Label>
+          <Input
+            id="side-panel-title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            required
+            className="h-auto border-0 bg-transparent px-0 py-0 text-2xl font-semibold tracking-[-0.03em] shadow-none focus-visible:ring-0 sm:text-[28px]"
+          />
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono font-medium">
+              #{activeTask.id.slice(0, 8).toUpperCase()}
+            </span>
+            <span aria-hidden="true">•</span>
+            <span>Úloha vo workspace</span>
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_240px]">
-            <div className="space-y-2">
-              <Label htmlFor="side-panel-title" className="text-xs font-semibold text-foreground">
-                Názov úlohy <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="side-panel-title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                required
-                className="h-11 bg-card font-medium"
-              />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-stretch">
+          <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:p-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+              <div>{projectField}</div>
+              <div className="border-t border-border/70 pt-4 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0 lg:border-l-0 lg:border-t lg:pl-0 lg:pt-4">
+                {assigneeField}
+              </div>
             </div>
-            {projectField}
           </div>
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold text-foreground">Popis</Label>
-            <TaskRichTextEditor
-              value={description}
-              onChange={setDescription}
-              placeholder="Doplňte kontext, podklady alebo očakávaný výsledok…"
-            />
-          </div>
-        </div>
-      </section>
 
-      <section className="rounded-xl border border-border/80 bg-card p-4 sm:p-5">
-        <div className="mb-4 flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <CalendarDays className="h-4 w-4" />
-          </span>
-          <div>
-            <h3 className="text-sm font-semibold">Plánovanie</h3>
-            <p className="text-[11px] text-muted-foreground">
-              Stav, priorita, termín a zodpovední ľudia.
-            </p>
-          </div>
-        </div>
-        <div className="space-y-4">
-          {statusAndPriorityFields}
-          <div className="grid gap-4 sm:grid-cols-2">
-            {dateField}
-            {assigneeField}
-          </div>
-        </div>
-      </section>
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/80 bg-border/70 shadow-sm">
+            <div className="flex min-h-[108px] gap-3 bg-card p-4">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <Flag className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium text-muted-foreground">Priorita</p>
+                <div className="mt-1.5">
+                  <PrioritySelect
+                    priority={priority}
+                    size="dashboard"
+                    onPriorityChange={(value) => setPriority(value as Task["priority"])}
+                  />
+                </div>
+              </div>
+            </div>
 
-      <section className="rounded-xl border border-border/80 bg-card p-4 sm:p-5">
-        <div className="mb-4 flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <CircleDollarSign className="h-4 w-4" />
-          </span>
-          <div>
-            <h3 className="text-sm font-semibold">Odhad a rozpočet</h3>
-            <p className="text-[11px] text-muted-foreground">
-              Plánovaný rozsah, sadzba a farebné označenie.
-            </p>
+            <div className="flex min-h-[108px] gap-3 bg-card p-4">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <Clock3 className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-muted-foreground">Natrackované</p>
+                <p className="mt-1 text-lg font-semibold tabular-nums">
+                  {(activeTask.actual_hours || 0).toFixed(2)} h
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  z {estimatedHours || "0"} h odhadu
+                </p>
+              </div>
+            </div>
+
+            <div className="flex min-h-[108px] gap-3 bg-card p-4">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <WalletCards className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-muted-foreground">Rozpočet</p>
+                <p className="mt-1 text-lg font-semibold tabular-nums">
+                  {budgetAmount || "0"} {getCurrencySymbol(currency)}
+                </p>
+                <p className="text-[10px] text-muted-foreground">{currency}</p>
+              </div>
+            </div>
+
+            <div className="flex min-h-[108px] gap-3 bg-card p-4">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <CalendarClock className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium text-muted-foreground">Termín</p>
+                <DateRangePicker
+                  startDate={startDate}
+                  endDate={dueDate}
+                  onSave={async (start, end) => {
+                    setStartDate(start);
+                    setDueDate(end);
+                  }}
+                  placeholder="Nastaviť termín"
+                  className="mt-1 h-8 w-full justify-start border-0 bg-transparent px-0 text-xs shadow-none hover:bg-transparent"
+                />
+              </div>
+            </div>
           </div>
         </div>
-        <div className="space-y-5">
-          {financeFields}
-          <div className="border-t border-border/70 pt-5">{colorField}</div>
-        </div>
-      </section>
+      </div>
+    </section>
+  ) : null;
+
+  const sidePanelEditor = activeTask ? (
+    <div className="space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold">Popis úlohy</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Zadanie, kontext, odkazy a očakávaný výsledok.
+        </p>
+      </div>
+      <TaskRichTextEditor
+        value={description}
+        onChange={setDescription}
+        placeholder="Doplňte kontext, podklady alebo očakávaný výsledok…"
+        expanded
+      />
     </div>
   ) : null;
 
@@ -843,64 +885,105 @@ export function TaskDialog({
         className={cn(
           "max-h-[calc(100dvh-1.5rem)] gap-0 overflow-hidden rounded-[20px] border-border/80 bg-card p-0 shadow-[0_28px_90px_-24px_rgba(15,23,42,0.45)]",
           isSidePanel
-            ? "max-h-none grid-rows-[auto_minmax(0,1fr)] rounded-none sm:max-w-[720px] sm:rounded-l-[20px]"
+            ? "max-h-none grid-rows-[auto_minmax(0,1fr)] rounded-none sm:max-w-[960px] sm:rounded-l-[20px] xl:max-w-[1040px]"
             : "sm:max-w-[760px]"
         )}
       >
-        <DialogHeader className="border-b border-border/70 bg-muted/20 px-5 py-5 pr-14 text-left sm:px-6">
-          <div className="flex items-start gap-3.5">
-            <span
-              className={cn(
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
-                isSidePanel
-                  ? "border-brand/15 bg-brand/10 text-brand"
-                  : "border-border bg-card text-foreground"
-              )}
-            >
-              {isQuickCreate ? (
-                <Sparkles className="h-4.5 w-4.5" />
-              ) : (
-                <ClipboardList className="h-4.5 w-4.5" />
-              )}
-            </span>
-            <div className="min-w-0 pt-0.5">
-              <DialogTitle className="text-xl font-semibold tracking-[-0.025em]">
-                {loadingTask
-                  ? "Načítavam úlohu"
-                  : isQuickCreate
-                    ? "Rýchla úloha"
-                    : isSidePanel
-                      ? "Detail úlohy"
-                      : activeTask
-                        ? "Upraviť úlohu"
-                        : "Nová úloha"}
-              </DialogTitle>
-              <DialogDescription className="mt-1 leading-5">
-                {loadingTask
-                  ? "Načítavam aktuálne údaje a nastavenia."
-                  : isQuickCreate
-                    ? "Zapíšte, čo treba spraviť. Detaily môžete doplniť aj neskôr."
-                    : activeTask
-                      ? "Upravujte zadanie priamo bez odchodu z dashboardu."
-                      : "Jasné zadanie, zodpovednosť a termín na jednom mieste."}
+        <DialogHeader
+          className={cn(
+            "border-b border-border/70 bg-muted/20 px-5 pr-14 text-left sm:px-6",
+            isSidePanel && activeTask && !loadingTask ? "py-3" : "py-5"
+          )}
+        >
+          {isSidePanel && activeTask && !loadingTask ? (
+            <>
+              <DialogTitle className="sr-only">Detail úlohy {activeTask.title}</DialogTitle>
+              <DialogDescription className="sr-only">
+                Úprava stavu a otvorenie celého detailu úlohy.
               </DialogDescription>
-              {isSidePanel && taskDetailHref && !loadingTask && (
-                <Link
-                  href={taskDetailHref}
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-md text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  Otvoriť celý detail
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Link>
-              )}
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="w-[168px] shrink-0">
+                  <StatusSelect
+                    status={status}
+                    size="dashboard"
+                    onStatusChange={(value) => setStatus(value as Task["status"])}
+                  />
+                </div>
+                {activeTask.project?.code ? (
+                  <Badge
+                    variant="secondary"
+                    className="hidden h-8 rounded-lg border border-border/70 bg-card px-2.5 font-mono text-[10px] font-semibold text-muted-foreground sm:inline-flex"
+                  >
+                    {activeTask.project.code}
+                  </Badge>
+                ) : null}
+                {taskDetailHref ? (
+                  <Link
+                    href={taskDetailHref}
+                    className="ml-auto inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Otvoriť celý detail
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Link>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-start gap-3.5">
+              <span
+                className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
+                  isSidePanel
+                    ? "border-brand/15 bg-brand/10 text-brand"
+                    : "border-border bg-card text-foreground"
+                )}
+              >
+                {isQuickCreate ? (
+                  <Sparkles className="h-4.5 w-4.5" />
+                ) : (
+                  <ClipboardList className="h-4.5 w-4.5" />
+                )}
+              </span>
+              <div className="min-w-0 pt-0.5">
+                <DialogTitle className="text-xl font-semibold tracking-[-0.025em]">
+                  {loadingTask
+                    ? "Načítavam úlohu"
+                    : isQuickCreate
+                      ? "Rýchla úloha"
+                      : isSidePanel
+                        ? "Detail úlohy"
+                        : activeTask
+                          ? "Upraviť úlohu"
+                          : "Nová úloha"}
+                </DialogTitle>
+                <DialogDescription className="mt-1 leading-5">
+                  {loadingTask
+                    ? "Načítavam aktuálne údaje a nastavenia."
+                    : isQuickCreate
+                      ? "Zapíšte, čo treba spraviť. Detaily môžete doplniť aj neskôr."
+                      : activeTask
+                        ? "Upravujte zadanie priamo bez odchodu z dashboardu."
+                        : "Jasné zadanie, zodpovednosť a termín na jednom mieste."}
+                </DialogDescription>
+                {isSidePanel && taskDetailHref && !loadingTask && (
+                  <Link
+                    href={taskDetailHref}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-md text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Otvoriť celý detail
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Link>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </DialogHeader>
 
         {isSidePanel && activeTask && !loadingTask ? (
           <TaskSidePanelDetail
             task={activeTask}
             projects={projects}
+            summary={sidePanelSummary}
             editor={sidePanelEditor}
             isSaving={isLoading}
             canSave={Boolean(title.trim())}

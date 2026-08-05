@@ -43,6 +43,7 @@ import {
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import { PageState } from "@/components/layout/page-state";
+import { TimerNotePopover } from "@/components/timer/TimerNotePopover";
 
 // Lazy load heavy components
 const TimePanel = dynamic(() => import("@/components/time/TimePanel").then(mod => ({ default: mod.TimePanel })), {
@@ -236,6 +237,7 @@ export default function TaskDetailPage() {
   const prevActiveTimerRef = useRef<typeof activeTimer>(null);
   const [projectSelectOpen, setProjectSelectOpen] = useState(false);
   const [timerDescription, setTimerDescription] = useState("");
+  const [isTimerNoteOpen, setIsTimerNoteOpen] = useState(false);
   const [isExtraMode, setIsExtraMode] = useState(false);
   const descriptionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { users: workspaceUsers, loading: workspaceUsersLoading } = useWorkspaceUsers();
@@ -876,6 +878,7 @@ export default function TaskDetailPage() {
         
         await stopTimer();
         setTimerDescription("");
+        setIsTimerNoteOpen(false);
 
         if (trackedHours > 0) {
           toast({
@@ -931,6 +934,7 @@ export default function TaskDetailPage() {
         isExtraMode, // Pass extra mode
         timerDescription || undefined // Pass description
       );
+      setIsTimerNoteOpen(true);
       toast({
         title: isExtraMode ? "Extra časovač spustený" : "Časovač spustený",
         description: `Začal som trackovať ${isExtraMode ? "extra " : ""}čas pre úlohu "${task.title}"`,
@@ -1000,6 +1004,30 @@ export default function TaskDetailPage() {
         }
       }, 500);
     }
+  };
+
+  const handleSaveTimerNote = async () => {
+    if (descriptionUpdateTimeoutRef.current) {
+      clearTimeout(descriptionUpdateTimeoutRef.current);
+    }
+
+    const normalizedDescription = timerDescription.trim();
+    const response = await fetch("/api/timers/update", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: normalizedDescription }),
+    });
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      const errorMessage = result.error || "Poznámku sa nepodarilo uložiť";
+      toast({ title: "Chyba", description: errorMessage, variant: "destructive" });
+      throw new Error(errorMessage);
+    }
+
+    setTimerDescription(normalizedDescription);
+    await refreshTimer();
+    toast({ title: "Poznámka uložená" });
   };
 
   const getStatusColor = (status: string) => {
@@ -1185,16 +1213,45 @@ export default function TaskDetailPage() {
           <div className="flex w-full flex-wrap items-center gap-2 xl:w-auto xl:justify-end">
             {/* Timer Widget - Redesigned */}
             <div className="flex min-w-0 items-center gap-2">
-              {/* Description Input */}
-              <input
-                type="text"
+              <TimerNotePopover
+                key={task.id}
+                taskId={task.id}
+                taskTitle={task.title}
                 value={timerDescription}
-                onChange={(e) => handleDescriptionChange(e.target.value)}
-                placeholder="Čo práve robíš..."
-                className="hidden h-8 w-[180px] rounded-lg border border-border bg-background px-3 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:block"
-                aria-label="Popis práce"
-              />
-              
+                isTimerActive={Boolean(
+                  activeTimer && String(activeTimer.task_id) === String(task.id)
+                )}
+                disabled={isStartingTimer}
+                open={isTimerNoteOpen}
+                onOpenChange={setIsTimerNoteOpen}
+                onValueChange={handleDescriptionChange}
+                onStart={handleTimerToggle}
+                onSave={handleSaveTimerNote}
+              >
+                <button
+                  type="button"
+                  disabled={isStartingTimer}
+                  className={cn(
+                    "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/30 sm:w-[180px] sm:justify-start sm:px-3",
+                    timerDescription && "text-foreground"
+                  )}
+                  aria-label={
+                    timerDescription
+                      ? `Upraviť poznámku: ${timerDescription}`
+                      : "Pridať poznámku k trackovaniu"
+                  }
+                  title={timerDescription || "Pridať poznámku k trackovaniu"}
+                >
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0 sm:mr-2" />
+                  <span className="hidden min-w-0 truncate sm:block">
+                    {timerDescription || "Čo práve robíš..."}
+                  </span>
+                  {timerDescription && (
+                    <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-emerald-500 sm:hidden" />
+                  )}
+                </button>
+              </TimerNotePopover>
+
               {/* Timer Controls */}
               <div className="flex h-8 items-center overflow-hidden rounded-lg border border-border bg-background">
                 {/* Extra mode toggle (Zap) */}

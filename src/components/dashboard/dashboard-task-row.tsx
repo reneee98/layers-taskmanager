@@ -36,6 +36,7 @@ import { formatCurrency, formatHours } from "@/lib/format";
 import { cn, stripHtml } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
+import { OPEN_TIMER_NOTE_EVENT } from "@/lib/timer-events";
 
 export interface DashboardTaskItem {
   id: string;
@@ -394,6 +395,7 @@ export const DashboardTaskRow = ({
         task.project?.id || task.project_id || "",
         task.project?.name || "Bez projektu"
       );
+      window.dispatchEvent(new CustomEvent(OPEN_TIMER_NOTE_EVENT));
       toast({
         title: "Časovač spustený",
         description: `Sleduje sa čas na úlohe „${taskTitle}“.`,

@@ -2,10 +2,12 @@
 
 import { useTimer } from "@/contexts/TimerContext";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Loader2, Square } from "lucide-react";
+import { TimerNotePopover } from "@/components/timer/TimerNotePopover";
+import { ChevronRight, Loader2, MessageSquareText, Square } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useRouter, usePathname } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { OPEN_TIMER_NOTE_EVENT } from "@/lib/timer-events";
 
 export function GlobalTimer() {
   const { activeTimer, currentDuration, stopTimer, refreshTimer } = useTimer();
@@ -13,9 +15,30 @@ export function GlobalTimer() {
   const pathname = usePathname();
   const isStoppingRef = useRef(false); // Prevent multiple simultaneous stop calls
   const [isStopping, setIsStopping] = useState(false); // For UI disabled state
+  const [isNoteOpen, setIsNoteOpen] = useState(false);
+  const [timerDescription, setTimerDescription] = useState("");
 
   // Hide timer on task detail pages
-  const isTaskDetailPage = pathname?.match(/^\/tasks\/[^/]+$/) || pathname?.match(/^\/projects\/[^/]+\/tasks\/[^/]+$/);
+  const isTaskDetailPage = Boolean(
+    pathname?.match(/^\/tasks\/[^/]+$/) || pathname?.match(/^\/projects\/[^/]+\/tasks\/[^/]+$/)
+  );
+
+  useEffect(() => {
+    setTimerDescription(activeTimer?.description || "");
+  }, [activeTimer?.description, activeTimer?.id]);
+
+  useEffect(() => {
+    const handleOpenTimerNote = () => setIsNoteOpen(true);
+
+    window.addEventListener(OPEN_TIMER_NOTE_EVENT, handleOpenTimerNote);
+    return () => window.removeEventListener(OPEN_TIMER_NOTE_EVENT, handleOpenTimerNote);
+  }, []);
+
+  useEffect(() => {
+    if (isTaskDetailPage) {
+      setIsNoteOpen(false);
+    }
+  }, [isTaskDetailPage]);
 
   if (!activeTimer || isTaskDetailPage) {
     return null;
@@ -25,11 +48,11 @@ export function GlobalTimer() {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const secs = totalSeconds % 60;
-    
+
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
   const handleStop = async () => {
@@ -40,6 +63,7 @@ export function GlobalTimer() {
 
     if (!activeTimer) {
       await stopTimer();
+      setIsNoteOpen(false);
       return;
     }
 
@@ -53,15 +77,16 @@ export function GlobalTimer() {
     const now = new Date();
     const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
     const taskName = activeTimer.task_name;
-    
+
     try {
       // Volať stopTimer z kontextu, ktorý automaticky uloží časový záznam a zastaví timer
       await stopTimer();
-      
+      setIsNoteOpen(false);
+
       // Počkáme chvíľu a refreshneme timer, aby sme sa uistili, že timer je skutočne zastavený
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
       await refreshTimer();
-      
+
       toast({
         title: "Časovač zastavený",
         description: `Zapísaných ${formatTime(duration)} do úlohy "${taskName}".`,
@@ -84,6 +109,29 @@ export function GlobalTimer() {
     }
   };
 
+  const handleSaveDescription = async () => {
+    const response = await fetch("/api/timers/update", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: timerDescription.trim() }),
+    });
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      const errorMessage = result.error || "Poznámku sa nepodarilo uložiť";
+      toast({ title: "Chyba", description: errorMessage, variant: "destructive" });
+      throw new Error(errorMessage);
+    }
+
+    await refreshTimer();
+    toast({
+      title: "Poznámka uložená",
+      description: timerDescription.trim()
+        ? `Čas sa trackuje ako „${timerDescription.trim()}“.`
+        : "Časovač pokračuje bez poznámky.",
+    });
+  };
+
   const handleClick = () => {
     if (activeTimer.task_id && activeTimer.project_id) {
       const url = `/projects/${activeTimer.project_id}/tasks/${activeTimer.task_id}`;
@@ -96,18 +144,43 @@ export function GlobalTimer() {
 
   return (
     <div className="flex h-9 min-w-0 max-w-[420px] items-center overflow-hidden rounded-lg border border-border/80 bg-card/80 shadow-sm backdrop-blur-sm">
-      <div className="flex h-full shrink-0 items-center gap-2 border-r border-border/70 px-2.5 sm:px-3">
-        <span className="relative flex h-2 w-2" aria-hidden="true">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-30" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-        </span>
-        <span
-          className="font-mono text-[13px] font-semibold leading-none tracking-[-0.02em] text-foreground tabular-nums"
-          aria-live="off"
+      <TimerNotePopover
+        key={activeTimer.id}
+        taskId={activeTimer.task_id}
+        taskTitle={activeTimer.task_name}
+        value={timerDescription}
+        isTimerActive
+        disabled={isStopping}
+        open={isNoteOpen}
+        onOpenChange={setIsNoteOpen}
+        onValueChange={setTimerDescription}
+        onSave={handleSaveDescription}
+      >
+        <button
+          type="button"
+          disabled={isStopping}
+          className="flex h-full shrink-0 items-center gap-2 border-r border-border/70 px-2.5 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-3"
+          aria-label={`Upraviť poznámku k časovaču úlohy ${activeTimer.task_name}`}
+          title={timerDescription ? `Poznámka: ${timerDescription}` : "Pridať poznámku"}
         >
-          {formatTime(currentDuration)}
-        </span>
-      </div>
+          <span className="relative flex h-2 w-2" aria-hidden="true">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-30" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          </span>
+          <span
+            className="font-mono text-[13px] font-semibold leading-none tracking-[-0.02em] text-foreground tabular-nums"
+            aria-live="off"
+          >
+            {formatTime(currentDuration)}
+          </span>
+          {timerDescription && (
+            <MessageSquareText
+              className="h-3 w-3 text-emerald-600 dark:text-emerald-400"
+              aria-hidden="true"
+            />
+          )}
+        </button>
+      </TimerNotePopover>
 
       <button
         type="button"
@@ -120,7 +193,10 @@ export function GlobalTimer() {
             <span className="hidden max-w-[110px] truncate text-xs font-medium text-muted-foreground lg:inline">
               {activeTimer.project_name}
             </span>
-            <ChevronRight className="hidden h-3 w-3 shrink-0 text-muted-foreground/60 lg:block" aria-hidden="true" />
+            <ChevronRight
+              className="hidden h-3 w-3 shrink-0 text-muted-foreground/60 lg:block"
+              aria-hidden="true"
+            />
           </>
         )}
         <span className="min-w-0 truncate text-xs font-medium text-foreground sm:max-w-[120px] xl:max-w-[170px]">

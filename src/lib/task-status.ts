@@ -4,6 +4,7 @@ export const TASK_STATUSES = [
   "review",
   "sent_to_client",
   "done",
+  "invoiced",
   "cancelled",
 ] as const;
 
@@ -15,6 +16,7 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   review: "Na kontrole",
   sent_to_client: "Odoslané klientovi",
   done: "Dokončené",
+  invoiced: "Vyfakturované",
   cancelled: "Zrušené",
 };
 
@@ -39,5 +41,3 @@ export const formatTextWithTaskStatusLabels = (text?: string | null) => {
     return `"${label}"`;
   });
 };
-
-

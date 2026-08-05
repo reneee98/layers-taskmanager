@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Filter, X, ChevronDown, Circle, Play, Eye, Send, CheckCircle, XCircle, ArrowDown, ArrowUp, ArrowUpRight, Flame } from "lucide-react";
+import { Filter, X, ChevronDown, Circle, Play, Eye, Send, CheckCircle, XCircle, ArrowDown, ArrowUp, ArrowUpRight, Flame, ReceiptText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,6 +33,7 @@ const statusOptions = [
   { value: "review", label: getTaskStatusLabel("review") },
   { value: "sent_to_client", label: getTaskStatusLabel("sent_to_client") },
   { value: "done", label: getTaskStatusLabel("done") },
+  { value: "invoiced", label: getTaskStatusLabel("invoiced") },
   { value: "cancelled", label: getTaskStatusLabel("cancelled") },
 ];
 
@@ -65,6 +66,7 @@ export const TaskFilters = ({ filters, onFiltersChange, totalTasks, filteredTask
       case 'review': return Eye;
       case 'sent_to_client': return Send;
       case 'done': return CheckCircle;
+      case 'invoiced': return ReceiptText;
       case 'cancelled': return XCircle;
       default: return Circle;
     }

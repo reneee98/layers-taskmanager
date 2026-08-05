@@ -76,6 +76,7 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
         if (!task.due_date) return false;
         if (
           task.status === "done" ||
+          task.status === "invoiced" ||
           task.status === "cancelled" ||
           task.status === "sent_to_client"
         ) {
@@ -110,6 +111,7 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
       return tasks.filter(task => 
         (!task.assignees || task.assignees.length === 0) &&
         task.status !== "done" && 
+        task.status !== "invoiced" &&
         task.status !== "cancelled"
       );
 
@@ -118,6 +120,7 @@ export const filterTasksByTab = (tasks: AssignedTask[], tabType: DashboardTabTyp
       return tasks.filter(task => 
         !task.project_id &&
         task.status !== "done" && 
+        task.status !== "invoiced" &&
         task.status !== "cancelled"
       );
 

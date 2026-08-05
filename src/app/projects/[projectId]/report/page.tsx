@@ -94,6 +94,8 @@ const STATUS_TONES: Record<string, string> = {
   sent_to_client:
     "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300",
   done: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300",
+  invoiced:
+    "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-800 dark:bg-teal-950/30 dark:text-teal-300",
   cancelled:
     "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300",
 };
@@ -223,7 +225,9 @@ export default function ProjectReportPage() {
           const projectTasks: Task[] = tasksResult.data || [];
 
           filteredTasks = onlyDone
-            ? projectTasks.filter((task) => task.status === "done")
+            ? projectTasks.filter(
+                (task) => task.status === "done" || task.status === "invoiced"
+              )
             : projectTasks;
 
           if (selectedTaskIds) {

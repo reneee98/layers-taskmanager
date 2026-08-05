@@ -1,17 +1,9 @@
+import { PROJECT_COLOR_PALETTE } from "@/lib/project-colors";
+
 export const TASK_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
 
-export const TASK_COLOR_PALETTE = [
-  "#2563EB", // blue
-  "#0EA5E9", // sky
-  "#14B8A6", // teal
-  "#22C55E", // green
-  "#84CC16", // lime
-  "#F59E0B", // amber
-  "#F97316", // orange
-  "#EF4444", // red
-  "#EC4899", // pink
-  "#A855F7", // violet
-] as const;
+// Tasks and projects intentionally share one muted dashboard palette.
+export const TASK_COLOR_PALETTE = PROJECT_COLOR_PALETTE;
 
 export function normalizeTaskColor(value: string | null | undefined): string | null {
   if (!value) return null;

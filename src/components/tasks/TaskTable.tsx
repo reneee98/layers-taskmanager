@@ -45,6 +45,7 @@ const statusLabels: Record<StatusFilter, string> = {
   review: "Na kontrole",
   sent_to_client: "U klienta",
   done: "Dokončené",
+  invoiced: "Vyfakturované",
   cancelled: "Zrušené",
 };
 

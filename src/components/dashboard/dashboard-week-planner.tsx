@@ -42,6 +42,7 @@ interface DashboardWeekPlannerProps {
   canUpdateTaskStatus: boolean;
   canUpdateTaskPriority: boolean;
   onCreateTask: (dueDate: string) => void;
+  onOpenTask: (task: DashboardTaskItem) => void;
   onScheduleTask: (taskId: string, startDate: string, dueDate: string) => Promise<void>;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
   onUpdateTaskPriority: (taskId: string, priority: TaskPriority) => Promise<void>;
@@ -180,6 +181,7 @@ export const DashboardWeekPlanner = ({
   canUpdateTaskStatus,
   canUpdateTaskPriority,
   onCreateTask,
+  onOpenTask,
   onScheduleTask,
   onUpdateTaskStatus,
   onUpdateTaskPriority,
@@ -404,10 +406,11 @@ export const DashboardWeekPlanner = ({
                           </div>
                         </div>
 
-                        <Link
-                          href={getTaskHref(task)}
+                        <button
+                          type="button"
+                          onClick={() => onOpenTask(task)}
                           aria-label={`Otvoriť úlohu ${stripHtml(task.title)}`}
-                          className="mt-2 block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="mt-2 block w-full rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <p className="line-clamp-2 text-xs font-semibold leading-4 text-foreground">
                             {stripHtml(task.title)}
@@ -486,7 +489,7 @@ export const DashboardWeekPlanner = ({
                               </span>
                             )}
                           </div>
-                        </Link>
+                        </button>
                       </div>
                     );
                   })}

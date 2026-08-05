@@ -7,15 +7,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, ChevronDown, Circle, Play, Eye, CheckCircle, XCircle, Send } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Circle,
+  Play,
+  Eye,
+  CheckCircle,
+  XCircle,
+  Send,
+  ReceiptText,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getTaskStatusLabel } from "@/lib/task-status";
+import { getTaskStatusLabel, type TaskStatus } from "@/lib/task-status";
 
 interface StatusSelectProps {
-  status: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled";
-  onStatusChange: (
-    status: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled"
-  ) => void;
+  status: TaskStatus;
+  onStatusChange: (status: TaskStatus) => void;
   disabled?: boolean;
   size?: "default" | "compact" | "icon" | "dashboard" | "planner";
 }
@@ -60,6 +68,14 @@ const statusOptions = [
     iconColor: "text-emerald-500",
   },
   {
+    value: "invoiced",
+    label: getTaskStatusLabel("invoiced"),
+    icon: ReceiptText,
+    color:
+      "bg-teal-100 text-teal-700 border-teal-200 hover:bg-teal-200 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800 dark:hover:bg-teal-800/30",
+    iconColor: "text-teal-600 dark:text-teal-400",
+  },
+  {
     value: "cancelled",
     label: getTaskStatusLabel("cancelled"),
     icon: XCircle,
@@ -76,6 +92,7 @@ const dashboardStatusTone: Record<string, string> = {
   sent_to_client:
     "bg-violet-500/[0.09] text-violet-700 hover:bg-violet-500/[0.15] dark:text-violet-300",
   done: "bg-emerald-500/[0.09] text-emerald-700 hover:bg-emerald-500/[0.15] dark:text-emerald-300",
+  invoiced: "bg-teal-500/[0.09] text-teal-700 hover:bg-teal-500/[0.15] dark:text-teal-300",
   cancelled: "bg-rose-500/[0.09] text-rose-700 hover:bg-rose-500/[0.15] dark:text-rose-300",
 };
 
@@ -85,6 +102,7 @@ const statusMenuIconTone: Record<string, string> = {
   review: "bg-amber-500/[0.1] text-amber-600 dark:text-amber-400",
   sent_to_client: "bg-violet-500/[0.1] text-violet-600 dark:text-violet-400",
   done: "bg-emerald-500/[0.1] text-emerald-600 dark:text-emerald-400",
+  invoiced: "bg-teal-500/[0.1] text-teal-600 dark:text-teal-400",
   cancelled: "bg-rose-500/[0.1] text-rose-600 dark:text-rose-400",
 };
 
@@ -98,9 +116,7 @@ export function StatusSelect({
 
   const currentStatus = statusOptions.find((option) => option.value === status) || statusOptions[0];
 
-  const handleStatusChange = (
-    newStatus: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled"
-  ) => {
+  const handleStatusChange = (newStatus: TaskStatus) => {
     onStatusChange(newStatus);
     setIsOpen(false);
   };
@@ -126,7 +142,7 @@ export function StatusSelect({
               ? "h-8 w-8 justify-center rounded-md border-border bg-muted/50 text-muted-foreground hover:bg-accent hover:text-foreground"
               : isDashboard
                 ? cn(
-                    "h-11 w-40 shrink-0 gap-2 overflow-hidden rounded-md border-transparent px-3 text-xs sm:h-9",
+                    "h-11 w-full shrink-0 gap-2 overflow-hidden rounded-md border-transparent px-3 text-xs sm:h-9",
                     dashboardStatusTone[status]
                   )
                 : isPlanner
@@ -134,9 +150,9 @@ export function StatusSelect({
                       "h-5 max-w-[92px] shrink-0 gap-1 overflow-hidden rounded border-transparent px-1.5 text-[9px] leading-none",
                       dashboardStatusTone[status]
                     )
-                : isCompact
-                  ? "h-6 w-fit gap-1 rounded-md px-1.5 py-0.5 text-xs"
-                  : "h-[36px] gap-2 rounded-full px-[13px] py-px text-[12px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]",
+                  : isCompact
+                    ? "h-6 w-fit gap-1 rounded-md px-1.5 py-0.5 text-xs"
+                    : "h-[36px] gap-2 rounded-full px-[13px] py-px text-[12px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]",
             !isIcon && !isDashboard && !isPlanner && currentStatus.color,
             disabled ? "cursor-default" : "cursor-pointer"
           )}
@@ -165,9 +181,11 @@ export function StatusSelect({
                       ? "text-amber-500"
                       : status === "done"
                         ? "text-emerald-500"
-                        : status === "cancelled"
-                          ? "text-destructive"
-                          : "text-muted-foreground"
+                        : status === "invoiced"
+                          ? "text-teal-500"
+                          : status === "cancelled"
+                            ? "text-destructive"
+                            : "text-muted-foreground"
                   : currentStatus.iconColor,
                 status === "in_progress" && "animate-pulse"
               )}
@@ -210,17 +228,7 @@ export function StatusSelect({
             return (
               <DropdownMenuItem
                 key={option.value}
-                onClick={() =>
-                  handleStatusChange(
-                    option.value as
-                      | "done"
-                      | "cancelled"
-                      | "todo"
-                      | "in_progress"
-                      | "review"
-                      | "sent_to_client"
-                  )
-                }
+                onClick={() => handleStatusChange(option.value as TaskStatus)}
                 className={cn(
                   "min-h-8 cursor-pointer gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors focus:bg-muted/80",
                   isSelected && "bg-muted/60 text-foreground"
@@ -233,10 +241,7 @@ export function StatusSelect({
                   )}
                 >
                   <OptionIcon
-                    className={cn(
-                      "h-3.5 w-3.5",
-                      option.value === "in_progress" && "animate-pulse"
-                    )}
+                    className={cn("h-3.5 w-3.5", option.value === "in_progress" && "animate-pulse")}
                   />
                 </span>
                 <span className="min-w-0 flex-1 truncate">{option.label}</span>

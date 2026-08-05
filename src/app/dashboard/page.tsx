@@ -42,6 +42,7 @@ import {
   List,
   X,
   FolderX,
+  ReceiptText,
 } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/format";
 import { format, isAfter, isBefore, addDays, isToday, parse, startOfWeek, getDay } from "date-fns";
@@ -454,6 +455,9 @@ export default function DashboardPage() {
   });
   const [isQuickTaskOpen, setIsQuickTaskOpen] = useState(false);
   const [quickTaskDueDate, setQuickTaskDueDate] = useState<string | null>(null);
+  const [quickTaskToEdit, setQuickTaskToEdit] = useState<Task | null>(null);
+  const [isQuickTaskLoading, setIsQuickTaskLoading] = useState(false);
+  const taskPanelRequestRef = useRef(0);
   const [personalProjectId, setPersonalProjectId] = useState<string | null>(null);
   const [moreEventsModalOpen, setMoreEventsModalOpen] = useState(false);
   const [moreEventsDate, setMoreEventsDate] = useState<Date | null>(null);
@@ -1009,6 +1013,8 @@ export default function DashboardPage() {
       review:
         "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700",
       done: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700",
+      invoiced:
+        "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-700",
       cancelled:
         "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
     };
@@ -1174,6 +1180,13 @@ export default function DashboardPage() {
       color: "bg-emerald-100 text-emerald-700 border-emerald-200",
       iconColor: "text-emerald-500",
     },
+    invoiced: {
+      label: getTaskStatusLabel("invoiced"),
+      icon: ReceiptText,
+      color:
+        "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800",
+      iconColor: "text-teal-500",
+    },
     cancelled: {
       label: getTaskStatusLabel("cancelled"),
       icon: XCircle,
@@ -1245,13 +1258,52 @@ export default function DashboardPage() {
   }, [allActiveTasks, unassignedTasks]);
 
   const handleOpenQuickTask = (dueDate?: string) => {
+    taskPanelRequestRef.current += 1;
+    setQuickTaskToEdit(null);
+    setIsQuickTaskLoading(false);
     setQuickTaskDueDate(dueDate || null);
     setIsQuickTaskOpen(true);
   };
 
+  const handleOpenTaskPanel = async (taskToOpen: { id: string }) => {
+    const requestId = taskPanelRequestRef.current + 1;
+    taskPanelRequestRef.current = requestId;
+    setQuickTaskDueDate(null);
+    setQuickTaskToEdit(null);
+    setIsQuickTaskLoading(true);
+    setIsQuickTaskOpen(true);
+
+    try {
+      const response = await fetch(`/api/tasks/${taskToOpen.id}`, { cache: "no-store" });
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Nepodarilo sa načítať úlohu");
+      }
+
+      if (taskPanelRequestRef.current !== requestId) return;
+      setQuickTaskToEdit(result.data);
+    } catch (error) {
+      if (taskPanelRequestRef.current !== requestId) return;
+      setIsQuickTaskOpen(false);
+      toast({
+        title: "Chyba",
+        description: error instanceof Error ? error.message : "Nepodarilo sa načítať úlohu",
+        variant: "destructive",
+      });
+    } finally {
+      if (taskPanelRequestRef.current === requestId) setIsQuickTaskLoading(false);
+    }
+  };
+
   const handleQuickTaskOpenChange = (open: boolean) => {
     setIsQuickTaskOpen(open);
-    if (!open) setQuickTaskDueDate(null);
+    if (!open) {
+      taskPanelRequestRef.current += 1;
+      setQuickTaskDueDate(null);
+      setQuickTaskToEdit(null);
+      setIsQuickTaskLoading(false);
+    }
   };
 
   if (workspaceLoading || isLoading || isLoadingPermissions) {
@@ -1278,6 +1330,7 @@ export default function DashboardPage() {
         showProjects={canReadProjects || canViewProjects}
         quickTaskDisabled={!personalProjectId}
         onQuickTask={handleOpenQuickTask}
+        onOpenTask={handleOpenTaskPanel}
         onUpdateTask={handleUpdateTask}
         onTimeTracked={handleTimeTracked}
         onCompleteProject={canUpdateProjects ? handleCompleteProject : undefined}
@@ -1662,6 +1715,7 @@ export default function DashboardPage() {
                                                 | "review"
                                                 | "sent_to_client"
                                                 | "done"
+                                                | "invoiced"
                                                 | "cancelled"
                                             }
                                             onStatusChange={(newStatus) =>
@@ -2460,7 +2514,10 @@ export default function DashboardPage() {
       {/* Quick Task Dialog */}
       <TaskDialog
         projectId={null}
+        task={quickTaskToEdit}
         initialDueDate={quickTaskDueDate}
+        mode="quick"
+        loadingTask={isQuickTaskLoading}
         open={isQuickTaskOpen}
         onOpenChange={handleQuickTaskOpenChange}
         onSuccess={() => {

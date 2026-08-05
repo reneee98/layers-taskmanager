@@ -892,6 +892,7 @@ export async function PATCH(
         validation.data.due_date &&
         validation.data.start_date === undefined &&
         taskStatus !== "done" &&
+        taskStatus !== "invoiced" &&
         taskStatus !== "cancelled" &&
         taskStatus !== "sent_to_client"
       ) {

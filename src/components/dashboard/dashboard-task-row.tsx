@@ -86,6 +86,7 @@ interface DashboardTaskRowProps {
   showProject?: boolean;
   onUpdate: (taskId: string, updates: DashboardTaskUpdate) => Promise<void>;
   onTimeTracked?: (taskId: string, hours: number) => void;
+  onOpen?: (task: DashboardTaskItem) => void;
   onEdit?: () => void;
   onDelete?: () => Promise<void>;
   draggable?: boolean;
@@ -110,6 +111,7 @@ const taskSurfaceClasses: Record<string, string> = {
   review: "bg-amber-500/[0.025] hover:bg-amber-500/[0.055]",
   sent_to_client: "bg-violet-500/[0.025] hover:bg-violet-500/[0.055]",
   done: "bg-emerald-500/[0.02] hover:bg-emerald-500/[0.05]",
+  invoiced: "bg-teal-500/[0.025] hover:bg-teal-500/[0.055]",
 };
 
 const getTaskHref = (task: DashboardTaskItem) => {
@@ -329,6 +331,7 @@ export const DashboardTaskRow = ({
   showProject = true,
   onUpdate,
   onTimeTracked,
+  onOpen,
   onEdit,
   onDelete,
   draggable = false,
@@ -462,12 +465,22 @@ export const DashboardTaskRow = ({
             size="flag"
             onPriorityChange={(priority) => onUpdate(task.id, { priority })}
           />
-          <Link
-            href={taskHref}
-            className="min-w-0 flex-1 truncate text-[13px] font-medium leading-5 text-foreground outline-none transition-colors hover:text-foreground/70 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring/30"
-          >
-            {taskTitle}
-          </Link>
+          {onOpen ? (
+            <button
+              type="button"
+              onClick={() => onOpen(task)}
+              className="min-w-0 flex-1 truncate text-left text-[13px] font-medium leading-5 text-foreground outline-none transition-colors hover:text-foreground/70 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring/30"
+            >
+              {taskTitle}
+            </button>
+          ) : (
+            <Link
+              href={taskHref}
+              className="min-w-0 flex-1 truncate text-[13px] font-medium leading-5 text-foreground outline-none transition-colors hover:text-foreground/70 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring/30"
+            >
+              {taskTitle}
+            </Link>
+          )}
         </div>
         <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
           {showProject && task.project && (
@@ -520,6 +533,7 @@ export const DashboardTaskRow = ({
               | "review"
               | "sent_to_client"
               | "done"
+              | "invoiced"
               | "cancelled"
           }
           onStatusChange={(status) => onUpdate(task.id, { status })}
@@ -532,7 +546,9 @@ export const DashboardTaskRow = ({
           dueDate={task.due_date}
           disabled={!canUpdate}
           taskTitle={taskTitle}
-          muted={task.status === "done" || task.status === "cancelled"}
+          muted={
+            task.status === "done" || task.status === "invoiced" || task.status === "cancelled"
+          }
           onChange={(startDate, dueDate) =>
             onUpdate(task.id, { start_date: startDate, due_date: dueDate })
           }
@@ -642,13 +658,24 @@ export const DashboardTaskRow = ({
           )}
         </button>
 
-        <Link
-          href={taskHref}
-          aria-label={`Otvoriť úlohu ${taskTitle}`}
-          className="hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 sm:flex"
-        >
-          <ArrowRight className="h-4 w-4" />
-        </Link>
+        {onOpen ? (
+          <button
+            type="button"
+            onClick={() => onOpen(task)}
+            aria-label={`Otvoriť detail úlohy ${taskTitle}`}
+            className="hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 sm:flex"
+          >
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        ) : (
+          <Link
+            href={taskHref}
+            aria-label={`Otvoriť úlohu ${taskTitle}`}
+            className="hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 sm:flex"
+          >
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        )}
 
         {hasActions && (
           <DropdownMenu>

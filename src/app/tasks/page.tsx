@@ -150,6 +150,7 @@ export default function TasksPage() {
       return tasksForFiltering.filter(task => 
         !task.project_id &&
         task.status !== "done" && 
+        task.status !== "invoiced" &&
         task.status !== "cancelled"
       );
     }
@@ -163,6 +164,7 @@ export default function TasksPage() {
     const noProjectCount = tasksForFiltering.filter(task => 
       !task.project_id &&
       task.status !== "done" && 
+      task.status !== "invoiced" &&
       task.status !== "cancelled"
     ).length;
     

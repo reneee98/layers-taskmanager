@@ -282,6 +282,7 @@ export default function InvoicesPage() {
       'in_progress': 'bg-blue-500/10 text-blue-500 border-blue-500/20',
       'review': 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
       'done': 'bg-green-500/10 text-green-500 border-green-500/20',
+      'invoiced': 'bg-teal-500/10 text-teal-600 border-teal-500/20',
       'cancelled': 'bg-red-500/10 text-red-500 border-red-500/20'
     };
     return variantMap[status] || 'bg-muted text-muted-foreground border-border';

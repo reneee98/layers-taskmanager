@@ -36,7 +36,8 @@ import {
   ArrowUp,
   ArrowUpRight,
   Flame,
-  Flag
+  Flag,
+  ReceiptText,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -109,6 +110,8 @@ const getStatusIndicator = (status?: string | null) => {
       return { icon: Send, bgColor: "bg-purple-600", iconColor: "text-white" };
     case "done":
       return { icon: CheckCircle2, bgColor: "bg-emerald-600", iconColor: "text-white" };
+    case "invoiced":
+      return { icon: ReceiptText, bgColor: "bg-teal-600", iconColor: "text-white" };
     case "cancelled":
       return { icon: XCircle, bgColor: "bg-red-600", iconColor: "text-white" };
     default:

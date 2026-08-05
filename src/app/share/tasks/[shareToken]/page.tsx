@@ -35,7 +35,8 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpRight,
-  Flame
+  Flame,
+  ReceiptText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
@@ -82,7 +83,7 @@ interface SharedTask {
   id: string;
   title: string;
   description: string | null;
-  status: 'todo' | 'in_progress' | 'review' | 'sent_to_client' | 'done' | 'cancelled';
+  status: 'todo' | 'in_progress' | 'review' | 'sent_to_client' | 'done' | 'invoiced' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   dueDate: string | null;
   createdAt: string;
@@ -129,6 +130,13 @@ const statusOptions = [
     icon: CheckCircle2,
     color: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200",
     iconColor: "text-emerald-500"
+  },
+  {
+    value: "invoiced",
+    label: getTaskStatusLabel("invoiced"),
+    icon: ReceiptText,
+    color: "bg-teal-100 text-teal-700 border-teal-200 hover:bg-teal-200",
+    iconColor: "text-teal-500",
   },
   { 
     value: "cancelled", 

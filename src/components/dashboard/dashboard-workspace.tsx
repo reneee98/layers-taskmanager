@@ -50,6 +50,7 @@ interface DashboardWorkspaceProps {
   showProjects: boolean;
   quickTaskDisabled: boolean;
   onQuickTask: (dueDate?: string) => void;
+  onOpenTask: (task: DashboardTaskItem) => void;
   onUpdateTask: (taskId: string, updates: DashboardTaskUpdate) => Promise<void>;
   onTimeTracked: (taskId: string, hours: number) => void;
   onCompleteProject?: (projectId: string) => Promise<void>;
@@ -59,14 +60,7 @@ const isPersonalProject = (project: DashboardProjectItem) =>
   project.name === "Osobné úlohy" ||
   (project.code !== null && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")));
 
-type FocusFilter =
-  | "week"
-  | "all"
-  | "todo"
-  | "in_progress"
-  | "review"
-  | "sent_to_client"
-  | "done";
+type FocusFilter = "week" | "all" | "todo" | "in_progress" | "review" | "sent_to_client" | "done";
 
 const STATUS_FILTERS = ["todo", "in_progress", "review", "sent_to_client", "done"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
@@ -121,6 +115,7 @@ export const DashboardWorkspace = ({
   showProjects,
   quickTaskDisabled,
   onQuickTask,
+  onOpenTask,
   onUpdateTask,
   onTimeTracked,
   onCompleteProject,
@@ -141,7 +136,8 @@ export const DashboardWorkspace = ({
 
     workspaceTasks.forEach((task) => {
       // Sekcia projektov ukazuje len otvorenú prácu
-      if (task.status === "done" || task.status === "cancelled") return;
+      if (task.status === "done" || task.status === "invoiced" || task.status === "cancelled")
+        return;
 
       const projectId = task.project?.id;
       if (!projectId) return;
@@ -184,7 +180,7 @@ export const DashboardWorkspace = ({
 
     const filtered = tasks.filter((task) => {
       // Časové filtre ukazujú len otvorenú prácu
-      if (task.status === "done" || task.status === "cancelled") {
+      if (task.status === "done" || task.status === "invoiced" || task.status === "cancelled") {
         return false;
       }
 
@@ -220,7 +216,9 @@ export const DashboardWorkspace = ({
     return counts;
   }, [workspaceTasks]);
 
-  const openTasks = tasks.filter((task) => task.status !== "done" && task.status !== "cancelled");
+  const openTasks = tasks.filter(
+    (task) => task.status !== "done" && task.status !== "invoiced" && task.status !== "cancelled"
+  );
   const overdueCount = openTasks.filter((task) => {
     if (!task.due_date) return false;
     return startOfDay(parseISO(task.due_date)).getTime() < todayTimestamp;
@@ -244,11 +242,7 @@ export const DashboardWorkspace = ({
   }, [todayTimestamp, workspaceTasks]);
   const unscheduledPlannerTasks = useMemo(
     () =>
-      sortTasks(
-        workspaceTasks.filter(
-          (task) => task.status === "todo" && task.due_date === null
-        )
-      ),
+      sortTasks(workspaceTasks.filter((task) => task.status === "todo" && task.due_date === null)),
     [workspaceTasks]
   );
   const visibleFocusTasks = showAllFocusTasks ? focusTasks : focusTasks.slice(0, 6);
@@ -427,13 +421,12 @@ export const DashboardWorkspace = ({
                   canUpdateTaskStatus={canUpdateTasks}
                   canUpdateTaskPriority={canUpdateTasks}
                   onCreateTask={onQuickTask}
+                  onOpenTask={onOpenTask}
                   onScheduleTask={(taskId, startDate, dueDate) =>
                     onUpdateTask(taskId, { start_date: startDate, due_date: dueDate })
                   }
                   onUpdateTaskStatus={(taskId, status) => onUpdateTask(taskId, { status })}
-                  onUpdateTaskPriority={(taskId, priority) =>
-                    onUpdateTask(taskId, { priority })
-                  }
+                  onUpdateTaskPriority={(taskId, priority) => onUpdateTask(taskId, { priority })}
                 />
               ) : visibleFocusTasks.length > 0 ? (
                 <div>
@@ -445,6 +438,7 @@ export const DashboardWorkspace = ({
                       canViewPrices={canViewPrices}
                       onUpdate={onUpdateTask}
                       onTimeTracked={onTimeTracked}
+                      onOpen={onOpenTask}
                     />
                   ))}
                   {focusTasks.length > 6 && (
@@ -615,6 +609,7 @@ export const DashboardWorkspace = ({
                             showProject={false}
                             onUpdate={onUpdateTask}
                             onTimeTracked={onTimeTracked}
+                            onOpen={onOpenTask}
                           />
                         ))}
                       </div>

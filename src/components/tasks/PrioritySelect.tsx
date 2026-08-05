@@ -16,7 +16,7 @@ interface PrioritySelectProps {
   priority: TaskPriority;
   onPriorityChange: (priority: TaskPriority) => void;
   disabled?: boolean;
-  size?: "default" | "compact" | "flag";
+  size?: "default" | "compact" | "flag" | "dashboard";
 }
 
 const priorityOptions = [
@@ -60,6 +60,13 @@ const priorityOptions = [
   iconSurface: string;
 }>;
 
+const dashboardPriorityTone: Record<TaskPriority, string> = {
+  low: "bg-slate-500/[0.08] text-slate-600 hover:bg-slate-500/[0.14] dark:text-slate-300",
+  medium: "bg-sky-500/[0.09] text-sky-700 hover:bg-sky-500/[0.15] dark:text-sky-300",
+  high: "bg-orange-500/[0.09] text-orange-700 hover:bg-orange-500/[0.15] dark:text-orange-300",
+  urgent: "bg-rose-500/[0.09] text-rose-700 hover:bg-rose-500/[0.15] dark:text-rose-300",
+};
+
 export function PrioritySelect({
   priority,
   onPriorityChange,
@@ -72,6 +79,7 @@ export function PrioritySelect({
     priorityOptions.find((option) => option.value === priority) || priorityOptions[0];
   const isCompact = size === "compact";
   const isFlag = size === "flag";
+  const isDashboard = size === "dashboard";
 
   const handlePriorityChange = (newPriority: TaskPriority) => {
     onPriorityChange(newPriority);
@@ -90,11 +98,16 @@ export function PrioritySelect({
             "flex items-center justify-between border transition-all duration-200",
             isFlag
               ? "h-6 w-6 justify-center rounded-md border-transparent bg-transparent p-0 hover:border-border/70 hover:bg-muted/70"
-              : isCompact
-                ? "h-6 w-fit gap-1 rounded-md px-1.5 py-0.5 text-xs"
-                : "h-[36px] gap-2 rounded-full px-[13px] py-px text-[12px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]",
+              : isDashboard
+                ? cn(
+                    "h-11 w-full gap-2 rounded-md border-transparent px-3 text-xs sm:h-9",
+                    dashboardPriorityTone[priority]
+                  )
+                : isCompact
+                  ? "h-6 w-fit gap-1 rounded-md px-1.5 py-0.5 text-xs"
+                  : "h-[36px] gap-2 rounded-full px-[13px] py-px text-[12px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]",
             "font-medium whitespace-nowrap",
-            !isFlag && currentPriority.color,
+            !isFlag && !isDashboard && currentPriority.color,
             disabled ? "cursor-default opacity-65" : "cursor-pointer"
           )}
         >
@@ -102,7 +115,13 @@ export function PrioritySelect({
             <Flag
               className={cn(
                 "shrink-0",
-                isFlag ? "h-3.5 w-3.5" : isCompact ? "h-3 w-3" : "h-4 w-4",
+                isFlag
+                  ? "h-3.5 w-3.5"
+                  : isCompact
+                    ? "h-3 w-3"
+                    : isDashboard
+                      ? "h-3.5 w-3.5"
+                      : "h-4 w-4",
                 currentPriority.iconColor,
                 priority === "urgent" && "fill-current"
               )}
@@ -113,7 +132,7 @@ export function PrioritySelect({
             <ChevronDown
               className={cn(
                 "shrink-0 opacity-60",
-                isCompact ? "h-2.5 w-2.5" : "h-4 w-4"
+                isCompact ? "h-2.5 w-2.5" : isDashboard ? "h-3.5 w-3.5" : "h-4 w-4"
               )}
             />
           )}

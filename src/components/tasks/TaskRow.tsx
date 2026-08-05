@@ -35,6 +35,7 @@ import {
   Send,
   ChevronDown,
   Check,
+  ReceiptText,
   Plus,
   X,
 } from "lucide-react";
@@ -97,6 +98,12 @@ const statusConfig = {
     icon: CheckCircle, 
     color: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800", 
     iconColor: "text-emerald-500" 
+  },
+  invoiced: {
+    label: getTaskStatusLabel("invoiced"),
+    icon: ReceiptText,
+    color: "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800",
+    iconColor: "text-teal-500",
   },
   cancelled: { 
     label: getTaskStatusLabel("cancelled"), 
@@ -522,7 +529,7 @@ export function TaskRow({
               return (
                 <DropdownMenuItem
                   key={key}
-                  onClick={() => handleStatusChange(key as "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled")}
+                  onClick={() => handleStatusChange(key as Task["status"])}
                   className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-accent transition-colors"
                 >
                   <IconComponent className={cn("h-4 w-4", config.iconColor, key === 'in_progress' && "animate-pulse")} />

@@ -17,7 +17,9 @@ Táto databáza obsahuje kompletný systém na správu projektov, úloh, časov�
 - `todo` - Na spraovanie
 - `in_progress` - Prebieha
 - `review` - Na kontrolu
+- `sent_to_client` - Odoslané klientovi
 - `done` - Hotovo
+- `invoiced` - Vyfakturované
 - `cancelled` - Zrušené
 
 ### task_priority
@@ -241,4 +243,3 @@ CREATE POLICY "Users can view their projects" ON projects
     )
   );
 ```
-

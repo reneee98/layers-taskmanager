@@ -78,7 +78,7 @@ export interface Task {
   title: string;
   description: string | null;
   currency: string;
-  status: 'todo' | 'in_progress' | 'review' | 'sent_to_client' | 'done' | 'cancelled';
+  status: 'todo' | 'in_progress' | 'review' | 'sent_to_client' | 'done' | 'invoiced' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   color?: string | null;
   due_date: string | null;
@@ -97,6 +97,7 @@ export interface Task {
   start_date?: string | null;
   end_date?: string | null;
   calculated_price?: number | null;
+  invoiced_at?: string | null;
   // Related data
   project?: {
     id: string;

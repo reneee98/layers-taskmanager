@@ -821,7 +821,7 @@ export default function TaskDetailPage() {
     setAssignees(newAssignees);
   };
 
-  const handleStatusChange = async (newStatus: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "cancelled") => {
+  const handleStatusChange = async (newStatus: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "invoiced" | "cancelled") => {
     if (!task) return;
     
     try {
@@ -1445,6 +1445,8 @@ export default function TaskDetailPage() {
         return "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800";
       case "done":
         return "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800";
+      case "invoiced":
+        return "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800";
       case "cancelled":
         return "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800";
       default:
@@ -1477,6 +1479,8 @@ export default function TaskDetailPage() {
         return CheckCircle;
       case "done":
         return CheckCircle;
+      case "invoiced":
+        return FileText;
       case "cancelled":
         return AlertCircle;
       default:

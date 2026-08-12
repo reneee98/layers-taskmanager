@@ -883,9 +883,9 @@ export function TaskDialog({
       <DialogContent
         placement={isSidePanel ? "right" : "center"}
         className={cn(
-          "max-h-[calc(100dvh-1.5rem)] gap-0 overflow-hidden rounded-[20px] border-border/80 bg-card p-0 shadow-[0_28px_90px_-24px_rgba(15,23,42,0.45)]",
+          "max-h-[calc(100dvh-1.5rem)] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-[20px] border-border/80 bg-card p-0 shadow-[0_28px_90px_-24px_rgba(15,23,42,0.45)]",
           isSidePanel
-            ? "max-h-none grid-rows-[auto_minmax(0,1fr)] rounded-none sm:max-w-[960px] sm:rounded-l-[20px] xl:max-w-[1040px]"
+            ? "max-h-none rounded-none sm:max-w-[960px] sm:rounded-l-[20px] xl:max-w-[1040px]"
             : "sm:max-w-[760px]"
         )}
       >

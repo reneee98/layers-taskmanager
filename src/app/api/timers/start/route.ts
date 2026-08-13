@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getServerUser } from "@/lib/auth";
 import { logActivity, ActivityTypes, getUserDisplayName, getTaskTitle } from "@/lib/activity-logger";
+import { getAuthenticatedRequestContext } from "@/lib/supabase/request";
 
 export async function POST(request: NextRequest) {
   try {
     console.log("Timer start API called");
-    const supabase = createClient();
-    const user = await getServerUser();
+    const { supabase, user } = await getAuthenticatedRequestContext(request);
 
     console.log("User from getServerUser:", user?.id);
 
@@ -17,7 +15,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { taskId, taskName, projectId, projectName, isExtra = false, description } = body;
+    // Web clients use camelCase while the native macOS client historically
+    // encoded Swift properties as snake_case. Accept both so older tracker
+    // builds keep working after the API update.
+    const taskId = body.taskId ?? body.task_id;
+    const taskName = body.taskName ?? body.task_name;
+    const projectId = body.projectId ?? body.project_id;
+    const projectName = body.projectName ?? body.project_name;
+    const isExtra = body.isExtra ?? body.is_extra ?? false;
+    const description = body.description;
 
     console.log("Timer start request:", { taskId, taskName, projectId, projectName, userId: user.id, isExtra, description });
 
@@ -43,15 +49,36 @@ export async function POST(request: NextRequest) {
 
     console.log("Task workspace_id:", task.workspace_id);
 
-    // Stop any active timer for this user first
-    const { error: stopError } = await supabase
+    // Never close an existing timer implicitly: doing so would lose its time
+    // entry when another client (web/desktop) starts with stale local state.
+    // The check is scoped to the authenticated user, so multiple people can
+    // still track the same task independently.
+    const { data: existingTimer, error: existingTimerError } = await supabase
       .from("task_timers")
-      .update({ stopped_at: new Date().toISOString() })
+      .select("id, task_id, started_at")
       .eq("user_id", user.id)
-      .is("stopped_at", null);
+      .is("stopped_at", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (stopError) {
-      console.error("Error stopping previous timer:", stopError);
+    if (existingTimerError) {
+      console.error("Error checking active timer:", existingTimerError);
+      return NextResponse.json(
+        { success: false, error: "Nepodarilo sa overiť aktívny časovač" },
+        { status: 500 }
+      );
+    }
+
+    if (existingTimer) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Najprv zastavte aktuálne meranie, aby sa jeho čas bezpečne uložil.",
+          data: { activeTimer: existingTimer },
+        },
+        { status: 409 }
+      );
     }
 
     // Start new timer
@@ -96,8 +123,8 @@ export async function POST(request: NextRequest) {
     const timerId = newTimer.id;
 
     // Log activity - timer started
-    const userDisplayName = await getUserDisplayName(user.id);
-    const taskTitle = await getTaskTitle(taskId);
+    const userDisplayName = await getUserDisplayName(user.id, supabase);
+    const taskTitle = await getTaskTitle(taskId, supabase);
     await logActivity({
       workspaceId: task.workspace_id,
       userId: user.id,
@@ -113,7 +140,7 @@ export async function POST(request: NextRequest) {
         started_at: new Date().toISOString(),
         user_display_name: userDisplayName
       }
-    });
+    }, supabase);
 
     return NextResponse.json({ 
       success: true, 

@@ -1,0 +1,10 @@
+.next
+.next_stale_*
+node_modules
+coverage
+playwright-report
+test-results
+.playwright-mcp
+backups
+apps/layers-tracker-macos/.build
+apps/layers-tracker-macos/dist

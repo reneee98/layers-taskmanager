@@ -5,6 +5,9 @@ import { ActiveTimer, TimerContextType } from "@/types/timer";
 import { useAuth } from "@/contexts/AuthContext";
 
 const TimerContext = createContext<TimerContextType | undefined>(undefined);
+const TIMER_SYNC_INTERVAL_MS = 5_000;
+const TIMER_STOPPED_EVENT = "timerStopped";
+const TIME_ENTRY_ADDED_EVENT = "timeEntryAdded";
 
 export function TimerProvider({ children }: { children: ReactNode }) {
   const [activeTimer, setActiveTimer] = useState<ActiveTimer | null>(null);
@@ -14,41 +17,55 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const isFetchingRef = useRef(false); // Prevent duplicate fetches
   const lastUserIdRef = useRef<string | null>(null); // Track last user ID to prevent duplicate calls
   const isStoppingRef = useRef(false); // Prevent duplicate stop calls across components
+  const activeTimerRef = useRef<ActiveTimer | null>(null);
+
+  const updateActiveTimer = useCallback((nextTimer: ActiveTimer | null, notify = false) => {
+    const previousTimer = activeTimerRef.current;
+    activeTimerRef.current = nextTimer;
+    setActiveTimer(nextTimer);
+
+    // A timer stopped in the desktop tracker (or another browser tab) also
+    // creates a time entry. Notify the currently open page so its time and
+    // finance panels reload without requiring a manual refresh.
+    if (notify && previousTimer && !nextTimer) {
+      window.dispatchEvent(new CustomEvent(TIMER_STOPPED_EVENT));
+      window.dispatchEvent(new CustomEvent(TIME_ENTRY_ADDED_EVENT));
+    }
+  }, []);
 
   const refreshTimer = useCallback(async () => {
     if (!user || endpointNotFoundRef.current || isFetchingRef.current) {
-      if (!user) setActiveTimer(null);
+      if (!user) updateActiveTimer(null);
       return;
     }
 
     try {
       isFetchingRef.current = true;
-      const response = await fetch("/api/timers/active");
+      const response = await fetch("/api/timers/active", { cache: "no-store" });
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data) {
-          setActiveTimer(data.data);
+          updateActiveTimer(data.data, true);
         } else {
-          setActiveTimer(null);
+          updateActiveTimer(null, true);
         }
       } else if (response.status === 401) {
         // User not authenticated, silently ignore
-        setActiveTimer(null);
+        updateActiveTimer(null);
       } else if (response.status === 404) {
         // Endpoint not found - mark it and stop trying
         endpointNotFoundRef.current = true;
-        setActiveTimer(null);
+        updateActiveTimer(null);
         // Don't log 404 errors - endpoint might not be implemented yet
       } else {
         // Only log non-404 errors
         console.error(`Failed to fetch active timer: ${response.status} ${response.statusText}`);
-        setActiveTimer(null);
       }
     } catch (error) {
       // Check if it's a 404 error
       if (error instanceof Error && (error.message.includes('404') || error.message.includes('Not Found'))) {
         endpointNotFoundRef.current = true;
-        setActiveTimer(null);
+        updateActiveTimer(null);
         // Silently ignore 404 errors
         return;
       }
@@ -57,11 +74,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       if (user) {
         console.error("Error refreshing timer:", error);
       }
-      setActiveTimer(null);
     } finally {
       isFetchingRef.current = false;
     }
-  }, [user]);
+  }, [updateActiveTimer, user]);
 
   // Check for active timer on mount (only if user is logged in)
   useEffect(() => {
@@ -74,10 +90,39 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       lastUserIdRef.current = user.id;
       refreshTimer();
     } else {
-      setActiveTimer(null);
+      updateActiveTimer(null);
       setCurrentDuration(0);
       lastUserIdRef.current = null;
     }
+  }, [refreshTimer, updateActiveTimer, user]);
+
+  // Keep the web tracker synchronized with the native tracker and other tabs.
+  // Polling works for both cookie-authenticated web requests and bearer-token
+  // desktop requests, while focus/visibility refreshes make returning to the
+  // page effectively immediate.
+  useEffect(() => {
+    if (!user || endpointNotFoundRef.current) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void refreshTimer();
+    }, TIMER_SYNC_INTERVAL_MS);
+    const handleFocus = () => void refreshTimer();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshTimer();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [refreshTimer, user]);
 
   // Update duration every second when there's an active timer
@@ -121,6 +166,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         setTimeout(() => refreshTimer(), 1000);
       } else {
         console.error("Failed to start timer:", result.error, result);
+        // Another client may have started a timer since the last poll.
+        // Refresh before surfacing the conflict so the web UI shows it.
+        if (response.status === 409) {
+          await refreshTimer();
+        }
         throw new Error(result.error || "Failed to start timer");
       }
     } catch (error) {
@@ -141,21 +191,17 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       });
 
       const result = await response.json();
-      if (result.success) {
-        setActiveTimer(null);
+      if (result.success || response.status === 404) {
+        updateActiveTimer(null, true);
         setCurrentDuration(0);
       } else {
         console.error("Failed to stop timer:", result.error);
-        // Even if API call failed, clear the timer state to prevent UI issues
-        // The timer might have been stopped by another request or expired
-        setActiveTimer(null);
-        setCurrentDuration(0);
+        throw new Error(result.error || "Failed to stop timer");
       }
     } catch (error) {
       console.error("Error stopping timer:", error);
-      // On error, still clear the timer state to prevent UI issues
-      setActiveTimer(null);
-      setCurrentDuration(0);
+      await refreshTimer();
+      throw error;
     } finally {
       isStoppingRef.current = false;
     }

@@ -60,9 +60,10 @@ async function getWorkspaceMember(
 
 export async function getProjectAccessContext(
   workspaceId: string,
-  userId: string
+  userId: string,
+  client: ReturnType<typeof createClient> = createClient()
 ): Promise<ProjectAccessContext> {
-  const supabase = createClient();
+  const supabase = client;
 
   const [workspaceResult, member] = await Promise.all([
     supabase.from("workspaces").select("owner_id").eq("id", workspaceId).maybeSingle(),

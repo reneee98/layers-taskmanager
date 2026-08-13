@@ -8,16 +8,17 @@ export interface ActivityData {
   details?: string;
   projectId?: string;
   taskId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
  * Logs user activity to the activities table
  */
-export async function logActivity(activityData: ActivityData): Promise<void> {
+export async function logActivity(
+  activityData: ActivityData,
+  supabase = createClient()
+): Promise<void> {
   try {
-    const supabase = createClient();
-    
     const { error } = await supabase
       .from("activities")
       .insert({
@@ -44,10 +45,11 @@ export async function logActivity(activityData: ActivityData): Promise<void> {
 /**
  * Helper function to get user display name for activities
  */
-export async function getUserDisplayName(userId: string): Promise<string> {
+export async function getUserDisplayName(
+  userId: string,
+  supabase = createClient()
+): Promise<string> {
   try {
-    const supabase = createClient();
-    
     const { data: profile, error } = await supabase
       .from("profiles")
       .select("display_name")
@@ -68,10 +70,11 @@ export async function getUserDisplayName(userId: string): Promise<string> {
 /**
  * Helper function to get project name for activities
  */
-export async function getProjectName(projectId: string): Promise<string> {
+export async function getProjectName(
+  projectId: string,
+  supabase = createClient()
+): Promise<string> {
   try {
-    const supabase = createClient();
-    
     const { data: project, error } = await supabase
       .from("projects")
       .select("name")
@@ -92,10 +95,11 @@ export async function getProjectName(projectId: string): Promise<string> {
 /**
  * Helper function to get task title for activities
  */
-export async function getTaskTitle(taskId: string): Promise<string> {
+export async function getTaskTitle(
+  taskId: string,
+  supabase = createClient()
+): Promise<string> {
   try {
-    const supabase = createClient();
-    
     const { data: task, error } = await supabase
       .from("tasks")
       .select("title")

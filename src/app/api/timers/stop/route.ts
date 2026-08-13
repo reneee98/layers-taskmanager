@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getServerUser } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
 import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
+import { getAuthenticatedRequestContext } from "@/lib/supabase/request";
 
 type ActiveTimerTask = {
   title?: string | null;
@@ -15,10 +14,9 @@ type ActiveTimerTask = {
   } | null;
 };
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
-    const user = await getServerUser();
+    const { supabase, user } = await getAuthenticatedRequestContext(request);
 
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
@@ -80,7 +78,11 @@ export async function POST() {
         return NextResponse.json({ success: false, error: "Failed to stop timer" }, { status: 500 });
       }
 
-      return NextResponse.json({ success: true, message: "Timer stopped (no time to save)" });
+      return NextResponse.json({
+        success: true,
+        message: "Timer stopped (no time to save)",
+        data: { duration: 0, hours: 0 },
+      });
     }
 
     const trackedHours = Number((duration / 3600).toFixed(3));
@@ -301,7 +303,7 @@ export async function POST() {
     // Timer was already stopped atomically above, no need to call stop_timer RPC
 
     // Log activity - timer stopped
-    const userDisplayName = await getUserDisplayName(user.id);
+    const userDisplayName = await getUserDisplayName(user.id, supabase);
     const durationHours = (duration / 3600).toFixed(2);
 
     await logActivity({
@@ -327,7 +329,7 @@ export async function POST() {
         rate_source: rateSource,
         user_display_name: userDisplayName
       }
-    });
+    }, supabase);
 
     return NextResponse.json({ 
       success: true, 

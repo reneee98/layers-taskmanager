@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getServerUser } from "@/lib/auth";
+import { getAuthenticatedRequestContext } from "@/lib/supabase/request";
+
+export const dynamic = "force-dynamic";
+
+const NO_STORE_HEADERS = { "Cache-Control": "private, no-store" };
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
-    const user = await getServerUser();
+    const { supabase, user } = await getAuthenticatedRequestContext(request);
 
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
@@ -24,14 +26,20 @@ export async function GET(request: NextRequest) {
     if (error) {
       if (error.code === "PGRST116") {
         // No active timer found
-        return NextResponse.json({ success: true, data: null });
+        return NextResponse.json(
+          { success: true, data: null },
+          { headers: NO_STORE_HEADERS }
+        );
       }
       console.error("Error fetching active timer:", error);
       return NextResponse.json({ success: false, error: "Failed to fetch active timer" }, { status: 500 });
     }
 
     if (!timer) {
-      return NextResponse.json({ success: true, data: null });
+      return NextResponse.json(
+        { success: true, data: null },
+        { headers: NO_STORE_HEADERS }
+      );
     }
 
     // Now get task details separately
@@ -65,17 +73,21 @@ export async function GET(request: NextRequest) {
         .single();
       isExtra = timerWithExtra?.is_extra || false;
       description = timerWithExtra?.description || "";
-    } catch (e) {
+    } catch {
       // Columns don't exist yet, use defaults
       isExtra = false;
       description = "";
     }
 
+    const project = Array.isArray(taskData?.projects)
+      ? taskData.projects[0]
+      : taskData?.projects;
+
     const activeTimer = {
       id: timer.id,
       task_id: timer.task_id,
       task_name: taskData?.title || 'Unknown Task',
-      project_name: (taskData?.projects as any)?.name || '',
+      project_name: project?.name || '',
       project_id: taskData?.project_id || '',
       started_at: timer.started_at,
       duration,
@@ -83,7 +95,10 @@ export async function GET(request: NextRequest) {
       description,
     };
 
-    return NextResponse.json({ success: true, data: activeTimer });
+    return NextResponse.json(
+      { success: true, data: activeTimer },
+      { headers: NO_STORE_HEADERS }
+    );
   } catch (error) {
     console.error("Error in active timer GET:", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });

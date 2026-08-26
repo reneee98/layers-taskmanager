@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { FileText } from "lucide-react";
+import { usePermission } from "@/hooks/usePermissions";
+import { FileText, ReceiptText } from "lucide-react";
 import type { Project, Task } from "@/types/database";
 
 interface ProjectReportGeneratorProps {
@@ -25,36 +26,36 @@ interface ReportOptions {
   showSummary: boolean;
   showTasksTable: boolean;
   showTimeEntries: boolean;
+  showPrices: boolean;
 }
 
 export const ProjectReportGenerator = ({ project, tasks }: ProjectReportGeneratorProps) => {
   const router = useRouter();
+  const { hasPermission: canViewPrices } = usePermission("financial", "view_prices");
   const [isOpen, setIsOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>(() =>
-    tasks.map((task) => task.id),
+    tasks.map((task) => task.id)
   );
   const [options, setOptions] = useState<ReportOptions>({
     showSummary: true,
     showTasksTable: true,
     showTimeEntries: true,
+    showPrices: true,
   });
 
   const visibleTasks = tasks;
   const selectedTaskIdSet = new Set(selectedTaskIds);
   const selectedVisibleTaskCount = visibleTasks.filter((task) =>
-    selectedTaskIdSet.has(task.id),
+    selectedTaskIdSet.has(task.id)
   ).length;
   const areAllVisibleTasksSelected =
     visibleTasks.length > 0 && selectedVisibleTaskCount === visibleTasks.length;
-  const areSomeVisibleTasksSelected =
-    selectedVisibleTaskCount > 0 && !areAllVisibleTasksSelected;
+  const areSomeVisibleTasksSelected = selectedVisibleTaskCount > 0 && !areAllVisibleTasksSelected;
 
   const handleTaskSelectionChange = (taskId: string, selected: boolean) => {
     setSelectedTaskIds((currentTaskIds) => {
       if (selected) {
-        return currentTaskIds.includes(taskId)
-          ? currentTaskIds
-          : [...currentTaskIds, taskId];
+        return currentTaskIds.includes(taskId) ? currentTaskIds : [...currentTaskIds, taskId];
       }
 
       return currentTaskIds.filter((currentTaskId) => currentTaskId !== taskId);
@@ -69,9 +70,7 @@ export const ProjectReportGenerator = ({ project, tasks }: ProjectReportGenerato
         return currentTaskIds.filter((taskId) => !visibleTaskIds.has(taskId));
       }
 
-      return Array.from(
-        new Set([...currentTaskIds, ...visibleTasks.map((task) => task.id)]),
-      );
+      return Array.from(new Set([...currentTaskIds, ...visibleTasks.map((task) => task.id)]));
     });
   };
 
@@ -81,19 +80,16 @@ export const ProjectReportGenerator = ({ project, tasks }: ProjectReportGenerato
     params.set("showSummary", options.showSummary ? "true" : "false");
     params.set("showTasksTable", options.showTasksTable ? "true" : "false");
     params.set("showTimeEntries", options.showTimeEntries ? "true" : "false");
+    params.set("showPrices", canViewPrices && options.showPrices ? "true" : "false");
     params.set("taskIds", selectedTaskIds.join(","));
-    
+
     router.push(`/projects/${project.id}/report?${params.toString()}`);
     setIsOpen(false);
   };
 
   return (
     <>
-      <Button
-        onClick={() => setIsOpen(true)}
-        variant="outline"
-        className="gap-2"
-      >
+      <Button onClick={() => setIsOpen(true)} variant="outline" className="gap-2">
         <FileText className="h-4 w-4" />
         Zobraziť report
       </Button>
@@ -102,11 +98,9 @@ export const ProjectReportGenerator = ({ project, tasks }: ProjectReportGenerato
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Nastavenia reportu</DialogTitle>
-            <DialogDescription>
-              Vyberte, čo chcete zobraziť v reporte
-            </DialogDescription>
+            <DialogDescription>Vyberte, čo chcete zobraziť v reporte</DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="flex items-center space-x-2">
               <Checkbox
@@ -156,6 +150,34 @@ export const ProjectReportGenerator = ({ project, tasks }: ProjectReportGenerato
               </Label>
             </div>
 
+            {canViewPrices && (
+              <Label
+                htmlFor="showPrices"
+                className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/20 p-3 transition-colors hover:bg-muted/40"
+              >
+                <Checkbox
+                  id="showPrices"
+                  checked={options.showPrices}
+                  onCheckedChange={(checked) =>
+                    setOptions({ ...options, showPrices: checked === true })
+                  }
+                  className="mt-0.5"
+                />
+                <ReceiptText
+                  aria-hidden="true"
+                  className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-foreground">
+                    Zobraziť ceny a sadzby
+                  </span>
+                  <span className="mt-0.5 block text-xs font-normal leading-relaxed text-muted-foreground">
+                    Nastavenie platí pre náhľad reportu aj následný PDF export.
+                  </span>
+                </span>
+              </Label>
+            )}
+
             <div className="space-y-3 border-t border-border pt-4">
               <div className="flex items-center justify-between gap-4">
                 <div>
@@ -175,9 +197,7 @@ export const ProjectReportGenerator = ({ project, tasks }: ProjectReportGenerato
                             ? "indeterminate"
                             : false
                       }
-                      onCheckedChange={(checked) =>
-                        handleToggleAllVisibleTasks(checked === true)
-                      }
+                      onCheckedChange={(checked) => handleToggleAllVisibleTasks(checked === true)}
                     />
                     <Label
                       htmlFor="selectAllReportTasks"
@@ -220,10 +240,7 @@ export const ProjectReportGenerator = ({ project, tasks }: ProjectReportGenerato
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Zrušiť
             </Button>
-            <Button
-              onClick={handleOpenReport}
-              disabled={selectedVisibleTaskCount === 0}
-            >
+            <Button onClick={handleOpenReport} disabled={selectedVisibleTaskCount === 0}>
               Zobraziť report
             </Button>
           </DialogFooter>

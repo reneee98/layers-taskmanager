@@ -28,6 +28,7 @@ interface TaskTableProps {
   tasks: Task[];
   onUpdate: (taskId: string, data: Partial<Task>) => Promise<void>;
   onDelete: (taskId: string) => Promise<void>;
+  onOpen?: (task: Task) => void;
   onEdit?: (task: Task) => void;
   onCreateTask?: () => void;
   onReorder?: (taskId: string, newIndex: number) => Promise<void>;
@@ -57,6 +58,23 @@ const priorityLabels: Record<string, string> = {
   urgent: "Urgentné",
 };
 
+const statusSortOrder: Record<Task["status"], number> = {
+  todo: 0,
+  in_progress: 1,
+  review: 2,
+  sent_to_client: 3,
+  done: 4,
+  invoiced: 5,
+  cancelled: 6,
+};
+
+const prioritySortOrder: Record<Task["priority"], number> = {
+  urgent: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+
 const getTaskCountLabel = (count: number) => {
   if (count === 1) return "1 úloha";
   if (count >= 2 && count <= 4) return `${count} úlohy`;
@@ -67,6 +85,7 @@ export function TaskTable({
   tasks,
   onUpdate,
   onDelete,
+  onOpen,
   onEdit,
   onCreateTask,
   onReorder,
@@ -90,15 +109,24 @@ export function TaskTable({
   const filteredTasks = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLocaleLowerCase("sk");
 
-    return tasks.filter((task) => {
-      const searchableText =
-        `${stripHtml(task.title)} ${stripHtml(task.description || "")}`.toLocaleLowerCase("sk");
-      const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
-      const matchesStatus = statusFilter === "all" || task.status === statusFilter;
-      const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
+    return tasks
+      .filter((task) => {
+        const searchableText =
+          `${stripHtml(task.title)} ${stripHtml(task.description || "")}`.toLocaleLowerCase("sk");
+        const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
+        const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+        const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
 
-      return matchesSearch && matchesStatus && matchesPriority;
-    });
+        return matchesSearch && matchesStatus && matchesPriority;
+      })
+      .sort((firstTask, secondTask) => {
+        const statusDifference =
+          statusSortOrder[firstTask.status] - statusSortOrder[secondTask.status];
+
+        if (statusDifference !== 0) return statusDifference;
+
+        return prioritySortOrder[firstTask.priority] - prioritySortOrder[secondTask.priority];
+      });
   }, [priorityFilter, searchQuery, statusFilter, tasks]);
 
   const toDashboardTask = (task: Task): DashboardTaskItem => {
@@ -141,7 +169,20 @@ export function TaskTable({
   const handleDrop = async (targetTaskId: string) => {
     if (!draggedTaskId || draggedTaskId === targetTaskId || !onReorder) return;
 
-    const targetIndex = filteredTasks.findIndex((task) => task.id === targetTaskId);
+    const draggedTask = tasks.find((task) => task.id === draggedTaskId);
+    const targetTask = tasks.find((task) => task.id === targetTaskId);
+
+    if (
+      !draggedTask ||
+      !targetTask ||
+      draggedTask.status !== targetTask.status ||
+      draggedTask.priority !== targetTask.priority
+    ) {
+      setDraggedTaskId(null);
+      return;
+    }
+
+    const targetIndex = tasks.findIndex((task) => task.id === targetTaskId);
     if (targetIndex === -1) return;
 
     await onReorder(draggedTaskId, targetIndex);
@@ -302,6 +343,7 @@ export function TaskTable({
               showProject={false}
               onUpdate={(taskId, updates) => onUpdate(taskId, updates as Partial<Task>)}
               onTimeTracked={() => onTaskUpdated?.()}
+              onOpen={onOpen ? () => onOpen(task) : undefined}
               onEdit={onEdit ? () => onEdit(task) : undefined}
               onDelete={() => onDelete(task.id)}
               draggable={Boolean(onReorder) && !hasActiveFilters}

@@ -78,13 +78,27 @@ type PdfContent = Record<string, unknown>;
 
 const PDF_COLORS = {
   ink: "#171717",
+  inkSoft: "#3F4743",
   muted: "#737373",
   subtle: "#A3A3A3",
   border: "#E5E5E5",
-  panel: "#F7F7F6",
+  borderStrong: "#D7DDD9",
+  panel: "#F6F8F7",
   zebra: "#FBFBFA",
   white: "#FFFFFF",
   brand: "#39765B",
+  brandDark: "#285540",
+  brandSoft: "#EAF3EE",
+};
+
+const PDF_STATUS_COLORS: Record<string, string> = {
+  todo: "#94A3B8",
+  in_progress: "#4F83CC",
+  review: "#D49A35",
+  sent_to_client: "#87779D",
+  done: "#4F8A6B",
+  invoiced: "#3F8C85",
+  cancelled: "#C56868",
 };
 
 const STATUS_TONES: Record<string, string> = {
@@ -116,6 +130,83 @@ const getInitials = (name: string) =>
 
 const getTaskEntryHours = (entries: TaskTimeEntriesForReport["timeEntries"]) =>
   entries.reduce((sum, entry) => sum + entry.hours, 0);
+
+interface PdfDonutSegment {
+  label: string;
+  value: number;
+  color: string;
+}
+
+const escapeSvgText = (value: string) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+
+const getDonutPoint = (radius: number, angle: number) => {
+  const radians = ((angle - 90) * Math.PI) / 180;
+
+  return {
+    x: 76 + radius * Math.cos(radians),
+    y: 76 + radius * Math.sin(radians),
+  };
+};
+
+const createDonutSegmentPath = (startAngle: number, endAngle: number) => {
+  const outerRadius = 58;
+  const innerRadius = 36;
+  const outerStart = getDonutPoint(outerRadius, startAngle);
+  const outerEnd = getDonutPoint(outerRadius, endAngle);
+  const innerStart = getDonutPoint(innerRadius, startAngle);
+  const innerEnd = getDonutPoint(innerRadius, endAngle);
+  const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+  const point = (value: number) => value.toFixed(2);
+
+  return [
+    `M ${point(outerStart.x)} ${point(outerStart.y)}`,
+    `A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 1 ${point(outerEnd.x)} ${point(outerEnd.y)}`,
+    `L ${point(innerEnd.x)} ${point(innerEnd.y)}`,
+    `A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${point(innerStart.x)} ${point(innerStart.y)}`,
+    "Z",
+  ].join(" ");
+};
+
+const createPdfDonutSvg = (
+  segments: PdfDonutSegment[],
+  centerValue: string,
+  centerLabel: string
+) => {
+  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+  let currentAngle = 0;
+
+  const paths = segments
+    .map((segment) => {
+      const sweep = total > 0 ? (segment.value / total) * 360 : 0;
+      const gap = segments.length > 1 ? Math.min(1.8, sweep * 0.18) : 0;
+      const startAngle = currentAngle + gap / 2;
+      const endAngle = currentAngle + sweep - gap / 2;
+      currentAngle += sweep;
+
+      if (segments.length === 1) {
+        return `<circle cx="76" cy="76" r="47" fill="none" stroke="${segment.color}" stroke-width="22" />`;
+      }
+
+      return `<path d="${createDonutSegmentPath(startAngle, endAngle)}" fill="${segment.color}" />`;
+    })
+    .join("");
+
+  return [
+    '<svg width="152" height="152" viewBox="0 0 152 152" xmlns="http://www.w3.org/2000/svg">',
+    '<circle cx="76" cy="76" r="58" fill="#F6F8F7" />',
+    paths,
+    '<circle cx="76" cy="76" r="34" fill="#FFFFFF" />',
+    `<text x="76" y="73" text-anchor="middle" font-family="Roboto" font-size="15" font-weight="700" fill="${PDF_COLORS.ink}">${escapeSvgText(centerValue)}</text>`,
+    `<text x="76" y="89" text-anchor="middle" font-family="Roboto" font-size="6.5" fill="${PDF_COLORS.muted}">${escapeSvgText(centerLabel)}</text>`,
+    "</svg>",
+  ].join("");
+};
 
 interface ReportPanelHeaderProps {
   icon: LucideIcon;
@@ -152,15 +243,15 @@ const TaskStatusBadge = ({ status }: { status: string }) => (
 );
 
 const createPdfTableLayout = () => ({
-  hLineWidth: (rowIndex: number) => (rowIndex === 0 ? 0 : 0.6),
+  hLineWidth: (rowIndex: number) => (rowIndex === 0 ? 0 : 0.55),
   vLineWidth: () => 0,
   hLineColor: () => PDF_COLORS.border,
   fillColor: (rowIndex: number) =>
-    rowIndex === 0 ? PDF_COLORS.panel : rowIndex % 2 === 0 ? PDF_COLORS.zebra : null,
-  paddingLeft: () => 8,
-  paddingRight: () => 8,
-  paddingTop: () => 7,
-  paddingBottom: () => 7,
+    rowIndex === 0 ? PDF_COLORS.brandSoft : rowIndex % 2 === 0 ? PDF_COLORS.zebra : null,
+  paddingLeft: () => 9,
+  paddingRight: () => 9,
+  paddingTop: (rowIndex: number) => (rowIndex === 0 ? 7 : 8),
+  paddingBottom: (rowIndex: number) => (rowIndex === 0 ? 7 : 8),
 });
 
 const createPdfSectionHeader = (title: string, meta?: string): PdfContent => ({
@@ -168,7 +259,7 @@ const createPdfSectionHeader = (title: string, meta?: string): PdfContent => ({
     { text: title, style: "sectionTitle" },
     meta ? { text: meta, style: "sectionMeta", alignment: "right" } : {},
   ],
-  margin: [0, 18, 0, 7],
+  margin: [0, 20, 0, 8],
 });
 
 export default function ProjectReportPage() {
@@ -179,6 +270,7 @@ export default function ProjectReportPage() {
   const showSummary = searchParams.get("showSummary") !== "false";
   const showTasksTable = searchParams.get("showTasksTable") !== "false";
   const showTimeEntries = searchParams.get("showTimeEntries") !== "false";
+  const showPrices = searchParams.get("showPrices") !== "false";
   const selectedTaskIdsParam = searchParams.get("taskIds");
 
   const [project, setProject] = useState<Project | null>(null);
@@ -186,10 +278,16 @@ export default function ProjectReportPage() {
   const [timeEntries, setTimeEntries] = useState<TaskTimeEntriesForReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [includePricesInPdf, setIncludePricesInPdf] = useState(showPrices);
   const [taskIdsHideHoursInPdf, setTaskIdsHideHoursInPdf] = useState<Record<string, boolean>>({});
   const { hasPermission: canViewPrices } = usePermission("financial", "view_prices");
   const { hasPermission: canViewHourlyRates } = usePermission("financial", "view_hourly_rates");
   const { toast } = useToast();
+
+  const showPricesInReport = canViewPrices && showPrices;
+  const showHourlyRatesInReport = canViewHourlyRates && showPrices;
+  const canIncludePricesInPdf = canViewPrices && includePricesInPdf;
+  const canIncludeHourlyRatesInPdf = canViewHourlyRates && includePricesInPdf;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -284,24 +382,8 @@ export default function ProjectReportPage() {
   const completedTaskCount = tasks.filter(
     (task) => task.status === "done" || task.status === "invoiced"
   ).length;
-  const activeDayCount = new Set(
-    timeEntries.flatMap(({ timeEntries: entries }) =>
-      entries.map((entry) => entry.date?.slice(0, 10)).filter(Boolean)
-    )
-  ).size;
-  const averageHoursPerActiveDay = activeDayCount > 0 ? totalHours / activeDayCount : 0;
   const estimateUsagePercent =
     totalEstimatedHours > 0 ? Math.round((totalHours / totalEstimatedHours) * 100) : 0;
-  const reportTaskChartData = tasks
-    .map((task) => ({
-      title: task.title,
-      color: resolveTaskColor(task) || PDF_COLORS.brand,
-      actualHours: task.actual_hours || 0,
-      estimatedHours: task.estimated_hours || 0,
-    }))
-    .filter((task) => task.actualHours > 0 || task.estimatedHours > 0)
-    .sort((a, b) => b.actualHours - a.actualHours)
-    .slice(0, 7);
   const timeEntryGroups = groupReportTimeEntriesByDescription(timeEntries);
   const totalEntryCount = timeEntries.reduce(
     (sum, taskEntries) => sum + taskEntries.timeEntries.length,
@@ -334,7 +416,7 @@ export default function ProjectReportPage() {
     },
   ];
 
-  if (canViewPrices) {
+  if (showPricesInReport) {
     metricItems.push({
       label: "Hodnota reportu",
       value: formatMoney(totalPrice),
@@ -360,6 +442,46 @@ export default function ProjectReportPage() {
         (sum, task) => sum + (task.actual_hours || 0),
         0
       );
+      const pdfTotalEntryCount = visibleTimeEntriesInPdf.reduce(
+        (sum, item) => sum + item.timeEntries.length,
+        0
+      );
+      const taskTimeSegments = visibleTasksInPdf
+        .map((task) => ({
+          label: task.title,
+          value: task.actual_hours || 0,
+          color: resolveTaskColor(task) || PDF_COLORS.brand,
+        }))
+        .sort((a, b) => b.value - a.value);
+      const taskTimeChartSegments = taskTimeSegments.filter((segment) => segment.value > 0);
+
+      let donutTitle = "Rozdelenie odpracovaného času";
+      let donutMeta = `${formatHours(pdfTotalHours)} celkom`;
+      let donutCenterValue = formatHours(pdfTotalHours);
+      let donutCenterLabel = "odpracované";
+      let donutSegments: PdfDonutSegment[] = [];
+      let donutLegendSegments: PdfDonutSegment[] = [];
+
+      if (taskTimeChartSegments.length > 0) {
+        donutSegments = taskTimeChartSegments;
+        donutLegendSegments = taskTimeSegments;
+      } else if (visibleTasksInPdf.length > 0) {
+        const taskCountsByStatus = visibleTasksInPdf.reduce<Record<string, number>>(
+          (counts, task) => ({ ...counts, [task.status]: (counts[task.status] || 0) + 1 }),
+          {}
+        );
+
+        donutTitle = "Rozdelenie úloh podľa statusu";
+        donutMeta = `${visibleTasksInPdf.length} úloh celkom`;
+        donutCenterValue = `${visibleTasksInPdf.length}`;
+        donutCenterLabel = "úloh spolu";
+        donutSegments = Object.entries(taskCountsByStatus).map(([status, count]) => ({
+          label: getTaskStatusLabel(status),
+          value: count,
+          color: PDF_STATUS_COLORS[status] || PDF_COLORS.subtle,
+        }));
+        donutLegendSegments = donutSegments;
+      }
       const pdfContent: PdfContent[] = [];
 
       pdfContent.push(
@@ -367,48 +489,69 @@ export default function ProjectReportPage() {
           columns: [
             {
               text: [
-                { text: "LAYERS", bold: true, color: PDF_COLORS.ink },
+                { text: "LAYERS", bold: true, color: PDF_COLORS.brandDark },
                 { text: "  /  PROJEKTOVÝ REPORT", color: PDF_COLORS.muted },
               ],
-              fontSize: 8,
-              characterSpacing: 0.8,
+              fontSize: 7.5,
+              characterSpacing: 1,
             },
             {
-              text: format(generatedAt, "dd.MM.yyyy"),
+              text: format(generatedAt, "dd.MM.yyyy '•' HH:mm"),
               alignment: "right",
               color: PDF_COLORS.muted,
-              fontSize: 8,
+              fontSize: 7.5,
             },
           ],
-          margin: [0, 0, 0, 11],
+          margin: [0, 0, 0, 10],
         },
         {
-          canvas: [
-            {
-              type: "rect",
-              x: 0,
-              y: 0,
-              w: 531,
-              h: 3,
-              color: PDF_COLORS.brand,
-            },
-          ],
-          margin: [0, 0, 0, 18],
-        },
-        {
-          text: project.name,
-          style: "reportTitle",
-        },
-        {
-          text: [
-            project.client?.name
-              ? { text: `Klient: ${project.client.name}`, bold: true }
-              : { text: "Projekt bez klienta", bold: true },
-            project.code ? { text: `   •   Kód: ${project.code}` } : {},
-            { text: `   •   ${tasks.length} vybraných úloh` },
-          ],
-          style: "reportMeta",
-          margin: [0, 5, 0, 18],
+          table: {
+            widths: ["*", 150],
+            body: [
+              [
+                {
+                  stack: [
+                    { text: "PROJEKTOVÝ REPORT", style: "eyebrow" },
+                    { text: project.name, style: "reportTitle" },
+                    {
+                      text: `${tasks.length} vybraných úloh • ${formatHours(pdfTotalHours)} odpracovaných`,
+                      style: "reportMeta",
+                      margin: [0, 6, 0, 0],
+                    },
+                  ],
+                  fillColor: PDF_COLORS.panel,
+                  margin: [16, 14, 16, 14],
+                },
+                {
+                  stack: [
+                    { text: "KLIENT", style: "heroLabel" },
+                    {
+                      text: project.client?.name || "Bez klienta",
+                      style: "heroValue",
+                      margin: [0, 2, 0, 9],
+                    },
+                    ...(project.code
+                      ? [
+                          { text: "KÓD PROJEKTU", style: "heroLabel" },
+                          { text: project.code, style: "heroValue", margin: [0, 2, 0, 0] },
+                        ]
+                      : []),
+                  ],
+                  fillColor: PDF_COLORS.brandSoft,
+                  margin: [14, 14, 14, 14],
+                },
+              ],
+            ],
+          },
+          layout: {
+            hLineWidth: () => 0,
+            vLineWidth: () => 0,
+            paddingLeft: () => 0,
+            paddingRight: () => 0,
+            paddingTop: () => 0,
+            paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 14],
         }
       );
 
@@ -422,7 +565,7 @@ export default function ProjectReportPage() {
           {
             label: "ODPRACOVANÝ ČAS",
             value: formatHours(pdfTotalHours),
-            description: `${totalEntryCount} záznamov`,
+            description: `${pdfTotalEntryCount} záznamov`,
           },
           {
             label: "TYPY PRÁCE",
@@ -431,7 +574,7 @@ export default function ProjectReportPage() {
           },
         ];
 
-        if (canViewPrices) {
+        if (canIncludePricesInPdf) {
           pdfMetrics.push({
             label: "HODNOTA REPORTU",
             value: formatMoney(totalPrice),
@@ -445,140 +588,106 @@ export default function ProjectReportPage() {
             body: [
               pdfMetrics.map((metric) => ({
                 stack: [
+                  {
+                    canvas: [
+                      {
+                        type: "rect",
+                        x: 0,
+                        y: 0,
+                        w: 18,
+                        h: 2,
+                        r: 1,
+                        color: PDF_COLORS.brand,
+                      },
+                    ],
+                    margin: [0, 0, 0, 7],
+                  },
                   { text: metric.label, style: "metricLabel" },
                   { text: metric.value, style: "metricValue" },
                   { text: metric.description, style: "metricDescription" },
                 ],
-                fillColor: PDF_COLORS.panel,
-                margin: [10, 9, 10, 9],
-              })),
-            ],
-          },
-          layout: {
-            hLineWidth: () => 0,
-            vLineWidth: (columnIndex: number) => (columnIndex === 0 ? 0 : 0.6),
-            vLineColor: () => PDF_COLORS.border,
-            paddingLeft: () => 0,
-            paddingRight: () => 0,
-            paddingTop: () => 0,
-            paddingBottom: () => 0,
-          },
-          margin: [0, 0, 0, 2],
-        });
-
-        const performanceMetrics = [
-          {
-            label: "DOKONČENIE",
-            value:
-              tasks.length > 0
-                ? `${Math.round((completedTaskCount / tasks.length) * 100)} %`
-                : "0 %",
-            description: `${completedTaskCount} z ${tasks.length} úloh`,
-          },
-          {
-            label: "TEMPO PRÁCE",
-            value: formatHours(averageHoursPerActiveDay),
-            description: `${activeDayCount} aktívnych dní`,
-          },
-          {
-            label: "ČERPANIE ODHADU",
-            value: totalEstimatedHours > 0 ? `${estimateUsagePercent} %` : "Bez odhadu",
-            description:
-              totalEstimatedHours > 0
-                ? `${formatHours(totalHours)} / ${formatHours(totalEstimatedHours)}`
-                : "Doplňte odhady úloh",
-          },
-        ];
-
-        pdfContent.push(createPdfSectionHeader("Prehľad výkonu", "Manažérsky súhrn"), {
-          table: {
-            widths: performanceMetrics.map(() => "*"),
-            body: [
-              performanceMetrics.map((metric) => ({
-                stack: [
-                  { text: metric.label, style: "metricLabel" },
-                  { text: metric.value, style: "performanceValue" },
-                  { text: metric.description, style: "metricDescription" },
-                ],
-                margin: [10, 8, 10, 8],
+                fillColor: PDF_COLORS.white,
+                margin: [11, 10, 11, 10],
               })),
             ],
           },
           layout: {
             hLineWidth: () => 0.6,
             vLineWidth: () => 0.6,
-            hLineColor: () => PDF_COLORS.border,
-            vLineColor: () => PDF_COLORS.border,
-            fillColor: () => PDF_COLORS.white,
+            hLineColor: () => PDF_COLORS.borderStrong,
+            vLineColor: () => PDF_COLORS.borderStrong,
             paddingLeft: () => 0,
             paddingRight: () => 0,
             paddingTop: () => 0,
             paddingBottom: () => 0,
           },
+          margin: [0, 0, 0, 0],
         });
 
-        if (reportTaskChartData.length > 0) {
-          const largestTaskScale = Math.max(
-            ...reportTaskChartData.flatMap((task) => [task.actualHours, task.estimatedHours]),
-            1
-          );
+        if (donutSegments.length > 0) {
+          const donutTotal = donutSegments.reduce((sum, segment) => sum + segment.value, 0);
 
-          pdfContent.push(createPdfSectionHeader("Čas podľa úloh", "Skutočnosť / odhad"), {
-            stack: reportTaskChartData.map((task) => ({
-              stack: [
-                {
-                  columns: [
-                    { text: task.title, style: "chartLabel", width: "*" },
-                    {
-                      text:
-                        task.estimatedHours > 0
-                          ? `${formatHours(task.actualHours)} / ${formatHours(task.estimatedHours)}`
-                          : formatHours(task.actualHours),
-                      style: "chartValue",
-                      width: 92,
-                      alignment: "right",
-                    },
-                  ],
-                  margin: [0, 0, 0, 4],
-                },
-                {
-                  canvas: [
-                    {
-                      type: "rect",
-                      x: 0,
-                      y: 0,
-                      w: 531,
-                      h: 5,
-                      r: 2.5,
-                      color: PDF_COLORS.panel,
-                    },
-                    ...(task.estimatedHours > 0
-                      ? [
+          pdfContent.push(createPdfSectionHeader(donutTitle, donutMeta), {
+            table: {
+              widths: [178, "*"],
+              body: [
+                [
+                  {
+                    svg: createPdfDonutSvg(donutSegments, donutCenterValue, donutCenterLabel),
+                    width: 152,
+                    margin: [13, 8, 13, 8],
+                    alignment: "center",
+                  },
+                  {
+                    stack: [
+                      { text: "ROZLOŽENIE", style: "legendEyebrow", margin: [0, 7, 0, 7] },
+                      ...donutLegendSegments.map((segment) => ({
+                        columns: [
                           {
-                            type: "rect",
-                            x: 0,
-                            y: 0,
-                            w: Math.max(2, (task.estimatedHours / largestTaskScale) * 531),
-                            h: 5,
-                            r: 2.5,
-                            color: PDF_COLORS.border,
+                            canvas: [
+                              {
+                                type: "rect",
+                                x: 0,
+                                y: 2,
+                                w: 7,
+                                h: 7,
+                                r: 2,
+                                color: segment.color,
+                              },
+                            ],
+                            width: 15,
                           },
-                        ]
-                      : []),
-                    {
-                      type: "rect",
-                      x: 0,
-                      y: 0,
-                      w: Math.max(2, (task.actualHours / largestTaskScale) * 531),
-                      h: 5,
-                      r: 2.5,
-                      color: task.color,
-                    },
-                  ],
-                },
+                          { text: segment.label, style: "legendLabel", width: "*" },
+                          {
+                            text:
+                              pdfTotalHours > 0
+                                ? formatHours(segment.value)
+                                : `${segment.value} (${Math.round((segment.value / donutTotal) * 100)} %)`,
+                            style: "legendValue",
+                            width: 74,
+                            alignment: "right",
+                          },
+                        ],
+                        margin: [0, 0, 0, 8],
+                      })),
+                    ],
+                    fillColor: PDF_COLORS.panel,
+                    margin: [14, 10, 14, 10],
+                  },
+                ],
               ],
-              margin: [0, 0, 0, 9],
-            })),
+            },
+            layout: {
+              hLineWidth: () => 0.6,
+              vLineWidth: () => 0.6,
+              hLineColor: () => PDF_COLORS.borderStrong,
+              vLineColor: () => PDF_COLORS.borderStrong,
+              paddingLeft: () => 0,
+              paddingRight: () => 0,
+              paddingTop: () => 0,
+              paddingBottom: () => 0,
+            },
+            unbreakable: true,
           });
         }
       }
@@ -591,24 +700,59 @@ export default function ProjectReportPage() {
         ];
         const taskWidths: Array<string | number> = ["*", 92, 62];
 
-        if (canViewPrices) {
+        if (canIncludePricesInPdf) {
           taskHeader.push({ text: "HODNOTA", style: "tableHeader", alignment: "right" });
           taskWidths.push(72);
         }
 
         const taskRows = tasks.map((task) => {
           const hideHours = !!taskIdsHideHoursInPdf[task.id];
+          const taskColor = resolveTaskColor(task) || PDF_COLORS.brand;
           const row: PdfContent[] = [
-            { text: task.title, style: "tableCellStrong" },
-            { text: getTaskStatusLabel(task.status), style: "tableCellMuted" },
             {
-              text: hideHours ? "-" : formatHours(task.actual_hours || 0),
-              style: "tableCell",
+              columns: [
+                {
+                  canvas: [
+                    {
+                      type: "rect",
+                      x: 0,
+                      y: 1,
+                      w: 4,
+                      h: 21,
+                      r: 2,
+                      color: taskColor,
+                    },
+                  ],
+                  width: 13,
+                },
+                {
+                  stack: [
+                    { text: task.title, style: "tableCellStrong" },
+                    {
+                      text: task.estimated_hours
+                        ? `Odhad ${formatHours(task.estimated_hours)}`
+                        : "Bez časového odhadu",
+                      style: "tableCellCaption",
+                      margin: [0, 2, 0, 0],
+                    },
+                  ],
+                  width: "*",
+                },
+              ],
+            },
+            {
+              text: getTaskStatusLabel(task.status),
+              style: "tableCellStatus",
+              color: PDF_STATUS_COLORS[task.status] || PDF_COLORS.muted,
+            },
+            {
+              text: hideHours ? "Skryté" : formatHours(task.actual_hours || 0),
+              style: hideHours ? "tableCellMuted" : "tableCellStrong",
               alignment: "right",
             },
           ];
 
-          if (canViewPrices) {
+          if (canIncludePricesInPdf) {
             row.push({
               text: formatMoney(getTaskPrice(task)),
               style: "tableCellStrong",
@@ -633,7 +777,24 @@ export default function ProjectReportPage() {
 
       if (showTimeEntries && timeEntryGroupsInPdf.length > 0) {
         const activityRows = timeEntryGroupsInPdf.map((group) => [
-          { text: group.description, style: "tableCellStrong" },
+          {
+            columns: [
+              {
+                canvas: [
+                  {
+                    type: "ellipse",
+                    x: 3,
+                    y: 5,
+                    r1: 3,
+                    r2: 3,
+                    color: PDF_COLORS.brand,
+                  },
+                ],
+                width: 14,
+              },
+              { text: group.description, style: "tableCellStrong", width: "*" },
+            ],
+          },
           { text: group.taskTitles.join(", "), style: "tableCellMuted" },
           { text: `${group.entryCount}`, style: "tableCell", alignment: "right" },
           { text: formatHours(group.hours), style: "tableCellStrong", alignment: "right" },
@@ -666,9 +827,11 @@ export default function ProjectReportPage() {
       }
 
       if (showTimeEntries && visibleTimeEntriesInPdf.some((item) => item.timeEntries.length > 0)) {
-        pdfContent.push(
-          createPdfSectionHeader("Detailné časové záznamy", `${totalEntryCount} záznamov`)
-        );
+        pdfContent.push({
+          ...createPdfSectionHeader("Detailné časové záznamy", `${pdfTotalEntryCount} záznamov`),
+          pageBreak: "before",
+          margin: [0, 0, 0, 8],
+        });
 
         visibleTimeEntriesInPdf
           .filter(({ timeEntries: entries }) => entries.length > 0)
@@ -681,7 +844,7 @@ export default function ProjectReportPage() {
             ];
             const detailWidths: Array<string | number> = [62, 92, "*", 58];
 
-            if (canViewHourlyRates) {
+            if (canIncludeHourlyRatesInPdf) {
               detailHeader.push({
                 text: "SADZBA",
                 style: "tableHeader",
@@ -690,7 +853,7 @@ export default function ProjectReportPage() {
               detailWidths.push(62);
             }
 
-            if (canViewPrices) {
+            if (canIncludePricesInPdf) {
               detailHeader.push({
                 text: "SUMA",
                 style: "tableHeader",
@@ -712,7 +875,7 @@ export default function ProjectReportPage() {
                 },
               ];
 
-              if (canViewHourlyRates) {
+              if (canIncludeHourlyRatesInPdf) {
                 row.push({
                   text: formatMoney(entry.hourly_rate),
                   style: "tableCell",
@@ -720,7 +883,7 @@ export default function ProjectReportPage() {
                 });
               }
 
-              if (canViewPrices) {
+              if (canIncludePricesInPdf) {
                 row.push({
                   text: formatMoney(entry.amount),
                   style: "tableCellStrong",
@@ -762,12 +925,15 @@ export default function ProjectReportPage() {
 
       const docDefinition = {
         pageSize: "A4",
-        pageMargins: [32, 36, 32, 44],
+        pageMargins: [32, 32, 32, 42],
         content: pdfContent,
         footer: (currentPage: number, pageCount: number) => ({
           columns: [
             {
-              text: `LAYERS  •  ${project.name}`,
+              text: [
+                { text: "LAYERS", bold: true, color: PDF_COLORS.brand },
+                { text: `  /  ${project.name}`, color: PDF_COLORS.subtle },
+              ],
               color: PDF_COLORS.subtle,
               fontSize: 7,
               width: "*",
@@ -783,8 +949,15 @@ export default function ProjectReportPage() {
           margin: [32, 12, 32, 0],
         }),
         styles: {
+          eyebrow: {
+            fontSize: 6.5,
+            bold: true,
+            color: PDF_COLORS.brand,
+            characterSpacing: 0.9,
+            margin: [0, 0, 0, 5],
+          },
           reportTitle: {
-            fontSize: 24,
+            fontSize: 23,
             bold: true,
             color: PDF_COLORS.ink,
             lineHeight: 1.05,
@@ -793,14 +966,25 @@ export default function ProjectReportPage() {
             fontSize: 8,
             color: PDF_COLORS.muted,
           },
+          heroLabel: {
+            fontSize: 6,
+            bold: true,
+            color: PDF_COLORS.brand,
+            characterSpacing: 0.65,
+          },
+          heroValue: {
+            fontSize: 9,
+            bold: true,
+            color: PDF_COLORS.brandDark,
+          },
           metricLabel: {
             fontSize: 6.5,
             bold: true,
-            color: PDF_COLORS.muted,
+            color: PDF_COLORS.inkSoft,
             characterSpacing: 0.5,
           },
           metricValue: {
-            fontSize: 14,
+            fontSize: 15,
             bold: true,
             color: PDF_COLORS.ink,
             margin: [0, 3, 0, 2],
@@ -809,23 +993,23 @@ export default function ProjectReportPage() {
             fontSize: 6.5,
             color: PDF_COLORS.subtle,
           },
-          performanceValue: {
-            fontSize: 12,
+          legendEyebrow: {
+            fontSize: 6.5,
             bold: true,
             color: PDF_COLORS.brand,
-            margin: [0, 3, 0, 2],
+            characterSpacing: 0.7,
           },
-          chartLabel: {
+          legendLabel: {
+            fontSize: 7.5,
+            color: PDF_COLORS.inkSoft,
+          },
+          legendValue: {
             fontSize: 7.5,
             bold: true,
             color: PDF_COLORS.ink,
           },
-          chartValue: {
-            fontSize: 7,
-            color: PDF_COLORS.muted,
-          },
           sectionTitle: {
-            fontSize: 11,
+            fontSize: 11.5,
             bold: true,
             color: PDF_COLORS.ink,
           },
@@ -837,8 +1021,8 @@ export default function ProjectReportPage() {
           tableHeader: {
             fontSize: 6.5,
             bold: true,
-            color: PDF_COLORS.muted,
-            characterSpacing: 0.35,
+            color: PDF_COLORS.brandDark,
+            characterSpacing: 0.45,
           },
           tableCell: {
             fontSize: 7.5,
@@ -852,6 +1036,14 @@ export default function ProjectReportPage() {
           tableCellMuted: {
             fontSize: 7.5,
             color: PDF_COLORS.muted,
+          },
+          tableCellStatus: {
+            fontSize: 7.5,
+            bold: true,
+          },
+          tableCellCaption: {
+            fontSize: 6.5,
+            color: PDF_COLORS.subtle,
           },
           taskTitle: {
             fontSize: 8.5,
@@ -891,7 +1083,7 @@ export default function ProjectReportPage() {
         eyebrow={`Projektový report • ${format(generatedAt, "d. MMMM yyyy", { locale: sk })}`}
         icon={BarChart3}
         title={project.name}
-        description="Prehľad výkonu projektu, odpracovaného času, odhadov a rozloženia práce."
+        description="Súhrn odpracovaného času, úloh, odhadov a rozloženia práce."
         meta={
           <div className="flex flex-wrap items-center gap-1.5">
             {project.code && (
@@ -924,6 +1116,36 @@ export default function ProjectReportPage() {
         }
       />
 
+      {canViewPrices && (
+        <section className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
+              <ReceiptText aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-foreground">Ceny v PDF</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Zobraziť alebo skryť hodnoty, sumy a hodinové sadzby vo výslednom exporte.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="include-prices-in-pdf"
+              checked={includePricesInPdf}
+              onCheckedChange={setIncludePricesInPdf}
+              aria-label="Zobraziť ceny a sadzby v PDF"
+            />
+            <Label
+              htmlFor="include-prices-in-pdf"
+              className="cursor-pointer text-xs font-medium text-muted-foreground"
+            >
+              {includePricesInPdf ? "Zobrazené" : "Skryté"}
+            </Label>
+          </div>
+        </section>
+      )}
+
       {showSummary && (
         <>
           <MetricStrip items={metricItems} />
@@ -949,7 +1171,9 @@ export default function ProjectReportPage() {
                 <TableHead className="min-w-[240px]">Úloha</TableHead>
                 <TableHead className="w-[150px]">Status</TableHead>
                 <TableHead className="w-[110px] text-right">Hodiny</TableHead>
-                {canViewPrices && <TableHead className="w-[120px] text-right">Hodnota</TableHead>}
+                {showPricesInReport && (
+                  <TableHead className="w-[120px] text-right">Hodnota</TableHead>
+                )}
                 <TableHead className="w-[170px]">Hodiny v PDF</TableHead>
               </TableRow>
             </TableHeader>
@@ -996,7 +1220,7 @@ export default function ProjectReportPage() {
                     <TableCell className="text-right font-medium tabular-nums text-foreground">
                       {formatHours(task.actual_hours || 0)}
                     </TableCell>
-                    {canViewPrices && (
+                    {showPricesInReport && (
                       <TableCell className="text-right font-medium tabular-nums text-foreground">
                         {formatMoney(getTaskPrice(task))}
                       </TableCell>
@@ -1110,10 +1334,10 @@ export default function ProjectReportPage() {
                         <TableHead className="min-w-[180px]">Používateľ</TableHead>
                         <TableHead className="min-w-[260px]">Poznámka</TableHead>
                         <TableHead className="w-[100px] text-right">Hodiny</TableHead>
-                        {canViewHourlyRates && (
+                        {showHourlyRatesInReport && (
                           <TableHead className="w-[110px] text-right">Sadzba</TableHead>
                         )}
-                        {canViewPrices && (
+                        {showPricesInReport && (
                           <TableHead className="w-[110px] text-right">Suma</TableHead>
                         )}
                       </TableRow>
@@ -1143,12 +1367,12 @@ export default function ProjectReportPage() {
                             <TableCell className="text-right text-xs font-semibold tabular-nums text-foreground">
                               {formatHours(entry.hours)}
                             </TableCell>
-                            {canViewHourlyRates && (
+                            {showHourlyRatesInReport && (
                               <TableCell className="text-right text-xs tabular-nums text-muted-foreground">
                                 {formatMoney(entry.hourly_rate)}
                               </TableCell>
                             )}
-                            {canViewPrices && (
+                            {showPricesInReport && (
                               <TableCell className="text-right text-xs font-semibold tabular-nums text-foreground">
                                 {formatMoney(entry.amount)}
                               </TableCell>

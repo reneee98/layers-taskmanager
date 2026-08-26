@@ -57,6 +57,9 @@ export default function ProjectDetailPage() {
 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isTaskPanelMode, setIsTaskPanelMode] = useState(false);
+  const [isTaskPanelLoading, setIsTaskPanelLoading] = useState(false);
+  const taskPanelRequestRef = useRef(0);
   const refreshSummaryRef = useRef<(() => Promise<void>) | null>(null);
 
   // Fetch project and tasks in parallel with cache
@@ -93,6 +96,56 @@ export default function ProjectDetailPage() {
   const project = projectData?.success ? projectData.data : null;
   const tasks = tasksData?.success ? tasksData.data : [];
   const isLoading = projectLoading || tasksLoading;
+
+  const handleOpenTaskPanel = async (taskToOpen: Task) => {
+    const requestId = taskPanelRequestRef.current + 1;
+    taskPanelRequestRef.current = requestId;
+    setIsTaskPanelMode(true);
+    setEditingTask(null);
+    setIsTaskPanelLoading(true);
+    setIsTaskDialogOpen(true);
+
+    try {
+      const response = await fetch(`/api/tasks/${taskToOpen.id}`, { cache: "no-store" });
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Nepodarilo sa načítať úlohu");
+      }
+
+      if (taskPanelRequestRef.current !== requestId) return;
+
+      setEditingTask({
+        ...result.data,
+        project_id: result.data.project_id || taskToOpen.project_id || projectId,
+        project: result.data.project || taskToOpen.project || project || null,
+      });
+    } catch (error) {
+      if (taskPanelRequestRef.current !== requestId) return;
+
+      setIsTaskDialogOpen(false);
+      toast({
+        title: "Chyba",
+        description: getErrorMessage(error, "Nepodarilo sa načítať úlohu"),
+        variant: "destructive",
+      });
+    } finally {
+      if (taskPanelRequestRef.current === requestId) {
+        setIsTaskPanelLoading(false);
+      }
+    }
+  };
+
+  const handleTaskDialogOpenChange = (open: boolean) => {
+    setIsTaskDialogOpen(open);
+
+    if (!open) {
+      taskPanelRequestRef.current += 1;
+      setEditingTask(null);
+      setIsTaskPanelMode(false);
+      setIsTaskPanelLoading(false);
+    }
+  };
 
   // Listen for time entry added events from task detail pages
   useEffect(() => {
@@ -253,11 +306,12 @@ export default function ProjectDetailPage() {
         tasks={tasks}
         onUpdate={handleUpdateTask}
         onDelete={handleDeleteTask}
-        onEdit={(task) => {
-          setEditingTask(task);
-          setIsTaskDialogOpen(true);
-        }}
+        onOpen={(task) => void handleOpenTaskPanel(task)}
+        onEdit={(task) => void handleOpenTaskPanel(task)}
         onCreateTask={() => {
+          taskPanelRequestRef.current += 1;
+          setIsTaskPanelMode(false);
+          setIsTaskPanelLoading(false);
           setEditingTask(null);
           setIsTaskDialogOpen(true);
         }}
@@ -278,8 +332,10 @@ export default function ProjectDetailPage() {
       <TaskDialog
         projectId={projectId}
         task={editingTask}
+        mode={isTaskPanelMode ? "quick" : "default"}
+        loadingTask={isTaskPanelLoading}
         open={isTaskDialogOpen}
-        onOpenChange={setIsTaskDialogOpen}
+        onOpenChange={handleTaskDialogOpenChange}
         onSuccess={async () => {
           clearTasksCache();
           clearProjectCache();

@@ -68,20 +68,6 @@ const TaskTimeTab = dynamic(
   }
 );
 
-const TaskFinancePanel = dynamic(
-  () =>
-    import("@/components/finance/TaskFinancePanel").then((mod) => ({
-      default: mod.TaskFinancePanel,
-    })),
-  {
-    loading: () => (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    ),
-  }
-);
-
 const TaskSettingsPanel = dynamic(
   () =>
     import("@/components/tasks/TaskSettingsPanel").then((mod) => ({
@@ -327,7 +313,6 @@ export default function TaskDetailPage() {
   const { hasPermission: canReadTasks } = usePermission("tasks", "read");
   const { hasPermission: canViewHourlyRates } = usePermission("financial", "view_hourly_rates");
   const { hasPermission: canViewPrices } = usePermission("financial", "view_prices");
-  const { hasPermission: canViewCosts } = usePermission("financial", "view_costs");
   const { hasPermission: canViewReports } = usePermission("financial", "view_reports");
   const { hasPermission: canReadTimeEntries } = usePermission("time_entries", "read");
   const { hasPermission: canReadComments } = usePermission("comments", "read");
@@ -1599,9 +1584,9 @@ export default function TaskDetailPage() {
               <TabsTrigger value="overview" className="relative">
                 Práca
               </TabsTrigger>
-              {(canReadTimeEntries || canViewCosts) && (
+              {canReadTimeEntries && (
                 <TabsTrigger value="time" className="relative">
-                  Čas a rozpočet
+                  Čas
                   {task?.actual_hours != null && task.actual_hours > 0 && (
                     <span className="ml-1.5 flex h-[14px] items-center rounded-full bg-border/50 px-1 text-[9px] font-semibold text-muted-foreground">
                       {task.actual_hours.toFixed(1)}h
@@ -1670,19 +1655,15 @@ export default function TaskDetailPage() {
                   />
                 </TabsContent>
 
-                {(canReadTimeEntries || canViewCosts) && (
+                {canReadTimeEntries && (
                   <TabsContent value="time" className="mt-0 space-y-5">
-                    {canReadTimeEntries && (
-                      <TaskTimeTab
-                        taskId={task.id}
-                        projectId={task.project_id || ""}
-                        onTimeEntryAdded={() => {
-                          fetchTask();
-                          window.dispatchEvent(new CustomEvent("timeEntryAdded"));
-                        }}
-                      />
-                    )}
-                    {canViewCosts && <TaskFinancePanel taskId={task.id} />}
+                    <TaskTimeTab
+                      taskId={task.id}
+                      onTimeEntryAdded={() => {
+                        fetchTask();
+                        window.dispatchEvent(new CustomEvent("timeEntryAdded"));
+                      }}
+                    />
                   </TabsContent>
                 )}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { usePermission } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,15 +16,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Plus, Activity, Trash2, Zap, Pencil, Check, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { formatHours, formatCurrency } from "@/lib/format";
-import { format, subDays, parseISO, startOfDay, isWithinInterval } from "date-fns";
+import { formatHours } from "@/lib/format";
+import { format, parseISO } from "date-fns";
 import { sk } from "date-fns/locale";
 
 interface TimeEntry {
@@ -51,14 +46,13 @@ interface TimeEntry {
 
 interface TaskTimeTabProps {
   taskId: string;
-  projectId: string;
   onTimeEntryAdded?: () => void;
 }
 
 // Avatar color palettes for different users
 const AVATAR_COLORS = [
   { bg: "bg-blue-100 dark:bg-blue-900/40", text: "text-blue-600 dark:text-blue-400" }, // Blue - René M.
-  { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-600 dark:text-emerald-400" },    // Green - Viktor Beňo
+  { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-600 dark:text-emerald-400" }, // Green - Viktor Beňo
   { bg: "bg-purple-100 dark:bg-purple-900/40", text: "text-brand" }, // Purple - Jana K.
   { bg: "bg-amber-100 dark:bg-amber-900/40", text: "text-amber-600 dark:text-amber-400" }, // Yellow
   { bg: "bg-pink-100 dark:bg-pink-900/40", text: "text-pink-600 dark:text-pink-400" }, // Pink
@@ -104,10 +98,9 @@ const formatHoursToTime = (decimalHours: number): string => {
   return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 };
 
-export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTabProps) {
-  const { hasPermission: canViewHourlyRates } = usePermission('financial', 'view_hourly_rates');
-  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
-  const { hasPermission: canDeleteTimeEntries } = usePermission('time_entries', 'delete');
+export function TaskTimeTab({ taskId, onTimeEntryAdded }: TaskTimeTabProps) {
+  const { hasPermission: canViewPrices } = usePermission("financial", "view_prices");
+  const { hasPermission: canDeleteTimeEntries } = usePermission("time_entries", "delete");
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [hours, setHours] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -126,8 +119,8 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
       const result = await response.json();
       if (result.success && result.data) {
         // Sort by date descending (newest first)
-        const sortedEntries = result.data.sort((a: TimeEntry, b: TimeEntry) => 
-          new Date(b.date).getTime() - new Date(a.date).getTime()
+        const sortedEntries = result.data.sort(
+          (a: TimeEntry, b: TimeEntry) => new Date(b.date).getTime() - new Date(a.date).getTime()
         );
         setTimeEntries(sortedEntries);
       } else {
@@ -153,107 +146,11 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
       }, 500);
     };
 
-    window.addEventListener('timerStopped', handleTimerStopped);
+    window.addEventListener("timerStopped", handleTimerStopped);
     return () => {
-      window.removeEventListener('timerStopped', handleTimerStopped);
+      window.removeEventListener("timerStopped", handleTimerStopped);
     };
   }, [taskId]);
-
-  // User breakdown type for chart
-  interface UserBreakdown {
-    userId: string;
-    userName: string;
-    hours: number;
-    amount: number;
-    isExtra: boolean;
-  }
-
-  interface DayData {
-    date: Date;
-    hours: number;
-    dayIndex: number;
-    budgetHours: number;
-    extraHours: number;
-    userBreakdown: UserBreakdown[];
-    entries: TimeEntry[];
-  }
-
-  // Calculate daily hours for chart (only days with worked hours) with user breakdown
-  const dailyData = useMemo((): DayData[] => {
-    const days: DayData[] = [];
-    
-    // Group time entries by date
-    const entriesByDate = new Map<string, TimeEntry[]>();
-    timeEntries.forEach(entry => {
-      const dateKey = entry.date;
-      if (!entriesByDate.has(dateKey)) {
-        entriesByDate.set(dateKey, []);
-      }
-      entriesByDate.get(dateKey)!.push(entry);
-    });
-    
-    // Process only days with entries
-    entriesByDate.forEach((dayEntries, dateKey) => {
-      const date = parseISO(dateKey);
-      const dayStart = startOfDay(date);
-      
-      const dayHours = dayEntries.reduce((sum, entry) => sum + entry.hours, 0);
-      
-      // Only include days with hours > 0
-      if (dayHours > 0) {
-        const budgetHours = dayEntries
-          .filter(e => e.billing_type !== 'extra' && e.billing_type !== 'tm')
-          .reduce((sum, e) => sum + e.hours, 0);
-        const extraHours = dayEntries
-          .filter(e => e.billing_type === 'extra' || e.billing_type === 'tm')
-          .reduce((sum, e) => sum + e.hours, 0);
-        
-        // Group by user
-        const userMap = new Map<string, UserBreakdown>();
-        dayEntries.forEach(entry => {
-          const userId = entry.user_id;
-          const existing = userMap.get(userId);
-          const isExtra = entry.billing_type === 'extra' || entry.billing_type === 'tm';
-          
-          if (existing) {
-            existing.hours += entry.hours;
-            existing.amount += entry.amount;
-            if (isExtra) existing.isExtra = true;
-          } else {
-            userMap.set(userId, {
-              userId,
-              userName: entry.user?.name || 'Neznámy',
-              hours: entry.hours,
-              amount: entry.amount,
-              isExtra,
-            });
-          }
-        });
-        
-        // Get day of week (0 = Sunday, so we need to adjust for Slovak week starting Monday)
-        const dayOfWeek = date.getDay();
-        const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-        
-        days.push({ 
-          date, 
-          hours: dayHours, 
-          dayIndex, 
-          budgetHours, 
-          extraHours,
-          userBreakdown: Array.from(userMap.values()).sort((a, b) => b.hours - a.hours),
-          entries: dayEntries,
-        });
-      }
-    });
-    
-    // Sort by date (oldest first)
-    return days.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [timeEntries]);
-
-  // Find max hours for scaling
-  const maxHours = useMemo(() => {
-    return Math.max(...dailyData.map(d => d.hours), 1);
-  }, [dailyData]);
 
   const handleManualEntry = async () => {
     const hoursValue = parseFloat(hours);
@@ -283,7 +180,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
 
       // Add billing_type for extra time
       if (isExtraEntry) {
-        payload.billing_type = 'extra';
+        payload.billing_type = "extra";
         payload.is_billable = false;
       }
 
@@ -298,7 +195,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
       if (result.success) {
         toast({
           title: "Úspech",
-          description: isExtraEntry 
+          description: isExtraEntry
             ? `Pridaných ${formatHours(hoursValue)} extra času`
             : `Pridaných ${formatHours(hoursValue)}`,
         });
@@ -309,10 +206,10 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
         setIsExtraEntry(false);
         setIsManualEntryOpen(false);
         fetchTimeEntries();
-        
+
         // Dispatch event for other components to refresh
-        window.dispatchEvent(new CustomEvent('timeEntryAdded'));
-        
+        window.dispatchEvent(new CustomEvent("timeEntryAdded"));
+
         if (onTimeEntryAdded) {
           onTimeEntryAdded();
         }
@@ -337,7 +234,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
 
   const handleSaveDescription = async () => {
     if (!editingEntryId) return;
-    
+
     try {
       const response = await fetch(`/api/time-entries/${editingEntryId}`, {
         method: "PATCH",
@@ -355,7 +252,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
       } else {
         throw new Error(result.error);
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Chyba",
         description: "Nepodarilo sa aktualizovať popis",
@@ -388,7 +285,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
       } else {
         throw new Error(result.error);
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Chyba",
         description: "Nepodarilo sa vymazať záznam",
@@ -398,176 +295,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Top Section - Chart and Stats */}
-      <div className="flex gap-6 flex-wrap">
-        {/* Daily Activity Chart */}
-        <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] flex-1 min-w-[300px]">
-          <div className="border-b border-border/40 dark:border-border px-6 py-4">
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-muted-foreground" />
-              <span className="font-bold text-sm text-foreground dark:text-foreground">
-                Denná aktivita
-              </span>
-            </div>
-          </div>
-          <div className="p-6 pt-8">
-            {/* Bar Chart - Interactive */}
-            <div className="flex items-end justify-between gap-4 h-[150px]">
-              {dailyData.slice(-12).map((day, index) => {
-                const heightPercent = maxHours > 0 ? (day.hours / maxHours) * 100 : 0;
-                // Calculate actual budget vs extra percentages
-                const totalDayHours = day.hours || 1;
-                const budgetRatio = day.budgetHours / totalDayHours;
-                const extraRatio = day.extraHours / totalDayHours;
-                
-                return (
-                  <Popover key={index}>
-                    <PopoverTrigger asChild>
-                      <div 
-                        className="flex flex-col items-center flex-1 gap-2 cursor-pointer group"
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`${format(day.date, "d. MMMM", { locale: sk })} - ${day.hours.toFixed(1)} hodín`}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.currentTarget.click();
-                          }
-                        }}
-                      >
-                        <div className="w-full flex flex-col items-center justify-end h-[120px]">
-                          {day.hours > 0 ? (
-                            <div 
-                              className="w-full max-w-[40px] flex flex-col rounded-t-sm overflow-hidden transition-all group-hover:scale-110 group-hover:shadow-lg"
-                              style={{ height: `${Math.max(heightPercent, 5)}%` }}
-                            >
-                              {day.extraHours > 0 && (
-                                <div 
-                                  className="bg-brand w-full transition-colors group-hover:bg-brand/90" 
-                                  style={{ height: `${extraRatio * 100}%`, minHeight: '4px' }}
-                                />
-                              )}
-                              <div 
-                                className="bg-blue-600 w-full flex-1 transition-colors group-hover:bg-blue-700" 
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-full max-w-[40px] h-1 bg-secondary dark:bg-muted rounded-sm group-hover:bg-border dark:group-hover:bg-muted/70 transition-colors" />
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground">
-                          {format(day.date, "d.M.", { locale: sk })}
-                        </span>
-                      </div>
-                    </PopoverTrigger>
-                    <PopoverContent 
-                      className="w-72 p-0 bg-white dark:bg-card border border-border dark:border-border rounded-xl shadow-xl"
-                      align="center"
-                      sideOffset={8}
-                    >
-                      {/* Popover Header */}
-                      <div className="px-4 py-3 border-b border-border/60 dark:border-border">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm text-foreground dark:text-foreground">
-                            {format(day.date, "EEEE, d. MMMM", { locale: sk })}
-                          </span>
-                          <span className="font-bold text-sm text-blue-600 dark:text-blue-400 dark:text-blue-400">
-                            {day.hours.toFixed(1)}h
-                          </span>
-                        </div>
-                      </div>
-                      
-                      {/* User Breakdown */}
-                      <div className="p-2">
-                        {day.userBreakdown.length === 0 ? (
-                          <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                            Žiadne záznamy
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-1">
-                            {day.userBreakdown.map((user) => {
-                              const avatarColor = getAvatarColor(user.userId);
-                              return (
-                                <div 
-                                  key={user.userId}
-                                  className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted/50 transition-colors"
-                                >
-                                  <Avatar className="h-7 w-7 shadow-sm">
-                                    <AvatarFallback className={`text-[10px] font-normal ${avatarColor.bg} ${avatarColor.text}`}>
-                                      {getInitials(user.userName)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium text-xs text-foreground dark:text-foreground truncate">
-                                        {user.userName}
-                                      </span>
-                                      {user.isExtra && (
-                                        <Badge className="h-4 px-1.5 py-0 text-[8px] font-bold bg-violet-50 dark:bg-violet-950/30 text-brand dark:bg-purple-950/50 dark:text-purple-400 border-0">
-                                          EXTRA
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-col items-end">
-                                    <span className="font-bold text-xs text-foreground dark:text-foreground">
-                                      {user.hours.toFixed(1)}h
-                                    </span>
-                                    {canViewPrices && (
-                                      <span className="text-[10px] text-muted-foreground dark:text-muted-foreground">
-                                        {Math.round(user.amount)} €
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Footer with totals */}
-                      {day.hours > 0 && (
-                        <div className="px-4 py-2 border-t border-border/60 dark:border-border bg-muted/30">
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-1.5">
-                                <div className="w-2 h-2 rounded-sm bg-blue-600" />
-                                <span className="text-muted-foreground">Budget: {day.budgetHours.toFixed(1)}h</span>
-                              </div>
-                              {day.extraHours > 0 && (
-                                <div className="flex items-center gap-1.5">
-                                  <div className="w-2 h-2 rounded-sm bg-brand" />
-                                  <span className="text-muted-foreground">Extra: {day.extraHours.toFixed(1)}h</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </PopoverContent>
-                  </Popover>
-                );
-              })}
-            </div>
-            
-            {/* Legend */}
-            <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-border/60 dark:border-border">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-blue-600" />
-                <span className="text-xs text-muted-foreground">Budget</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-brand" />
-                <span className="text-xs text-muted-foreground">Extra (T&M)</span>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-      </div>
-
-      {/* Detailed Time Entries */}
+    <div>
       <Card className="bg-white dark:bg-card border border-border dark:border-border rounded-[14px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] overflow-hidden">
         {/* Header */}
         <div className="bg-white dark:bg-card border-b border-border/60 dark:border-border flex items-center justify-between px-6 py-4">
@@ -576,8 +304,8 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
           </span>
           <Dialog open={isManualEntryOpen} onOpenChange={setIsManualEntryOpen}>
             <DialogTrigger asChild>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 className="bg-primary hover:bg-primary/80 text-primary-foreground rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] gap-2"
               >
                 <Plus className="h-4 w-4" />
@@ -591,7 +319,12 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
               <div className="space-y-4 mt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="modal-hours" className="text-sm font-medium text-muted-foreground">Hodiny *</Label>
+                    <Label
+                      htmlFor="modal-hours"
+                      className="text-sm font-medium text-muted-foreground"
+                    >
+                      Hodiny *
+                    </Label>
                     <Input
                       id="modal-hours"
                       type="number"
@@ -605,7 +338,12 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="modal-date" className="text-sm font-medium text-muted-foreground">Dátum *</Label>
+                    <Label
+                      htmlFor="modal-date"
+                      className="text-sm font-medium text-muted-foreground"
+                    >
+                      Dátum *
+                    </Label>
                     <Input
                       id="modal-date"
                       type="date"
@@ -618,8 +356,12 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="modal-hourly-rate" className="text-sm font-medium text-muted-foreground">
-                    Hodinová sadzba (€) <span className="text-muted-foreground text-xs font-normal">- nepovinné</span>
+                  <Label
+                    htmlFor="modal-hourly-rate"
+                    className="text-sm font-medium text-muted-foreground"
+                  >
+                    Hodinová sadzba (€){" "}
+                    <span className="text-muted-foreground text-xs font-normal">- nepovinné</span>
                   </Label>
                   <Input
                     id="modal-hourly-rate"
@@ -635,7 +377,12 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="modal-description" className="text-sm font-medium text-muted-foreground">Poznámka</Label>
+                  <Label
+                    htmlFor="modal-description"
+                    className="text-sm font-medium text-muted-foreground"
+                  >
+                    Poznámka
+                  </Label>
                   <Textarea
                     id="modal-description"
                     placeholder="Čo ste robili..."
@@ -652,46 +399,46 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                   type="button"
                   onClick={() => setIsExtraEntry(!isExtraEntry)}
                   className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                    isExtraEntry 
-                      ? "bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800/60 dark:bg-purple-950/30 dark:border-purple-900/50" 
+                    isExtraEntry
+                      ? "bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800/60 dark:bg-purple-950/30 dark:border-purple-900/50"
                       : "bg-muted/30 border-border hover:bg-muted/50"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                      isExtraEntry 
-                        ? "bg-violet-100 dark:bg-violet-900/40 dark:bg-purple-900/50" 
-                        : "bg-muted dark:bg-muted"
-                    }`}>
-                      <Zap className={`h-4 w-4 ${
-                        isExtraEntry 
-                          ? "text-brand dark:text-purple-400" 
-                          : "text-muted-foreground"
-                      }`} />
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        isExtraEntry
+                          ? "bg-violet-100 dark:bg-violet-900/40 dark:bg-purple-900/50"
+                          : "bg-muted dark:bg-muted"
+                      }`}
+                    >
+                      <Zap
+                        className={`h-4 w-4 ${
+                          isExtraEntry ? "text-brand dark:text-purple-400" : "text-muted-foreground"
+                        }`}
+                      />
                     </div>
                     <div className="text-left">
-                      <div className={`text-sm font-medium ${
-                        isExtraEntry 
-                          ? "text-brand dark:text-purple-400" 
-                          : "text-foreground"
-                      }`}>
+                      <div
+                        className={`text-sm font-medium ${
+                          isExtraEntry ? "text-brand dark:text-purple-400" : "text-foreground"
+                        }`}
+                      >
                         Extra čas
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        Čas mimo scope projektu
-                      </div>
+                      <div className="text-xs text-muted-foreground">Čas mimo scope projektu</div>
                     </div>
                   </div>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative ${
-                    isExtraEntry 
-                      ? "bg-brand" 
-                      : "bg-muted-foreground/30"
-                  }`}>
-                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      isExtraEntry 
-                        ? "translate-x-5" 
-                        : "translate-x-1"
-                    }`} />
+                  <div
+                    className={`w-10 h-6 rounded-full transition-colors relative ${
+                      isExtraEntry ? "bg-brand" : "bg-muted-foreground/30"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        isExtraEntry ? "translate-x-5" : "translate-x-1"
+                      }`}
+                    />
                   </div>
                 </button>
 
@@ -703,10 +450,7 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                   >
                     Zrušiť
                   </Button>
-                  <Button
-                    onClick={handleManualEntry}
-                    disabled={isLoading || !hours}
-                  >
+                  <Button onClick={handleManualEntry} disabled={isLoading || !hours}>
                     {isLoading ? "Ukladám..." : "Pridať záznam"}
                   </Button>
                 </div>
@@ -726,13 +470,13 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
             timeEntries.map((entry, index) => {
               const entryDate = parseISO(entry.date);
               const avatarColor = getAvatarColor(entry.user_id);
-              const isExtra = entry.billing_type === 'extra' || entry.billing_type === 'tm';
+              const isExtra = entry.billing_type === "extra" || entry.billing_type === "tm";
               const isLast = index === timeEntries.length - 1;
-              
+
               return (
-                <div 
-                  key={entry.id} 
-                  className={`flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors group ${!isLast ? 'border-b border-border/60 dark:border-border' : ''}`}
+                <div
+                  key={entry.id}
+                  className={`flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors group ${!isLast ? "border-b border-border/60 dark:border-border" : ""}`}
                 >
                   {/* Left Section - Date, Avatar, User */}
                   <div className="flex items-center gap-6 min-w-[200px]">
@@ -745,21 +489,23 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                         {format(entryDate, "MMM", { locale: sk })}
                       </span>
                     </div>
-                    
+
                     {/* Avatar */}
                     <Avatar className="h-7 w-7 shadow-[0px_0px_0px_2px_white,0px_1px_3px_0px_rgba(0,0,0,0.1)] dark:shadow-[0px_0px_0px_2px_#1e293b]">
-                      <AvatarFallback className={`text-[10px] font-normal ${avatarColor.bg} ${avatarColor.text}`}>
+                      <AvatarFallback
+                        className={`text-[10px] font-normal ${avatarColor.bg} ${avatarColor.text}`}
+                      >
                         {getInitials(entry.user?.name)}
                       </AvatarFallback>
                     </Avatar>
-                    
+
                     {/* User Name and Billing Type */}
                     <div className="flex flex-col">
                       <span className="font-medium text-xs text-foreground dark:text-foreground">
                         {getShortName(entry.user?.name)}
                       </span>
                       <span className="text-[10px] text-muted-foreground dark:text-muted-foreground">
-                        {isExtra ? 'Extra' : 'Budget'}
+                        {isExtra ? "Extra" : "Budget"}
                       </span>
                     </div>
                   </div>
@@ -797,20 +543,18 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
                         </Button>
                       </div>
                     ) : (
-                      <div 
+                      <div
                         className="flex items-center gap-2 group/desc cursor-pointer"
                         onClick={() => handleStartEditDescription(entry)}
                       >
                         <span className="font-medium text-xs text-foreground dark:text-foreground line-clamp-1">
-                          {entry.description || '—'}
+                          {entry.description || "—"}
                         </span>
                         <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/desc:opacity-100 transition-opacity" />
                       </div>
                     )}
                     {isExtra && (
-                      <Badge 
-                        className="h-4 px-2 py-0 text-[9px] font-bold bg-violet-50 dark:bg-violet-950/30 text-brand dark:bg-purple-950/50 dark:text-purple-400 border border-violet-200 dark:border-violet-800/60 dark:border-purple-900/50 rounded-lg"
-                      >
+                      <Badge className="h-4 px-2 py-0 text-[9px] font-bold bg-violet-50 dark:bg-violet-950/30 text-brand dark:bg-purple-950/50 dark:text-purple-400 border border-violet-200 dark:border-violet-800/60 dark:border-purple-900/50 rounded-lg">
                         EXTRA
                       </Badge>
                     )}
@@ -848,4 +592,3 @@ export function TaskTimeTab({ taskId, projectId, onTimeEntryAdded }: TaskTimeTab
     </div>
   );
 }
-

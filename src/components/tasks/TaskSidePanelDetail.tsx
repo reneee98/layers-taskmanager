@@ -40,14 +40,6 @@ const TaskTimeTab = dynamic(
   { loading: PanelSkeleton }
 );
 
-const TaskFinancePanel = dynamic(
-  () =>
-    import("@/components/finance/TaskFinancePanel").then((module) => ({
-      default: module.TaskFinancePanel,
-    })),
-  { loading: PanelSkeleton }
-);
-
 const TaskFilesGrid = dynamic(
   () =>
     import("@/components/tasks/TaskFilesGrid").then((module) => ({
@@ -60,14 +52,6 @@ const TaskSettingsPanel = dynamic(
   () =>
     import("@/components/tasks/TaskSettingsPanel").then((module) => ({
       default: module.TaskSettingsPanel,
-    })),
-  { loading: PanelSkeleton }
-);
-
-const ProjectStatusCard = dynamic(
-  () =>
-    import("@/components/projects/ProjectStatusCard").then((module) => ({
-      default: module.ProjectStatusCard,
     })),
   { loading: PanelSkeleton }
 );
@@ -212,18 +196,13 @@ export const TaskSidePanelDetail = ({
         </TabsContent>
 
         <TabsContent value="time" className="m-0 space-y-5 p-5 sm:p-7">
-          {task.project_id ? (
-            <ProjectStatusCard projectId={task.project_id} taskId={task.id} />
-          ) : null}
           <TaskTimeTab
             taskId={task.id}
-            projectId={task.project_id || ""}
             onTimeEntryAdded={() => {
               onTaskUpdate();
               window.dispatchEvent(new CustomEvent("timeEntryAdded"));
             }}
           />
-          <TaskFinancePanel taskId={task.id} />
         </TabsContent>
 
         <TabsContent value="files" className="m-0 space-y-5 p-5 sm:p-7">

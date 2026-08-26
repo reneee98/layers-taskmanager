@@ -215,7 +215,7 @@ export function ProjectStatusCard({ projectId, taskId, assignees = [] }: Project
   const revenue = finance.revenue || 0;
   const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
 
-  // Extra = amount billed over the fixed budget (T&M), consistent with TaskFinancePanel
+  // Extra = amount billed over the fixed budget (T&M)
   const extra = budgetTotal > 0 ? Math.max(0, budgetUsed - budgetTotal) : 0;
 
   // Get assignees from props

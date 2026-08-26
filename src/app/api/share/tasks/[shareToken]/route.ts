@@ -38,6 +38,7 @@ export async function GET(
         description,
         status,
         priority,
+        color,
         due_date,
         created_at,
         updated_at,
@@ -252,6 +253,7 @@ export async function GET(
         description: task.description,
         status: task.status,
         priority: task.priority,
+        color: task.color,
         dueDate: task.due_date,
         createdAt: task.created_at,
         updatedAt: task.updated_at,
@@ -278,4 +280,3 @@ export async function GET(
     );
   }
 }
-

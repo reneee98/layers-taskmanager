@@ -1,7 +1,9 @@
 import Foundation
+import OSLog
 
 @MainActor
 final class TrackerStore: ObservableObject {
+    private static let logger = Logger(subsystem: "sk.layersstudio.tracker", category: "Timer")
     @Published private(set) var session: AuthSession?
     @Published private(set) var user: TrackerUser?
     @Published private(set) var workspaces: [Workspace] = []
@@ -23,7 +25,10 @@ final class TrackerStore: ObservableObject {
     private static let sessionAccount = "session"
     private static let serverURLKey = "layersTracker.serverURL"
     private static let workspaceKey = "layersTracker.workspaceId"
+    private static let stoppedTimerKey = "layersTracker.mostRecentlyStoppedTimerId"
     private var noteSuggestionCache: [String: TimerNoteSuggestions] = [:]
+    private var activeTimerRefreshSequence: UInt = 0
+    private var mostRecentlyStoppedTimerId: String?
 
     init() {
         let bundledURL = Bundle.main.object(forInfoDictionaryKey: "LayersAPIBaseURL") as? String
@@ -31,6 +36,7 @@ final class TrackerStore: ObservableObject {
             ?? bundledURL
             ?? "http://localhost:3001"
         selectedWorkspaceId = UserDefaults.standard.string(forKey: Self.workspaceKey)
+        mostRecentlyStoppedTimerId = UserDefaults.standard.string(forKey: Self.stoppedTimerKey)
         session = KeychainStore.load(AuthSession.self, account: Self.sessionAccount)
         user = session?.user
     }
@@ -69,12 +75,13 @@ final class TrackerStore: ObservableObject {
         workspaces = []
         tasks = []
         activeTimer = nil
+        clearRecentlyStoppedTimer()
         clearNoteSuggestions()
         clearTaskTimeEntries()
         errorMessage = nil
     }
 
-    func loadTracker(showLoading: Bool = false) async {
+    func loadTracker(showLoading: Bool = false, refreshTimer: Bool = true) async {
         guard session != nil else { return }
 
         if showLoading { isLoading = true }
@@ -95,7 +102,9 @@ final class TrackerStore: ObservableObject {
             tasks = data.tasks
             selectedWorkspaceId = data.currentWorkspaceId
             UserDefaults.standard.set(data.currentWorkspaceId, forKey: Self.workspaceKey)
-            await refreshActiveTimer(silent: true)
+            if refreshTimer {
+                await refreshActiveTimer(silent: true)
+            }
         } catch {
             handle(error)
         }
@@ -198,14 +207,42 @@ final class TrackerStore: ObservableObject {
         taskTimeEntryErrors.removeAll()
     }
 
-    func refreshActiveTimer(silent: Bool = false) async {
+    func refreshActiveTimer(silent: Bool = false, whileTimerChanging: Bool = false) async {
         guard session != nil else { return }
+        guard whileTimerChanging || !isTimerChanging else { return }
+
+        activeTimerRefreshSequence &+= 1
+        let refreshSequence = activeTimerRefreshSequence
 
         do {
-            activeTimer = try await authorized { client, token in
+            let refreshedTimer: ActiveTimer? = try await authorized { client, token in
                 try await client.getOptional("/api/timers/active", accessToken: token)
             }
+            guard refreshSequence == activeTimerRefreshSequence else { return }
+
+            if let stoppedTimerId = mostRecentlyStoppedTimerId {
+                if refreshedTimer?.id == stoppedTimerId {
+                    // A just-stopped timer must not be resurrected by a late
+                    // response from any cache or overlapping refresh.
+                    Self.logger.warning(
+                        "Ignoring refresh that returned the stopped timer \(String(stoppedTimerId.suffix(8)), privacy: .public)"
+                    )
+                    activeTimer = nil
+                    return
+                }
+
+                // The server now agrees there is no timer, or a genuinely new
+                // timer has been started in another client.
+                clearRecentlyStoppedTimer()
+            }
+
+            let timerLabel = refreshedTimer.map { String($0.id.suffix(8)) } ?? "none"
+            Self.logger.info(
+                "Applied active timer refresh \(refreshSequence, privacy: .public): \(timerLabel, privacy: .public)"
+            )
+            activeTimer = refreshedTimer
         } catch {
+            guard refreshSequence == activeTimerRefreshSequence else { return }
             if !silent { handle(error) }
         }
     }
@@ -233,12 +270,12 @@ final class TrackerStore: ObservableObject {
             let _: StartTimerResponse = try await authorized { client, token in
                 try await client.post("/api/timers/start", body: body, accessToken: token)
             }
-            await refreshActiveTimer(silent: false)
+            await refreshActiveTimer(silent: false, whileTimerChanging: true)
             return activeTimer != nil
         } catch {
             // The web app may have started a timer since the last background
             // refresh. Show that timer instead of leaving the tracker stale.
-            await refreshActiveTimer(silent: true)
+            await refreshActiveTimer(silent: true, whileTimerChanging: true)
             handle(error)
             return false
         }
@@ -249,22 +286,42 @@ final class TrackerStore: ObservableObject {
         let stoppedTaskId = activeTimer.taskId
 
         isTimerChanging = true
+        // Invalidate any refresh that started before the stop request. Without
+        // this, a late cached response can resurrect the just-stopped timer.
+        activeTimerRefreshSequence &+= 1
         errorMessage = nil
         defer { isTimerChanging = false }
 
         do {
+            let body = StopTimerRequest(timerId: activeTimer.id)
             let _: StopTimerResponse = try await authorized { client, token in
-                try await client.post("/api/timers/stop", accessToken: token)
+                try await client.post("/api/timers/stop", body: body, accessToken: token)
             }
-            noteSuggestionCache[activeTimer.taskId] = nil
-            taskTimeEntries[stoppedTaskId] = nil
-            taskTimeEntryErrors[stoppedTaskId] = nil
+            mostRecentlyStoppedTimerId = activeTimer.id
+            UserDefaults.standard.set(activeTimer.id, forKey: Self.stoppedTimerKey)
             self.activeTimer = nil
-            await loadTracker(showLoading: false)
-            await loadTaskTimeEntries(for: stoppedTaskId, force: true)
+            Self.logger.info(
+                "Stopped timer \(String(activeTimer.id.suffix(8)), privacy: .public) and cleared local state"
+            )
         } catch {
-            handle(error)
+            // Another client may have stopped the timer first. Refresh before
+            // surfacing the error so a 404/late response cannot leave stale UI.
+            await refreshActiveTimer(silent: true, whileTimerChanging: true)
+            guard self.activeTimer == nil else {
+                handle(error)
+                return
+            }
         }
+
+        noteSuggestionCache[activeTimer.taskId] = nil
+        taskTimeEntries[stoppedTaskId] = nil
+        taskTimeEntryErrors[stoppedTaskId] = nil
+        self.activeTimer = nil
+        // Reload task totals without letting the bootstrap flow perform a
+        // second, overlapping active-timer refresh.
+        await loadTracker(showLoading: false, refreshTimer: false)
+        await loadTaskTimeEntries(for: stoppedTaskId, force: true)
+        await refreshActiveTimer(silent: true, whileTimerChanging: true)
     }
 
     private func authorized<Value>(
@@ -323,5 +380,10 @@ final class TrackerStore: ObservableObject {
             logout()
             errorMessage = "Relácia vypršala. Prihláste sa znova."
         }
+    }
+
+    private func clearRecentlyStoppedTimer() {
+        mostRecentlyStoppedTimerId = nil
+        UserDefaults.standard.removeObject(forKey: Self.stoppedTimerKey)
     }
 }

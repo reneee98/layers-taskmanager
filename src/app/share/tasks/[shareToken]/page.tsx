@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { getTaskStatusLabel } from "@/lib/task-status";
 import { getAppVersion } from "@/lib/version";
 import { createClient } from "@/lib/supabase/client";
+import { resolveTaskColor } from "@/lib/task-colors";
 import Image from "next/image";
 
 interface ChecklistItem {
@@ -82,6 +83,7 @@ interface TaskFile {
 interface SharedTask {
   id: string;
   title: string;
+  color: string | null;
   description: string | null;
   status: 'todo' | 'in_progress' | 'review' | 'sent_to_client' | 'done' | 'invoiced' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
@@ -603,7 +605,14 @@ export default function SharedTaskPage() {
                 {/* Title */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <h1 className="text-2xl font-bold text-foreground truncate mb-2">{task.title}</h1>
+                    <div className="mb-2 flex min-w-0 items-center gap-3">
+                      <span
+                        aria-hidden="true"
+                        className="h-3 w-3 shrink-0 rounded-full ring-2 ring-black/5 ring-offset-2 ring-offset-card"
+                        style={{ backgroundColor: resolveTaskColor(task) || undefined }}
+                      />
+                      <h1 className="truncate text-2xl font-bold text-foreground">{task.title}</h1>
+                    </div>
                   </div>
                 </div>
 

@@ -115,6 +115,7 @@ export function TaskTable({
       actual_hours: task.actual_hours || null,
       budget_cents: task.budget_cents || null,
       currency: task.currency || taskProject?.currency || null,
+      color: task.color || null,
       project_id: task.project_id || projectId,
       project: taskProject
         ? {

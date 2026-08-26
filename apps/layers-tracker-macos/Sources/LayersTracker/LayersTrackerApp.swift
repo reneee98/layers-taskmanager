@@ -20,6 +20,7 @@ private final class TrackerAppDelegate: NSObject, NSApplicationDelegate {
     private let popover = NSPopover()
     private var activeTimerSubscription: AnyCancellable?
     private var clockTimer: Timer?
+    private var timerSyncTimer: Timer?
     private var testWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -27,6 +28,7 @@ private final class TrackerAppDelegate: NSObject, NSApplicationDelegate {
         configureStatusItem()
         observeActiveTimer()
         startClock()
+        startTimerSync()
         configureTestWindowIfNeeded()
         updateStatusItem()
 
@@ -37,6 +39,7 @@ private final class TrackerAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         clockTimer?.invalidate()
+        timerSyncTimer?.invalidate()
     }
 
     private func configurePopover() {
@@ -75,6 +78,17 @@ private final class TrackerAppDelegate: NSObject, NSApplicationDelegate {
         timer.tolerance = 0.15
         RunLoop.main.add(timer, forMode: .common)
         clockTimer = timer
+    }
+
+    private func startTimerSync() {
+        let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.store.refreshActiveTimer(silent: true)
+            }
+        }
+        timer.tolerance = 0.5
+        RunLoop.main.add(timer, forMode: .common)
+        timerSyncTimer = timer
     }
 
     private func configureTestWindowIfNeeded() {

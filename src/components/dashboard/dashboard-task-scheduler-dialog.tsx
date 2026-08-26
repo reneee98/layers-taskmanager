@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { formatHours } from "@/lib/format";
 import { stripHtml } from "@/lib/utils";
 import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
+import { resolveTaskColor, taskColorToRgba } from "@/lib/task-colors";
 
 interface DashboardTaskSchedulerDialogProps {
   open: boolean;
@@ -158,6 +159,7 @@ export const DashboardTaskSchedulerDialog = ({
                 );
                 const isScheduling = schedulingTaskId === task.id;
                 const projectColor = resolveProjectColor(task.project);
+                const taskColor = resolveTaskColor(task);
 
                 return (
                   <button
@@ -166,12 +168,12 @@ export const DashboardTaskSchedulerDialog = ({
                     disabled={schedulingTaskId !== null}
                     onClick={() => handleSchedule(task.id)}
                     style={
-                      projectColor
+                      taskColor
                         ? {
-                            boxShadow: `inset 2px 0 0 ${projectColorToRgba(projectColor, 0.4)}`,
-                            backgroundImage: `linear-gradient(90deg, ${projectColorToRgba(
-                              projectColor,
-                              0.025
+                            boxShadow: `inset 3px 0 0 ${taskColor}`,
+                            backgroundImage: `linear-gradient(90deg, ${taskColorToRgba(
+                              taskColor,
+                              0.07
                             )}, transparent 240px)`,
                           }
                         : undefined

@@ -25,6 +25,14 @@ import {
 import { toast } from "@/hooks/use-toast";
 import type { Task, Project } from "@/types/database";
 import { resolveProjectColor } from "@/lib/project-colors";
+import {
+  TASK_COLOR_PALETTE,
+  getRandomTaskColor,
+  normalizeTaskColor,
+  resolveTaskColor,
+} from "@/lib/task-colors";
+import { Palette, Shuffle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TaskFormProps {
   task?: Task;
@@ -61,6 +69,7 @@ export const TaskForm = ({
           project_id: task.project_id,
           title: task.title,
           description: task.description || "",
+          color: resolveTaskColor(task),
           status: task.status,
           priority: task.priority,
           assigned_to: (task as any).assigned_to || undefined,
@@ -74,6 +83,7 @@ export const TaskForm = ({
           parent_task_id: parentTaskId || null,
           status: "todo",
           priority: "medium",
+          color: getRandomTaskColor(),
         },
   });
 
@@ -119,7 +129,13 @@ export const TaskForm = ({
         description: isEditing ? "Úloha bola aktualizovaná" : "Úloha bola vytvorená",
       });
 
-      reset();
+      reset({
+        project_id: projectId || "",
+        parent_task_id: parentTaskId || null,
+        status: "todo",
+        priority: "medium",
+        color: getRandomTaskColor(),
+      });
       onSuccess();
       onOpenChange(false);
     } catch (error) {
@@ -133,23 +149,21 @@ export const TaskForm = ({
     }
   };
 
+  const selectedTaskColor = normalizeTaskColor(watch("color")) || TASK_COLOR_PALETTE[0];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditing
-              ? "Upraviť úlohu"
-              : parentTaskId
-              ? "Pridať pod-úlohu"
-              : "Pridať úlohu"}
+            {isEditing ? "Upraviť úlohu" : parentTaskId ? "Pridať pod-úlohu" : "Pridať úlohu"}
           </DialogTitle>
           <DialogDescription>
             {isEditing
               ? "Upravte údaje o úlohe"
               : parentTaskId
-              ? "Vytvorte novú pod-úlohu"
-              : "Vytvorte novú úlohu"}
+                ? "Vytvorte novú pod-úlohu"
+                : "Vytvorte novú úlohu"}
           </DialogDescription>
         </DialogHeader>
 
@@ -173,7 +187,9 @@ export const TaskForm = ({
                           className="h-2.5 w-2.5 shrink-0 rounded-full opacity-70"
                           style={{ backgroundColor: resolveProjectColor(project) || undefined }}
                         />
-                        <span>{project.name} ({project.code})</span>
+                        <span>
+                          {project.name} ({project.code})
+                        </span>
                       </span>
                     </SelectItem>
                   ))}
@@ -194,6 +210,65 @@ export const TaskForm = ({
           <div className="space-y-2">
             <Label htmlFor="description">Popis</Label>
             <Input id="description" {...register("description")} />
+          </div>
+
+          <div className="space-y-2.5 rounded-xl border border-border/80 bg-muted/15 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label htmlFor="task-color" className="text-xs font-semibold">
+                  Farba úlohy
+                </Label>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Vyberte farbu alebo použite náhodnú.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 px-2.5 text-xs"
+                onClick={() => setValue("color", getRandomTaskColor(), { shouldDirty: true })}
+              >
+                <Shuffle aria-hidden="true" className="h-3.5 w-3.5" />
+                Náhodná
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {TASK_COLOR_PALETTE.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setValue("color", color, { shouldDirty: true })}
+                  className={cn(
+                    "h-7 w-7 rounded-full border border-black/5 outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                    selectedTaskColor === color && "ring-2 ring-foreground/40 ring-offset-2"
+                  )}
+                  style={{ backgroundColor: color }}
+                  aria-label={`Vybrať farbu ${color}`}
+                  aria-pressed={selectedTaskColor === color}
+                />
+              ))}
+              <label
+                className="relative flex h-7 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-card text-muted-foreground transition-colors hover:bg-muted"
+                title="Vlastná farba"
+              >
+                <Palette aria-hidden="true" className="h-3.5 w-3.5" />
+                <input
+                  id="task-color"
+                  type="color"
+                  value={selectedTaskColor}
+                  onChange={(event) =>
+                    setValue(
+                      "color",
+                      normalizeTaskColor(event.target.value) || getRandomTaskColor(),
+                      { shouldDirty: true }
+                    )
+                  }
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                  aria-label="Vlastná farba úlohy"
+                />
+              </label>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

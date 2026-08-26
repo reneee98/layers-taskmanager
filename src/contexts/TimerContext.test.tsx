@@ -1,6 +1,6 @@
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { TimerProvider, useTimer } from "@/contexts/TimerContext";
 import type { TimerContextType } from "@/types/timer";
 
@@ -109,5 +109,54 @@ describe("TimerContext", () => {
 
     window.removeEventListener("timerStopped", handleTimerStopped);
     window.removeEventListener("timeEntryAdded", handleTimeEntryAdded);
+  });
+
+  it("sends the displayed timer id when stopping", async () => {
+    authState.user = { id: "user-1" };
+    const activeTimer = {
+      id: "timer-1",
+      task_id: "task-1",
+      task_name: "Testovacia úloha",
+      project_name: "Layers",
+      project_id: "project-1",
+      started_at: new Date().toISOString(),
+      duration: 0,
+      is_extra: false,
+      description: "",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: activeTimer }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const contextState: { current: TimerContextType | null } = { current: null };
+    render(
+      <TimerProvider>
+        <TimerConsumer onReady={(context) => { contextState.current = context; }} />
+      </TimerProvider>
+    );
+
+    await waitFor(() => expect(contextState.current?.activeTimer?.id).toBe("timer-1"));
+    await act(async () => {
+      if (!contextState.current) {
+        throw new Error("Timer context was not initialized");
+      }
+      await contextState.current.stopTimer();
+    });
+
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/timers/stop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timerId: "timer-1" }),
+    });
   });
 });

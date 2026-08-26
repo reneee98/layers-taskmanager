@@ -69,14 +69,25 @@ struct APIClient {
         queryItems: [URLQueryItem] = []
     ) async throws -> Value? {
         var components = URLComponents(url: endpoint(path), resolvingAgainstBaseURL: false)
-        components?.queryItems = queryItems.isEmpty ? nil : queryItems
+        // Active timer state must never come from URLSession's response cache.
+        // A unique URL also protects older installed clients from intermediary
+        // caches that do not consistently honour response no-store headers.
+        components?.queryItems = queryItems + [
+            URLQueryItem(name: "_refresh", value: UUID().uuidString),
+        ]
 
         guard let url = components?.url else {
             throw TrackerAPIError.invalidServerURL
         }
 
-        var request = URLRequest(url: url)
+        var request = URLRequest(
+            url: url,
+            cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+            timeoutInterval: 60
+        )
         request.httpMethod = "GET"
+        request.setValue("no-cache, no-store, max-age=0", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
         applyHeaders(to: &request, accessToken: accessToken)
         return try await sendOptional(request)
     }
@@ -86,7 +97,7 @@ struct APIClient {
         body: Body,
         accessToken: String? = nil
     ) async throws -> Value {
-        var request = URLRequest(url: endpoint(path))
+        var request = mutatingRequest(url: endpoint(path))
         request.httpMethod = "POST"
         request.httpBody = try JSONEncoder.layers.encode(body)
         applyHeaders(to: &request, accessToken: accessToken)
@@ -97,10 +108,23 @@ struct APIClient {
         _ path: String,
         accessToken: String
     ) async throws -> Value {
-        var request = URLRequest(url: endpoint(path))
+        var request = mutatingRequest(url: endpoint(path))
         request.httpMethod = "POST"
         applyHeaders(to: &request, accessToken: accessToken)
         return try await send(request)
+    }
+
+    private func mutatingRequest(url: URL) -> URLRequest {
+        var request = URLRequest(
+            url: url,
+            cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+            timeoutInterval: 60
+        )
+        // URLSession can reuse a cacheable POST response. Timer mutations must
+        // always reach the server, even when URL and request body are repeated.
+        request.setValue("no-cache, no-store, max-age=0", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+        return request
     }
 
     private func endpoint(_ path: String) -> URL {

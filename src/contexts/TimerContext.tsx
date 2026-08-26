@@ -186,8 +186,15 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
     try {
       isStoppingRef.current = true;
+      const timerId = activeTimerRef.current?.id;
       const response = await fetch("/api/timers/stop", {
         method: "POST",
+        ...(timerId
+          ? {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ timerId }),
+            }
+          : {}),
       });
 
       const result = await response.json();

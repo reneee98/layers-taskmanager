@@ -5,11 +5,34 @@ export const TASK_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
 // Tasks and projects intentionally share one muted dashboard palette.
 export const TASK_COLOR_PALETTE = PROJECT_COLOR_PALETTE;
 
+const hashTaskId = (taskId: string) => {
+  let hash = 0;
+
+  for (let index = 0; index < taskId.length; index += 1) {
+    hash = (hash * 31 + taskId.charCodeAt(index)) | 0;
+  }
+
+  return Math.abs(hash);
+};
+
 export function normalizeTaskColor(value: string | null | undefined): string | null {
   if (!value) return null;
   const normalized = value.trim().toUpperCase();
   return TASK_COLOR_REGEX.test(normalized) ? normalized : null;
 }
+
+export const getRandomTaskColor = () =>
+  TASK_COLOR_PALETTE[Math.floor(Math.random() * TASK_COLOR_PALETTE.length)];
+
+export const getTaskFallbackColor = (taskId: string) =>
+  TASK_COLOR_PALETTE[hashTaskId(taskId) % TASK_COLOR_PALETTE.length];
+
+export const resolveTaskColor = (
+  task: { id: string; color?: string | null } | null | undefined
+) => {
+  if (!task) return null;
+  return normalizeTaskColor(task.color) || getTaskFallbackColor(task.id);
+};
 
 export function taskColorToRgba(color: string, alpha: number): string {
   const normalized = normalizeTaskColor(color);

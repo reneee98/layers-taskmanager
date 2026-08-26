@@ -8,6 +8,7 @@ import { getUserWorkspaceIdFromRequest, getUserWorkspaceId } from "@/lib/auth/wo
 import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
 import { resolveHourlyRate } from "@/server/rates/resolveHourlyRate";
 import { canAccessProject, getProjectAccessContext } from "@/lib/auth/project-access";
+import { getRandomTaskColor } from "@/lib/task-colors";
 
 export const dynamic = "force-dynamic";
 
@@ -470,6 +471,11 @@ export async function PATCH(
     // are preserved because Supabase UPDATE only changes fields that are explicitly included in updateData.
     // Fields not included in updateData remain unchanged.
     const updateData: any = { ...validation.data };
+
+    // A task always owns a color. Clearing it means assigning a fresh palette color.
+    if (validation.data.color === null) {
+      updateData.color = getRandomTaskColor();
+    }
 
     // If project_id is explicitly set to null, we need to handle it specially
     if (validation.data.project_id === null) {

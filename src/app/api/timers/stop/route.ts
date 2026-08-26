@@ -1,65 +1,88 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
 import { getAuthenticatedRequestContext } from "@/lib/supabase/request";
-
-type ActiveTimerTask = {
-  title?: string | null;
-  project_id?: string | null;
-  estimated_hours?: number | null;
-  budget_cents?: number | null;
-  actual_hours?: number | null;
-  projects?: {
-    name?: string | null;
-    hourly_rate_cents?: number | null;
-  } | null;
-};
+import { createClient as createServiceClient } from "@/lib/supabase/service";
 
 export async function POST(request: NextRequest) {
   try {
-    const { supabase, user } = await getAuthenticatedRequestContext(request);
+    const { supabase: authenticatedSupabase, user } = await getAuthenticatedRequestContext(request);
 
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get active timer for current user with task info
-    // Don't select is_extra directly - handle it separately if column exists
-    const { data: activeTimer, error: fetchError } = await supabase
+    // Verify identity with the user's session, then use canonical service-role
+    // reads/writes scoped to that user. This avoids stale RLS snapshots shared
+    // by long-lived web and desktop sessions.
+    const supabase = createServiceClient({ noStore: true }) ?? authenticatedSupabase;
+
+    let requestedTimerId: string | null = null;
+    try {
+      const body = await request.json();
+      const timerId = body?.timerId ?? body?.timer_id;
+      requestedTimerId = typeof timerId === "string" && timerId.trim() ? timerId.trim() : null;
+    } catch {
+      // Older web/native clients send no body. Fall back to the latest active timer.
+    }
+
+    // Keep timer lookup independent from task/project visibility. This also
+    // matches the reliable lookup used by the active-timer endpoint.
+    let activeTimerQuery = supabase
       .from("task_timers")
-      .select(`
-        id,
-        task_id,
-        workspace_id,
-        started_at,
-        tasks(
-          title,
-          project_id,
-          estimated_hours,
-          budget_cents,
-          actual_hours,
-          projects(
-            name,
-            hourly_rate_cents
-          )
-        )
-      `)
+      .select("id, task_id, workspace_id, started_at")
       .eq("user_id", user.id)
-      .is("stopped_at", null)
-      .single();
+      .is("stopped_at", null);
+
+    if (requestedTimerId) {
+      activeTimerQuery = activeTimerQuery.eq("id", requestedTimerId);
+    } else {
+      activeTimerQuery = activeTimerQuery
+        .order("started_at", { ascending: false })
+        .limit(1);
+    }
+
+    let { data: activeTimer, error: fetchError } = await activeTimerQuery.maybeSingle();
+
+    // A client can briefly hold the previous timer id while another tab starts
+    // a new timer. Preserve the endpoint's original "stop my active timer"
+    // semantics by falling back to the authenticated user's latest timer.
+    if (!fetchError && !activeTimer && requestedTimerId) {
+      const fallbackResult = await supabase
+        .from("task_timers")
+        .select("id, task_id, workspace_id, started_at")
+        .eq("user_id", user.id)
+        .is("stopped_at", null)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      activeTimer = fallbackResult.data;
+      fetchError = fallbackResult.error;
+
+      if (activeTimer) {
+        console.info("[timers/stop] Recovered from a stale timer id", {
+          userIdSuffix: user.id.slice(-8),
+          requestedTimerIdSuffix: requestedTimerId.slice(-8),
+          activeTimerIdSuffix: activeTimer.id.slice(-8),
+        });
+      }
+    }
 
     if (fetchError) {
-      if (fetchError.code === "PGRST116") {
-        // No active timer found
-        return NextResponse.json({ success: false, error: "No active timer found" }, { status: 404 });
-      }
       console.error("Error fetching active timer:", fetchError);
       return NextResponse.json({ success: false, error: "Failed to fetch active timer" }, { status: 500 });
     }
 
-    const task = activeTimer.tasks as ActiveTimerTask | null;
-    const taskTitle = task?.title || "Neznáma úloha";
-    const projectId = task?.project_id;
-    const projectName = task?.projects?.name || "";
+    if (!activeTimer) {
+      // Stopping is idempotent. Another client may have stopped the same
+      // timer milliseconds earlier; returning success lets older desktop
+      // clients clear their local running state instead of getting stuck.
+      return NextResponse.json({
+        success: true,
+        message: "Timer was already stopped",
+        data: { duration: 0, hours: 0 },
+      });
+    }
     
     // Calculate duration
     const startedAt = new Date(activeTimer.started_at);
@@ -93,7 +116,7 @@ export async function POST(request: NextRequest) {
     // Get task details for hourly rate calculation
     const { data: taskDetails, error: taskError } = await supabase
       .from("tasks")
-      .select("project_id, estimated_hours, budget_cents, actual_hours, hourly_rate_cents")
+      .select("title, project_id, estimated_hours, budget_cents, actual_hours, hourly_rate_cents")
       .eq("id", activeTimer.task_id)
       .eq("workspace_id", activeTimer.workspace_id)
       .single();
@@ -103,11 +126,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Failed to fetch task details" }, { status: 500 });
     }
 
+    const taskTitle = taskDetails.title || "Neznáma úloha";
+    const projectId = taskDetails.project_id;
+    let projectName = "";
+
     // Resolve hourly rate (similar logic to time entry endpoint)
     let hourlyRate = 0;
     let rateSource = "fallback";
 
     if (taskDetails.project_id) {
+      const { data: project } = await supabase
+        .from("projects")
+        .select("name, hourly_rate_cents")
+        .eq("id", taskDetails.project_id)
+        .maybeSingle();
+      projectName = project?.name || "";
+
       // Priority 1: Check project_members.hourly_rate
       const { data: projectMember } = await supabase
         .from("project_members")
@@ -119,35 +153,27 @@ export async function POST(request: NextRequest) {
       if (projectMember?.hourly_rate != null) {
         hourlyRate = Number(projectMember.hourly_rate);
         rateSource = "project_member";
-      } else {
+      } else if (project?.hourly_rate_cents != null) {
         // Priority 2: Check projects.hourly_rate_cents
-        const { data: project } = await supabase
-          .from("projects")
-          .select("hourly_rate_cents")
-          .eq("id", taskDetails.project_id)
-          .maybeSingle();
+        hourlyRate = Number(project.hourly_rate_cents) / 100;
+        rateSource = "project";
+      } else {
+        // Priority 3: Check rates table
+        const today = new Date().toISOString().split("T")[0];
+        const { data: rates } = await supabase
+          .from("rates")
+          .select("id, name, hourly_rate, user_id, project_id, valid_from, valid_to, is_default")
+          .or(`user_id.eq.${user.id},project_id.eq.${taskDetails.project_id}`)
+          .lte("valid_from", today)
+          .or(`valid_to.is.null,valid_to.gte.${today}`)
+          .order("is_default", { ascending: true })
+          .order("valid_from", { ascending: false });
 
-        if (project?.hourly_rate_cents != null) {
-          hourlyRate = Number(project.hourly_rate_cents) / 100;
-          rateSource = "project";
-        } else {
-          // Priority 3: Check rates table
-          const today = new Date().toISOString().split("T")[0];
-          const { data: rates } = await supabase
-            .from("rates")
-            .select("id, name, hourly_rate, user_id, project_id, valid_from, valid_to, is_default")
-            .or(`user_id.eq.${user.id},project_id.eq.${taskDetails.project_id}`)
-            .lte("valid_from", today)
-            .or(`valid_to.is.null,valid_to.gte.${today}`)
-            .order("is_default", { ascending: true })
-            .order("valid_from", { ascending: false });
-
-          if (rates && rates.length > 0) {
-            const userRate = rates.find((r) => r.user_id === user.id);
-            const rate = userRate || rates[0];
-            hourlyRate = Number(rate.hourly_rate);
-            rateSource = "rates_table";
-          }
+        if (rates && rates.length > 0) {
+          const userRate = rates.find((r) => r.user_id === user.id);
+          const rate = userRate || rates[0];
+          hourlyRate = Number(rate.hourly_rate);
+          rateSource = "rates_table";
         }
       }
     } else {

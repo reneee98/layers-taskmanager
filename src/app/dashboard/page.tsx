@@ -80,7 +80,7 @@ import {
 import { filterTasksByTab, getTaskCountsByTab, DashboardTabType } from "@/lib/dashboard-filters";
 import { cn, stripHtml, truncateTaskTitle } from "@/lib/utils";
 import { getTaskStatusLabel } from "@/lib/task-status";
-import { normalizeTaskColor, taskColorToRgba } from "@/lib/task-colors";
+import { resolveTaskColor, taskColorToRgba } from "@/lib/task-colors";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { PrioritySelect } from "@/components/tasks/PrioritySelect";
 import { toast } from "@/hooks/use-toast";
@@ -1654,7 +1654,7 @@ export default function DashboardPage() {
                                   const StatusIcon = statusInfo.icon;
                                   const PriorityIcon = priorityInfo.icon;
                                   const deadlineStatus = getDeadlineStatus(task.due_date);
-                                  const taskColor = normalizeTaskColor(task.color);
+                                  const taskColor = resolveTaskColor(task);
                                   const rowStyle = taskColor
                                     ? {
                                         boxShadow: `inset 3px 0 0 ${taskColor}`,
@@ -2388,7 +2388,7 @@ export default function DashboardPage() {
                                 // Check if dark mode is active
                                 const isDarkMode =
                                   document.documentElement.classList.contains("dark");
-                                const taskColor = normalizeTaskColor(event.resource?.color);
+                                const taskColor = resolveTaskColor(event.resource);
 
                                 if (taskColor) {
                                   return {

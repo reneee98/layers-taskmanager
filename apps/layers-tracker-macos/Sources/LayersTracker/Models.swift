@@ -81,6 +81,10 @@ struct StopTimerResponse: Decodable {
     let hours: Double?
 }
 
+struct StopTimerRequest: Encodable {
+    let timerId: String
+}
+
 struct TimerNoteSuggestion: Decodable, Identifiable, Equatable {
     let value: String
     let count: Int

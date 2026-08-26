@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedRequestContext } from "@/lib/supabase/request";
+import { createClient as createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
 
@@ -7,11 +8,16 @@ const NO_STORE_HEADERS = { "Cache-Control": "private, no-store" };
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabase, user } = await getAuthenticatedRequestContext(request);
+    const { supabase: authenticatedSupabase, user } = await getAuthenticatedRequestContext(request);
 
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
+
+    // RLS can expose a stale timer snapshot for long-lived bearer sessions.
+    // Authentication is still verified above; service access is scoped below
+    // to the authenticated user's id.
+    const supabase = createServiceClient({ noStore: true }) ?? authenticatedSupabase;
 
     // Get active timer for current user
     // First get timer without joins to avoid RLS issues

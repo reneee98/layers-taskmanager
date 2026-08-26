@@ -22,6 +22,7 @@ import pdfMake from "pdfmake/build/pdfmake";
 import { MetricStrip, type MetricStripItem } from "@/components/layout/metric-strip";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageState } from "@/components/layout/page-state";
+import { ProjectReportAnalytics } from "@/components/report/ProjectReportAnalytics";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -43,6 +44,7 @@ import {
   type TaskTimeEntriesForReport,
 } from "@/lib/report-time-entry-groups";
 import { getTaskStatusLabel } from "@/lib/task-status";
+import { resolveTaskColor, taskColorToRgba } from "@/lib/task-colors";
 import { cn } from "@/lib/utils";
 import type { Project, Task } from "@/types/database";
 
@@ -122,12 +124,7 @@ interface ReportPanelHeaderProps {
   meta?: ReactNode;
 }
 
-const ReportPanelHeader = ({
-  icon: Icon,
-  title,
-  description,
-  meta,
-}: ReportPanelHeaderProps) => (
+const ReportPanelHeader = ({ icon: Icon, title, description, meta }: ReportPanelHeaderProps) => (
   <header className="flex flex-col gap-3 border-b border-border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
     <div className="flex min-w-0 items-center gap-3">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40">
@@ -147,7 +144,7 @@ const TaskStatusBadge = ({ status }: { status: string }) => (
     variant="outline"
     className={cn(
       "whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium",
-      STATUS_TONES[status],
+      STATUS_TONES[status]
     )}
   >
     {getTaskStatusLabel(status)}
@@ -191,10 +188,7 @@ export default function ProjectReportPage() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [taskIdsHideHoursInPdf, setTaskIdsHideHoursInPdf] = useState<Record<string, boolean>>({});
   const { hasPermission: canViewPrices } = usePermission("financial", "view_prices");
-  const { hasPermission: canViewHourlyRates } = usePermission(
-    "financial",
-    "view_hourly_rates",
-  );
+  const { hasPermission: canViewHourlyRates } = usePermission("financial", "view_hourly_rates");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -225,9 +219,7 @@ export default function ProjectReportPage() {
           const projectTasks: Task[] = tasksResult.data || [];
 
           filteredTasks = onlyDone
-            ? projectTasks.filter(
-                (task) => task.status === "done" || task.status === "invoiced"
-              )
+            ? projectTasks.filter((task) => task.status === "done" || task.status === "invoiced")
             : projectTasks;
 
           if (selectedTaskIds) {
@@ -247,7 +239,7 @@ export default function ProjectReportPage() {
               taskTitle: task.title,
               timeEntries: result.success ? result.data : [],
             };
-          }),
+          })
         );
 
         setTimeEntries(timeEntriesData);
@@ -287,11 +279,33 @@ export default function ProjectReportPage() {
   const reportCurrency = normalizeCurrency(project.currency);
   const formatMoney = (value: number) => formatCurrency(value, reportCurrency);
   const totalHours = tasks.reduce((sum, task) => sum + (task.actual_hours || 0), 0);
+  const totalEstimatedHours = tasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0);
   const totalPrice = tasks.reduce((sum, task) => sum + getTaskPrice(task), 0);
+  const completedTaskCount = tasks.filter(
+    (task) => task.status === "done" || task.status === "invoiced"
+  ).length;
+  const activeDayCount = new Set(
+    timeEntries.flatMap(({ timeEntries: entries }) =>
+      entries.map((entry) => entry.date?.slice(0, 10)).filter(Boolean)
+    )
+  ).size;
+  const averageHoursPerActiveDay = activeDayCount > 0 ? totalHours / activeDayCount : 0;
+  const estimateUsagePercent =
+    totalEstimatedHours > 0 ? Math.round((totalHours / totalEstimatedHours) * 100) : 0;
+  const reportTaskChartData = tasks
+    .map((task) => ({
+      title: task.title,
+      color: resolveTaskColor(task) || PDF_COLORS.brand,
+      actualHours: task.actual_hours || 0,
+      estimatedHours: task.estimated_hours || 0,
+    }))
+    .filter((task) => task.actualHours > 0 || task.estimatedHours > 0)
+    .sort((a, b) => b.actualHours - a.actualHours)
+    .slice(0, 7);
   const timeEntryGroups = groupReportTimeEntriesByDescription(timeEntries);
   const totalEntryCount = timeEntries.reduce(
     (sum, taskEntries) => sum + taskEntries.timeEntries.length,
-    0,
+    0
   );
   const hasTimeEntries = totalEntryCount > 0;
   const generatedAt = new Date();
@@ -300,13 +314,16 @@ export default function ProjectReportPage() {
     {
       label: "Vybrané úlohy",
       value: tasks.length,
-      description: "Rozsah reportu",
+      description: `${completedTaskCount} dokončených`,
       icon: ListChecks,
     },
     {
       label: "Odpracovaný čas",
       value: formatHours(totalHours),
-      description: `${totalEntryCount} časových záznamov`,
+      description:
+        totalEstimatedHours > 0
+          ? `${estimateUsagePercent} % z odhadu`
+          : `${totalEntryCount} časových záznamov`,
       icon: Clock3,
     },
     {
@@ -336,14 +353,12 @@ export default function ProjectReportPage() {
       const filename = `${safeName}-report.pdf`;
       const visibleTasksInPdf = tasks.filter((task) => !taskIdsHideHoursInPdf[task.id]);
       const visibleTimeEntriesInPdf = timeEntries.filter(
-        ({ taskId }) => !taskIdsHideHoursInPdf[taskId],
+        ({ taskId }) => !taskIdsHideHoursInPdf[taskId]
       );
-      const timeEntryGroupsInPdf = groupReportTimeEntriesByDescription(
-        visibleTimeEntriesInPdf,
-      );
+      const timeEntryGroupsInPdf = groupReportTimeEntriesByDescription(visibleTimeEntriesInPdf);
       const pdfTotalHours = visibleTasksInPdf.reduce(
         (sum, task) => sum + (task.actual_hours || 0),
-        0,
+        0
       );
       const pdfContent: PdfContent[] = [];
 
@@ -394,7 +409,7 @@ export default function ProjectReportPage() {
           ],
           style: "reportMeta",
           margin: [0, 5, 0, 18],
-        },
+        }
       );
 
       if (showSummary) {
@@ -450,6 +465,122 @@ export default function ProjectReportPage() {
           },
           margin: [0, 0, 0, 2],
         });
+
+        const performanceMetrics = [
+          {
+            label: "DOKONČENIE",
+            value:
+              tasks.length > 0
+                ? `${Math.round((completedTaskCount / tasks.length) * 100)} %`
+                : "0 %",
+            description: `${completedTaskCount} z ${tasks.length} úloh`,
+          },
+          {
+            label: "TEMPO PRÁCE",
+            value: formatHours(averageHoursPerActiveDay),
+            description: `${activeDayCount} aktívnych dní`,
+          },
+          {
+            label: "ČERPANIE ODHADU",
+            value: totalEstimatedHours > 0 ? `${estimateUsagePercent} %` : "Bez odhadu",
+            description:
+              totalEstimatedHours > 0
+                ? `${formatHours(totalHours)} / ${formatHours(totalEstimatedHours)}`
+                : "Doplňte odhady úloh",
+          },
+        ];
+
+        pdfContent.push(createPdfSectionHeader("Prehľad výkonu", "Manažérsky súhrn"), {
+          table: {
+            widths: performanceMetrics.map(() => "*"),
+            body: [
+              performanceMetrics.map((metric) => ({
+                stack: [
+                  { text: metric.label, style: "metricLabel" },
+                  { text: metric.value, style: "performanceValue" },
+                  { text: metric.description, style: "metricDescription" },
+                ],
+                margin: [10, 8, 10, 8],
+              })),
+            ],
+          },
+          layout: {
+            hLineWidth: () => 0.6,
+            vLineWidth: () => 0.6,
+            hLineColor: () => PDF_COLORS.border,
+            vLineColor: () => PDF_COLORS.border,
+            fillColor: () => PDF_COLORS.white,
+            paddingLeft: () => 0,
+            paddingRight: () => 0,
+            paddingTop: () => 0,
+            paddingBottom: () => 0,
+          },
+        });
+
+        if (reportTaskChartData.length > 0) {
+          const largestTaskScale = Math.max(
+            ...reportTaskChartData.flatMap((task) => [task.actualHours, task.estimatedHours]),
+            1
+          );
+
+          pdfContent.push(createPdfSectionHeader("Čas podľa úloh", "Skutočnosť / odhad"), {
+            stack: reportTaskChartData.map((task) => ({
+              stack: [
+                {
+                  columns: [
+                    { text: task.title, style: "chartLabel", width: "*" },
+                    {
+                      text:
+                        task.estimatedHours > 0
+                          ? `${formatHours(task.actualHours)} / ${formatHours(task.estimatedHours)}`
+                          : formatHours(task.actualHours),
+                      style: "chartValue",
+                      width: 92,
+                      alignment: "right",
+                    },
+                  ],
+                  margin: [0, 0, 0, 4],
+                },
+                {
+                  canvas: [
+                    {
+                      type: "rect",
+                      x: 0,
+                      y: 0,
+                      w: 531,
+                      h: 5,
+                      r: 2.5,
+                      color: PDF_COLORS.panel,
+                    },
+                    ...(task.estimatedHours > 0
+                      ? [
+                          {
+                            type: "rect",
+                            x: 0,
+                            y: 0,
+                            w: Math.max(2, (task.estimatedHours / largestTaskScale) * 531),
+                            h: 5,
+                            r: 2.5,
+                            color: PDF_COLORS.border,
+                          },
+                        ]
+                      : []),
+                    {
+                      type: "rect",
+                      x: 0,
+                      y: 0,
+                      w: Math.max(2, (task.actualHours / largestTaskScale) * 531),
+                      h: 5,
+                      r: 2.5,
+                      color: task.color,
+                    },
+                  ],
+                },
+              ],
+              margin: [0, 0, 0, 9],
+            })),
+          });
+        }
       }
 
       if (showTasksTable && tasks.length > 0) {
@@ -488,19 +619,16 @@ export default function ProjectReportPage() {
           return row;
         });
 
-        pdfContent.push(
-          createPdfSectionHeader("Úlohy a časy", `${tasks.length} úloh`),
-          {
-            table: {
-              headerRows: 1,
-              widths: taskWidths,
-              body: [taskHeader, ...taskRows],
-              dontBreakRows: true,
-              keepWithHeaderRows: 1,
-            },
-            layout: createPdfTableLayout(),
+        pdfContent.push(createPdfSectionHeader("Úlohy a časy", `${tasks.length} úloh`), {
+          table: {
+            headerRows: 1,
+            widths: taskWidths,
+            body: [taskHeader, ...taskRows],
+            dontBreakRows: true,
+            keepWithHeaderRows: 1,
           },
-        );
+          layout: createPdfTableLayout(),
+        });
       }
 
       if (showTimeEntries && timeEntryGroupsInPdf.length > 0) {
@@ -514,7 +642,7 @@ export default function ProjectReportPage() {
         pdfContent.push(
           createPdfSectionHeader(
             "Práca podľa poznámky",
-            `${timeEntryGroupsInPdf.length} typov práce`,
+            `${timeEntryGroupsInPdf.length} typov práce`
           ),
           {
             table: {
@@ -533,13 +661,13 @@ export default function ProjectReportPage() {
               keepWithHeaderRows: 1,
             },
             layout: createPdfTableLayout(),
-          },
+          }
         );
       }
 
       if (showTimeEntries && visibleTimeEntriesInPdf.some((item) => item.timeEntries.length > 0)) {
         pdfContent.push(
-          createPdfSectionHeader("Detailné časové záznamy", `${totalEntryCount} záznamov`),
+          createPdfSectionHeader("Detailné časové záznamy", `${totalEntryCount} záznamov`)
         );
 
         visibleTimeEntriesInPdf
@@ -681,6 +809,21 @@ export default function ProjectReportPage() {
             fontSize: 6.5,
             color: PDF_COLORS.subtle,
           },
+          performanceValue: {
+            fontSize: 12,
+            bold: true,
+            color: PDF_COLORS.brand,
+            margin: [0, 3, 0, 2],
+          },
+          chartLabel: {
+            fontSize: 7.5,
+            bold: true,
+            color: PDF_COLORS.ink,
+          },
+          chartValue: {
+            fontSize: 7,
+            color: PDF_COLORS.muted,
+          },
           sectionTitle: {
             fontSize: 11,
             bold: true,
@@ -748,7 +891,7 @@ export default function ProjectReportPage() {
         eyebrow={`Projektový report • ${format(generatedAt, "d. MMMM yyyy", { locale: sk })}`}
         icon={BarChart3}
         title={project.name}
-        description="Čistý prehľad vybraných úloh, odpracovaného času a typov práce."
+        description="Prehľad výkonu projektu, odpracovaného času, odhadov a rozloženia práce."
         meta={
           <div className="flex flex-wrap items-center gap-1.5">
             {project.code && (
@@ -781,7 +924,12 @@ export default function ProjectReportPage() {
         }
       />
 
-      {showSummary && <MetricStrip items={metricItems} />}
+      {showSummary && (
+        <>
+          <MetricStrip items={metricItems} />
+          <ProjectReportAnalytics tasks={tasks} timeEntries={timeEntries} />
+        </>
+      )}
 
       {showTasksTable && tasks.length > 0 && (
         <section className="surface-panel overflow-hidden">
@@ -808,11 +956,34 @@ export default function ProjectReportPage() {
             <TableBody>
               {tasks.map((task) => {
                 const hideHours = !!taskIdsHideHoursInPdf[task.id];
+                const taskColor = resolveTaskColor(task);
 
                 return (
-                  <TableRow key={task.id}>
+                  <TableRow
+                    key={task.id}
+                    style={
+                      taskColor
+                        ? {
+                            boxShadow: `inset 3px 0 0 ${taskColor}`,
+                            backgroundImage: `linear-gradient(90deg, ${taskColorToRgba(
+                              taskColor,
+                              0.07
+                            )} 0, transparent 180px)`,
+                          }
+                        : undefined
+                    }
+                  >
                     <TableCell>
-                      <div className="font-medium text-foreground">{task.title}</div>
+                      <div className="flex items-center gap-2 font-medium text-foreground">
+                        {taskColor && (
+                          <span
+                            aria-hidden="true"
+                            className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/5"
+                            style={{ backgroundColor: taskColor }}
+                          />
+                        )}
+                        <span>{task.title}</span>
+                      </div>
                       <div className="mt-0.5 text-[11px] text-muted-foreground">
                         {task.estimated_hours
                           ? `Odhad ${formatHours(task.estimated_hours)}`
@@ -920,7 +1091,9 @@ export default function ProjectReportPage() {
                 <div key={taskId}>
                   <div className="flex items-center justify-between gap-4 bg-muted/15 px-4 py-3">
                     <div className="min-w-0">
-                      <h3 className="truncate text-xs font-semibold text-foreground">{taskTitle}</h3>
+                      <h3 className="truncate text-xs font-semibold text-foreground">
+                        {taskTitle}
+                      </h3>
                       <p className="mt-0.5 text-[10px] text-muted-foreground">
                         {entries.length} {entries.length === 1 ? "záznam" : "záznamov"}
                       </p>

@@ -120,7 +120,7 @@ export const ProjectReportGenerator = ({ project, tasks }: ProjectReportGenerato
                 htmlFor="showSummary"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
               >
-                Zobraziť summary karty
+                Zobraziť súhrn a grafy
               </Label>
             </div>
 

@@ -14,12 +14,17 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Plus, ChevronDown, Percent } from "lucide-react";
+import { Loader2, Plus, ChevronDown, Percent, Shuffle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/usePermissions";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
 import { formatCurrency } from "@/lib/format";
-import { TASK_COLOR_PALETTE, normalizeTaskColor } from "@/lib/task-colors";
+import {
+  TASK_COLOR_PALETTE,
+  getRandomTaskColor,
+  normalizeTaskColor,
+  resolveTaskColor,
+} from "@/lib/task-colors";
 import { resolveProjectColor } from "@/lib/project-colors";
 import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
 import { SUPPORTED_CURRENCIES, getCurrencySymbol, normalizeCurrency } from "@/lib/currency";
@@ -46,57 +51,67 @@ interface TaskSettingsPanelProps {
   onTaskUpdate?: () => void;
 }
 
-export function TaskSettingsPanel({ 
-  taskId, 
-  task, 
+export function TaskSettingsPanel({
+  taskId,
+  task,
   projects = [],
-  onTaskUpdate 
+  onTaskUpdate,
 }: TaskSettingsPanelProps) {
-  const { hasPermission: canUpdateTasks } = usePermission('tasks', 'update');
-  
+  const { hasPermission: canUpdateTasks } = usePermission("tasks", "update");
+
   // Get clients instead of users for sales commission
-  const [clients, setClients] = useState<Array<{
-    id: string;
-    name: string;
-    email: string | null;
-  }>>([]);
+  const [clients, setClients] = useState<
+    Array<{
+      id: string;
+      name: string;
+      email: string | null;
+    }>
+  >([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingColor, setIsSavingColor] = useState(false);
-  
+
   // Form state
   const [title, setTitle] = useState(task?.title || "");
   const [projectId, setProjectId] = useState(task?.project_id || "none");
-  const [taskColor, setTaskColor] = useState<string | null>(normalizeTaskColor(task?.color) || null);
+  const [taskColor, setTaskColor] = useState<string | null>(resolveTaskColor(task));
   const [lastSavedTaskColor, setLastSavedTaskColor] = useState<string | null>(
-    normalizeTaskColor(task?.color) || null
+    resolveTaskColor(task)
   );
-  const [budget, setBudget] = useState(task?.budget_cents ? (task.budget_cents / 100).toString() : "");
+  const [budget, setBudget] = useState(
+    task?.budget_cents ? (task.budget_cents / 100).toString() : ""
+  );
   const [currency, setCurrency] = useState<"EUR" | "USD">(normalizeCurrency(task?.currency));
-  const [salesCommissionEnabled, setSalesCommissionEnabled] = useState(task?.sales_commission_enabled || false);
+  const [salesCommissionEnabled, setSalesCommissionEnabled] = useState(
+    task?.sales_commission_enabled || false
+  );
   const [salesCommissionUserId, setSalesCommissionUserId] = useState(
-    task?.sales_commission_user_id && task.sales_commission_user_id !== null 
-      ? task.sales_commission_user_id 
+    task?.sales_commission_user_id && task.sales_commission_user_id !== null
+      ? task.sales_commission_user_id
       : "none"
   );
-  const [salesCommissionPercent, setSalesCommissionPercent] = useState(task?.sales_commission_percent?.toString() || "10");
-  
+  const [salesCommissionPercent, setSalesCommissionPercent] = useState(
+    task?.sales_commission_percent?.toString() || "10"
+  );
+
   // Assignees state
-  const [assignees, setAssignees] = useState<Array<{
-    id: string;
-    user_id: string;
-    hourly_rate_cents: number | null;
-    user?: {
+  const [assignees, setAssignees] = useState<
+    Array<{
       id: string;
-      name: string;
-      email?: string;
-      role?: string;
-    };
-  }>>([]);
+      user_id: string;
+      hourly_rate_cents: number | null;
+      user?: {
+        id: string;
+        name: string;
+        email?: string;
+        role?: string;
+      };
+    }>
+  >([]);
   const [isLoadingAssignees, setIsLoadingAssignees] = useState(true);
-  
+
   // Finance data for calculating commission with extra
   const [financeData, setFinanceData] = useState<{
     budgetAmount: number;
@@ -108,7 +123,7 @@ export function TaskSettingsPanel({
     if (task) {
       setTitle(task.title || "");
       setProjectId(task.project_id || "none");
-      const normalizedColor = normalizeTaskColor(task.color) || null;
+      const normalizedColor = resolveTaskColor(task);
       setTaskColor(normalizedColor);
       setLastSavedTaskColor(normalizedColor);
       setBudget(task.budget_cents ? (task.budget_cents / 100).toString() : "");
@@ -133,15 +148,25 @@ export function TaskSettingsPanel({
         setSalesCommissionPercent(salesCommissionPercent || "10");
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task?.id, task?.title, task?.project_id, task?.color, task?.budget_cents, task?.currency, task?.sales_commission_enabled, task?.sales_commission_user_id, task?.sales_commission_percent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    task?.id,
+    task?.title,
+    task?.project_id,
+    task?.color,
+    task?.budget_cents,
+    task?.currency,
+    task?.sales_commission_enabled,
+    task?.sales_commission_user_id,
+    task?.sales_commission_percent,
+  ]);
 
   useEffect(() => {
     fetchAssignees();
     fetchClients();
     fetchFinanceData();
   }, [taskId]);
-  
+
   const fetchFinanceData = async () => {
     try {
       const response = await fetch(`/api/tasks/${taskId}/finance`);
@@ -149,7 +174,7 @@ export function TaskSettingsPanel({
       if (result.success && result.data) {
         const budgetAmount = result.data.budgetAmount || 0;
         const totalCost = result.data.totalCost || 0;
-        const extra = totalCost > budgetAmount ? (totalCost - budgetAmount) : 0;
+        const extra = totalCost > budgetAmount ? totalCost - budgetAmount : 0;
         setFinanceData({
           budgetAmount,
           totalCost,
@@ -160,7 +185,7 @@ export function TaskSettingsPanel({
       console.error("Failed to fetch finance data:", error);
     }
   };
-  
+
   const fetchClients = async () => {
     try {
       setIsLoadingClients(true);
@@ -250,7 +275,7 @@ export function TaskSettingsPanel({
       return;
     }
 
-    const normalizedColor = normalizeTaskColor(nextColor) || null;
+    const normalizedColor = normalizeTaskColor(nextColor) || getRandomTaskColor();
     setTaskColor(normalizedColor);
 
     if (normalizedColor === lastSavedTaskColor) {
@@ -311,7 +336,12 @@ export function TaskSettingsPanel({
       // Prepare sales_commission_user_id - convert "none" or empty string to null
       // Only set client ID if commission is enabled and a valid client is selected
       let commissionUserId: string | null = null;
-      if (salesCommissionEnabled && salesCommissionUserId && salesCommissionUserId !== "none" && salesCommissionUserId !== "") {
+      if (
+        salesCommissionEnabled &&
+        salesCommissionUserId &&
+        salesCommissionUserId !== "none" &&
+        salesCommissionUserId !== ""
+      ) {
         // Validate that it's a valid UUID format
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (uuidRegex.test(salesCommissionUserId)) {
@@ -388,7 +418,7 @@ export function TaskSettingsPanel({
     if (!canUpdateTasks) return;
 
     const rateCents = rate ? Math.round(parseFloat(rate) * 100) : null;
-    
+
     try {
       const response = await fetch(`/api/tasks/${taskId}/assignees/${assigneeId}`, {
         method: "PATCH",
@@ -435,14 +465,10 @@ export function TaskSettingsPanel({
     return colors[index];
   };
 
-  const salesPerson = clients.find(c => c.id === salesCommissionUserId);
+  const salesPerson = clients.find((c) => c.id === salesCommissionUserId);
 
   if (!taskId) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        Chýba ID úlohy
-      </div>
-    );
+    return <div className="text-center py-12 text-muted-foreground">Chýba ID úlohy</div>;
   }
 
   return (
@@ -457,7 +483,10 @@ export function TaskSettingsPanel({
         <CardContent className="pt-[30px] px-[25px] pb-[25px]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="title" className="text-[14px] font-medium text-foreground dark:text-foreground">
+              <Label
+                htmlFor="title"
+                className="text-[14px] font-medium text-foreground dark:text-foreground"
+              >
                 Názov úlohy
               </Label>
               <Input
@@ -472,7 +501,10 @@ export function TaskSettingsPanel({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="project" className="text-[14px] font-medium text-foreground dark:text-foreground">
+              <Label
+                htmlFor="project"
+                className="text-[14px] font-medium text-foreground dark:text-foreground"
+              >
                 Projekt
               </Label>
               <Select
@@ -497,15 +529,20 @@ export function TaskSettingsPanel({
                           className="h-2.5 w-2.5 shrink-0 rounded-full opacity-70"
                           style={{ backgroundColor: resolveProjectColor(project) || undefined }}
                         />
-                        <span>{project.code ? `${project.code} - ${project.name}` : project.name}</span>
+                        <span>
+                          {project.code ? `${project.code} - ${project.name}` : project.name}
+                        </span>
                       </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
-                </Select>
-              </div>
+              </Select>
+            </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="currency" className="text-[14px] font-medium text-foreground dark:text-foreground">
+              <Label
+                htmlFor="currency"
+                className="text-[14px] font-medium text-foreground dark:text-foreground"
+              >
                 Mena
               </Label>
               <Select
@@ -537,11 +574,12 @@ export function TaskSettingsPanel({
                   size="sm"
                   className="h-7 px-2 text-xs text-muted-foreground"
                   onClick={() => {
-                    void handleSaveTaskColor(null);
+                    void handleSaveTaskColor(getRandomTaskColor());
                   }}
                   disabled={!canUpdateTasks || isLoading || isSavingColor}
                 >
-                  Bez farby
+                  <Shuffle aria-hidden="true" className="mr-1 h-3 w-3" />
+                  Náhodná
                 </Button>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -598,7 +636,10 @@ export function TaskSettingsPanel({
         <CardContent className="pt-[30px] px-[25px] pb-[25px]">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2 w-full md:w-[309px]">
-              <Label htmlFor="budget" className="text-[14px] font-medium text-foreground dark:text-foreground">
+              <Label
+                htmlFor="budget"
+                className="text-[14px] font-medium text-foreground dark:text-foreground"
+              >
                 Budget ({getCurrencySymbol(currency)})
               </Label>
               <Input
@@ -641,7 +682,10 @@ export function TaskSettingsPanel({
               {salesCommissionEnabled && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
                   <div className="flex flex-col gap-2">
-                    <Label htmlFor="salesPerson" className="text-[14px] font-medium text-foreground dark:text-foreground">
+                    <Label
+                      htmlFor="salesPerson"
+                      className="text-[14px] font-medium text-foreground dark:text-foreground"
+                    >
                       Obchodník
                     </Label>
                     <Select
@@ -656,15 +700,17 @@ export function TaskSettingsPanel({
                     >
                       <SelectTrigger className="bg-muted dark:bg-muted border-0 h-9 rounded-[8px] text-[14px]">
                         <SelectValue placeholder="Vyberte obchodníka">
-                          {salesCommissionUserId && salesCommissionUserId !== "none" 
-                            ? clients.find(c => c.id === salesCommissionUserId)?.name || "Neznámy"
+                          {salesCommissionUserId && salesCommissionUserId !== "none"
+                            ? clients.find((c) => c.id === salesCommissionUserId)?.name || "Neznámy"
                             : "Vyberte obchodníka"}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Žiadny</SelectItem>
                         {isLoadingClients ? (
-                          <SelectItem value="loading" disabled>Načítavam...</SelectItem>
+                          <SelectItem value="loading" disabled>
+                            Načítavam...
+                          </SelectItem>
                         ) : (
                           clients.map((client) => (
                             <SelectItem key={client.id} value={client.id}>
@@ -676,7 +722,10 @@ export function TaskSettingsPanel({
                     </Select>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Label htmlFor="commissionPercent" className="text-[14px] font-medium text-foreground dark:text-foreground">
+                    <Label
+                      htmlFor="commissionPercent"
+                      className="text-[14px] font-medium text-foreground dark:text-foreground"
+                    >
                       Podiel (%)
                     </Label>
                     <div className="relative">
@@ -699,7 +748,7 @@ export function TaskSettingsPanel({
                   </div>
                 </div>
               )}
-              
+
               {/* Display current settings summary */}
               {salesCommissionEnabled && (
                 <div className="mt-4 p-4 bg-muted/40 dark:bg-muted/30 border border-border dark:border-border rounded-[8px]">
@@ -708,23 +757,28 @@ export function TaskSettingsPanel({
                   </p>
                   <div className="flex flex-col gap-1 text-[11px] text-muted-foreground dark:text-muted-foreground">
                     <p>
-                      Obchodník: {salesCommissionUserId && salesCommissionUserId !== "none" 
-                        ? clients.find(c => c.id === salesCommissionUserId)?.name || "Neznámy"
+                      Obchodník:{" "}
+                      {salesCommissionUserId && salesCommissionUserId !== "none"
+                        ? clients.find((c) => c.id === salesCommissionUserId)?.name || "Neznámy"
                         : "Nie je vybraný"}
                     </p>
                     <p>
-                      Podiel: {salesCommissionPercent ? `${salesCommissionPercent}%` : "Nie je nastavený"}
+                      Podiel:{" "}
+                      {salesCommissionPercent ? `${salesCommissionPercent}%` : "Nie je nastavený"}
                     </p>
                     {financeData && (
                       <p>
-                        Provízia z celkovej sumy: {formatCurrency(
-                          (financeData.budgetAmount + financeData.extra) * (parseFloat(salesCommissionPercent || "0") / 100)
+                        Provízia z celkovej sumy:{" "}
+                        {formatCurrency(
+                          (financeData.budgetAmount + financeData.extra) *
+                            (parseFloat(salesCommissionPercent || "0") / 100)
                         )}
                       </p>
                     )}
                     {financeData && financeData.extra > 0 && (
                       <p className="text-[10px] text-muted-foreground dark:text-muted-foreground">
-                        (Budget: {formatCurrency(financeData.budgetAmount)} + Extra: {formatCurrency(financeData.extra)})
+                        (Budget: {formatCurrency(financeData.budgetAmount)} + Extra:{" "}
+                        {formatCurrency(financeData.extra)})
                       </p>
                     )}
                     {financeData && financeData.extra === 0 && (
@@ -753,7 +807,10 @@ export function TaskSettingsPanel({
               className="bg-white dark:bg-card border border-border dark:border-border h-7 px-[10px] rounded-[8px]"
               onClick={() => {
                 // TODO: Open dialog to add assignee
-                toast({ title: "Info", description: "Funkcia pridania člena bude čoskoro dostupná" });
+                toast({
+                  title: "Info",
+                  description: "Funkcia pridania člena bude čoskoro dostupná",
+                });
               }}
             >
               <Plus className="h-4 w-4 mr-1.5" />
@@ -776,9 +833,13 @@ export function TaskSettingsPanel({
             <div className="flex flex-col">
               {assignees.map((assignee, index) => {
                 const user = assignee.user;
-                const color = user ? getAvatarColor(user.name) : { bg: "bg-gray-100", text: "text-gray-600" };
-                const hourlyRate = assignee.hourly_rate_cents ? (assignee.hourly_rate_cents / 100).toString() : "";
-                
+                const color = user
+                  ? getAvatarColor(user.name)
+                  : { bg: "bg-gray-100", text: "text-gray-600" };
+                const hourlyRate = assignee.hourly_rate_cents
+                  ? (assignee.hourly_rate_cents / 100).toString()
+                  : "";
+
                 return (
                   <div
                     key={assignee.id}
@@ -788,7 +849,9 @@ export function TaskSettingsPanel({
                   >
                     <div className="flex items-center gap-3">
                       <Avatar className={`${color.bg} ${color.text} size-8`}>
-                        <AvatarFallback className={`${color.bg} ${color.text} text-[12px] font-normal`}>
+                        <AvatarFallback
+                          className={`${color.bg} ${color.text} text-[12px] font-normal`}
+                        >
                           {user ? getInitials(user.name) : "?"}
                         </AvatarFallback>
                       </Avatar>
@@ -809,11 +872,18 @@ export function TaskSettingsPanel({
                         onChange={(e) => {
                           const newRate = e.target.value;
                           // Update local state immediately
-                          setAssignees(prev => prev.map(a => 
-                            a.id === assignee.id 
-                              ? { ...a, hourly_rate_cents: newRate ? Math.round(parseFloat(newRate) * 100) : null }
-                              : a
-                          ));
+                          setAssignees((prev) =>
+                            prev.map((a) =>
+                              a.id === assignee.id
+                                ? {
+                                    ...a,
+                                    hourly_rate_cents: newRate
+                                      ? Math.round(parseFloat(newRate) * 100)
+                                      : null,
+                                  }
+                                : a
+                            )
+                          );
                         }}
                         onBlur={(e) => {
                           handleUpdateAssigneeRate(assignee.id, e.target.value);

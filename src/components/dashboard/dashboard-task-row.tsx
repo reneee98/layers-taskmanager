@@ -36,6 +36,7 @@ import { formatCurrency, formatHours } from "@/lib/format";
 import { cn, stripHtml } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
+import { resolveTaskColor, taskColorToRgba } from "@/lib/task-colors";
 import { OPEN_TIMER_NOTE_EVENT } from "@/lib/timer-events";
 
 export interface DashboardTaskItem {
@@ -49,6 +50,7 @@ export interface DashboardTaskItem {
   actual_hours: number | null;
   budget_cents: number | null;
   currency?: string | null;
+  color?: string | null;
   project_id: string | null;
   assignees?: Array<{
     id: string;
@@ -356,6 +358,7 @@ export const DashboardTaskRow = ({
   const hasVisibleBudget = canViewPrices && budgetAmount > 0;
   const taskCurrency = normalizeCurrency(task.currency || task.project?.currency);
   const projectColor = resolveProjectColor(task.project);
+  const taskColor = resolveTaskColor(task);
   const hasActions = Boolean(onEdit || onDelete);
   const timeProgress = estimatedHours > 0 ? Math.min((actualHours / estimatedHours) * 100, 100) : 0;
   const timeStatusLabel =
@@ -422,11 +425,11 @@ export const DashboardTaskRow = ({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
       style={
-        projectColor
+        taskColor
           ? {
-              backgroundImage: `linear-gradient(90deg, ${projectColorToRgba(
-                projectColor,
-                0.025
+              backgroundImage: `linear-gradient(90deg, ${taskColorToRgba(
+                taskColor,
+                0.07
               )} 0, transparent 210px)`,
             }
           : undefined
@@ -442,11 +445,7 @@ export const DashboardTaskRow = ({
         aria-hidden="true"
         className="absolute inset-y-2 left-0 w-0.5 rounded-r-full opacity-80"
         style={{
-          backgroundColor: isTimerActive
-            ? "#10B981"
-            : projectColor
-              ? projectColorToRgba(projectColor, 0.45)
-              : undefined,
+          backgroundColor: isTimerActive ? "#10B981" : taskColor ? taskColor : undefined,
         }}
       />
       {draggable && (

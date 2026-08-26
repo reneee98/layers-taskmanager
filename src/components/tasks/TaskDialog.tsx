@@ -41,6 +41,7 @@ import {
   Plus,
   SlidersHorizontal,
   Sparkles,
+  Shuffle,
   UserRoundPlus,
   WalletCards,
   X,
@@ -48,7 +49,12 @@ import {
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useWorkspaceUsers } from "@/contexts/WorkspaceUsersContext";
-import { TASK_COLOR_PALETTE, normalizeTaskColor } from "@/lib/task-colors";
+import {
+  TASK_COLOR_PALETTE,
+  getRandomTaskColor,
+  normalizeTaskColor,
+  resolveTaskColor,
+} from "@/lib/task-colors";
 import { resolveProjectColor } from "@/lib/project-colors";
 import { cn } from "@/lib/utils";
 import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
@@ -99,7 +105,7 @@ export function TaskDialog({
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<Task["status"]>("todo");
   const [priority, setPriority] = useState<Task["priority"]>("medium");
-  const [taskColor, setTaskColor] = useState<string | null>(null);
+  const [taskColor, setTaskColor] = useState<string>(() => getRandomTaskColor());
   const [estimatedHours, setEstimatedHours] = useState("");
   const [budgetAmount, setBudgetAmount] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
@@ -164,7 +170,7 @@ export function TaskDialog({
     setDescription("");
     setStatus("todo");
     setPriority("medium");
-    setTaskColor(null);
+    setTaskColor(getRandomTaskColor());
     setEstimatedHours("");
     setBudgetAmount("");
     setHourlyRate("");
@@ -183,7 +189,7 @@ export function TaskDialog({
       setDescription(activeTask.description || "");
       setStatus(activeTask.status);
       setPriority(activeTask.priority);
-      setTaskColor(normalizeTaskColor(activeTask.color) || null);
+      setTaskColor(resolveTaskColor(activeTask) || getRandomTaskColor());
       setEstimatedHours(activeTask.estimated_hours?.toString() || "");
       // Use task's budget_cents (individual budget for this task)
       setBudgetAmount(activeTask.budget_cents ? (activeTask.budget_cents / 100).toString() : "");
@@ -345,11 +351,7 @@ export function TaskDialog({
         start_date: startDate || null,
       };
 
-      if (taskColor) {
-        payload.color = taskColor;
-      } else if (activeTask?.color) {
-        payload.color = null;
-      }
+      payload.color = taskColor;
 
       // Include project_id only if a project is selected
       if (effectiveSelectedProjectId) {
@@ -615,9 +617,6 @@ export function TaskDialog({
     </div>
   );
 
-  const selectedProject = projects.find((project) => project.id === effectiveSelectedProjectId);
-  const inheritedProjectColor = resolveProjectColor(selectedProject);
-
   const colorField = (
     <div className="space-y-2.5">
       <Label htmlFor="taskColor" className="text-xs font-semibold text-foreground">
@@ -626,20 +625,12 @@ export function TaskDialog({
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={() => setTaskColor(null)}
-          aria-label="Použiť farbu projektu"
-          aria-pressed={!taskColor}
-          className={cn(
-            "inline-flex h-7 items-center gap-1.5 rounded-lg border border-border bg-card px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-            !taskColor && "border-foreground/25 bg-muted text-foreground"
-          )}
+          onClick={() => setTaskColor(getRandomTaskColor())}
+          aria-label="Vybrať náhodnú farbu úlohy"
+          className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-border bg-card px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span
-            aria-hidden="true"
-            className="h-2.5 w-2.5 rounded-full border border-black/5 bg-muted-foreground/40"
-            style={{ backgroundColor: inheritedProjectColor || undefined }}
-          />
-          Projekt
+          <Shuffle aria-hidden="true" className="h-3 w-3" />
+          Náhodná
         </button>
         {TASK_COLOR_PALETTE.map((color) => (
           <button
@@ -663,15 +654,17 @@ export function TaskDialog({
           <input
             id="taskColor"
             type="color"
-            value={taskColor || TASK_COLOR_PALETTE[0]}
-            onChange={(event) => setTaskColor(normalizeTaskColor(event.target.value))}
+            value={taskColor}
+            onChange={(event) =>
+              setTaskColor(normalizeTaskColor(event.target.value) || getRandomTaskColor())
+            }
             className="absolute inset-0 cursor-pointer opacity-0"
             aria-label="Vlastná farba úlohy"
           />
         </label>
       </div>
       <p className="text-[11px] leading-4 text-muted-foreground">
-        Bez vlastnej farby úloha automaticky použije farbu svojho projektu.
+        Vyberte farbu alebo nechajte aplikáciu priradiť náhodnú. Farba sa uloží k úlohe.
       </p>
     </div>
   );

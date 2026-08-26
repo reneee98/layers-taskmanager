@@ -46,7 +46,7 @@ import { getTextPreview } from "@/lib/utils/html";
 import { getDeadlineStatus, getDeadlineDotClass } from "@/lib/deadline-utils";
 import { isProjectArchived } from "@/lib/project-utils";
 import { getTaskStatusLabel } from "@/lib/task-status";
-import { normalizeTaskColor, taskColorToRgba } from "@/lib/task-colors";
+import { resolveTaskColor, taskColorToRgba } from "@/lib/task-colors";
 import { resolveProjectColor } from "@/lib/project-colors";
 import type { Project } from "@/types/database";
 import { usePermission } from "@/hooks/usePermissions";
@@ -69,74 +69,84 @@ interface TaskRowProps {
 }
 
 const statusConfig = {
-  todo: { 
-    label: getTaskStatusLabel("todo"), 
-    icon: Circle, 
-    color: "bg-slate-100 text-slate-700 border-slate-200", 
-    iconColor: "text-slate-500" 
+  todo: {
+    label: getTaskStatusLabel("todo"),
+    icon: Circle,
+    color: "bg-slate-100 text-slate-700 border-slate-200",
+    iconColor: "text-slate-500",
   },
-  in_progress: { 
-    label: getTaskStatusLabel("in_progress"), 
-    icon: Play, 
-    color: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800", 
-    iconColor: "text-blue-500" 
+  in_progress: {
+    label: getTaskStatusLabel("in_progress"),
+    icon: Play,
+    color:
+      "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800",
+    iconColor: "text-blue-500",
   },
-  review: { 
-    label: getTaskStatusLabel("review"), 
-    icon: Eye, 
-    color: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800", 
-    iconColor: "text-amber-500" 
+  review: {
+    label: getTaskStatusLabel("review"),
+    icon: Eye,
+    color:
+      "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800",
+    iconColor: "text-amber-500",
   },
-  sent_to_client: { 
-    label: getTaskStatusLabel("sent_to_client"), 
-    icon: Send, 
-    color: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800", 
-    iconColor: "text-purple-500" 
+  sent_to_client: {
+    label: getTaskStatusLabel("sent_to_client"),
+    icon: Send,
+    color:
+      "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800",
+    iconColor: "text-purple-500",
   },
-  done: { 
-    label: getTaskStatusLabel("done"), 
-    icon: CheckCircle, 
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800", 
-    iconColor: "text-emerald-500" 
+  done: {
+    label: getTaskStatusLabel("done"),
+    icon: CheckCircle,
+    color:
+      "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800",
+    iconColor: "text-emerald-500",
   },
   invoiced: {
     label: getTaskStatusLabel("invoiced"),
     icon: ReceiptText,
-    color: "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800",
+    color:
+      "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800",
     iconColor: "text-teal-500",
   },
-  cancelled: { 
-    label: getTaskStatusLabel("cancelled"), 
-    icon: XCircle, 
-    color: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800", 
-    iconColor: "text-red-500" 
+  cancelled: {
+    label: getTaskStatusLabel("cancelled"),
+    icon: XCircle,
+    color:
+      "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800",
+    iconColor: "text-red-500",
   },
 };
 
 const priorityConfig = {
-  low: { 
-    label: "Low", 
-    icon: ArrowDown, 
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800", 
-    iconColor: "text-emerald-500" 
+  low: {
+    label: "Low",
+    icon: ArrowDown,
+    color:
+      "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800",
+    iconColor: "text-emerald-500",
   },
-  medium: { 
-    label: "Medium", 
-    icon: ArrowUp, 
-    color: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800", 
-    iconColor: "text-amber-500" 
+  medium: {
+    label: "Medium",
+    icon: ArrowUp,
+    color:
+      "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800",
+    iconColor: "text-amber-500",
   },
-  high: { 
-    label: "High", 
-    icon: ArrowUpRight, 
-    color: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800", 
-    iconColor: "text-orange-500" 
+  high: {
+    label: "High",
+    icon: ArrowUpRight,
+    color:
+      "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800",
+    iconColor: "text-orange-500",
   },
-  urgent: { 
-    label: "Urgent", 
-    icon: Flame, 
-    color: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800", 
-    iconColor: "text-red-500" 
+  urgent: {
+    label: "Urgent",
+    icon: Flame,
+    color:
+      "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800",
+    iconColor: "text-red-500",
   },
 };
 
@@ -149,12 +159,10 @@ function AssigneeCell({ task, onUpdate }: AssigneeCellProps) {
   const { users: workspaceUsers } = useWorkspaceUsers();
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  
+
   // Map workspace users to Profile format
   const users = useMemo<Profile[]>(() => {
-    return workspaceUsers
-      .filter(wu => wu.profiles)
-      .map(wu => wu.profiles as Profile);
+    return workspaceUsers.filter((wu) => wu.profiles).map((wu) => wu.profiles as Profile);
   }, [workspaceUsers]);
 
   const getInitials = (name?: string) => {
@@ -170,7 +178,7 @@ function AssigneeCell({ task, onUpdate }: AssigneeCellProps) {
   const handleAddAssignee = async (userId: string) => {
     if (userId === "none") return;
 
-    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
+    const currentAssigneeIds = (task.assignees || []).map((a) => a.user_id || a.id);
     if (currentAssigneeIds.includes(userId)) {
       return;
     }
@@ -207,8 +215,8 @@ function AssigneeCell({ task, onUpdate }: AssigneeCellProps) {
   };
 
   const handleRemoveAssignee = async (userId: string) => {
-    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
-    const newAssigneeIds = currentAssigneeIds.filter(id => id !== userId);
+    const currentAssigneeIds = (task.assignees || []).map((a) => a.user_id || a.id);
+    const newAssigneeIds = currentAssigneeIds.filter((id) => id !== userId);
 
     setIsLoading(true);
     try {
@@ -240,8 +248,8 @@ function AssigneeCell({ task, onUpdate }: AssigneeCellProps) {
     }
   };
 
-  const availableUsers = users.filter(user => {
-    const currentAssigneeIds = (task.assignees || []).map(a => a.user_id || a.id);
+  const availableUsers = users.filter((user) => {
+    const currentAssigneeIds = (task.assignees || []).map((a) => a.user_id || a.id);
     return !currentAssigneeIds.includes(user.id);
   });
 
@@ -252,13 +260,15 @@ function AssigneeCell({ task, onUpdate }: AssigneeCellProps) {
           {task.assignees.slice(0, 3).map((assignee) => {
             const assigneeId = assignee.user_id || assignee.id;
             return (
-              <div
-                key={assigneeId}
-                className="relative group/assignee"
-              >
+              <div key={assigneeId} className="relative group/assignee">
                 <Avatar className="h-6 w-6 border-2 border-background">
                   <AvatarFallback className="text-xs">
-                    {getInitials((assignee as any).display_name || (assignee as any).email || (assignee as any).user?.name || '?')}
+                    {getInitials(
+                      (assignee as any).display_name ||
+                        (assignee as any).email ||
+                        (assignee as any).user?.name ||
+                        "?"
+                    )}
                   </AvatarFallback>
                 </Avatar>
                 <Button
@@ -303,7 +313,8 @@ function AssigneeCell({ task, onUpdate }: AssigneeCellProps) {
             <DropdownMenuItem disabled>Všetci používatelia sú už priradení</DropdownMenuItem>
           ) : (
             availableUsers.map((user) => {
-              const userName = (user as any).name || (user as any).display_name || user.email || "Neznámy";
+              const userName =
+                (user as any).name || (user as any).display_name || user.email || "Neznámy";
               return (
                 <DropdownMenuItem
                   key={user.id}
@@ -311,9 +322,7 @@ function AssigneeCell({ task, onUpdate }: AssigneeCellProps) {
                   className="flex items-center gap-2"
                 >
                   <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-xs">
-                      {getInitials(userName)}
-                    </AvatarFallback>
+                    <AvatarFallback className="text-xs">{getInitials(userName)}</AvatarFallback>
                   </Avatar>
                   <span className="text-sm">{userName}</span>
                 </DropdownMenuItem>
@@ -340,7 +349,7 @@ export function TaskRow({
   onDragEnd,
   onTaskUpdated,
 }: TaskRowProps) {
-  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
+  const { hasPermission: canViewPrices } = usePermission("financial", "view_prices");
   const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -357,11 +366,12 @@ export function TaskRow({
       return;
     }
     // Ensure projectId is not empty - use task.project_id as fallback, then 'unknown'
-    const validProjectId = (projectId && projectId.trim() !== '') 
-      ? projectId 
-      : (task.project_id && task.project_id.trim() !== '') 
-        ? task.project_id 
-        : 'unknown';
+    const validProjectId =
+      projectId && projectId.trim() !== ""
+        ? projectId
+        : task.project_id && task.project_id.trim() !== ""
+          ? task.project_id
+          : "unknown";
     router.push(`/projects/${validProjectId}/tasks/${task.id}`);
   };
 
@@ -405,21 +415,20 @@ export function TaskRow({
   const deadlineStatus = getDeadlineStatus(task.due_date);
   const deadlineDotClass = getDeadlineDotClass(deadlineStatus);
   const isTaskInArchivedProject = isProjectArchived(project);
-  const showDeadlineDot = !!deadlineDotClass && 
-                          task.status !== "done" && 
-                          task.status !== "cancelled" && 
-                          !isTaskInArchivedProject;
-  const taskColor = normalizeTaskColor(task.color);
+  const showDeadlineDot =
+    !!deadlineDotClass &&
+    task.status !== "done" &&
+    task.status !== "cancelled" &&
+    !isTaskInArchivedProject;
+  const taskColor = resolveTaskColor(task);
   const projectColor = resolveProjectColor(task.project || project);
-  const rowAccentColor = taskColor || projectColor;
+  const rowAccentColor = taskColor;
   const rowStyle = rowAccentColor
     ? {
-        boxShadow: taskColor
-          ? `inset 3px 0 0 ${rowAccentColor}`
-          : `inset 2px 0 0 ${taskColorToRgba(rowAccentColor, 0.42)}`,
+        boxShadow: `inset 3px 0 0 ${rowAccentColor}`,
         backgroundImage: `linear-gradient(90deg, ${taskColorToRgba(
           rowAccentColor,
-          taskColor ? 0.08 : 0.025
+          0.08
         )} 0, transparent 180px)`,
       }
     : undefined;
@@ -455,9 +464,7 @@ export function TaskRow({
                 className="h-2 w-2 shrink-0 rounded-full opacity-70"
                 style={{ backgroundColor: projectColor || undefined }}
               />
-              <span className="font-bold text-muted-foreground">
-                {task.project.name}
-              </span>
+              <span className="font-bold text-muted-foreground">{task.project.name}</span>
               <span className="font-bold text-muted-foreground/50">•</span>
               {task.project.code && (
                 <span className="font-medium text-muted-foreground">{task.project.code}</span>
@@ -470,11 +477,15 @@ export function TaskRow({
               <span
                 className="h-2.5 w-2.5 shrink-0 rounded-full opacity-75 ring-1 ring-black/5"
                 style={{ backgroundColor: rowAccentColor }}
-                aria-label={`Farba úlohy alebo projektu ${rowAccentColor}`}
+                aria-label={`Farba úlohy ${rowAccentColor}`}
               />
             )}
-            <Link 
-              href={task.project_id ? `/projects/${task.project_id}/tasks/${task.id}` : `/tasks/${task.id}`}
+            <Link
+              href={
+                task.project_id
+                  ? `/projects/${task.project_id}/tasks/${task.id}`
+                  : `/tasks/${task.id}`
+              }
               className="font-bold text-sm leading-5 text-foreground hover:text-foreground/80 hover:underline inline-flex items-center gap-1 group/link"
               title={stripHtml(task.title)}
             >
@@ -509,13 +520,21 @@ export function TaskRow({
                 const config = statusConfig[task.status] || statusConfig.todo;
                 const IconComponent = config.icon;
                 return (
-                  <div className={cn(
-                    "cursor-pointer flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200",
-                    "text-xs font-medium whitespace-nowrap",
-                    config.color,
-                    "hover:opacity-80"
-                  )}>
-                    <IconComponent className={cn("h-3.5 w-3.5 flex-shrink-0", config.iconColor, task.status === "in_progress" && "animate-pulse")} />
+                  <div
+                    className={cn(
+                      "cursor-pointer flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200",
+                      "text-xs font-medium whitespace-nowrap",
+                      config.color,
+                      "hover:opacity-80"
+                    )}
+                  >
+                    <IconComponent
+                      className={cn(
+                        "h-3.5 w-3.5 flex-shrink-0",
+                        config.iconColor,
+                        task.status === "in_progress" && "animate-pulse"
+                      )}
+                    />
                     <span className="whitespace-nowrap">{config.label}</span>
                     <ChevronDown className="h-3 w-3 opacity-70 flex-shrink-0" />
                   </div>
@@ -532,9 +551,17 @@ export function TaskRow({
                   onClick={() => handleStatusChange(key as Task["status"])}
                   className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-accent transition-colors"
                 >
-                  <IconComponent className={cn("h-4 w-4", config.iconColor, key === 'in_progress' && "animate-pulse")} />
+                  <IconComponent
+                    className={cn(
+                      "h-4 w-4",
+                      config.iconColor,
+                      key === "in_progress" && "animate-pulse"
+                    )}
+                  />
                   <span className="font-medium">{config.label}</span>
-                  {task.status === key && <Check className="h-4 w-4 ml-auto text-muted-foreground" />}
+                  {task.status === key && (
+                    <Check className="h-4 w-4 ml-auto text-muted-foreground" />
+                  )}
                 </DropdownMenuItem>
               );
             })}
@@ -552,23 +579,19 @@ export function TaskRow({
         {(() => {
           const estimatedHours = task.estimated_hours || 0;
           const actualHours = task.actual_hours || 0;
-          
+
           // If budget (estimated_hours) is set, show it with clock icon
           if (estimatedHours > 0) {
             return (
               <div className="flex items-center gap-1.5 text-xs">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-foreground font-medium">
-                  {formatHours(actualHours)}
-                </span>
+                <span className="text-foreground font-medium">{formatHours(actualHours)}</span>
                 <span className="text-muted-foreground">/</span>
-                <span className="text-muted-foreground">
-                  {formatHours(estimatedHours)}
-                </span>
+                <span className="text-muted-foreground">{formatHours(estimatedHours)}</span>
               </div>
             );
           }
-          
+
           // If no budget, show nothing
           return <span className="text-xs text-muted-foreground italic">—</span>;
         })()}
@@ -580,27 +603,32 @@ export function TaskRow({
           {(() => {
             // Use project from props or from task.project
             const projectData = project || task.project;
-            
+
             // Priority 1: Check if budget matches estimated_hours * hourly_rate (auto-calculated)
             const hasEstimatedHours = task.estimated_hours && task.estimated_hours > 0;
-            const hasProjectRate = (projectData as any)?.hourly_rate_cents || projectData?.hourly_rate;
+            const hasProjectRate =
+              (projectData as any)?.hourly_rate_cents || projectData?.hourly_rate;
             const hasBudget = task.budget_cents && task.budget_cents > 0;
-            
+
             if (hasEstimatedHours && hasProjectRate && hasBudget && projectData) {
               // Try hourly_rate_cents first, then hourly_rate as fallback
-              const hourlyRateCents = (projectData as any).hourly_rate_cents || 
-                                     (projectData.hourly_rate ? projectData.hourly_rate * 100 : 0);
+              const hourlyRateCents =
+                (projectData as any).hourly_rate_cents ||
+                (projectData.hourly_rate ? projectData.hourly_rate * 100 : 0);
               const hourlyRate = hourlyRateCents / 100;
               const calculatedBudget = (task.estimated_hours || 0) * hourlyRate * 100; // Convert to cents
               // Allow small rounding differences (within 1 cent)
               const isMatch = Math.abs(calculatedBudget - (task.budget_cents || 0)) <= 1;
-              
+
               if (isMatch) {
                 // Budget is auto-calculated from estimated hours - show it
                 return (
                   <div className="flex items-center justify-end gap-1 text-xs font-medium">
                     <span className="text-emerald-600 dark:text-emerald-400">
-                      {formatCurrency((task.budget_cents || 0) / 100, normalizeCurrency(task.currency || (projectData as any)?.currency))}
+                      {formatCurrency(
+                        (task.budget_cents || 0) / 100,
+                        normalizeCurrency(task.currency || (projectData as any)?.currency)
+                      )}
                     </span>
                   </div>
                 );
@@ -612,25 +640,31 @@ export function TaskRow({
               return (
                 <div className="flex items-center justify-end gap-1 text-xs font-medium">
                   <span className="text-emerald-600 dark:text-emerald-400">
-                    {formatCurrency((task.budget_cents || 0) / 100, normalizeCurrency(task.currency || (projectData as any)?.currency))}
+                    {formatCurrency(
+                      (task.budget_cents || 0) / 100,
+                      normalizeCurrency(task.currency || (projectData as any)?.currency)
+                    )}
                   </span>
                   <span className="text-xs text-muted-foreground">(fixná)</span>
                 </div>
               );
             }
-            
+
             // Priority 3: If there's calculated price from time entries, show it
             if (task.calculated_price && task.calculated_price > 0) {
               return (
                 <div className="flex items-center justify-end gap-1 text-xs">
                   <span className="text-blue-600 dark:text-blue-400">
-                    {formatCurrency(task.calculated_price, normalizeCurrency(task.currency || (projectData as any)?.currency))}
+                    {formatCurrency(
+                      task.calculated_price,
+                      normalizeCurrency(task.currency || (projectData as any)?.currency)
+                    )}
                   </span>
                   <span className="text-xs text-muted-foreground">(čas)</span>
                 </div>
               );
             }
-            
+
             // No budget or time
             return <span className="text-muted-foreground">—</span>;
           })()}
@@ -671,13 +705,21 @@ export function TaskRow({
                 const config = priorityConfig[task.priority] || priorityConfig.low;
                 const IconComponent = config.icon;
                 return (
-                  <div className={cn(
-                    "cursor-pointer flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200",
-                    "text-xs font-medium whitespace-nowrap",
-                    config.color,
-                    "hover:opacity-80"
-                  )}>
-                    <IconComponent className={cn("h-3.5 w-3.5 flex-shrink-0", config.iconColor, task.priority === "urgent" && "animate-pulse")} />
+                  <div
+                    className={cn(
+                      "cursor-pointer flex items-center gap-1.5 px-2 py-1 h-7 rounded-md border transition-all duration-200",
+                      "text-xs font-medium whitespace-nowrap",
+                      config.color,
+                      "hover:opacity-80"
+                    )}
+                  >
+                    <IconComponent
+                      className={cn(
+                        "h-3.5 w-3.5 flex-shrink-0",
+                        config.iconColor,
+                        task.priority === "urgent" && "animate-pulse"
+                      )}
+                    />
                     <span className="whitespace-nowrap">{config.label}</span>
                     <ChevronDown className="h-3 w-3 opacity-70 flex-shrink-0" />
                   </div>
@@ -694,9 +736,13 @@ export function TaskRow({
                   onClick={() => handlePriorityChange(key as "low" | "medium" | "high" | "urgent")}
                   className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-accent transition-colors"
                 >
-                  <IconComponent className={cn("h-4 w-4", config.iconColor, key === 'urgent' && "animate-pulse")} />
+                  <IconComponent
+                    className={cn("h-4 w-4", config.iconColor, key === "urgent" && "animate-pulse")}
+                  />
                   <span className="font-medium">{config.label}</span>
-                  {task.priority === key && <Check className="h-4 w-4 ml-auto text-muted-foreground" />}
+                  {task.priority === key && (
+                    <Check className="h-4 w-4 ml-auto text-muted-foreground" />
+                  )}
                 </DropdownMenuItem>
               );
             })}

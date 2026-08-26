@@ -51,34 +51,89 @@ import { PageState } from "@/components/layout/page-state";
 import { TimerNotePopover } from "@/components/timer/TimerNotePopover";
 
 // Lazy load heavy components
-const TimePanel = dynamic(() => import("@/components/time/TimePanel").then(mod => ({ default: mod.TimePanel })), {
-  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
-});
+const TimePanel = dynamic(
+  () => import("@/components/time/TimePanel").then((mod) => ({ default: mod.TimePanel })),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    ),
+  }
+);
 
-const TaskTimeTab = dynamic(() => import("@/components/tasks/TaskTimeTab").then(mod => ({ default: mod.TaskTimeTab })), {
-  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
-});
+const TaskTimeTab = dynamic(
+  () => import("@/components/tasks/TaskTimeTab").then((mod) => ({ default: mod.TaskTimeTab })),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    ),
+  }
+);
 
-const TaskFinancePanel = dynamic(() => import("@/components/finance/TaskFinancePanel").then(mod => ({ default: mod.TaskFinancePanel })), {
-  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
-});
+const TaskFinancePanel = dynamic(
+  () =>
+    import("@/components/finance/TaskFinancePanel").then((mod) => ({
+      default: mod.TaskFinancePanel,
+    })),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    ),
+  }
+);
 
-const TaskSettingsPanel = dynamic(() => import("@/components/tasks/TaskSettingsPanel").then(mod => ({ default: mod.TaskSettingsPanel })), {
-  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
-});
+const TaskSettingsPanel = dynamic(
+  () =>
+    import("@/components/tasks/TaskSettingsPanel").then((mod) => ({
+      default: mod.TaskSettingsPanel,
+    })),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    ),
+  }
+);
 
-const ProjectStatusCard = dynamic(() => import("@/components/projects/ProjectStatusCard").then(mod => ({ default: mod.ProjectStatusCard })), {
-  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
-});
+const ProjectStatusCard = dynamic(
+  () =>
+    import("@/components/projects/ProjectStatusCard").then((mod) => ({
+      default: mod.ProjectStatusCard,
+    })),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    ),
+  }
+);
 
-const CommentsList = dynamic(() => import("@/components/comments/CommentsList").then(mod => ({ default: mod.CommentsList })), {
-  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
-});
+const CommentsList = dynamic(
+  () => import("@/components/comments/CommentsList").then((mod) => ({ default: mod.CommentsList })),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    ),
+  }
+);
 
-const TaskDescription = dynamic(() => import("@/components/tasks/TaskDescription").then(mod => ({ default: mod.TaskDescription })), {
-  loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
-  ssr: false,
-});
+const TaskDescription = dynamic(
+  () =>
+    import("@/components/tasks/TaskDescription").then((mod) => ({ default: mod.TaskDescription })),
+  {
+    loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
+    ssr: false,
+  }
+);
 
 // Status component for TaskDescription
 const TaskDescriptionStatus = ({ taskId }: { taskId: string }) => {
@@ -87,7 +142,10 @@ const TaskDescriptionStatus = ({ taskId }: { taskId: string }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleStatusChange = (newStatus: "idle" | "typing" | "saving" | "saved" | "error", text: string) => {
+    const handleStatusChange = (
+      newStatus: "idle" | "typing" | "saving" | "saved" | "error",
+      text: string
+    ) => {
       setStatus(newStatus);
       setStatusText(text);
       if (newStatus === "error") {
@@ -102,71 +160,131 @@ const TaskDescriptionStatus = ({ taskId }: { taskId: string }) => {
       handleStatusChange(e.detail.status, e.detail.text);
     };
 
-    window.addEventListener(`task-description-status-${taskId}` as any, handleCustomStatusChange as EventListener);
+    window.addEventListener(
+      `task-description-status-${taskId}` as any,
+      handleCustomStatusChange as EventListener
+    );
 
     return () => {
-      window.removeEventListener(`task-description-status-${taskId}` as any, handleCustomStatusChange as EventListener);
+      window.removeEventListener(
+        `task-description-status-${taskId}` as any,
+        handleCustomStatusChange as EventListener
+      );
     };
   }, [taskId]);
 
   if (status === "idle") return null;
 
-  const statusColor = status === "error" ? "text-red-500" : status === "saved" ? "text-green-500" : "text-muted-foreground";
+  const statusColor =
+    status === "error"
+      ? "text-red-500"
+      : status === "saved"
+        ? "text-green-500"
+        : "text-muted-foreground";
 
   return (
-    <div
-      className={`text-xs ${statusColor} flex items-center gap-1`}
-      title={error || undefined}
-    >
+    <div className={`text-xs ${statusColor} flex items-center gap-1`} title={error || undefined}>
       {statusText}
     </div>
   );
 };
 
-const MultiAssigneeSelect = dynamic(() => import("@/components/tasks/MultiAssigneeSelect").then(mod => ({ default: mod.MultiAssigneeSelect })), {
-  loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
-});
+const MultiAssigneeSelect = dynamic(
+  () =>
+    import("@/components/tasks/MultiAssigneeSelect").then((mod) => ({
+      default: mod.MultiAssigneeSelect,
+    })),
+  {
+    loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
+  }
+);
 
-const StatusSelect = dynamic(() => import("@/components/tasks/StatusSelect").then(mod => ({ default: mod.StatusSelect })), {
-  loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
-});
+const StatusSelect = dynamic(
+  () => import("@/components/tasks/StatusSelect").then((mod) => ({ default: mod.StatusSelect })),
+  {
+    loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
+  }
+);
 
-const PrioritySelect = dynamic(() => import("@/components/tasks/PrioritySelect").then(mod => ({ default: mod.PrioritySelect })), {
-  loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
-});
+const PrioritySelect = dynamic(
+  () =>
+    import("@/components/tasks/PrioritySelect").then((mod) => ({ default: mod.PrioritySelect })),
+  {
+    loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
+  }
+);
 
-const DateRangePicker = dynamic(() => import("@/components/ui/date-range-picker").then(mod => ({ default: mod.DateRangePicker })), {
-  loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
-  ssr: false,
-});
+const DateRangePicker = dynamic(
+  () =>
+    import("@/components/ui/date-range-picker").then((mod) => ({ default: mod.DateRangePicker })),
+  {
+    loading: () => <div className="h-10 bg-muted animate-pulse rounded"></div>,
+    ssr: false,
+  }
+);
 
-const GoogleDriveLinks = dynamic(() => import("@/components/tasks/GoogleDriveLinks").then(mod => ({ default: mod.GoogleDriveLinks })), {
-  loading: () => <div className="h-20 bg-muted animate-pulse rounded"></div>,
-});
+const GoogleDriveLinks = dynamic(
+  () =>
+    import("@/components/tasks/GoogleDriveLinks").then((mod) => ({
+      default: mod.GoogleDriveLinks,
+    })),
+  {
+    loading: () => <div className="h-20 bg-muted animate-pulse rounded"></div>,
+  }
+);
 
-const ProjectQuickLinksSection = dynamic(() => import("@/components/projects/ProjectQuickLinksSection").then(mod => ({ default: mod.ProjectQuickLinksSection })), {
-  loading: () => <div className="h-20 bg-muted animate-pulse rounded"></div>,
-});
+const ProjectQuickLinksSection = dynamic(
+  () =>
+    import("@/components/projects/ProjectQuickLinksSection").then((mod) => ({
+      default: mod.ProjectQuickLinksSection,
+    })),
+  {
+    loading: () => <div className="h-20 bg-muted animate-pulse rounded"></div>,
+  }
+);
 
-const TaskFilesGrid = dynamic(() => import("@/components/tasks/TaskFilesGrid").then(mod => ({ default: mod.TaskFilesGrid })), {
-  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>,
-});
+const TaskFilesGrid = dynamic(
+  () => import("@/components/tasks/TaskFilesGrid").then((mod) => ({ default: mod.TaskFilesGrid })),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    ),
+  }
+);
 
-const TaskChecklist = dynamic(() => import("@/components/tasks/TaskChecklist").then(mod => ({ default: mod.TaskChecklist })), {
-  loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
-});
+const TaskChecklist = dynamic(
+  () => import("@/components/tasks/TaskChecklist").then((mod) => ({ default: mod.TaskChecklist })),
+  {
+    loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
+  }
+);
 
-const TaskFiles = dynamic(() => import("@/components/tasks/TaskFiles").then(mod => ({ default: mod.TaskFiles })), {
-  loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
-});
+const TaskFiles = dynamic(
+  () => import("@/components/tasks/TaskFiles").then((mod) => ({ default: mod.TaskFiles })),
+  {
+    loading: () => <div className="h-32 bg-muted animate-pulse rounded"></div>,
+  }
+);
 
-const FileUploadHandler = dynamic(() => import("@/components/tasks/FileUploadHandler").then(mod => ({ default: mod.FileUploadHandler })), {
-  ssr: false,
-});
+const FileUploadHandler = dynamic(
+  () =>
+    import("@/components/tasks/FileUploadHandler").then((mod) => ({
+      default: mod.FileUploadHandler,
+    })),
+  {
+    ssr: false,
+  }
+);
 
-const TaskShareButton = dynamic(() => import("@/components/tasks/TaskShareButton").then(mod => ({ default: mod.TaskShareButton })), {
-  ssr: false,
-});
+const TaskShareButton = dynamic(
+  () =>
+    import("@/components/tasks/TaskShareButton").then((mod) => ({ default: mod.TaskShareButton })),
+  {
+    ssr: false,
+  }
+);
 
 import { toast } from "@/hooks/use-toast";
 import { formatHours, formatCurrency } from "@/lib/format";
@@ -174,6 +292,7 @@ import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import type { Task, TaskAssignee, Tag as TagType, TaskWatcher } from "@/types/database";
 import { cn } from "@/lib/utils";
+import { resolveTaskColor } from "@/lib/task-colors";
 import { TagSelect, TagBadge } from "@/components/tasks/TagSelect";
 import { getDeadlineStatus, getDeadlineBadge } from "@/lib/deadline-utils";
 import { normalizeCurrency } from "@/lib/currency";
@@ -194,11 +313,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -216,17 +331,17 @@ export default function TaskDetailPage() {
   const taskId = Array.isArray(params.taskId) ? params.taskId[0] : params.taskId;
   const timerDescriptionDraftKey = `active-timer-description-${taskId || "unknown-task"}`;
   const { activeTimer, currentDuration, startTimer, stopTimer, refreshTimer } = useTimer();
-  const { hasPermission: canReadTasks } = usePermission('tasks', 'read');
-  const { hasPermission: canViewHourlyRates } = usePermission('financial', 'view_hourly_rates');
-  const { hasPermission: canViewPrices } = usePermission('financial', 'view_prices');
-  const { hasPermission: canViewCosts } = usePermission('financial', 'view_costs');
-  const { hasPermission: canViewReports } = usePermission('financial', 'view_reports');
-  const { hasPermission: canReadTimeEntries } = usePermission('time_entries', 'read');
-  const { hasPermission: canReadComments } = usePermission('comments', 'read');
-  const { hasPermission: canCreateComments } = usePermission('comments', 'create');
-  const { hasPermission: canUpdateTasks } = usePermission('tasks', 'update');
-  const { hasPermission: canCreateTasks } = usePermission('tasks', 'create');
-  const { hasPermission: canDeleteTasks } = usePermission('tasks', 'delete');
+  const { hasPermission: canReadTasks } = usePermission("tasks", "read");
+  const { hasPermission: canViewHourlyRates } = usePermission("financial", "view_hourly_rates");
+  const { hasPermission: canViewPrices } = usePermission("financial", "view_prices");
+  const { hasPermission: canViewCosts } = usePermission("financial", "view_costs");
+  const { hasPermission: canViewReports } = usePermission("financial", "view_reports");
+  const { hasPermission: canReadTimeEntries } = usePermission("time_entries", "read");
+  const { hasPermission: canReadComments } = usePermission("comments", "read");
+  const { hasPermission: canCreateComments } = usePermission("comments", "create");
+  const { hasPermission: canUpdateTasks } = usePermission("tasks", "update");
+  const { hasPermission: canCreateTasks } = usePermission("tasks", "create");
+  const { hasPermission: canDeleteTasks } = usePermission("tasks", "delete");
   const [task, setTask] = useState<Task | null>(null);
   const [assignees, setAssignees] = useState<TaskAssignee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -293,7 +408,7 @@ export default function TaskDetailPage() {
     }
     try {
       const response = await fetch(`/api/tasks/${taskId}`);
-      
+
       if (!response.ok) {
         const result = await response.json();
         console.error("Failed to fetch task:", response.status, result.error || "Unknown error");
@@ -306,7 +421,7 @@ export default function TaskDetailPage() {
         setIsLoading(false);
         return;
       }
-      
+
       const result = await response.json();
 
       if (result.success && result.data) {
@@ -318,7 +433,8 @@ export default function TaskDetailPage() {
         setTask(null);
         toast({
           title: "Chyba",
-          description: result.error || "Úloha nebola nájdená alebo nemáte oprávnenie na jej zobrazenie",
+          description:
+            result.error || "Úloha nebola nájdená alebo nemáte oprávnenie na jej zobrazenie",
           variant: "destructive",
         });
       }
@@ -367,7 +483,7 @@ export default function TaskDetailPage() {
       setCommentsCount(0);
       return;
     }
-    
+
     try {
       const response = await fetch(`/api/tasks/${taskId}/comments`);
       const result = await response.json();
@@ -462,7 +578,7 @@ export default function TaskDetailPage() {
       });
       const result = await res.json();
       if (result.success) {
-        setTask((t) => t ? { ...t, title: newTitle } : t);
+        setTask((t) => (t ? { ...t, title: newTitle } : t));
       }
     } catch {
       // silent
@@ -585,7 +701,13 @@ export default function TaskDetailPage() {
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [activeTimer?.id, activeTimer?.description, task?.id, timerDescription, persistTimerDescription]);
+  }, [
+    activeTimer?.id,
+    activeTimer?.description,
+    task?.id,
+    timerDescription,
+    persistTimerDescription,
+  ]);
 
   // Listen for time entry added events to refresh task
   useEffect(() => {
@@ -593,29 +715,20 @@ export default function TaskDetailPage() {
       fetchTask();
     };
 
-    window.addEventListener('timeEntryAdded', handleTimeEntryAdded);
+    window.addEventListener("timeEntryAdded", handleTimeEntryAdded);
     return () => {
-      window.removeEventListener('timeEntryAdded', handleTimeEntryAdded);
+      window.removeEventListener("timeEntryAdded", handleTimeEntryAdded);
     };
   }, []);
-
-
 
   const handleDuplicate = async () => {
     if (!task) return;
 
     try {
       setIsSaving(true);
-      
+
       // Prepare task data for duplication (exclude id, created_at, updated_at)
-      const {
-        id,
-        created_at,
-        updated_at,
-        assignees,
-        actual_hours,
-        ...taskData
-      } = task;
+      const { id, created_at, updated_at, assignees, actual_hours, ...taskData } = task;
 
       // Add " (Kópia)" to title
       const duplicatedTaskData = {
@@ -708,9 +821,8 @@ export default function TaskDetailPage() {
       });
 
       // Navigate to new task - ensure project_id is not empty
-      const validProjectId = (task.project_id && task.project_id.trim() !== '') 
-        ? task.project_id 
-        : 'unknown';
+      const validProjectId =
+        task.project_id && task.project_id.trim() !== "" ? task.project_id : "unknown";
       router.push(`/projects/${validProjectId}/tasks/${newTaskId}`);
     } catch (error) {
       console.error("Error duplicating task:", error);
@@ -773,12 +885,12 @@ export default function TaskDetailPage() {
       const taskPayload: any = {
         estimated_hours: task.estimated_hours,
       };
-      
+
       // Include task budget if it exists
       if (task.budget_cents !== undefined) {
         taskPayload.budget_cents = task.budget_cents;
       }
-      
+
       const taskResponse = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: {
@@ -816,14 +928,22 @@ export default function TaskDetailPage() {
     }
   };
 
-
   const handleAssigneesChange = (newAssignees: TaskAssignee[]) => {
     setAssignees(newAssignees);
   };
 
-  const handleStatusChange = async (newStatus: "todo" | "in_progress" | "review" | "sent_to_client" | "done" | "invoiced" | "cancelled") => {
+  const handleStatusChange = async (
+    newStatus:
+      | "todo"
+      | "in_progress"
+      | "review"
+      | "sent_to_client"
+      | "done"
+      | "invoiced"
+      | "cancelled"
+  ) => {
     if (!task) return;
-    
+
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
@@ -844,9 +964,11 @@ export default function TaskDetailPage() {
           description: "Status úlohy bol aktualizovaný",
         });
         // Dispatch event to refresh project summary
-        window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
-          detail: { taskId: taskId, status: newStatus } 
-        }));
+        window.dispatchEvent(
+          new CustomEvent("taskStatusChanged", {
+            detail: { taskId: taskId, status: newStatus },
+          })
+        );
       } else {
         toast({
           title: "Chyba",
@@ -866,7 +988,7 @@ export default function TaskDetailPage() {
 
   const handlePriorityChange = async (newPriority: "low" | "medium" | "high" | "urgent") => {
     if (!task) return;
-    
+
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
@@ -903,10 +1025,7 @@ export default function TaskDetailPage() {
     }
   };
 
-  const handleDateRangeChange = async (
-    newStartDate: string | null,
-    newDueDate: string | null
-  ) => {
+  const handleDateRangeChange = async (newStartDate: string | null, newDueDate: string | null) => {
     if (!task) return;
 
     try {
@@ -938,9 +1057,11 @@ export default function TaskDetailPage() {
           description: "Termín úlohy bol aktualizovaný",
         });
         // Dispatch event to refresh dashboard
-        window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
-          detail: { taskId: params.taskId } 
-        }));
+        window.dispatchEvent(
+          new CustomEvent("taskStatusChanged", {
+            detail: { taskId: params.taskId },
+          })
+        );
       } else {
         toast({
           title: "Chyba",
@@ -960,7 +1081,7 @@ export default function TaskDetailPage() {
 
   const handleProjectChange = async (newProjectId: string | null) => {
     if (!task || newProjectId === task.project_id) return;
-    
+
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
@@ -979,14 +1100,16 @@ export default function TaskDetailPage() {
         await fetchTask();
         toast({
           title: "Úspech",
-          description: newProjectId 
+          description: newProjectId
             ? "Úloha bola presunutá do iného projektu"
             : "Projekt bol odstránený z úlohy",
         });
         // Dispatch event to refresh project summary
-        window.dispatchEvent(new CustomEvent('taskStatusChanged', { 
-          detail: { taskId: params.taskId, projectId: newProjectId } 
-        }));
+        window.dispatchEvent(
+          new CustomEvent("taskStatusChanged", {
+            detail: { taskId: params.taskId, projectId: newProjectId },
+          })
+        );
         // Redirect to new project's task page or stay on current page if no project
         if (newProjectId) {
           router.push(`/projects/${newProjectId}/tasks/${params.taskId}`);
@@ -1016,7 +1139,8 @@ export default function TaskDetailPage() {
     if (!task) return;
 
     // Check if timer is running for this task (either regular or extra)
-    const isTimerRunningForThisTask = activeTimer && String(activeTimer.task_id) === String(task.id);
+    const isTimerRunningForThisTask =
+      activeTimer && String(activeTimer.task_id) === String(task.id);
 
     // If timer is running for this task, stop it
     if (isTimerRunningForThisTask) {
@@ -1026,7 +1150,7 @@ export default function TaskDetailPage() {
         const duration = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
         const trackedHours = duration > 0 ? Number((duration / 3600).toFixed(3)) : 0;
         const wasExtra = activeTimer.is_extra === true;
-        
+
         await stopTimer();
         setTimerDescription("");
         setIsTimerNoteOpen(false);
@@ -1041,9 +1165,9 @@ export default function TaskDetailPage() {
 
         await new Promise((resolve) => setTimeout(resolve, 300));
         fetchTask();
-        
+
         // Dispatch event to refresh time entries in TaskTimeTab
-        window.dispatchEvent(new CustomEvent('timerStopped'));
+        window.dispatchEvent(new CustomEvent("timerStopped"));
       } catch (error) {
         toast({
           title: "Chyba",
@@ -1105,7 +1229,7 @@ export default function TaskDetailPage() {
   // Update timer's extra mode while running
   const handleToggleExtraMode = async () => {
     const isTimerRunning = activeTimer && task && String(activeTimer.task_id) === String(task.id);
-    
+
     if (isTimerRunning) {
       // Timer is running - update it in database
       const newExtraMode = !(activeTimer.is_extra === true);
@@ -1115,12 +1239,14 @@ export default function TaskDetailPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ is_extra: newExtraMode }),
         });
-        
+
         if (response.ok) {
           await refreshTimer();
           toast({
             title: newExtraMode ? "Prepnuté na extra čas" : "Prepnuté na normálny čas",
-            description: newExtraMode ? "Čas sa zapíše ako extra (mimo scope)" : "Čas sa zapíše do úlohy",
+            description: newExtraMode
+              ? "Čas sa zapíše ako extra (mimo scope)"
+              : "Čas sa zapíše do úlohy",
           });
         }
       } catch (error) {
@@ -1136,19 +1262,19 @@ export default function TaskDetailPage() {
   const handleDescriptionChange = (value: string) => {
     setTimerDescription(value);
     localStorage.setItem(timerDescriptionDraftKey, value);
-    
+
     const isTimerRunning = !!(
       activeTimer &&
       task &&
       String(activeTimer.task_id) === String(task.id)
     );
-    
+
     if (isTimerRunning) {
       // Debounce the API call
       if (descriptionUpdateTimeoutRef.current) {
         clearTimeout(descriptionUpdateTimeoutRef.current);
       }
-      
+
       descriptionUpdateTimeoutRef.current = setTimeout(async () => {
         await persistTimerDescription(value);
       }, 500);
@@ -1184,7 +1310,11 @@ export default function TaskDetailPage() {
     if (!task) return;
 
     // If extra time is currently being tracked for this task, stop it
-    if (activeTimer && String(activeTimer.task_id) === String(task.id) && activeTimer.is_extra === true) {
+    if (
+      activeTimer &&
+      String(activeTimer.task_id) === String(task.id) &&
+      activeTimer.is_extra === true
+    ) {
       try {
         const startedAt = new Date(activeTimer.started_at);
         const now = new Date();
@@ -1212,17 +1342,21 @@ export default function TaskDetailPage() {
     }
 
     // If regular timer is active for this task, convert it to extra time
-    if (activeTimer && String(activeTimer.task_id) === String(task.id) && !(activeTimer.is_extra === true)) {
+    if (
+      activeTimer &&
+      String(activeTimer.task_id) === String(task.id) &&
+      !(activeTimer.is_extra === true)
+    ) {
       try {
         setIsStartingTimer(true);
-        
+
         // Convert current timer to extra time using special endpoint
-        const convertResponse = await fetch('/api/timers/convert-to-extra', {
-          method: 'POST',
+        const convertResponse = await fetch("/api/timers/convert-to-extra", {
+          method: "POST",
         });
 
         const convertResult = await convertResponse.json();
-        
+
         if (!convertResult.success) {
           throw new Error(convertResult.error || "Failed to convert timer to extra");
         }
@@ -1242,7 +1376,7 @@ export default function TaskDetailPage() {
           true // Extra time
         );
         await refreshTimer();
-        
+
         if (trackedHours > 0) {
           toast({
             title: "Čas uložený ako extra",
@@ -1260,7 +1394,8 @@ export default function TaskDetailPage() {
         console.error("Error converting timer to extra:", error);
         toast({
           title: "Chyba",
-          description: error instanceof Error ? error.message : "Nepodarilo sa previesť časovač na extra",
+          description:
+            error instanceof Error ? error.message : "Nepodarilo sa previesť časovač na extra",
           variant: "destructive",
         });
       } finally {
@@ -1321,7 +1456,11 @@ export default function TaskDetailPage() {
     if (!task) return;
 
     // If extra timer is already running for this task, do nothing
-    if (activeTimer && String(activeTimer.task_id) === String(task.id) && activeTimer.is_extra === true) {
+    if (
+      activeTimer &&
+      String(activeTimer.task_id) === String(task.id) &&
+      activeTimer.is_extra === true
+    ) {
       toast({
         title: "Extra časovač už beží",
         description: "Extra časovač pre túto úlohu už beží.",
@@ -1330,17 +1469,21 @@ export default function TaskDetailPage() {
     }
 
     // If regular timer is active for this task, convert it to extra time
-    if (activeTimer && String(activeTimer.task_id) === String(task.id) && !(activeTimer.is_extra === true)) {
+    if (
+      activeTimer &&
+      String(activeTimer.task_id) === String(task.id) &&
+      !(activeTimer.is_extra === true)
+    ) {
       try {
         setIsStartingTimer(true);
-        
+
         // Convert current timer to extra time using special endpoint
-        const convertResponse = await fetch('/api/timers/convert-to-extra', {
-          method: 'POST',
+        const convertResponse = await fetch("/api/timers/convert-to-extra", {
+          method: "POST",
         });
 
         const convertResult = await convertResponse.json();
-        
+
         if (!convertResult.success) {
           throw new Error(convertResult.error || "Failed to convert timer to extra");
         }
@@ -1360,7 +1503,7 @@ export default function TaskDetailPage() {
           true // Extra time
         );
         await refreshTimer();
-        
+
         if (trackedHours > 0) {
           toast({
             title: "Čas uložený ako extra",
@@ -1378,7 +1521,8 @@ export default function TaskDetailPage() {
         console.error("Error converting timer to extra:", error);
         toast({
           title: "Chyba",
-          description: error instanceof Error ? error.message : "Nepodarilo sa previesť časovač na extra",
+          description:
+            error instanceof Error ? error.message : "Nepodarilo sa previesť časovač na extra",
           variant: "destructive",
         });
       } finally {
@@ -1512,7 +1656,11 @@ export default function TaskDetailPage() {
       <PageState
         variant={!canReadTasks ? "permission" : "error"}
         title={!canReadTasks ? "Nemáte prístup k tejto úlohe" : "Úloha nebola nájdená"}
-        description={!canReadTasks ? "O prístup požiadajte správcu workspace." : "Úloha mohla byť odstránená alebo presunutá."}
+        description={
+          !canReadTasks
+            ? "O prístup požiadajte správcu workspace."
+            : "Úloha mohla byť odstránená alebo presunutá."
+        }
       />
     );
   }
@@ -1521,6 +1669,7 @@ export default function TaskDetailPage() {
   const deadlineBadge = getDeadlineBadge(deadlineStatus);
   const StatusIcon = getStatusIcon(task.status);
   const PriorityIcon = getPriorityIcon(task.priority);
+  const taskColor = resolveTaskColor(task);
 
   return (
     <div className="page-shell">
@@ -1537,7 +1686,9 @@ export default function TaskDetailPage() {
               tabIndex={0}
             >
               <ArrowLeft className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Späť</span>
+              <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground">
+                Späť
+              </span>
             </button>
 
             {/* Divider */}
@@ -1548,13 +1699,18 @@ export default function TaskDetailPage() {
               {task.project ? (
                 <>
                   {/* Project name with folder icon */}
-                  <Popover open={canUpdateTasks ? projectSelectOpen : false} onOpenChange={canUpdateTasks ? setProjectSelectOpen : undefined}>
+                  <Popover
+                    open={canUpdateTasks ? projectSelectOpen : false}
+                    onOpenChange={canUpdateTasks ? setProjectSelectOpen : undefined}
+                  >
                     <PopoverTrigger asChild>
                       <button
                         disabled={!canUpdateTasks}
                         className={cn(
                           "flex gap-1.5 items-center px-2 h-7 rounded-lg transition-colors",
-                          canUpdateTasks ? "hover:bg-muted dark:hover:bg-muted cursor-pointer" : "cursor-default"
+                          canUpdateTasks
+                            ? "hover:bg-muted dark:hover:bg-muted cursor-pointer"
+                            : "cursor-default"
                         )}
                       >
                         <Folder className="h-3 w-3 text-muted-foreground dark:text-foreground shrink-0" />
@@ -1618,7 +1774,9 @@ export default function TaskDetailPage() {
                   </Popover>
 
                   {/* Slash separator */}
-                  <span className="text-sm text-muted-foreground/50 dark:text-muted-foreground">/</span>
+                  <span className="text-sm text-muted-foreground/50 dark:text-muted-foreground">
+                    /
+                  </span>
 
                   {/* Task code with hash icon */}
                   <div className="flex items-center h-5 rounded hover:bg-muted dark:hover:bg-muted transition-colors">
@@ -1685,31 +1843,52 @@ export default function TaskDetailPage() {
                 <button
                   onClick={handleToggleExtraMode}
                   className={`h-[30px] w-[35px] border-r border-border/60 dark:border-border flex items-center justify-center shrink-0 transition-colors hover:bg-muted dark:hover:bg-muted ${
-                    isExtraMode || (activeTimer && String(activeTimer.task_id) === String(task?.id) && activeTimer.is_extra === true)
+                    isExtraMode ||
+                    (activeTimer &&
+                      String(activeTimer.task_id) === String(task?.id) &&
+                      activeTimer.is_extra === true)
                       ? "bg-violet-50 dark:bg-violet-950/30 dark:bg-purple-900/30 hover:bg-violet-100 dark:hover:bg-violet-900/40"
                       : ""
                   }`}
-                  aria-label={isExtraMode ? "Extra mód zapnutý - čas sa zapíše do extra" : "Normálny mód - čas sa zapíše do úlohy"}
-                  title={isExtraMode || (activeTimer && String(activeTimer.task_id) === String(task?.id) && activeTimer.is_extra === true) ? "Extra mód (čas mimo scope) - klikni pre prepnutie" : "Normálny mód - klikni pre prepnutie na extra"}
+                  aria-label={
+                    isExtraMode
+                      ? "Extra mód zapnutý - čas sa zapíše do extra"
+                      : "Normálny mód - čas sa zapíše do úlohy"
+                  }
+                  title={
+                    isExtraMode ||
+                    (activeTimer &&
+                      String(activeTimer.task_id) === String(task?.id) &&
+                      activeTimer.is_extra === true)
+                      ? "Extra mód (čas mimo scope) - klikni pre prepnutie"
+                      : "Normálny mód - klikni pre prepnutie na extra"
+                  }
                   tabIndex={0}
                   type="button"
                 >
-                  <Zap className={`h-3.5 w-3.5 ${
-                    isExtraMode || (activeTimer && String(activeTimer.task_id) === String(task?.id) && activeTimer.is_extra === true)
-                      ? "text-brand dark:text-purple-400"
-                      : "text-muted-foreground dark:text-muted-foreground"
-                  }`} />
+                  <Zap
+                    className={`h-3.5 w-3.5 ${
+                      isExtraMode ||
+                      (activeTimer &&
+                        String(activeTimer.task_id) === String(task?.id) &&
+                        activeTimer.is_extra === true)
+                        ? "text-brand dark:text-purple-400"
+                        : "text-muted-foreground dark:text-muted-foreground"
+                    }`}
+                  />
                 </button>
 
                 {/* Time display */}
                 <div className="flex items-center px-3 min-w-[70px]">
-                  <span className={`text-xs font-bold leading-4 tabular-nums ${
-                    activeTimer && String(activeTimer.task_id) === String(task?.id)
-                      ? activeTimer.is_extra === true
-                        ? "text-brand dark:text-purple-400"
+                  <span
+                    className={`text-xs font-bold leading-4 tabular-nums ${
+                      activeTimer && String(activeTimer.task_id) === String(task?.id)
+                        ? activeTimer.is_extra === true
+                          ? "text-brand dark:text-purple-400"
+                          : "text-foreground dark:text-foreground"
                         : "text-foreground dark:text-foreground"
-                      : "text-foreground dark:text-foreground"
-                  }`}>
+                    }`}
+                  >
                     {activeTimer && String(activeTimer.task_id) === String(task?.id)
                       ? (() => {
                           const hrs = Math.floor(currentDuration / 3600);
@@ -1730,7 +1909,11 @@ export default function TaskDetailPage() {
                       ? "bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30"
                       : "bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30"
                   }`}
-                  aria-label={activeTimer && String(activeTimer.task_id) === String(task?.id) ? "Zastaviť časovač" : "Spustiť časovač"}
+                  aria-label={
+                    activeTimer && String(activeTimer.task_id) === String(task?.id)
+                      ? "Zastaviť časovač"
+                      : "Spustiť časovač"
+                  }
                   tabIndex={0}
                 >
                   {activeTimer && String(activeTimer.task_id) === String(task?.id) ? (
@@ -1743,7 +1926,10 @@ export default function TaskDetailPage() {
             </div>
 
             {/* Share button - Figma 1:1 */}
-            <TaskShareButton taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} compact />
+            <TaskShareButton
+              taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
+              compact
+            />
 
             {/* Save button - always visible per Figma */}
             <button
@@ -1756,7 +1942,9 @@ export default function TaskDetailPage() {
               {isSaving ? (
                 <Loader2 className="h-3 w-3 animate-spin text-primary-foreground" />
               ) : (
-                <span className="text-xs font-medium text-primary-foreground leading-4">Uložiť zmeny</span>
+                <span className="text-xs font-medium text-primary-foreground leading-4">
+                  Uložiť zmeny
+                </span>
               )}
             </button>
           </div>
@@ -1765,10 +1953,8 @@ export default function TaskDetailPage() {
 
       {/* ── Main content: two-column ClickUp layout ──────────────────── */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-
         {/* ── LEFT COLUMN ──────────────────────────────────────────────── */}
         <div className="min-w-0 flex-1 space-y-3">
-
           {/* ── Inline-editable title ── */}
           <div className="surface-panel group px-5 py-4">
             <div className="flex items-start gap-3">
@@ -1776,9 +1962,9 @@ export default function TaskDetailPage() {
               <div
                 className={cn(
                   "mt-[5px] h-3 w-3 shrink-0 rounded-full ring-2 ring-offset-1 ring-offset-card",
-                  task.color ? "ring-transparent" : "bg-muted-foreground/20 ring-transparent"
+                  taskColor ? "ring-transparent" : "bg-muted-foreground/20 ring-transparent"
                 )}
-                style={task.color ? { backgroundColor: task.color } : undefined}
+                style={taskColor ? { backgroundColor: taskColor } : undefined}
               />
 
               {isEditingTitle ? (
@@ -1792,8 +1978,13 @@ export default function TaskDetailPage() {
                   }}
                   onBlur={handleTitleSave}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleTitleSave(); }
-                    if (e.key === "Escape") { setIsEditingTitle(false); }
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleTitleSave();
+                    }
+                    if (e.key === "Escape") {
+                      setIsEditingTitle(false);
+                    }
                   }}
                   className="min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-muted/50 px-2 py-1 text-xl font-semibold leading-snug tracking-tight text-foreground outline-none ring-1 ring-brand/40 focus:ring-brand sm:text-2xl"
                   rows={1}
@@ -1808,13 +1999,15 @@ export default function TaskDetailPage() {
                     setTimeout(() => {
                       if (titleTextareaRef.current) {
                         titleTextareaRef.current.style.height = "auto";
-                        titleTextareaRef.current.style.height = titleTextareaRef.current.scrollHeight + "px";
+                        titleTextareaRef.current.style.height =
+                          titleTextareaRef.current.scrollHeight + "px";
                       }
                     }, 0);
                   }}
                   className={cn(
                     "min-w-0 flex-1 text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl",
-                    canUpdateTasks && "cursor-text rounded-lg px-2 py-1 -mx-2 -my-1 hover:bg-muted/50 transition-colors"
+                    canUpdateTasks &&
+                      "cursor-text rounded-lg px-2 py-1 -mx-2 -my-1 hover:bg-muted/50 transition-colors"
                   )}
                 >
                   {task.title}
@@ -1847,7 +2040,9 @@ export default function TaskDetailPage() {
                   </CardTitle>
                 </div>
                 <div className="flex items-center gap-2">
-                  <TaskDescriptionStatus taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId} />
+                  <TaskDescriptionStatus
+                    taskId={Array.isArray(params.taskId) ? params.taskId[0] : params.taskId}
+                  />
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1921,9 +2116,7 @@ export default function TaskDetailPage() {
                     </span>
                   )}
                 </TabsTrigger>
-                {canUpdateTasks && (
-                  <TabsTrigger value="settings">Nastavenia</TabsTrigger>
-                )}
+                {canUpdateTasks && <TabsTrigger value="settings">Nastavenia</TabsTrigger>}
               </TabsList>
 
               {(canReadTimeEntries || canViewCosts) && (
@@ -1931,7 +2124,9 @@ export default function TaskDetailPage() {
                   {canReadTimeEntries && (
                     <TaskTimeTab
                       taskId={task.id}
-                      projectId={Array.isArray(params.projectId) ? params.projectId[0] : params.projectId}
+                      projectId={
+                        Array.isArray(params.projectId) ? params.projectId[0] : params.projectId
+                      }
                       onTimeEntryAdded={() => {
                         fetchTask();
                         window.dispatchEvent(new CustomEvent("timeEntryAdded"));
@@ -1983,11 +2178,9 @@ export default function TaskDetailPage() {
 
         {/* ── RIGHT SIDEBAR ────────────────────────────────────────────── */}
         <div className="w-full shrink-0 space-y-3 xl:w-[340px]">
-
           {/* ── Properties card ── */}
           <Card className="rounded-xl border border-border bg-card shadow-none overflow-hidden">
             <CardContent className="divide-y divide-border/50 px-0 py-0">
-
               {/* ── Status ── */}
               <div className="flex min-h-[40px] items-center gap-0 px-0">
                 <div className="flex w-[90px] shrink-0 items-center gap-1.5 px-3 py-2">
@@ -2029,7 +2222,11 @@ export default function TaskDetailPage() {
                 <div className="flex-1 border-l border-border/50 px-2 py-2">
                   <div className="flex flex-wrap items-center gap-1">
                     {assignees.map((assignee, idx) => {
-                      const name = (assignee as any).display_name || (assignee as any).user?.name || (assignee as any).email || "";
+                      const name =
+                        (assignee as any).display_name ||
+                        (assignee as any).user?.name ||
+                        (assignee as any).email ||
+                        "";
                       return (
                         <span
                           key={assignee.user_id || idx}
@@ -2093,7 +2290,7 @@ export default function TaskDetailPage() {
               </div>
 
               {/* ── Time tracking ── */}
-              {(canReadTimeEntries) && (
+              {canReadTimeEntries && (
                 <div className="flex min-h-[40px] items-start gap-0 px-0">
                   <div className="flex w-[90px] shrink-0 items-center gap-1.5 px-3 py-2.5">
                     <Timer className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
@@ -2111,8 +2308,8 @@ export default function TaskDetailPage() {
                                 task.actual_hours / task.estimated_hours > 1
                                   ? "bg-red-500"
                                   : task.actual_hours / task.estimated_hours > 0.8
-                                  ? "bg-amber-500"
-                                  : "bg-brand"
+                                    ? "bg-amber-500"
+                                    : "bg-brand"
                               )}
                               style={{
                                 width: `${Math.min((task.actual_hours / task.estimated_hours) * 100, 100)}%`,
@@ -2121,12 +2318,14 @@ export default function TaskDetailPage() {
                           </div>
                         )}
                         <div className="flex items-baseline gap-1">
-                          <span className={cn(
-                            "text-[12px] font-semibold",
-                            task.estimated_hours && task.actual_hours > task.estimated_hours
-                              ? "text-red-600 dark:text-red-400"
-                              : "text-foreground"
-                          )}>
+                          <span
+                            className={cn(
+                              "text-[12px] font-semibold",
+                              task.estimated_hours && task.actual_hours > task.estimated_hours
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-foreground"
+                            )}
+                          >
                             {formatHours(task.actual_hours)}
                           </span>
                           {task.estimated_hours != null && task.estimated_hours > 0 && (
@@ -2222,24 +2421,16 @@ export default function TaskDetailPage() {
                   </div>
                 )}
               </div>
-
             </CardContent>
           </Card>
 
           {/* ── Project status card ── */}
           {task.project_id && canViewReports && (
-            <ProjectStatusCard
-              projectId={task.project_id}
-              taskId={task.id}
-              assignees={assignees}
-            />
+            <ProjectStatusCard projectId={task.project_id} taskId={task.id} assignees={assignees} />
           )}
 
           {/* ── Quick links ── */}
-          {task.id && (
-            <ProjectQuickLinksSection taskId={task.id} />
-          )}
-
+          {task.id && <ProjectQuickLinksSection taskId={task.id} />}
         </div>
       </div>
     </div>

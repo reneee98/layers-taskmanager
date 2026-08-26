@@ -59,11 +59,6 @@ struct TrackerMenuView: View {
         .task(id: store.isAuthenticated) {
             guard store.isAuthenticated else { return }
             await store.restore()
-
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
-                await store.refreshActiveTimer(silent: true)
-            }
         }
     }
 

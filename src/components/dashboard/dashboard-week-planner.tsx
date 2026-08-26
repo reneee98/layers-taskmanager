@@ -33,6 +33,7 @@ import { formatHours } from "@/lib/format";
 import type { TaskStatus } from "@/lib/task-status";
 import { cn, stripHtml } from "@/lib/utils";
 import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
+import { resolveTaskColor, taskColorToRgba } from "@/lib/task-colors";
 
 interface DashboardWeekPlannerProps {
   tasks: DashboardTaskItem[];
@@ -342,19 +343,20 @@ export const DashboardWeekPlanner = ({
                     const isOverEstimate = hasEstimate && actualHours > estimatedHours;
                     const assignees = task.assignees || [];
                     const projectColor = resolveProjectColor(task.project);
+                    const taskColor = resolveTaskColor(task);
 
                     return (
                       <div
                         key={task.id}
                         style={
-                          projectColor
+                          taskColor
                             ? {
-                                borderColor: projectColorToRgba(projectColor, 0.14),
-                                boxShadow: `inset 2px 0 0 ${projectColorToRgba(projectColor, 0.48)}`,
-                                backgroundImage: `linear-gradient(135deg, ${projectColorToRgba(
-                                  projectColor,
-                                  0.045
-                                )}, ${projectColorToRgba(projectColor, 0.012)} 60%, transparent)`,
+                                borderColor: taskColorToRgba(taskColor, 0.22),
+                                boxShadow: `inset 3px 0 0 ${taskColor}`,
+                                backgroundImage: `linear-gradient(135deg, ${taskColorToRgba(
+                                  taskColor,
+                                  0.09
+                                )}, ${taskColorToRgba(taskColor, 0.02)} 60%, transparent)`,
                               }
                             : undefined
                         }

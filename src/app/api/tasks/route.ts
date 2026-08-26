@@ -8,6 +8,7 @@ import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
 import { getProjectAccessContext } from "@/lib/auth/project-access";
 import { normalizeCurrency } from "@/lib/currency";
 import { canViewFinancialData, redactTaskFinancials } from "@/lib/finance-redaction";
+import { getRandomTaskColor, normalizeTaskColor } from "@/lib/task-colors";
 
 export const dynamic = "force-dynamic";
 
@@ -281,6 +282,7 @@ export async function POST(request: NextRequest) {
     }
 
     validation.data.currency = normalizeCurrency(validation.data.currency || "EUR");
+    validation.data.color = normalizeTaskColor(validation.data.color) || getRandomTaskColor();
 
     // If budget_cents is set, automatically calculate estimated_hours = budget_cents / hourly_rate
     // Only if estimated_hours is not explicitly set (allows manual override)

@@ -80,18 +80,6 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
   // Use global timer
   const { activeTimer, currentDuration, startTimer, stopTimer } = useTimer();
   
-  // Format time function (same as in GlobalTimer)
-  const formatTime = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
-  };
-
   // Fetch time entries for all project tasks
   const fetchTimeEntries = async () => {
     try {
@@ -149,7 +137,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
         if (duration > 0) {
           toast({
             title: "Predchádzajúci časovač uložený",
-            description: `Zapísaných ${formatTime(duration)} do úlohy "${activeTimer.task_name}".`,
+            description: `Zapísaných ${formatHours(duration / 3600)} do úlohy "${activeTimer.task_name}".`,
           });
         }
 
@@ -184,7 +172,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
     if (duration > 0) {
       toast({
         title: "Časovač zastavený",
-        description: `Zapísaných ${formatTime(duration)} do úlohy.`,
+        description: `Zapísaných ${formatHours(duration / 3600)} do úlohy.`,
       });
     }
 
@@ -344,10 +332,7 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
   };
 
   const formatTimerDisplay = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    return formatHours(seconds / 3600);
   };
 
   const getTaskTitle = (taskId: string) => {
@@ -393,7 +378,9 @@ export function TimePanel({ projectId, tasks, defaultTaskId, onTimeEntryAdded }:
               </div>
               <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-4">
                 <div className="text-3xl font-semibold text-foreground tabular-nums">
-                {activeTimer && activeTimer.task_id === selectedTaskId ? formatTimerDisplay(currentDuration) : "00:00:00"}
+                {activeTimer && activeTimer.task_id === selectedTaskId
+                  ? formatTimerDisplay(currentDuration)
+                  : formatHours(0)}
               </div>
               {activeTimer && activeTimer.task_id === selectedTaskId ? (
                   <Button onClick={handleStopTimer} variant="destructive" size="sm" className="gap-2">

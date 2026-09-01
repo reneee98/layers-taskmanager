@@ -45,53 +45,36 @@ describe("formatCurrency", () => {
 });
 
 describe("formatHours", () => {
-  it("should format hours with 2 decimal places and h suffix", () => {
-    const result = formatHours(8.5);
-    expect(result).toBe("8.50 h");
+  it("should format decimal hours as HH:MM", () => {
+    expect(formatHours(8.5)).toBe("08:30");
   });
 
-  it("should round to 3 decimal places internally but display 2", () => {
-    const result = formatHours(8.12345);
-    expect(result).toBe("8.12 h");
+  it("should round to the nearest minute", () => {
+    expect(formatHours(8.12345)).toBe("08:07");
   });
 
   it("should handle zero hours", () => {
-    const result = formatHours(0);
-    expect(result).toBe("0.00 h");
+    expect(formatHours(0)).toBe("00:00");
   });
 
   it("should handle negative hours", () => {
-    const result = formatHours(-2.5);
-    expect(result).toBe("-2.50 h");
+    expect(formatHours(-2.5)).toBe("-02:30");
   });
 
-  it("should round correctly at 3 decimal places", () => {
-    const result = formatHours(1.2345);
-    // 1.2345 rounds to 1.235 (3 decimals), displays as 1.24 (2 decimals)
-    expect(result).toBe("1.24 h");
+  it("should carry rounded minutes into the next hour", () => {
+    expect(formatHours(1.999)).toBe("02:00");
   });
 
-  it("should round up correctly", () => {
-    const result = formatHours(1.2355);
-    expect(result).toBe("1.24 h");
+  it("should display very small values as zero minutes", () => {
+    expect(formatHours(0.001)).toBe("00:00");
   });
 
-  it("should handle very small numbers", () => {
-    const result = formatHours(0.001);
-    expect(result).toBe("0.00 h");
+  it("should not truncate large hour totals", () => {
+    expect(formatHours(1234.567)).toBe("1234:34");
   });
 
-  it("should handle large numbers", () => {
-    const result = formatHours(1234.567);
-    expect(result).toBe("1234.57 h");
-  });
-
-  it("should maintain precision for calculations (3 decimals)", () => {
-    // Test that internal rounding is to 3 decimals
-    const value = 8.1234567;
-    const result = formatHours(value);
-    // Should round to 8.123 internally, display as 8.12
-    expect(result).toBe("8.12 h");
+  it("should safely handle invalid values", () => {
+    expect(formatHours(Number.NaN)).toBe("00:00");
+    expect(formatHours(Number.POSITIVE_INFINITY)).toBe("00:00");
   });
 });
-

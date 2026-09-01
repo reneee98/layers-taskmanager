@@ -45,6 +45,7 @@ import { getTaskStatusLabel } from "@/lib/task-status";
 import { getAppVersion } from "@/lib/version";
 import { createClient } from "@/lib/supabase/client";
 import { resolveTaskColor } from "@/lib/task-colors";
+import { formatHours } from "@/lib/format";
 import Image from "next/image";
 
 interface ChecklistItem {
@@ -703,7 +704,9 @@ export default function SharedTaskPage() {
                           <Clock className="h-4 w-4" />
                           Odhadované hodiny
                         </div>
-                        <div className="text-sm font-medium">{task.estimatedHours}h</div>
+                        <div className="text-sm font-medium">
+                          {formatHours(task.estimatedHours)}
+                        </div>
                       </div>
                     )}
                   </div>

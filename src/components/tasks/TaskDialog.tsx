@@ -57,6 +57,7 @@ import {
 } from "@/lib/task-colors";
 import { resolveProjectColor } from "@/lib/project-colors";
 import { cn } from "@/lib/utils";
+import { formatHours } from "@/lib/format";
 import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
 import { TaskSidePanelDetail } from "@/components/tasks/TaskSidePanelDetail";
 import {
@@ -809,10 +810,10 @@ export function TaskDialog({
               <div className="min-w-0">
                 <p className="text-[11px] font-medium text-muted-foreground">Natrackované</p>
                 <p className="mt-1 text-lg font-semibold tabular-nums">
-                  {(activeTask.actual_hours || 0).toFixed(2)} h
+                  {formatHours(activeTask.actual_hours || 0)}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  z {estimatedHours || "0"} h odhadu
+                  z {formatHours(Number(estimatedHours) || 0)} odhadu
                 </p>
               </div>
             </div>

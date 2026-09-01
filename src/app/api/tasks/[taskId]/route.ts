@@ -9,6 +9,7 @@ import { autoMoveOverdueTasksToToday } from "@/lib/task-utils";
 import { resolveHourlyRate } from "@/server/rates/resolveHourlyRate";
 import { canAccessProject, getProjectAccessContext } from "@/lib/auth/project-access";
 import { getRandomTaskColor } from "@/lib/task-colors";
+import { formatHours } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -1016,7 +1017,7 @@ export async function PATCH(
         workspaceId,
         userId: user.id,
         type: ActivityTypes.TASK_ESTIMATED_HOURS_CHANGED,
-        action: `Zmenil odhadované hodiny z ${currentTask.estimated_hours || 0}h na ${validation.data.estimated_hours || 0}h`,
+        action: `Zmenil odhadovaný čas z ${formatHours(currentTask.estimated_hours || 0)} na ${formatHours(validation.data.estimated_hours || 0)}`,
         details: task.title,
         projectId: task.project_id,
         taskId: task.id,

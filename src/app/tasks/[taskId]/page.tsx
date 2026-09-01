@@ -1427,13 +1427,8 @@ export default function TaskDetailPage() {
                     }`}
                   >
                     {activeTimer && String(activeTimer.task_id) === String(task?.id)
-                      ? (() => {
-                          const hrs = Math.floor(currentDuration / 3600);
-                          const mins = Math.floor((currentDuration % 3600) / 60);
-                          const secs = currentDuration % 60;
-                          return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-                        })()
-                      : "0:00:00"}
+                      ? formatHours(currentDuration / 3600)
+                      : formatHours(0)}
                   </span>
                 </div>
 
@@ -1589,7 +1584,7 @@ export default function TaskDetailPage() {
                   Čas
                   {task?.actual_hours != null && task.actual_hours > 0 && (
                     <span className="ml-1.5 flex h-[14px] items-center rounded-full bg-border/50 px-1 text-[9px] font-semibold text-muted-foreground">
-                      {task.actual_hours.toFixed(1)}h
+                      {formatHours(task.actual_hours)}
                     </span>
                   )}
                 </TabsTrigger>

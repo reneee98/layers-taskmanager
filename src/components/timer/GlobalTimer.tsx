@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { OPEN_TIMER_NOTE_EVENT } from "@/lib/timer-events";
+import { formatHours } from "@/lib/format";
 
 export function GlobalTimer() {
   const { activeTimer, currentDuration, stopTimer, refreshTimer } = useTimer();
@@ -44,17 +45,6 @@ export function GlobalTimer() {
     return null;
   }
 
-  const formatTime = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, "0")}`;
-  };
-
   const handleStop = async () => {
     // Prevent multiple simultaneous calls
     if (isStoppingRef.current || isStopping) {
@@ -89,7 +79,7 @@ export function GlobalTimer() {
 
       toast({
         title: "Časovač zastavený",
-        description: `Zapísaných ${formatTime(duration)} do úlohy "${taskName}".`,
+        description: `Zapísaných ${formatHours(duration / 3600)} do úlohy "${taskName}".`,
       });
     } catch (error) {
       console.error("Failed to stop timer:", error);
@@ -171,7 +161,7 @@ export function GlobalTimer() {
             className="font-mono text-[13px] font-semibold leading-none tracking-[-0.02em] text-foreground tabular-nums"
             aria-live="off"
           >
-            {formatTime(currentDuration)}
+            {formatHours(currentDuration / 3600)}
           </span>
           {timerDescription && (
             <MessageSquareText

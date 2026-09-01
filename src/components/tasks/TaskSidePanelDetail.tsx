@@ -16,6 +16,7 @@ import {
   Settings2,
 } from "lucide-react";
 import type { Project, Task } from "@/types/database";
+import { formatHours } from "@/lib/format";
 
 const PanelSkeleton = () => (
   <div className="space-y-3 p-5 sm:p-6">
@@ -149,7 +150,7 @@ export const TaskSidePanelDetail = ({
                 Čas
                 {task.actual_hours != null && task.actual_hours > 0 ? (
                   <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
-                    {task.actual_hours.toFixed(1)} h
+                    {formatHours(task.actual_hours)}
                   </span>
                 ) : null}
               </TabsTrigger>

@@ -29,12 +29,15 @@ interface ReportOptions {
   showPrices: boolean;
 }
 
+const getDefaultSelectedTaskIds = (tasks: Task[]) =>
+  tasks.filter((task) => task.status !== "invoiced").map((task) => task.id);
+
 export const ProjectReportGenerator = ({ project, tasks }: ProjectReportGeneratorProps) => {
   const router = useRouter();
   const { hasPermission: canViewPrices } = usePermission("financial", "view_prices");
   const [isOpen, setIsOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>(() =>
-    tasks.map((task) => task.id)
+    getDefaultSelectedTaskIds(tasks)
   );
   const [options, setOptions] = useState<ReportOptions>({
     showSummary: true,
@@ -74,6 +77,11 @@ export const ProjectReportGenerator = ({ project, tasks }: ProjectReportGenerato
     });
   };
 
+  const handleOpenSettings = () => {
+    setSelectedTaskIds(getDefaultSelectedTaskIds(tasks));
+    setIsOpen(true);
+  };
+
   const handleOpenReport = () => {
     const params = new URLSearchParams();
     params.set("onlyDone", "false");
@@ -89,7 +97,7 @@ export const ProjectReportGenerator = ({ project, tasks }: ProjectReportGenerato
 
   return (
     <>
-      <Button onClick={() => setIsOpen(true)} variant="outline" className="gap-2">
+      <Button onClick={handleOpenSettings} variant="outline" className="gap-2">
         <FileText className="h-4 w-4" />
         Zobraziť report
       </Button>

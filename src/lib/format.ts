@@ -19,15 +19,17 @@ export const formatCurrency = (
 };
 
 /**
- * Formátuje hodiny s presnosťou na 3 desatinné miesta (výpočet)
- * a zobrazuje 2 desatinné miesta
+ * Formátuje desatinné hodiny ako trvanie HH:MM.
  * @param hours Počet hodín
- * @returns Formátované hodiny s "h" sufixom
+ * @returns Trvanie zaokrúhlené na najbližšiu minútu
  */
 export const formatHours = (hours: number): string => {
-  // Zaokrúhli na 3 desatinné miesta pre výpočty
-  const rounded = Math.round(hours * 1000) / 1000;
-  // Zobraz 2 desatinné miesta
-  return `${rounded.toFixed(2)} h`;
-};
+  if (!Number.isFinite(hours)) return "00:00";
 
+  const totalMinutes = Math.round(Math.abs(hours) * 60);
+  const wholeHours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const sign = hours < 0 && totalMinutes > 0 ? "-" : "";
+
+  return `${sign}${wholeHours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+};

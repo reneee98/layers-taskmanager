@@ -27,6 +27,7 @@ import { sk } from "date-fns/locale";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageState } from "@/components/layout/page-state";
 import { MetricStrip } from "@/components/layout/metric-strip";
+import { formatHours } from "@/lib/format";
 
 interface TimeEntry {
   id: string;
@@ -167,8 +168,8 @@ export default function TimeEntriesPage() {
 
       <MetricStrip
         items={[
-          { label: "Celkové hodiny", value: `${getTotalHours().toFixed(1)} h`, icon: Clock },
-          { label: "Fakturovateľné", value: `${getBillableHours().toFixed(1)} h`, icon: CheckCircle },
+          { label: "Celkové hodiny", value: formatHours(getTotalHours()), icon: Clock },
+          { label: "Fakturovateľné", value: formatHours(getBillableHours()), icon: CheckCircle },
           { label: "Celková suma", value: formatCurrency(getTotalAmount()), icon: DollarSign },
           { label: "Počet záznamov", value: timeEntries.length, icon: Calendar },
         ]}
@@ -247,7 +248,7 @@ export default function TimeEntriesPage() {
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{entry.hours}h</span>
+                        <span className="font-medium">{formatHours(entry.hours)}</span>
                       </div>
                     </TableCell>
                     <TableCell>

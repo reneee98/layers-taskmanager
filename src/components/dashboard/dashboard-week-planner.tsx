@@ -233,7 +233,7 @@ export const DashboardWeekPlanner = ({
           <div>
             <p className="text-xs font-medium text-foreground">Kapacita tímu podľa termínov</p>
             <p className="text-[11px] text-muted-foreground">
-              Voľno počítame zo zostávajúcich hodín pri 8 h pracovnom dni.
+              Voľno počítame zo zostávajúcich hodín pri pracovnom dni s kapacitou 08:00.
             </p>
           </div>
         </div>

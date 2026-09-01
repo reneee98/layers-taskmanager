@@ -89,15 +89,6 @@ const getShortName = (name: string | undefined) => {
 
 // Day labels in Slovak
 
-// Convert decimal hours to HH:MM:SS format
-const formatHoursToTime = (decimalHours: number): string => {
-  const totalSeconds = Math.round(decimalHours * 3600);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-};
-
 export function TaskTimeTab({ taskId, onTimeEntryAdded }: TaskTimeTabProps) {
   const { hasPermission: canViewPrices } = usePermission("financial", "view_prices");
   const { hasPermission: canDeleteTimeEntries } = usePermission("time_entries", "delete");
@@ -563,7 +554,7 @@ export function TaskTimeTab({ taskId, onTimeEntryAdded }: TaskTimeTabProps) {
                   {/* Right Section - Hours and Amount */}
                   <div className="flex flex-col items-end min-w-[80px]">
                     <span className="font-bold text-sm text-foreground dark:text-foreground tabular-nums">
-                      {formatHoursToTime(entry.hours)}
+                      {formatHours(entry.hours)}
                     </span>
                     {canViewPrices && (
                       <span className="text-[10px] text-muted-foreground dark:text-muted-foreground">

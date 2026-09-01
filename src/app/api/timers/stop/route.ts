@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logActivity, ActivityTypes, getUserDisplayName } from "@/lib/activity-logger";
 import { getAuthenticatedRequestContext } from "@/lib/supabase/request";
 import { createClient as createServiceClient } from "@/lib/supabase/service";
+import { formatHours } from "@/lib/format";
 
 export async function POST(request: NextRequest) {
   try {
@@ -336,7 +337,7 @@ export async function POST(request: NextRequest) {
       workspaceId: activeTimer.workspace_id,
       userId: user.id,
       type: ActivityTypes.TIMER_STOPPED,
-      action: `Zastavil timer a uložil ${durationHours}h`,
+      action: `Zastavil timer a uložil ${formatHours(durationHours)}`,
       details: taskTitle,
       projectId: projectId ?? undefined,
       taskId: activeTimer.task_id,

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { timeEntrySchema } from "@/lib/validations/time-entry";
 import { getUserWorkspaceIdFromRequest } from "@/lib/auth/workspace";
 import { logActivity, ActivityTypes, getUserDisplayName, getTaskTitle } from "@/lib/activity-logger";
+import { formatHours } from "@/lib/format";
 
 export async function POST(
   req: NextRequest,
@@ -255,7 +256,7 @@ export async function POST(
       workspaceId,
       userId: userId,
       type: ActivityTypes.TIME_ADDED,
-      action: `Pridal ${validatedData.hours}h času`,
+      action: `Pridal ${formatHours(validatedData.hours)} času`,
       details: taskTitle,
       projectId: task.project_id,
       taskId: taskId,

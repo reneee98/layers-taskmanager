@@ -337,7 +337,7 @@ export async function POST(request: NextRequest) {
       workspaceId: activeTimer.workspace_id,
       userId: user.id,
       type: ActivityTypes.TIMER_STOPPED,
-      action: `Zastavil timer a uložil ${formatHours(durationHours)}`,
+      action: `Zastavil timer a uložil ${formatHours(trackedHours)}`,
       details: taskTitle,
       projectId: projectId ?? undefined,
       taskId: activeTimer.task_id,

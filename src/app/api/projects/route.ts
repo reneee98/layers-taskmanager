@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const clientId = searchParams.get("client_id");
     const excludeStatus = searchParams.get("exclude_status");
+    const includeInvoiced = searchParams.get("include_invoiced") === "true";
 
     // Check if we're requesting archived projects (completed/cancelled)
     const isArchivedRequest =
@@ -144,22 +145,26 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Filter out projects with invoiced tasks (only for active projects)
-      const { data: invoicedTasks, error: tasksError } = await supabase
-        .from("tasks")
-        .select("project_id")
-        .eq("workspace_id", workspaceId)
-        .eq("status", "invoiced");
+      if (includeInvoiced) {
+        finalProjects = filteredProjects;
+      } else {
+        // Filter out projects with invoiced tasks (only for active projects)
+        const { data: invoicedTasks, error: tasksError } = await supabase
+          .from("tasks")
+          .select("project_id")
+          .eq("workspace_id", workspaceId)
+          .eq("status", "invoiced");
 
-      if (tasksError) {
-        return NextResponse.json({ success: false, error: tasksError.message }, { status: 400 });
+        if (tasksError) {
+          return NextResponse.json({ success: false, error: tasksError.message }, { status: 400 });
+        }
+
+        const invoicedProjectIds = new Set(
+          (invoicedTasks || []).map((task) => task.project_id).filter(Boolean)
+        );
+
+        finalProjects = filteredProjects.filter((project) => !invoicedProjectIds.has(project.id));
       }
-
-      const invoicedProjectIds = new Set(
-        (invoicedTasks || []).map((task) => task.project_id).filter(Boolean)
-      );
-
-      finalProjects = filteredProjects.filter((project) => !invoicedProjectIds.has(project.id));
     }
 
     if (restrictedProjectIds) {

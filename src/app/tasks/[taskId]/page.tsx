@@ -423,7 +423,7 @@ export default function TaskDetailPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects");
+      const response = await fetch("/api/projects?include_invoiced=true");
       const result = await response.json();
 
       if (result.success) {

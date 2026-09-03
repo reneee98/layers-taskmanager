@@ -139,12 +139,12 @@ export function TaskTable({
     const currentTaskIds = new Set(tasks.map((task) => task.id));
     setSelectedTaskIds((previousSelection) => {
       const nextSelection = new Set(
-        [...previousSelection].filter((taskId) => currentTaskIds.has(taskId))
+        Array.from(previousSelection).filter((taskId) => currentTaskIds.has(taskId))
       );
 
       if (
         nextSelection.size === previousSelection.size &&
-        [...nextSelection].every((taskId) => previousSelection.has(taskId))
+        Array.from(nextSelection).every((taskId) => previousSelection.has(taskId))
       ) {
         return previousSelection;
       }
@@ -298,7 +298,7 @@ export function TaskTable({
     bulkUpdateInFlightRef.current = true;
     setIsBulkUpdating(true);
     try {
-      await updateTasksInBulk([...selectedTaskIds], updates);
+      await updateTasksInBulk(Array.from(selectedTaskIds), updates);
       await onTaskUpdated?.();
       toast({ title: "Úlohy aktualizované", description: successDescription });
       setSelectedTaskIds(new Set());

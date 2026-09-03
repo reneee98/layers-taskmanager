@@ -20,6 +20,7 @@ import Link from "next/link";
 import { PrioritySelect, type TaskPriority } from "@/components/tasks/PrioritySelect";
 import { StatusSelect } from "@/components/tasks/StatusSelect";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   DropdownMenu,
@@ -97,6 +98,8 @@ interface DashboardTaskRowProps {
   onDragOver?: (event: DragEvent<HTMLDivElement>) => void;
   onDrop?: () => void;
   onDragEnd?: () => void;
+  selected?: boolean;
+  onSelectedChange?: (selected: boolean) => void;
 }
 
 interface DashboardDateRangeControlProps {
@@ -334,6 +337,8 @@ export const DashboardTaskRow = ({
   onDragOver,
   onDrop,
   onDragEnd,
+  selected = false,
+  onSelectedChange,
 }: DashboardTaskRowProps) => {
   const { activeTimer, currentDuration, startTimer, stopTimer } = useTimer();
   const [isTimerUpdating, setIsTimerUpdating] = useState(false);
@@ -430,6 +435,7 @@ export const DashboardTaskRow = ({
         "group relative flex min-h-[60px] flex-col gap-2 border-b border-border/60 px-3 py-2.5 transition-colors duration-150 last:border-b-0 hover:bg-muted/35 sm:px-4 lg:flex-row lg:items-center lg:gap-3",
         taskSurfaceClasses[task.status],
         isTimerActive && "bg-emerald-500/[0.055] hover:bg-emerald-500/[0.08]",
+        selected && "bg-primary/[0.055] hover:bg-primary/[0.08]",
         isDragging && "opacity-45"
       )}
     >
@@ -448,63 +454,82 @@ export const DashboardTaskRow = ({
           <GripVertical className="h-3.5 w-3.5" />
         </span>
       )}
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1">
-          <PrioritySelect
-            priority={task.priority as TaskPriority}
-            disabled={!canUpdate}
-            size="flag"
-            onPriorityChange={(priority) => onUpdate(task.id, { priority })}
-          />
-          {onOpen ? (
-            <button
-              type="button"
-              onClick={() => onOpen(task)}
-              className="min-w-0 flex-1 truncate text-left text-[13px] font-medium leading-5 text-foreground outline-none transition-colors hover:text-foreground/70 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring/30"
-            >
-              {taskTitle}
-            </button>
-          ) : (
-            <Link
-              href={taskHref}
-              className="min-w-0 flex-1 truncate text-[13px] font-medium leading-5 text-foreground outline-none transition-colors hover:text-foreground/70 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring/30"
-            >
-              {taskTitle}
-            </Link>
-          )}
-        </div>
-        <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
-          {showProject && task.project && (
-            <span
-              className="max-w-48 truncate rounded px-1.5 py-px font-medium text-foreground"
-              style={
-                projectColor
-                  ? {
-                      backgroundColor: projectColorToRgba(projectColor, 0.045),
-                    }
-                  : undefined
-              }
-            >
-              {task.project.name}
-              {task.project.code ? ` · ${task.project.code}` : ""}
-            </span>
-          )}
-          <span className="inline-flex items-center gap-1 lg:hidden">
-            <Clock3 className="h-3 w-3" />
-            <span
-              className={cn("font-medium text-foreground", exceededHours > 0 && "text-destructive")}
-            >
-              {timeStatusLabel}
-            </span>
-          </span>
-          {hasVisibleBudget && (
-            <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 lg:hidden">
-              <Banknote className="h-3 w-3" />
-              <span className="font-semibold tabular-nums">
-                {formatCurrency(budgetAmount, taskCurrency)}
+      <div className="flex min-w-0 flex-1 items-start gap-1 lg:items-center">
+        {onSelectedChange && (
+          <label
+            className="flex h-11 w-8 shrink-0 cursor-pointer items-center justify-center sm:h-8"
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <Checkbox
+              checked={selected}
+              onCheckedChange={(checked) => onSelectedChange(checked === true)}
+              aria-label={`${selected ? "Zrušiť výber" : "Vybrať"} úlohu ${taskTitle}`}
+              className="h-[18px] w-[18px] border-muted-foreground/50 data-[state=checked]:border-primary"
+            />
+          </label>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1">
+            <PrioritySelect
+              priority={task.priority as TaskPriority}
+              disabled={!canUpdate}
+              size="flag"
+              onPriorityChange={(priority) => onUpdate(task.id, { priority })}
+            />
+            {onOpen ? (
+              <button
+                type="button"
+                onClick={() => onOpen(task)}
+                className="min-w-0 flex-1 truncate text-left text-[13px] font-medium leading-5 text-foreground outline-none transition-colors hover:text-foreground/70 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring/30"
+              >
+                {taskTitle}
+              </button>
+            ) : (
+              <Link
+                href={taskHref}
+                className="min-w-0 flex-1 truncate text-[13px] font-medium leading-5 text-foreground outline-none transition-colors hover:text-foreground/70 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring/30"
+              >
+                {taskTitle}
+              </Link>
+            )}
+          </div>
+          <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
+            {showProject && task.project && (
+              <span
+                className="max-w-48 truncate rounded px-1.5 py-px font-medium text-foreground"
+                style={
+                  projectColor
+                    ? {
+                        backgroundColor: projectColorToRgba(projectColor, 0.045),
+                      }
+                    : undefined
+                }
+              >
+                {task.project.name}
+                {task.project.code ? ` · ${task.project.code}` : ""}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1 lg:hidden">
+              <Clock3 className="h-3 w-3" />
+              <span
+                className={cn(
+                  "font-medium text-foreground",
+                  exceededHours > 0 && "text-destructive"
+                )}
+              >
+                {timeStatusLabel}
               </span>
             </span>
-          )}
+            {hasVisibleBudget && (
+              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 lg:hidden">
+                <Banknote className="h-3 w-3" />
+                <span className="font-semibold tabular-nums">
+                  {formatCurrency(budgetAmount, taskCurrency)}
+                </span>
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

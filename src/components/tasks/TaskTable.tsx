@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, type DragEvent } from "react";
-import { FilterX, ListChecks, Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { FilterX, ListChecks, Loader2, Plus, Search, X } from "lucide-react";
 
 import {
   DashboardTaskRow,
@@ -9,6 +9,7 @@ import {
 } from "@/components/dashboard/dashboard-task-row";
 import { PageState } from "@/components/layout/page-state";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePermission } from "@/hooks/usePermissions";
+import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatHours } from "@/lib/format";
 import { normalizeCurrency } from "@/lib/currency";
 import { stripHtml } from "@/lib/utils";
@@ -34,7 +36,7 @@ interface TaskTableProps {
   onReorder?: (taskId: string, newIndex: number) => Promise<void>;
   projectId: string;
   project?: Project | null;
-  onTaskUpdated?: () => void;
+  onTaskUpdated?: () => void | Promise<void>;
 }
 
 type StatusFilter = "all" | Task["status"];
@@ -81,6 +83,34 @@ const getTaskCountLabel = (count: number) => {
   return `${count} úloh`;
 };
 
+const getSelectedTaskLabel = (count: number) => {
+  if (count === 1) return "Vybraná 1 úloha";
+  if (count >= 2 && count <= 4) return `Vybrané ${count} úlohy`;
+  return `Vybraných ${count} úloh`;
+};
+
+const BULK_UPDATE_CONCURRENCY = 6;
+
+const updateTasksInBulk = async (taskIds: string[], updates: Partial<Task>) => {
+  for (let index = 0; index < taskIds.length; index += BULK_UPDATE_CONCURRENCY) {
+    const batch = taskIds.slice(index, index + BULK_UPDATE_CONCURRENCY);
+    await Promise.all(
+      batch.map(async (taskId) => {
+        const response = await fetch(`/api/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || "Nepodarilo sa aktualizovať vybrané úlohy");
+        }
+      })
+    );
+  }
+};
+
 export function TaskTable({
   tasks,
   onUpdate,
@@ -99,6 +129,29 @@ export function TaskTable({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(() => new Set());
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkPriority, setBulkPriority] = useState("");
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const bulkUpdateInFlightRef = useRef(false);
+
+  useEffect(() => {
+    const currentTaskIds = new Set(tasks.map((task) => task.id));
+    setSelectedTaskIds((previousSelection) => {
+      const nextSelection = new Set(
+        [...previousSelection].filter((taskId) => currentTaskIds.has(taskId))
+      );
+
+      if (
+        nextSelection.size === previousSelection.size &&
+        [...nextSelection].every((taskId) => previousSelection.has(taskId))
+      ) {
+        return previousSelection;
+      }
+
+      return nextSelection;
+    });
+  }, [tasks]);
 
   const statusCounts = useMemo(() => {
     const counts = new Map<Task["status"], number>();
@@ -204,6 +257,70 @@ export function TaskTable({
       total + (task.budget_cents ? task.budget_cents / 100 : task.calculated_price || 0),
     0
   );
+  const visibleTaskIds = filteredTasks.map((task) => task.id);
+  const selectedCount = selectedTaskIds.size;
+  const visibleSelectedCount = visibleTaskIds.filter((taskId) =>
+    selectedTaskIds.has(taskId)
+  ).length;
+  const areAllVisibleTasksSelected =
+    visibleTaskIds.length > 0 && visibleSelectedCount === visibleTaskIds.length;
+  const isSomeVisibleTaskSelected = visibleSelectedCount > 0 && !areAllVisibleTasksSelected;
+
+  const handleToggleTask = (taskId: string, selected: boolean) => {
+    setSelectedTaskIds((previousSelection) => {
+      const nextSelection = new Set(previousSelection);
+      if (selected) {
+        nextSelection.add(taskId);
+      } else {
+        nextSelection.delete(taskId);
+      }
+      return nextSelection;
+    });
+  };
+
+  const handleToggleAllVisible = (selected: boolean) => {
+    setSelectedTaskIds((previousSelection) => {
+      const nextSelection = new Set(previousSelection);
+      visibleTaskIds.forEach((taskId) => {
+        if (selected) {
+          nextSelection.add(taskId);
+        } else {
+          nextSelection.delete(taskId);
+        }
+      });
+      return nextSelection;
+    });
+  };
+
+  const handleBulkUpdate = async (updates: Partial<Task>, successDescription: string) => {
+    if (selectedTaskIds.size === 0 || bulkUpdateInFlightRef.current) return;
+
+    bulkUpdateInFlightRef.current = true;
+    setIsBulkUpdating(true);
+    try {
+      await updateTasksInBulk([...selectedTaskIds], updates);
+      await onTaskUpdated?.();
+      toast({ title: "Úlohy aktualizované", description: successDescription });
+      setSelectedTaskIds(new Set());
+    } catch (error) {
+      try {
+        await onTaskUpdated?.();
+      } catch {
+        // The original bulk-update error is more useful to the user.
+      }
+      toast({
+        title: "Hromadná úprava zlyhala",
+        description:
+          error instanceof Error ? error.message : "Nepodarilo sa aktualizovať vybrané úlohy",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkStatus("");
+      setBulkPriority("");
+      setIsBulkUpdating(false);
+      bulkUpdateInFlightRef.current = false;
+    }
+  };
 
   return (
     <section className="surface-panel overflow-hidden">
@@ -334,6 +451,104 @@ export function TaskTable({
         />
       ) : (
         <div>
+          {canUpdateTasks && (
+            <div className="flex flex-col gap-2 border-b border-border/70 bg-muted/[0.14] px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs font-medium text-foreground sm:min-h-9">
+                <Checkbox
+                  checked={
+                    areAllVisibleTasksSelected
+                      ? true
+                      : isSomeVisibleTaskSelected
+                        ? "indeterminate"
+                        : false
+                  }
+                  onCheckedChange={(checked) => handleToggleAllVisible(checked === true)}
+                  aria-label="Vybrať všetky zobrazené úlohy"
+                  className="h-[18px] w-[18px] border-muted-foreground/50 data-[state=checked]:border-primary"
+                />
+                <span>
+                  {selectedCount > 0
+                    ? getSelectedTaskLabel(selectedCount)
+                    : "Vybrať zobrazené úlohy"}
+                </span>
+              </label>
+
+              {selectedCount > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {isBulkUpdating && (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Ukladám…
+                    </span>
+                  )}
+                  <Select
+                    value={bulkStatus}
+                    onValueChange={(status) => {
+                      setBulkStatus(status);
+                      void handleBulkUpdate(
+                        { status: status as Task["status"] },
+                        selectedCount === 1
+                          ? "Status bol zmenený v 1 úlohe."
+                          : `Status bol zmenený v ${selectedCount} úlohách.`
+                      );
+                    }}
+                    disabled={isBulkUpdating}
+                  >
+                    <SelectTrigger className="h-9 w-[168px] bg-background text-xs shadow-none">
+                      <SelectValue placeholder="Zmeniť status…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(statusLabels) as StatusFilter[])
+                        .filter((status): status is Task["status"] => status !== "all")
+                        .map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {statusLabels[status]}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={bulkPriority}
+                    onValueChange={(priority) => {
+                      setBulkPriority(priority);
+                      void handleBulkUpdate(
+                        { priority: priority as Task["priority"] },
+                        selectedCount === 1
+                          ? "Priorita bola zmenená v 1 úlohe."
+                          : `Priorita bola zmenená v ${selectedCount} úlohách.`
+                      );
+                    }}
+                    disabled={isBulkUpdating}
+                  >
+                    <SelectTrigger className="h-9 w-[168px] bg-background text-xs shadow-none">
+                      <SelectValue placeholder="Zmeniť prioritu…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(priorityLabels)
+                        .filter(([priority]) => priority !== "all")
+                        .map(([priority, label]) => (
+                          <SelectItem key={priority} value={priority}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedTaskIds(new Set())}
+                    disabled={isBulkUpdating}
+                    aria-label="Zrušiť výber úloh"
+                    title="Zrušiť výber"
+                    className="h-9 w-9 text-muted-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
           {filteredTasks.map((task) => (
             <DashboardTaskRow
               key={task.id}
@@ -352,6 +567,10 @@ export function TaskTable({
               onDragOver={handleDragOver}
               onDrop={() => void handleDrop(task.id)}
               onDragEnd={() => setDraggedTaskId(null)}
+              selected={selectedTaskIds.has(task.id)}
+              onSelectedChange={
+                canUpdateTasks ? (selected) => handleToggleTask(task.id, selected) : undefined
+              }
             />
           ))}
         </div>

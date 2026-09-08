@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   addDays,
   addWeeks,
@@ -21,6 +22,7 @@ import {
   Clock3,
   FilterX,
   ListTodo,
+  PanelRightOpen,
   Search,
   Trash2,
   UserRound,
@@ -48,6 +50,12 @@ import { usePermission } from "@/hooks/usePermissions";
 import { toast } from "@/hooks/use-toast";
 import { formatHours } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { Task } from "@/types/database";
+
+const TaskDialog = dynamic(
+  () => import("@/components/tasks/TaskDialog").then((module) => ({ default: module.TaskDialog })),
+  { loading: () => null, ssr: false }
+);
 
 interface TimeEntry {
   id: string;
@@ -132,13 +140,14 @@ const TimeEntriesPageContent = () => {
   const [projectFilter, setProjectFilter] = useState("all");
   const [billableFilter, setBillableFilter] = useState<BillableFilter>("all");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
+  const [isTaskPanelLoading, setIsTaskPanelLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const taskPanelRequestRef = useRef(0);
 
-  const weekStart = useMemo(
-    () => startOfWeek(selectedWeek, { weekStartsOn: 1 }),
-    [selectedWeek]
-  );
+  const weekStart = useMemo(() => startOfWeek(selectedWeek, { weekStartsOn: 1 }), [selectedWeek]);
   const weekEnd = useMemo(() => endOfWeek(selectedWeek, { weekStartsOn: 1 }), [selectedWeek]);
 
   const fetchTimeEntries = useCallback(async () => {
@@ -164,9 +173,7 @@ const TimeEntriesPageContent = () => {
     } catch (fetchError) {
       console.error("Error fetching time entries:", fetchError);
       setError(
-        fetchError instanceof Error
-          ? fetchError.message
-          : "Nepodarilo sa načítať časové záznamy"
+        fetchError instanceof Error ? fetchError.message : "Nepodarilo sa načítať časové záznamy"
       );
     } finally {
       setLoading(false);
@@ -176,13 +183,7 @@ const TimeEntriesPageContent = () => {
   useEffect(() => {
     if (workspaceLoading || permissionLoading || !workspaceId || !canViewTimeEntries) return;
     void fetchTimeEntries();
-  }, [
-    canViewTimeEntries,
-    fetchTimeEntries,
-    permissionLoading,
-    workspaceId,
-    workspaceLoading,
-  ]);
+  }, [canViewTimeEntries, fetchTimeEntries, permissionLoading, workspaceId, workspaceLoading]);
 
   useEffect(() => {
     const handleRefresh = () => void fetchTimeEntries();
@@ -216,8 +217,7 @@ const TimeEntriesPageContent = () => {
 
     return timeEntries.filter((entry) => {
       const matchesUser = userFilter === "all" || entry.profiles?.id === userFilter;
-      const matchesProject =
-        projectFilter === "all" || entry.tasks?.projects?.id === projectFilter;
+      const matchesProject = projectFilter === "all" || entry.tasks?.projects?.id === projectFilter;
       const matchesBillable =
         billableFilter === "all" ||
         (billableFilter === "billable" ? entry.is_billable : !entry.is_billable);
@@ -316,6 +316,49 @@ const TimeEntriesPageContent = () => {
     });
   };
 
+  const handleOpenTaskPanel = async (taskId: string) => {
+    const requestId = taskPanelRequestRef.current + 1;
+    taskPanelRequestRef.current = requestId;
+    setSelectedTask(null);
+    setIsTaskPanelLoading(true);
+    setIsTaskPanelOpen(true);
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, { cache: "no-store" });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Nepodarilo sa načítať úlohu");
+      }
+
+      if (taskPanelRequestRef.current === requestId) {
+        setSelectedTask(result.data);
+      }
+    } catch (taskError) {
+      if (taskPanelRequestRef.current !== requestId) return;
+
+      setIsTaskPanelOpen(false);
+      toast({
+        title: "Úlohu sa nepodarilo otvoriť",
+        description: taskError instanceof Error ? taskError.message : undefined,
+        variant: "destructive",
+      });
+    } finally {
+      if (taskPanelRequestRef.current === requestId) {
+        setIsTaskPanelLoading(false);
+      }
+    }
+  };
+
+  const handleTaskPanelOpenChange = (open: boolean) => {
+    setIsTaskPanelOpen(open);
+    if (!open) {
+      taskPanelRequestRef.current += 1;
+      setSelectedTask(null);
+      setIsTaskPanelLoading(false);
+    }
+  };
+
   const handleDeleteTimeEntry = async (id: string) => {
     if (!window.confirm("Naozaj chcete vymazať tento časový záznam?")) return;
 
@@ -374,7 +417,8 @@ const TimeEntriesPageContent = () => {
               onClick={() => setSelectedWeek(new Date())}
             >
               <CalendarDays />
-              {format(weekStart, "d. MMM", { locale: sk })} – {format(weekEnd, "d. MMM yyyy", { locale: sk })}
+              {format(weekStart, "d. MMM", { locale: sk })} –{" "}
+              {format(weekEnd, "d. MMM yyyy", { locale: sk })}
             </Button>
             <Button
               variant="ghost"
@@ -567,79 +611,95 @@ const TimeEntriesPageContent = () => {
 
                 <div className="divide-y divide-border">
                   {taskGroups.map((group) => {
-                    const project = group.task?.projects;
+                    const task = group.task;
+                    const project = task?.projects;
                     const isExpanded = expandedGroups.has(group.key);
                     const detailId = `time-group-${group.key}`;
 
                     return (
                       <div key={group.key}>
-                        <button
-                          type="button"
-                          aria-expanded={isExpanded}
-                          aria-controls={detailId}
-                          onClick={() => handleToggleGroup(group.key)}
-                          className="group/summary grid min-h-14 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/30 sm:px-5 md:grid-cols-[minmax(220px,1.4fr)_minmax(160px,1fr)_auto_auto]"
-                        >
-                          <div className="flex min-w-0 items-center gap-3">
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/45 text-muted-foreground">
-                              <ListTodo className="h-4 w-4" />
-                            </span>
-                            <div className="min-w-0">
-                              <div
-                                className="truncate text-sm font-semibold text-foreground"
-                                title={group.task?.title || "Bez úlohy"}
-                              >
-                                {group.task?.title || "Bez úlohy"}
-                              </div>
-                              <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground md:hidden">
-                                <span
-                                  className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground"
-                                  style={
-                                    project?.color ? { backgroundColor: project.color } : undefined
-                                  }
-                                />
-                                <span className="truncate">{project?.name || "Bez projektu"}</span>
+                        <div className="group/row flex items-stretch transition-colors hover:bg-muted/25">
+                          <button
+                            type="button"
+                            aria-expanded={isExpanded}
+                            aria-controls={detailId}
+                            onClick={() => handleToggleGroup(group.key)}
+                            className="group/summary grid min-h-14 min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/30 sm:pl-5 md:grid-cols-[minmax(220px,1.4fr)_minmax(160px,1fr)_auto_auto]"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/45 text-muted-foreground">
+                                <ListTodo className="h-4 w-4" />
+                              </span>
+                              <div className="min-w-0">
+                                <div
+                                  className="truncate text-sm font-semibold text-foreground"
+                                  title={task?.title || "Bez úlohy"}
+                                >
+                                  {task?.title || "Bez úlohy"}
+                                </div>
+                                <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground md:hidden">
+                                  <span
+                                    className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground"
+                                    style={
+                                      project?.color
+                                        ? { backgroundColor: project.color }
+                                        : undefined
+                                    }
+                                  />
+                                  <span className="truncate">
+                                    {project?.name || "Bez projektu"}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          <div className="hidden min-w-0 items-center gap-2 text-xs text-muted-foreground md:flex">
-                            <span
-                              className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground"
-                              style={project?.color ? { backgroundColor: project.color } : undefined}
-                            />
-                            <span className="truncate">
-                              {project?.name || "Bez projektu"}
-                              {project?.code ? ` · ${project.code}` : ""}
-                            </span>
-                          </div>
+                            <div className="hidden min-w-0 items-center gap-2 text-xs text-muted-foreground md:flex">
+                              <span
+                                className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground"
+                                style={
+                                  project?.color ? { backgroundColor: project.color } : undefined
+                                }
+                              />
+                              <span className="truncate">
+                                {project?.name || "Bez projektu"}
+                                {project?.code ? ` · ${project.code}` : ""}
+                              </span>
+                            </div>
 
-                          <div className="hidden items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground md:flex">
-                            <UsersRound className="h-3.5 w-3.5" />
-                            {group.userCount}{" "}
-                            {getCountLabel(group.userCount, "človek", "ľudia", "ľudí")}
-                            <span aria-hidden="true">·</span>
-                            {group.entries.length}{" "}
-                            {getCountLabel(
-                              group.entries.length,
-                              "záznam",
-                              "záznamy",
-                              "záznamov"
-                            )}
-                          </div>
+                            <div className="hidden items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground md:flex">
+                              <UsersRound className="h-3.5 w-3.5" />
+                              {group.userCount}{" "}
+                              {getCountLabel(group.userCount, "človek", "ľudia", "ľudí")}
+                              <span aria-hidden="true">·</span>
+                              {group.entries.length}{" "}
+                              {getCountLabel(group.entries.length, "záznam", "záznamy", "záznamov")}
+                            </div>
 
-                          <div className="flex items-center justify-end gap-3">
-                            <span className="text-sm font-semibold tabular-nums text-foreground">
-                              {formatHours(group.totalHours)}
-                            </span>
-                            <ChevronRight
-                              className={cn(
-                                "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                                isExpanded && "rotate-90"
-                              )}
-                            />
-                          </div>
-                        </button>
+                            <div className="flex items-center justify-end gap-3">
+                              <span className="text-sm font-semibold tabular-nums text-foreground">
+                                {formatHours(group.totalHours)}
+                              </span>
+                              <ChevronRight
+                                className={cn(
+                                  "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                                  isExpanded && "rotate-90"
+                                )}
+                              />
+                            </div>
+                          </button>
+
+                          {task && (
+                            <button
+                              type="button"
+                              aria-label={`Otvoriť úlohu ${task.title}`}
+                              title="Otvoriť úlohu v bočnom paneli"
+                              onClick={() => void handleOpenTaskPanel(task.id)}
+                              className="flex w-11 shrink-0 items-center justify-center border-l border-border/70 text-muted-foreground opacity-100 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/30 md:opacity-0 md:group-hover/row:opacity-100 md:focus-visible:opacity-100"
+                            >
+                              <PanelRightOpen className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
 
                         {isExpanded && (
                           <div
@@ -686,9 +746,7 @@ const TimeEntriesPageContent = () => {
 
                                   <div className="flex items-center gap-2 text-xs tabular-nums text-muted-foreground">
                                     <Clock3 className="h-3.5 w-3.5" />
-                                    {startTime && endTime
-                                      ? `${startTime} – ${endTime}`
-                                      : "Ručne"}
+                                    {startTime && endTime ? `${startTime} – ${endTime}` : "Ručne"}
                                   </div>
 
                                   <div className="flex items-center justify-between gap-2 md:justify-end">
@@ -701,9 +759,7 @@ const TimeEntriesPageContent = () => {
                                             : "bg-muted-foreground/40"
                                         )}
                                         title={
-                                          entry.is_billable
-                                            ? "Fakturovateľné"
-                                            : "Nefakturovateľné"
+                                          entry.is_billable ? "Fakturovateľné" : "Nefakturovateľné"
                                         }
                                       />
                                       <span className="text-sm font-medium tabular-nums text-foreground">
@@ -736,6 +792,16 @@ const TimeEntriesPageContent = () => {
           })}
         </div>
       )}
+
+      <TaskDialog
+        projectId={selectedTask?.project_id || null}
+        task={selectedTask}
+        mode="quick"
+        loadingTask={isTaskPanelLoading}
+        open={isTaskPanelOpen}
+        onOpenChange={handleTaskPanelOpenChange}
+        onSuccess={() => void fetchTimeEntries()}
+      />
     </div>
   );
 };

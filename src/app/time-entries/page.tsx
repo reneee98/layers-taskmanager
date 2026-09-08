@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   addDays,
   addWeeks,
@@ -21,6 +20,7 @@ import {
   CircleDollarSign,
   Clock3,
   FilterX,
+  ListTodo,
   Search,
   Trash2,
   UserRound,
@@ -78,6 +78,14 @@ interface TimeEntry {
 
 type BillableFilter = "all" | "billable" | "non-billable";
 
+interface TaskTimeGroup {
+  key: string;
+  task: TimeEntry["tasks"];
+  entries: TimeEntry[];
+  totalHours: number;
+  userCount: number;
+}
+
 const formatTime = (value: string | null) => {
   if (!value) return null;
 
@@ -102,6 +110,12 @@ const getInitials = (name: string) =>
     .toUpperCase()
     .slice(0, 2);
 
+const getCountLabel = (count: number, singular: string, few: string, many: string) => {
+  if (count === 1) return singular;
+  if (count >= 2 && count <= 4) return few;
+  return many;
+};
+
 const TimeEntriesPageContent = () => {
   const { workspace, loading: workspaceLoading } = useWorkspace();
   const { hasPermission: canViewTimeEntries, isLoading: permissionLoading } = usePermission(
@@ -117,6 +131,7 @@ const TimeEntriesPageContent = () => {
   const [userFilter, setUserFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
   const [billableFilter, setBillableFilter] = useState<BillableFilter>("all");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -227,13 +242,34 @@ const TimeEntriesPageContent = () => {
   }, [billableFilter, projectFilter, searchQuery, timeEntries, userFilter]);
 
   const groupedEntries = useMemo(() => {
-    const groups = new Map<string, TimeEntry[]>();
+    const dayGroups = new Map<string, Map<string, TimeEntry[]>>();
+
     filteredEntries.forEach((entry) => {
-      const group = groups.get(entry.date) || [];
-      group.push(entry);
-      groups.set(entry.date, group);
+      const taskKey = entry.tasks?.id || "without-task";
+      const taskGroups = dayGroups.get(entry.date) || new Map<string, TimeEntry[]>();
+      const entries = taskGroups.get(taskKey) || [];
+      entries.push(entry);
+      taskGroups.set(taskKey, entries);
+      dayGroups.set(entry.date, taskGroups);
     });
-    return Array.from(groups.entries()).sort(([dateA], [dateB]) => dateB.localeCompare(dateA));
+
+    return Array.from(dayGroups.entries())
+      .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
+      .map(([dateKey, taskGroups]) => {
+        const groups: TaskTimeGroup[] = Array.from(taskGroups.entries())
+          .map(([taskKey, entries]) => ({
+            key: `${dateKey}:${taskKey}`,
+            task: entries[0]?.tasks || null,
+            entries,
+            totalHours: entries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0),
+            userCount: new Set(entries.map((entry) => entry.profiles?.id).filter(Boolean)).size,
+          }))
+          .sort((a, b) =>
+            (a.task?.title || "Bez úlohy").localeCompare(b.task?.title || "Bez úlohy", "sk")
+          );
+
+        return [dateKey, groups] as const;
+      });
   }, [filteredEntries]);
 
   const dailyTotals = useMemo(() => {
@@ -266,6 +302,18 @@ const TimeEntriesPageContent = () => {
     setUserFilter("all");
     setProjectFilter("all");
     setBillableFilter("all");
+  };
+
+  const handleToggleGroup = (groupKey: string) => {
+    setExpandedGroups((currentGroups) => {
+      const nextGroups = new Set(currentGroups);
+      if (nextGroups.has(groupKey)) {
+        nextGroups.delete(groupKey);
+      } else {
+        nextGroups.add(groupKey);
+      }
+      return nextGroups;
+    });
   };
 
   const handleDeleteTimeEntry = async (id: string) => {
@@ -403,7 +451,7 @@ const TimeEntriesPageContent = () => {
           <Input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Hľadať popis, úlohu alebo projekt…"
+            placeholder="Hľadať úlohu, popis alebo projekt…"
             aria-label="Hľadať v časových záznamoch"
             className="pl-9"
           />
@@ -497,9 +545,9 @@ const TimeEntriesPageContent = () => {
         />
       ) : (
         <div className="space-y-4">
-          {groupedEntries.map(([dateKey, entries]) => {
+          {groupedEntries.map(([dateKey, taskGroups]) => {
             const day = parseISO(dateKey);
-            const dayTotal = entries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
+            const dayTotal = taskGroups.reduce((sum, group) => sum + group.totalHours, 0);
 
             return (
               <section key={dateKey} className="surface-panel overflow-hidden">
@@ -518,25 +566,44 @@ const TimeEntriesPageContent = () => {
                 </header>
 
                 <div className="divide-y divide-border">
-                  {entries.map((entry) => {
-                    const profileName = getProfileName(entry);
-                    const project = entry.tasks?.projects;
-                    const startTime = formatTime(entry.start_time);
-                    const endTime = formatTime(entry.end_time);
+                  {taskGroups.map((group) => {
+                    const project = group.task?.projects;
+                    const isExpanded = expandedGroups.has(group.key);
+                    const detailId = `time-group-${group.key}`;
 
                     return (
-                      <div
-                        key={entry.id}
-                        className="group grid gap-3 px-4 py-3 transition-colors hover:bg-muted/20 sm:px-5 lg:grid-cols-[minmax(160px,1.7fr)_minmax(140px,1fr)_minmax(120px,.8fr)_95px_64px] lg:items-center"
-                      >
-                        <div className="min-w-0">
-                          <div
-                            className="truncate text-sm font-medium text-foreground"
-                            title={entry.description || undefined}
-                          >
-                            {entry.description || "Bez popisu"}
+                      <div key={group.key}>
+                        <button
+                          type="button"
+                          aria-expanded={isExpanded}
+                          aria-controls={detailId}
+                          onClick={() => handleToggleGroup(group.key)}
+                          className="group/summary grid min-h-14 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/30 sm:px-5 md:grid-cols-[minmax(220px,1.4fr)_minmax(160px,1fr)_auto_auto]"
+                        >
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/45 text-muted-foreground">
+                              <ListTodo className="h-4 w-4" />
+                            </span>
+                            <div className="min-w-0">
+                              <div
+                                className="truncate text-sm font-semibold text-foreground"
+                                title={group.task?.title || "Bez úlohy"}
+                              >
+                                {group.task?.title || "Bez úlohy"}
+                              </div>
+                              <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground md:hidden">
+                                <span
+                                  className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground"
+                                  style={
+                                    project?.color ? { backgroundColor: project.color } : undefined
+                                  }
+                                />
+                                <span className="truncate">{project?.name || "Bez projektu"}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+
+                          <div className="hidden min-w-0 items-center gap-2 text-xs text-muted-foreground md:flex">
                             <span
                               className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground"
                               style={project?.color ? { backgroundColor: project.color } : undefined}
@@ -546,66 +613,120 @@ const TimeEntriesPageContent = () => {
                               {project?.code ? ` · ${project.code}` : ""}
                             </span>
                           </div>
-                        </div>
 
-                        <div className="min-w-0">
-                          {entry.tasks ? (
-                            <Link
-                              href={`/tasks/${entry.tasks.id}`}
-                              className="block truncate text-sm text-foreground underline-offset-4 hover:text-primary hover:underline"
-                              title={entry.tasks.title}
-                            >
-                              {entry.tasks.title}
-                            </Link>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">Bez úlohy</span>
-                          )}
-                          <div className="mt-1 text-[11px] text-muted-foreground lg:hidden">Úloha</div>
-                        </div>
-
-                        <div className="flex min-w-0 items-center gap-2">
-                          <Avatar className="h-7 w-7">
-                            <AvatarFallback className="text-[10px]">
-                              {getInitials(profileName) || <UserRound className="h-3 w-3" />}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="truncate text-xs text-foreground" title={profileName}>
-                            {profileName}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2 text-xs tabular-nums text-muted-foreground">
-                          <Clock3 className="h-3.5 w-3.5" />
-                          {startTime && endTime ? `${startTime} – ${endTime}` : "Ručne"}
-                        </div>
-
-                        <div className="flex items-center justify-between gap-2 lg:justify-end">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={cn(
-                                "h-1.5 w-1.5 rounded-full",
-                                entry.is_billable ? "bg-emerald-500" : "bg-muted-foreground/40"
-                              )}
-                              title={
-                                entry.is_billable ? "Fakturovateľné" : "Nefakturovateľné"
-                              }
-                            />
-                            <span className="text-sm font-semibold tabular-nums text-foreground">
-                              {formatHours(entry.hours)}
-                            </span>
+                          <div className="hidden items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground md:flex">
+                            <UsersRound className="h-3.5 w-3.5" />
+                            {group.userCount}{" "}
+                            {getCountLabel(group.userCount, "človek", "ľudia", "ľudí")}
+                            <span aria-hidden="true">·</span>
+                            {group.entries.length}{" "}
+                            {getCountLabel(
+                              group.entries.length,
+                              "záznam",
+                              "záznamy",
+                              "záznamov"
+                            )}
                           </div>
-                          {canDeleteTimeEntries && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="Odstrániť časový záznam"
-                              className="h-8 w-8 text-muted-foreground opacity-100 hover:bg-destructive/10 hover:text-destructive lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
-                              onClick={() => void handleDeleteTimeEntry(entry.id)}
-                            >
-                              <Trash2 />
-                            </Button>
-                          )}
-                        </div>
+
+                          <div className="flex items-center justify-end gap-3">
+                            <span className="text-sm font-semibold tabular-nums text-foreground">
+                              {formatHours(group.totalHours)}
+                            </span>
+                            <ChevronRight
+                              className={cn(
+                                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                                isExpanded && "rotate-90"
+                              )}
+                            />
+                          </div>
+                        </button>
+
+                        {isExpanded && (
+                          <div
+                            id={detailId}
+                            className="divide-y divide-border border-t border-border bg-muted/[0.1]"
+                          >
+                            {group.entries.map((entry) => {
+                              const profileName = getProfileName(entry);
+                              const startTime = formatTime(entry.start_time);
+                              const endTime = formatTime(entry.end_time);
+
+                              return (
+                                <div
+                                  key={entry.id}
+                                  className="group/detail grid gap-3 px-4 py-3 sm:px-5 md:grid-cols-[minmax(200px,1fr)_minmax(130px,.6fr)_110px_76px] md:items-center md:pl-16"
+                                >
+                                  <div className="min-w-0">
+                                    <div
+                                      className="truncate text-sm text-foreground"
+                                      title={entry.description || undefined}
+                                    >
+                                      {entry.description || "Bez popisu"}
+                                    </div>
+                                    <div className="mt-0.5 text-[11px] text-muted-foreground md:hidden">
+                                      Popis záznamu
+                                    </div>
+                                  </div>
+
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <Avatar className="h-7 w-7">
+                                      <AvatarFallback className="text-[10px]">
+                                        {getInitials(profileName) || (
+                                          <UserRound className="h-3 w-3" />
+                                        )}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span
+                                      className="truncate text-xs text-foreground"
+                                      title={profileName}
+                                    >
+                                      {profileName}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 text-xs tabular-nums text-muted-foreground">
+                                    <Clock3 className="h-3.5 w-3.5" />
+                                    {startTime && endTime
+                                      ? `${startTime} – ${endTime}`
+                                      : "Ručne"}
+                                  </div>
+
+                                  <div className="flex items-center justify-between gap-2 md:justify-end">
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className={cn(
+                                          "h-1.5 w-1.5 rounded-full",
+                                          entry.is_billable
+                                            ? "bg-emerald-500"
+                                            : "bg-muted-foreground/40"
+                                        )}
+                                        title={
+                                          entry.is_billable
+                                            ? "Fakturovateľné"
+                                            : "Nefakturovateľné"
+                                        }
+                                      />
+                                      <span className="text-sm font-medium tabular-nums text-foreground">
+                                        {formatHours(entry.hours)}
+                                      </span>
+                                    </div>
+                                    {canDeleteTimeEntries && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label="Odstrániť časový záznam"
+                                        className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive md:opacity-0 md:group-hover/detail:opacity-100 md:focus-visible:opacity-100"
+                                        onClick={() => void handleDeleteTimeEntry(entry.id)}
+                                      >
+                                        <Trash2 />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

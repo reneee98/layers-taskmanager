@@ -19,6 +19,7 @@ const COMMON_PERMISSIONS = [
   { resource: 'pages', action: 'view_projects' },
   { resource: 'pages', action: 'view_clients' },
   { resource: 'pages', action: 'view_tasks' },
+  { resource: 'pages', action: 'view_time_entries' },
   { resource: 'pages', action: 'view_invoices' },
   { resource: 'pages', action: 'view_settings' },
   { resource: 'pages', action: 'view_workspace_users' },
@@ -32,6 +33,8 @@ const COMMON_PERMISSIONS = [
   { resource: 'financial', action: 'view_prices' },
   { resource: 'clients', action: 'read' },
   { resource: 'clients', action: 'view' },
+  { resource: 'time_entries', action: 'read' },
+  { resource: 'time_entries', action: 'delete' },
 ];
 
 const PERMISSIONS_CACHE_KEY = 'permissions_cache';
@@ -182,4 +185,3 @@ export function usePermissions() {
   }
   return context;
 }
-

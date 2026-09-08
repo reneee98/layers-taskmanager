@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   Moon,
   Sun,
+  Clock3,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -67,6 +68,12 @@ const mainNavItems: Array<{
     href: "/clients",
     icon: Users,
     permission: { resource: "pages", action: "view_clients" },
+  },
+  {
+    title: "Časy",
+    href: "/time-entries",
+    icon: Clock3,
+    permission: { resource: "pages", action: "view_time_entries" },
   },
   {
     title: "Faktúry",
@@ -131,6 +138,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false }: SideNavProps) 
   // Check permissions for pages
   const { hasPermission: canViewProjects } = usePermission("pages", "view_projects");
   const { hasPermission: canViewClients } = usePermission("pages", "view_clients");
+  const { hasPermission: canViewTimeEntries } = usePermission("pages", "view_time_entries");
   const { hasPermission: canViewInvoices } = usePermission("pages", "view_invoices");
   const { hasPermission: canViewSettings } = usePermission("pages", "view_settings");
   const { hasPermission: canViewWorkspaceUsers } = usePermission("pages", "view_workspace_users");
@@ -140,6 +148,7 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false }: SideNavProps) 
   const pagePermissions = {
     "pages.view_projects": canViewProjects,
     "pages.view_clients": canViewClients,
+    "pages.view_time_entries": canViewTimeEntries,
     "pages.view_invoices": canViewInvoices,
     "pages.view_settings": canViewSettings,
     "pages.view_workspace_users": canViewWorkspaceUsers,

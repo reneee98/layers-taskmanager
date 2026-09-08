@@ -11,10 +11,15 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createClient();
+    const { searchParams } = new URL(request.url);
+    const dateFrom = searchParams.get("date_from");
+    const dateTo = searchParams.get("date_to");
+    const isIsoDate = (value: string | null): value is string =>
+      Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
 
     // Get time entries for the workspace
     // Note: time_entries has no FK to profiles, so user profiles are fetched separately
-    const { data: timeEntries, error } = await supabase
+    let timeEntriesQuery = supabase
       .from("time_entries")
       .select(`
         *,
@@ -25,11 +30,22 @@ export async function GET(request: NextRequest) {
           projects (
             id,
             name,
-            code
+            code,
+            color
           )
         )
       `)
-      .eq("workspace_id", workspaceId)
+      .eq("workspace_id", workspaceId);
+
+    if (isIsoDate(dateFrom)) {
+      timeEntriesQuery = timeEntriesQuery.gte("date", dateFrom);
+    }
+
+    if (isIsoDate(dateTo)) {
+      timeEntriesQuery = timeEntriesQuery.lte("date", dateTo);
+    }
+
+    const { data: timeEntries, error } = await timeEntriesQuery
       .order("date", { ascending: false })
       .order("created_at", { ascending: false });
 

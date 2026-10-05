@@ -913,18 +913,16 @@ export default function DashboardPage() {
           }
 
           // Process projects
-          if (canReadProjects || canViewProjects) {
-            const projects = initResult.data.projects || [];
-            setDashboardProjects(projects);
-            const personalProject = projects.find(
-              (p: any) =>
-                p.name === "Osobné úlohy" ||
-                (p.code && (p.code === "PERSONAL" || p.code.startsWith("PERSONAL-")))
-            );
-            if (personalProject) {
-              setPersonalProjectId(personalProject.id);
-            }
-          }
+          // The API scopes projects to the member's assignments. Store the response
+          // even if client permissions are still refreshing; showProjects controls visibility.
+          const projects: DashboardProjectItem[] = initResult.data.projects || [];
+          setDashboardProjects(projects);
+          const personalProject = projects.find(
+            (project) =>
+              project.name === "Osobné úlohy" ||
+              (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-")))
+          );
+          setPersonalProjectId(personalProject?.id || null);
 
           // OPTIMIZED: Share data with contexts via custom event to avoid duplicate requests
           window.dispatchEvent(

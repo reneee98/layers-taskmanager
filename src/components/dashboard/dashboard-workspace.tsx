@@ -156,7 +156,7 @@ export const DashboardWorkspace = ({
     const projectsWithActiveWork = projects.filter(
       (project) =>
         !["completed", "cancelled"].includes(project.status) &&
-        (projectTasksById.get(project.id)?.length || 0) > 0
+        (project.status === "active" || (projectTasksById.get(project.id)?.length || 0) > 0)
     );
 
     return projectsWithActiveWork.sort((firstProject, secondProject) => {
@@ -600,6 +600,11 @@ export const DashboardWorkspace = ({
                         id={taskContainerId}
                         className="border-t border-border/60 bg-muted/[0.06] pl-2 sm:pl-6"
                       >
+                        {projectTasks.length === 0 && (
+                          <p className="px-3 py-4 text-xs text-muted-foreground">
+                            Projekt zatiaľ nemá aktívne úlohy.
+                          </p>
+                        )}
                         {projectTasks.map((task) => (
                           <DashboardTaskRow
                             key={task.id}

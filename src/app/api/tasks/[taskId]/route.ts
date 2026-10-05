@@ -363,11 +363,14 @@ export async function PATCH(
         : currentTask.project_id;
 
     if (!projectAccess.hasFullProjectAccess) {
+      const canAccessCurrentProject = Boolean(
+        currentTask.project_id && projectAccess.accessibleProjectIds.includes(currentTask.project_id)
+      );
       const canAccessTargetProject = Boolean(
         targetProjectId && projectAccess.accessibleProjectIds.includes(targetProjectId)
       );
 
-      if (!canAccessTargetProject) {
+      if (!canAccessCurrentProject || !canAccessTargetProject) {
         return NextResponse.json(
           { success: false, error: "Nemáte oprávnenie upravovať úlohy mimo pridelených projektov" },
           { status: 403 }

@@ -26,6 +26,8 @@ const COMMON_PERMISSIONS = [
   { resource: 'pages', action: 'view_admin_roles' },
   { resource: 'pages', action: 'view_admin_bugs' },
   { resource: 'tasks', action: 'read' },
+  { resource: 'tasks', action: 'create' },
+  { resource: 'tasks', action: 'update' },
   { resource: 'tasks', action: 'view' },
   { resource: 'projects', action: 'read' },
   { resource: 'projects', action: 'view' },

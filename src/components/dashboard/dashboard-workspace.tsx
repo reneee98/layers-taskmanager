@@ -153,13 +153,11 @@ export const DashboardWorkspace = ({
   }, [workspaceTasks]);
 
   const activeProjects = useMemo(() => {
-    const projectsWithActiveWork = projects.filter(
-      (project) =>
-        !["completed", "cancelled"].includes(project.status) &&
-        (project.status === "active" || (projectTasksById.get(project.id)?.length || 0) > 0)
+    const currentProjects = projects.filter(
+      (project) => !["completed", "cancelled"].includes(project.status)
     );
 
-    return projectsWithActiveWork.sort((firstProject, secondProject) => {
+    return currentProjects.sort((firstProject, secondProject) => {
       const countDifference =
         (projectTasksById.get(secondProject.id)?.length || 0) -
         (projectTasksById.get(firstProject.id)?.length || 0);

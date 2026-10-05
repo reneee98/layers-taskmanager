@@ -49,12 +49,18 @@ describe("dashboard projects", () => {
     expect(screen.queryByRole("link", { name: "Otvoriť projekt Aktívny" })).not.toBeInTheDocument();
   });
 
-  it("hides completed and cancelled projects even with open tasks, and empty drafts", () => {
+  it("hides completed and cancelled projects even with open tasks", () => {
     renderProjects([
-      project("Hotový", "completed"), project("Zrušený", "cancelled"), project("Koncept", "draft"),
+      project("Hotový", "completed"), project("Zrušený", "cancelled"),
     ], [task("Hotový", "todo"), task("Zrušený", "todo")]);
     expect(screen.getByText("Žiadne aktívne projekty")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("shows assigned drafts and paused projects even without open tasks", () => {
+    renderProjects([project("Koncept", "draft"), project("Pozastavený", "on_hold")]);
+    expect(screen.getByRole("link", { name: "Otvoriť projekt Koncept" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Otvoriť projekt Pozastavený" })).toBeInTheDocument();
   });
 
   it("preserves projects with open work and sorts them ahead of empty active projects", () => {

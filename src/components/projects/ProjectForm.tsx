@@ -3,7 +3,11 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { projectSchema, updateProjectSchema, type ProjectFormData, type UpdateProjectData } from "@/lib/validations/project";
+import {
+  projectSchema,
+  type ProjectFormData,
+  type UpdateProjectData,
+} from "@/lib/validations/project";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +32,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { ExchangeRateNotice } from "@/components/currency/ExchangeRateNotice";
 import { SUPPORTED_CURRENCIES, getCurrencySymbol, normalizeCurrency } from "@/lib/currency";
 import { Check, Dices } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProjectMembers } from "./ProjectMembers";
 import {
   getProjectFallbackColor,
   getRandomProjectColor,
@@ -42,10 +48,19 @@ interface ProjectFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  showMembers?: boolean;
 }
 
-export const ProjectForm = ({ project, clients: propClients, open, onOpenChange, onSuccess }: ProjectFormProps) => {
+export const ProjectForm = ({
+  project,
+  clients: propClients,
+  open,
+  onOpenChange,
+  onSuccess,
+  showMembers = false,
+}: ProjectFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingProject, setIsLoadingProject] = useState(Boolean(project));
   const [clients, setClients] = useState<Client[]>(propClients);
   const [existingCodes, setExistingCodes] = useState<string[]>([]);
   const isEditing = !!project;
@@ -99,7 +114,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value;
     setValue("name", name);
-    
+
     // Only auto-generate code for new projects
     if (!isEditing && name.trim()) {
       const baseCode = generateProjectCode(name);
@@ -129,15 +144,16 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
   // Reset form when project changes
   useEffect(() => {
     const resetForm = async () => {
+      setIsLoadingProject(Boolean(project));
       if (project) {
         // Always fetch fresh data from API when editing
         try {
           const response = await fetch(`/api/projects/${project.id}`);
           const result = await response.json();
-          
+
           if (result.success && result.data) {
             const freshProject = result.data;
-            
+
             reset({
               client_id: freshProject.client_id,
               name: freshProject.name,
@@ -150,10 +166,10 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
               currency: freshProject.currency || "EUR",
               hourly_rate: freshProject.hourly_rate || null,
               fixed_fee: freshProject.fixed_fee || null,
-              external_costs_budget: null,
+              external_costs_budget: freshProject.external_costs_budget ?? null,
               start_date: freshProject.start_date || "",
               end_date: freshProject.end_date || "",
-              notes: "",
+              notes: freshProject.notes || "",
             });
           }
         } catch (error) {
@@ -169,10 +185,12 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
             currency: project.currency || "EUR",
             hourly_rate: project.hourly_rate || null,
             fixed_fee: project.fixed_fee || null,
-            external_costs_budget: null,
+            external_costs_budget:
+              (project as Project & { external_costs_budget?: number | null })
+                .external_costs_budget ?? null,
             start_date: project.start_date || "",
             end_date: project.end_date || "",
-            notes: "",
+            notes: (project as Project & { notes?: string | null }).notes || "",
           });
         }
       } else {
@@ -185,15 +203,15 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
           external_costs_budget: null,
         });
       }
+      setIsLoadingProject(false);
     };
-    
+
     resetForm();
-  }, [project?.id, reset, open]);
+  }, [project, reset, open]);
 
   // Check if this is an existing personal project (for edit mode) - only by name
   const isPersonalProject = project && project.name === "Osobné úlohy";
-  const selectedProjectColor =
-    normalizeProjectColor(watch("color")) || PROJECT_COLOR_PALETTE[0];
+  const selectedProjectColor = normalizeProjectColor(watch("color")) || PROJECT_COLOR_PALETTE[0];
 
   const handleFormSubmit = async (data: ProjectFormData | UpdateProjectData) => {
     setIsSubmitting(true);
@@ -201,17 +219,17 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
     try {
       const url = isEditing ? `/api/projects/${project.id}` : "/api/projects";
       const method = isEditing ? "PATCH" : "POST";
-      
+
       // Prevent changes to personal project fields (only for existing personal projects in edit mode)
       if (isPersonalProject && isEditing) {
         if (data.status !== undefined) {
-          delete (data as any).status;
+          delete data.status;
         }
         if (data.client_id !== undefined) {
-          (data as any).client_id = null;
+          data.client_id = null;
         }
         if (data.code !== undefined) {
-          (data as any).code = null;
+          data.code = null;
         }
       }
 
@@ -232,13 +250,13 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
       } else {
         cleanedData.hourly_rate = null;
       }
-      
+
       if (data.fixed_fee && data.fixed_fee > 0) {
         cleanedData.fixed_fee = data.fixed_fee;
       } else {
         cleanedData.fixed_fee = null;
       }
-      
+
       if (data.external_costs_budget && data.external_costs_budget > 0) {
         cleanedData.external_costs_budget = data.external_costs_budget;
       } else {
@@ -255,14 +273,6 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
       if (cleanedData.external_costs_budget === 0) {
         cleanedData.external_costs_budget = null;
       }
-
-      // Remove undefined values
-      Object.keys(cleanedData).forEach(key => {
-        if ((cleanedData as any)[key] === undefined) {
-          delete (cleanedData as any)[key];
-        }
-      });
-
 
       const response = await fetch(url, {
         method,
@@ -289,7 +299,7 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
     } catch (error) {
       toast({
         title: "Chyba",
-        description: "Nastala neočakávaná chyba",
+        description: error instanceof Error ? error.message : "Nastala neočakávaná chyba",
         variant: "destructive",
       });
     } finally {
@@ -301,285 +311,338 @@ export const ProjectForm = ({ project, clients: propClients, open, onOpenChange,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Upraviť projekt" : "Pridať projekt"}</DialogTitle>
+          <DialogTitle>
+            {showMembers ? "Nastavenia projektu" : isEditing ? "Upraviť projekt" : "Pridať projekt"}
+          </DialogTitle>
           <DialogDescription>
-            {isEditing ? "Upravte údaje o projekte" : "Vyplňte údaje nového projektu"}
+            {showMembers
+              ? "Upravte údaje projektu alebo spravujte jeho členov."
+              : isEditing
+                ? "Upravte údaje o projekte"
+                : "Vyplňte údaje nového projektu"}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {!isPersonalProject && (
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="client_id">Klient *</Label>
-                <Select
-                  value={watch("client_id") || ""}
-                  onValueChange={(value) => setValue("client_id", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Vyberte klienta" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.client_id && (
-                  <p className="text-sm text-destructive">{errors.client_id.message}</p>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="name">Názov *</Label>
-              <Input 
-                id="name" 
-                {...register("name")} 
-                onChange={handleNameChange}
-                placeholder="Napr. E-shop, Web stránka, Mobile App"
-              />
-              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="code">Kód</Label>
-              <Input 
-                id="code" 
-                {...register("code")} 
-                placeholder="ESHOP-001"
-                readOnly={!isEditing}
-                className={!isEditing ? "bg-muted" : ""}
-              />
-              {!isEditing && (
-                <p className="text-xs text-muted-foreground">
-                  Kód sa vygeneruje automaticky z názvu
-                </p>
-              )}
-              {errors.code && <p className="text-sm text-destructive">{errors.code.message}</p>}
-            </div>
-
-            {!isPersonalProject ? (
-              <div className="space-y-2">
-                <Label htmlFor="status">Status *</Label>
-                <Select value={watch("status") || ""} onValueChange={(value) => setValue("status", value as any)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Návrh</SelectItem>
-                    <SelectItem value="active">Aktívny</SelectItem>
-                    <SelectItem value="on_hold">Pozastavený</SelectItem>
-                    <SelectItem value="completed">Dokončený</SelectItem>
-                    <SelectItem value="cancelled">Zrušený</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.status && <p className="text-sm text-destructive">{errors.status.message}</p>}
-              </div>
+        <Tabs defaultValue="project">
+          {showMembers && project && (
+            <TabsList className="mb-4 grid w-full grid-cols-2">
+              <TabsTrigger value="project">Projekt</TabsTrigger>
+              <TabsTrigger value="members">Členovia projektu</TabsTrigger>
+            </TabsList>
+          )}
+          <TabsContent value="project" forceMount className="mt-0 data-[state=inactive]:hidden">
+            {isLoadingProject ? (
+              <p role="status" className="py-8 text-center text-sm text-muted-foreground">
+                Načítavam nastavenia projektu…
+              </p>
             ) : (
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Input 
-                  id="status" 
-                  value="Aktívny" 
-                  disabled 
-                  className="bg-muted"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Status osobného projektu sa nedá meniť
-                </p>
-              </div>
-            )}
+              <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  {!isPersonalProject && (
+                    <div className="col-span-2 space-y-2">
+                      <Label htmlFor="client_id">Klient *</Label>
+                      <Select
+                        value={watch("client_id") || ""}
+                        onValueChange={(value) => setValue("client_id", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Vyberte klienta" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.client_id && (
+                        <p className="text-sm text-destructive">{errors.client_id.message}</p>
+                      )}
+                    </div>
+                  )}
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Popis</Label>
-              <Input id="description" {...register("description")} />
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Názov *</Label>
+                    <Input
+                      id="name"
+                      {...register("name")}
+                      onChange={handleNameChange}
+                      placeholder="Napr. E-shop, Web stránka, Mobile App"
+                    />
+                    {errors.name && (
+                      <p className="text-sm text-destructive">{errors.name.message}</p>
+                    )}
+                  </div>
 
-            <div className="col-span-2 space-y-2.5 rounded-xl border border-border bg-muted/[0.18] p-3.5">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <Label>Farba projektu</Label>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Rovnaká farba označí projekt aj jeho úlohy v plánovači.
-                  </p>
-                </div>
-                <div
-                  className="mt-2 inline-flex w-fit items-center gap-2 rounded-lg border px-2.5 py-1.5 font-mono text-xs font-medium text-foreground sm:mt-0"
-                  style={{
-                    borderColor: projectColorToRgba(selectedProjectColor, 0.18),
-                    backgroundColor: projectColorToRgba(selectedProjectColor, 0.04),
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: selectedProjectColor }}
-                  />
-                  {selectedProjectColor}
-                </div>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="code">Kód</Label>
+                    <Input
+                      id="code"
+                      {...register("code")}
+                      placeholder="ESHOP-001"
+                      readOnly={!isEditing}
+                      className={!isEditing ? "bg-muted" : ""}
+                    />
+                    {!isEditing && (
+                      <p className="text-xs text-muted-foreground">
+                        Kód sa vygeneruje automaticky z názvu
+                      </p>
+                    )}
+                    {errors.code && (
+                      <p className="text-sm text-destructive">{errors.code.message}</p>
+                    )}
+                  </div>
 
-              <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Farba projektu">
-                {PROJECT_COLOR_PALETTE.map((color) => {
-                  const isSelected = selectedProjectColor === color;
+                  {!isPersonalProject ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Status *</Label>
+                      <Select
+                        value={watch("status") || ""}
+                        onValueChange={(value) =>
+                          setValue("status", value as ProjectFormData["status"])
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Návrh</SelectItem>
+                          <SelectItem value="active">Aktívny</SelectItem>
+                          <SelectItem value="on_hold">Pozastavený</SelectItem>
+                          <SelectItem value="sent_to_client">U klienta</SelectItem>
+                          <SelectItem value="completed">Dokončený</SelectItem>
+                          <SelectItem value="cancelled">Zrušený</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {errors.status && (
+                        <p className="text-sm text-destructive">{errors.status.message}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Status</Label>
+                      <Input id="status" value="Aktívny" disabled className="bg-muted" />
+                      <p className="text-xs text-muted-foreground">
+                        Status osobného projektu sa nedá meniť
+                      </p>
+                    </div>
+                  )}
 
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      role="radio"
-                      aria-checked={isSelected}
-                      aria-label={`Vybrať farbu projektu ${color}`}
-                      onClick={() => setValue("color", color, { shouldDirty: true })}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-black/10 shadow-sm outline-none transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      style={{ backgroundColor: color }}
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Popis</Label>
+                    <Input id="description" {...register("description")} />
+                  </div>
+
+                  <div className="col-span-2 space-y-2.5 rounded-xl border border-border bg-muted/[0.18] p-3.5">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <Label>Farba projektu</Label>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Rovnaká farba označí projekt aj jeho úlohy v plánovači.
+                        </p>
+                      </div>
+                      <div
+                        className="mt-2 inline-flex w-fit items-center gap-2 rounded-lg border px-2.5 py-1.5 font-mono text-xs font-medium text-foreground sm:mt-0"
+                        style={{
+                          borderColor: projectColorToRgba(selectedProjectColor, 0.18),
+                          backgroundColor: projectColorToRgba(selectedProjectColor, 0.04),
+                        }}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: selectedProjectColor }}
+                        />
+                        {selectedProjectColor}
+                      </div>
+                    </div>
+
+                    <div
+                      className="flex flex-wrap items-center gap-2"
+                      role="radiogroup"
+                      aria-label="Farba projektu"
                     >
-                      {isSelected && <Check className="h-4 w-4 text-white drop-shadow-sm" />}
-                    </button>
-                  );
-                })}
+                      {PROJECT_COLOR_PALETTE.map((color) => {
+                        const isSelected = selectedProjectColor === color;
 
-                <label
-                  className="relative flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-border bg-card shadow-sm outline-none ring-offset-background transition-transform duration-150 hover:-translate-y-0.5 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
-                  title="Vlastná farba"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="h-4 w-4 rounded-full border border-black/10"
-                    style={{ backgroundColor: selectedProjectColor }}
-                  />
-                  <input
-                    type="color"
-                    value={selectedProjectColor}
-                    onChange={(event) =>
-                      setValue("color", event.target.value.toUpperCase(), { shouldDirty: true })
-                    }
-                    className="absolute inset-0 cursor-pointer opacity-0"
-                    aria-label="Vybrať vlastnú farbu projektu"
-                  />
-                </label>
+                        return (
+                          <button
+                            key={color}
+                            type="button"
+                            role="radio"
+                            aria-checked={isSelected}
+                            aria-label={`Vybrať farbu projektu ${color}`}
+                            onClick={() => setValue("color", color, { shouldDirty: true })}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-black/10 shadow-sm outline-none transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            style={{ backgroundColor: color }}
+                          >
+                            {isSelected && <Check className="h-4 w-4 text-white drop-shadow-sm" />}
+                          </button>
+                        );
+                      })}
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setValue("color", getRandomProjectColor(), { shouldDirty: true })
-                  }
-                  className="ml-auto h-8 text-xs"
-                >
-                  <Dices className="h-3.5 w-3.5" />
-                  Náhodná
-                </Button>
-              </div>
-              {errors.color && (
-                <p className="text-sm text-destructive">{errors.color.message}</p>
-              )}
-            </div>
+                      <label
+                        className="relative flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-border bg-card shadow-sm outline-none ring-offset-background transition-transform duration-150 hover:-translate-y-0.5 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+                        title="Vlastná farba"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="h-4 w-4 rounded-full border border-black/10"
+                          style={{ backgroundColor: selectedProjectColor }}
+                        />
+                        <input
+                          type="color"
+                          value={selectedProjectColor}
+                          onChange={(event) =>
+                            setValue("color", event.target.value.toUpperCase(), {
+                              shouldDirty: true,
+                            })
+                          }
+                          className="absolute inset-0 cursor-pointer opacity-0"
+                          aria-label="Vybrať vlastnú farbu projektu"
+                        />
+                      </label>
 
-            <div className="space-y-2">
-              <Label htmlFor="currency">Mena</Label>
-              <Select
-                value={selectedCurrency}
-                onValueChange={(value) => setValue("currency", value as "EUR" | "USD")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Vyberte menu" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SUPPORTED_CURRENCIES.map((currency) => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <ExchangeRateNotice currency={selectedCurrency} />
-            </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setValue("color", getRandomProjectColor(), { shouldDirty: true })
+                        }
+                        className="ml-auto h-8 text-xs"
+                      >
+                        <Dices className="h-3.5 w-3.5" />
+                        Náhodná
+                      </Button>
+                    </div>
+                    {errors.color && (
+                      <p className="text-sm text-destructive">{errors.color.message}</p>
+                    )}
+                  </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="start_date">Dátum začiatku</Label>
-              <DatePicker
-                value={watch("start_date") || undefined}
-                onChange={(value) => setValue("start_date", value || null)}
-                placeholder="Vyberte dátum začiatku"
-              />
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="currency">Mena</Label>
+                    <Select
+                      value={selectedCurrency}
+                      onValueChange={(value) => setValue("currency", value as "EUR" | "USD")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Vyberte menu" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_CURRENCIES.map((currency) => (
+                          <SelectItem key={currency} value={currency}>
+                            {currency}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <ExchangeRateNotice currency={selectedCurrency} />
+                  </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="end_date">Dátum konca</Label>
-              <DatePicker
-                value={watch("end_date") || undefined}
-                onChange={(value) => setValue("end_date", value || null)}
-                placeholder="Vyberte dátum konca"
-              />
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="start_date">Dátum začiatku</Label>
+                    <DatePicker
+                      value={watch("start_date") || undefined}
+                      onChange={(value) => setValue("start_date", value || null)}
+                      placeholder="Vyberte dátum začiatku"
+                    />
+                  </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="hourly_rate">Hodinová sadzba ({currencySymbol}) - voliteľné</Label>
-              <Input
-                id="hourly_rate"
-                type="number"
-                step="0.01"
-                placeholder="Napr. 50.00"
-                {...register("hourly_rate", { valueAsNumber: true })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Nechajte prázdne, ak sa sadzba nastavuje v úlohách
-              </p>
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="end_date">Dátum konca</Label>
+                    <DatePicker
+                      value={watch("end_date") || undefined}
+                      onChange={(value) => setValue("end_date", value || null)}
+                      placeholder="Vyberte dátum konca"
+                    />
+                  </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="fixed_fee">Fixný poplatok ({currencySymbol}) - voliteľné</Label>
-              <Input
-                id="fixed_fee"
-                type="number"
-                step="0.01"
-                placeholder="Napr. 1000.00"
-                {...register("fixed_fee", { valueAsNumber: true })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Nechajte prázdne, ak sa fakturuje len od hodín
-              </p>
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="hourly_rate">
+                      Hodinová sadzba ({currencySymbol}) - voliteľné
+                    </Label>
+                    <Input
+                      id="hourly_rate"
+                      type="number"
+                      step="0.01"
+                      placeholder="Napr. 50.00"
+                      {...register("hourly_rate", {
+                        setValueAs: (value) =>
+                          value === "" || value == null ? null : Number(value),
+                      })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Nechajte prázdne, ak sa sadzba nastavuje v úlohách
+                    </p>
+                  </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="external_costs_budget">Rozpočet nákladov ({currencySymbol}) - voliteľné</Label>
-              <Input
-                id="external_costs_budget"
-                type="number"
-                step="0.01"
-                placeholder="Napr. 500.00"
-                {...register("external_costs_budget", { valueAsNumber: true })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Nechajte prázdne, ak nie sú plánované externé náklady
-              </p>
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="fixed_fee">Fixný poplatok ({currencySymbol}) - voliteľné</Label>
+                    <Input
+                      id="fixed_fee"
+                      type="number"
+                      step="0.01"
+                      placeholder="Napr. 1000.00"
+                      {...register("fixed_fee", {
+                        setValueAs: (value) =>
+                          value === "" || value == null ? null : Number(value),
+                      })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Nechajte prázdne, ak sa fakturuje len od hodín
+                    </p>
+                  </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Poznámky</Label>
-              <Input id="notes" {...register("notes")} />
-            </div>
-          </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="external_costs_budget">
+                      Rozpočet nákladov ({currencySymbol}) - voliteľné
+                    </Label>
+                    <Input
+                      id="external_costs_budget"
+                      type="number"
+                      step="0.01"
+                      placeholder="Napr. 500.00"
+                      {...register("external_costs_budget", {
+                        setValueAs: (value) =>
+                          value === "" || value == null ? null : Number(value),
+                      })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Nechajte prázdne, ak nie sú plánované externé náklady
+                    </p>
+                  </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Zrušiť
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Ukladám..." : isEditing ? "Uložiť zmeny" : "Vytvoriť projekt"}
-            </Button>
-          </div>
-        </form>
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Poznámky</Label>
+                    <Input id="notes" {...register("notes")} />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                    disabled={isSubmitting}
+                  >
+                    Zrušiť
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? "Ukladám..." : isEditing ? "Uložiť zmeny" : "Vytvoriť projekt"}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </TabsContent>
+          {showMembers && project && (
+            <TabsContent value="members" className="mt-0">
+              <ProjectMembers projectId={project.id} />
+            </TabsContent>
+          )}
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

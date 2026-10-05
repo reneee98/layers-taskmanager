@@ -7,6 +7,7 @@ import { normalizeCurrency } from "@/lib/currency";
 import { projectColorToRgba, resolveProjectColor } from "@/lib/project-colors";
 import { FolderKanban } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
+import { ProjectSettings } from "./ProjectSettings";
 
 // Lazy load components
 const ProjectSummary = dynamic(
@@ -36,9 +37,15 @@ interface ProjectHeaderProps {
   project: Project;
   tasks: Task[];
   onUpdate: (refreshFn: () => Promise<void>) => void;
+  onProjectUpdated: () => void;
 }
 
-export const ProjectHeader = ({ project, tasks, onUpdate }: ProjectHeaderProps) => {
+export const ProjectHeader = ({
+  project,
+  tasks,
+  onUpdate,
+  onProjectUpdated,
+}: ProjectHeaderProps) => {
   const isPersonalProject =
     project.name === "Osobné úlohy" ||
     (project.code && (project.code === "PERSONAL" || project.code.startsWith("PERSONAL-"))) ||
@@ -92,7 +99,12 @@ export const ProjectHeader = ({ project, tasks, onUpdate }: ProjectHeaderProps) 
             </Badge>
           </div>
         }
-        actions={<ProjectReportGenerator project={project} tasks={tasks} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <ProjectReportGenerator project={project} tasks={tasks} />
+            <ProjectSettings project={project} onSuccess={onProjectUpdated} />
+          </div>
+        }
       />
 
       <ProjectSummary projectId={project.id} onUpdate={onUpdate} />

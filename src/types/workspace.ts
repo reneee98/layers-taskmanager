@@ -1,6 +1,11 @@
 export interface Workspace {
   id: string;
   name: string;
+  company_name?: string | null;
+  company_tax_id?: string | null;
+  company_address?: string | null;
+  company_phone?: string | null;
+  company_email?: string | null;
   description?: string;
   owner_id: string;
   role: 'owner' | 'member';

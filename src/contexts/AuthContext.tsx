@@ -9,6 +9,8 @@ interface UserProfile {
   email: string;
   role: "member" | "admin" | "owner" | "designer";
   display_name: string;
+  first_name?: string | null;
+  last_name?: string | null;
   avatar_url?: string;
   created_at: string;
   updated_at: string;
@@ -20,7 +22,7 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   logout: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  refreshProfile: (force?: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -109,45 +111,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
     
-    // Get initial session
+    let active = true;
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await refreshProfile();
-        }
+        if (active) setUser(session?.user ?? null);
       } catch (error) {
         console.error("Error getting initial session:", error);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
-    getInitialSession();
+    void getInitialSession();
 
-    // Listen for auth changes
+    // Supabase holds its auth lock while notifying listeners. Fetch the profile
+    // in the separate effect below so database calls cannot block auth changes.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        try {
-          setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            await refreshProfile();
-          } else {
-            setProfile(null);
-          }
-        } catch (error) {
-          console.error("Error in auth state change:", error);
-        } finally {
-          setLoading(false);
+      (_event, session) => {
+        if (!active) return;
+        setUser(session?.user ?? null);
+        if (!session?.user) {
+          setProfile(null);
+          lastFetchedUserIdRef.current = null;
         }
+        setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, [refreshProfile, supabase]);
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  useEffect(() => {
+    void refreshProfile();
+  }, [refreshProfile]);
 
   const signOut = async () => {
     try {

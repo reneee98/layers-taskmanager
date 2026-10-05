@@ -21,7 +21,7 @@ export default function SettingsPage() {
           <TabsList className="h-9 bg-background">
             <TabsTrigger value="user">
               <User className="h-4 w-4" />
-              <span>Profil a firma</span>
+              <span>Profil</span>
             </TabsTrigger>
             <TabsTrigger value="data">
               <Database className="h-4 w-4" />

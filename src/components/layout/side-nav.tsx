@@ -117,7 +117,6 @@ const toolsNavItems: Array<{
     title: "Nastavenia",
     href: "/settings",
     icon: Settings,
-    permission: { resource: "pages", action: "view_settings" },
   },
 ];
 
@@ -140,7 +139,6 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false }: SideNavProps) 
   const { hasPermission: canViewClients } = usePermission("pages", "view_clients");
   const { hasPermission: canViewTimeEntries } = usePermission("pages", "view_time_entries");
   const { hasPermission: canViewInvoices } = usePermission("pages", "view_invoices");
-  const { hasPermission: canViewSettings } = usePermission("pages", "view_settings");
   const { hasPermission: canViewWorkspaceUsers } = usePermission("pages", "view_workspace_users");
   const { hasPermission: canViewAdminRoles } = usePermission("pages", "view_admin_roles");
   const { hasPermission: canViewAdminBugs } = usePermission("pages", "view_admin_bugs");
@@ -150,7 +148,6 @@ export const SideNav = ({ isOpen, onClose, isCollapsed = false }: SideNavProps) 
     "pages.view_clients": canViewClients,
     "pages.view_time_entries": canViewTimeEntries,
     "pages.view_invoices": canViewInvoices,
-    "pages.view_settings": canViewSettings,
     "pages.view_workspace_users": canViewWorkspaceUsers,
     "pages.view_admin_roles": canViewAdminRoles,
     "pages.view_admin_bugs": canViewAdminBugs,

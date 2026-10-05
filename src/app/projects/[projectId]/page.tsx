@@ -300,7 +300,16 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="page-shell">
-      <ProjectHeader project={project} tasks={tasks} onUpdate={handleUpdateSummary} />
+      <ProjectHeader
+        project={project}
+        tasks={tasks}
+        onUpdate={handleUpdateSummary}
+        onProjectUpdated={() => {
+          clearProjectCache();
+          void refetchProject();
+          void refreshSummaryRef.current?.();
+        }}
+      />
 
       <TaskTable
         tasks={tasks}

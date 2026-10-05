@@ -4,6 +4,8 @@ export interface UserProfile {
   id: string;
   email: string;
   display_name: string;
+  first_name?: string | null;
+  last_name?: string | null;
   avatar_url?: string;
   role: UserRole;
   created_at: string;
@@ -29,6 +31,8 @@ export interface RegisterData {
   email: string;
   password: string;
   display_name: string;
+  first_name?: string | null;
+  last_name?: string | null;
 }
 
 export interface UpdateProfileData {

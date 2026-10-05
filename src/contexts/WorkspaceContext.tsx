@@ -14,7 +14,7 @@ interface WorkspaceContextType {
   workspaces: Workspace[];
   workspaceRole: WorkspaceRole | null;
   loading: boolean;
-  refreshWorkspace: () => Promise<void>;
+  refreshWorkspace: (useCache?: boolean) => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
 }
 

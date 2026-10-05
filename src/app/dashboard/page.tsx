@@ -906,11 +906,11 @@ export default function DashboardPage() {
 
         if (initResult?.success && initResult.data) {
           // Process tasks
-          if (canReadTasks || canViewTasks) {
-            setTasks(initResult.data.tasks?.assigned || []);
-            setAllActiveTasks(initResult.data.tasks?.allActive || []);
-            setUnassignedTasks(initResult.data.tasks?.unassigned || []);
-          }
+          // Keep the scoped response when permissions refresh during the request.
+          // Task visibility is checked when passing the data to the dashboard.
+          setTasks(initResult.data.tasks?.assigned || []);
+          setAllActiveTasks(initResult.data.tasks?.allActive || []);
+          setUnassignedTasks(initResult.data.tasks?.unassigned || []);
 
           // Process projects
           // The API scopes projects to the member's assignments. Store the response
@@ -1324,8 +1324,8 @@ export default function DashboardPage() {
   return (
     <div className="page-shell">
       <DashboardWorkspace
-        tasks={tasks}
-        workspaceTasks={workspaceTasks}
+        tasks={canReadTasks || canViewTasks ? tasks : []}
+        workspaceTasks={canReadTasks || canViewTasks ? workspaceTasks : []}
         projects={dashboardProjects}
         canUpdateTasks={canUpdateTasks}
         canViewPrices={canViewPrices}
